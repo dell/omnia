@@ -57,6 +57,8 @@ kafka_crd_wait_delay: 2
 kafka_secret_wait_retries: 30
 kafka_secret_wait_delay: 2
 kafka_download_timeout: 300
+kafka_topic_ready_retries: 3
+kafka_topic_ready_delay: 30
 
 # File modes
 kafka_dir_mode: "0755"

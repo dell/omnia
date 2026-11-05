@@ -1281,3 +1281,103 @@ class TestAutoCleanupDoesNotCleanDeployOrRestartFailures:
         assert ImageGroupStatus.RESTARTING not in cleanup_allowed, (
             "RESTARTING must not be in cleanup ALLOWED_TRANSITIONS"
         )
+
+
+class TestRestartArtifactsAreCommitted:
+    """The restart artifacts must be visible to the API as soon as they are stored.
+
+    The artifact metadata repository shares the poller's session. ``save()``
+    only adds the row, so the poller has to commit it; without the commit the
+    rows stay pending until an unrelated result commits the same session and
+    ``GET /artifacts/node-results`` answers 404 in the meantime.
+    """
+
+    @staticmethod
+    def _sessions(tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from infra.db.models import Base
+
+        engine = create_engine(f"sqlite:///{tmp_path / 'artifacts.db'}")
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine, autoflush=False)
+
+    @staticmethod
+    def _poller(repo):
+        return ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=MockStageRepo(),
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=MockArtifactStore(),
+            artifact_metadata_repo=repo,
+        )
+
+    @staticmethod
+    def _write_artifacts(tmp_path, job_id, failed_nodes):
+        job_dir = tmp_path / "artifacts" / str(job_id)
+        job_dir.mkdir(parents=True)
+        (job_dir / "node_results.json").write_text(
+            json.dumps({"job_id": str(job_id), "total_nodes": 6})
+        )
+        if failed_nodes:
+            (job_dir / "failed_nodes.json").write_text(
+                json.dumps({"failure_count": 0, "total_nodes": 6})
+            )
+
+    @staticmethod
+    def _restart_result(job_id):
+        return PlaybookResult(
+            job_id=str(job_id),
+            stage_name="restart",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+            node_results_file_path="reported-but-never-opened",
+        )
+
+    def test_repository_exposes_its_session(self, tmp_path):
+        """The poller finds the session through the public attribute."""
+        from infra.db.repositories import SqlArtifactMetadataRepository
+
+        session = self._sessions(tmp_path)()
+        assert SqlArtifactMetadataRepository(session=session).session is session
+
+    @pytest.mark.parametrize("failed_nodes", [True, False])
+    def test_artifacts_are_visible_to_another_session_at_once(
+        self, tmp_path, monkeypatch, failed_nodes
+    ):
+        """node-results (and failed-nodes) are committed when the handler ends."""
+        from infra.db.repositories import SqlArtifactMetadataRepository
+
+        monkeypatch.setenv("NFS_ARTIFACT_BASE", str(tmp_path))
+        job_id = JobId(str(uuid.uuid4()))
+        self._write_artifacts(tmp_path, job_id, failed_nodes)
+        factory = self._sessions(tmp_path)
+        poller = self._poller(SqlArtifactMetadataRepository(session=factory()))
+
+        poller._on_restart_completed(self._restart_result(job_id))
+
+        api = SqlArtifactMetadataRepository(session=factory())
+        for label in ("node-results", "failed-nodes"):
+            found = api.find_by_job_stage_and_label(
+                job_id=job_id, stage_name=StageName("restart"), label=label
+            )
+            assert (found is not None) == (label == "node-results" or failed_nodes), label
+
+    def test_failed_commit_rolls_the_shared_session_back(self, tmp_path, monkeypatch):
+        """A commit error is logged and the session is rolled back, not left broken."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("NFS_ARTIFACT_BASE", str(tmp_path))
+        job_id = JobId(str(uuid.uuid4()))
+        self._write_artifacts(tmp_path, job_id, failed_nodes=True)
+        repo = MagicMock()
+        repo.session.commit.side_effect = RuntimeError("database is down")
+        poller = self._poller(repo)
+
+        poller._on_restart_completed(self._restart_result(job_id))
+
+        repo.session.rollback.assert_called_once()
