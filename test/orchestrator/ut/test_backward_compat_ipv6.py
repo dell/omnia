@@ -1088,3 +1088,45 @@ class TestIbPairValidationAddrMode:
         assert len(ib_pair_errors) > 0, (
             "Without ib_network, default validation should require IB_IPV4 with IB_NIC_NAME"
         )
+
+    def test_dual_stack_rejects_empty_ib_ipv6(self, tmp_path):
+        """ORCH_UT_BC_045: dual-stack mode rejects IB_NIC_NAME + IB_IPV4 without IB_IPV6."""
+        row_no_ipv6 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD05", "",
+            "node005", "aa:bb:cc:dd:ee:05", "172.16.107.45",
+            "aa:bb:cc:dd:ff:05", "172.17.107.45",
+            "InfiniBand.Slot.7-1", "192.168.0.45", "",  # IB_IPV4 set, IB_IPV6 empty
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_no_ipv6],
+            network_spec=self._network_spec("dual-stack"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_ipv6_errors = [e for e in errors if "IB_IPV6" in e and "dual-stack" in e]
+        assert len(ib_ipv6_errors) > 0, (
+            "dual-stack should reject rows with IB_NIC_NAME + IB_IPV4 but no IB_IPV6"
+        )
+
+    def test_dual_stack_accepts_both_ips(self, tmp_path):
+        """ORCH_UT_BC_046: dual-stack mode accepts IB_NIC_NAME + IB_IPV4 + IB_IPV6."""
+        row_both = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD06", "",
+            "node006", "aa:bb:cc:dd:ee:06", "172.16.107.46",
+            "aa:bb:cc:dd:ff:06", "172.17.107.46",
+            "InfiniBand.Slot.7-1", "192.168.0.46", "fd00:1b::46",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_both],
+            network_spec=self._network_spec("dual-stack"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_errors = [e for e in errors if "IB_" in e]
+        assert ib_errors == [], (
+            f"dual-stack with both IB_IPV4 and IB_IPV6 should pass, but got: {ib_errors}"
+        )

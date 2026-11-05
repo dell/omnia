@@ -377,6 +377,22 @@ def pxe_mapping_ib_ipv6_pair_msg(row: int) -> str:
     )
 
 
+def pxe_mapping_ib_dual_stack_missing_ipv6_msg(row: int) -> str:
+    """Return a dual-stack row missing IB_IPV6 error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} must set IB_IPV6 when "
+        "ib_addr_mode is dual-stack and IB_NIC_NAME is set."
+    )
+
+
+def pxe_mapping_ib_dual_stack_missing_ipv4_msg(row: int) -> str:
+    """Return a dual-stack row missing IB_IPV4 error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} must set IB_IPV4 when "
+        "ib_addr_mode is dual-stack and IB_NIC_NAME is set."
+    )
+
+
 def pxe_mapping_invalid_ib_nic_name_msg(value: str, row: int) -> str:
     """Return an unsupported InfiniBand NIC-name format message."""
     return (
