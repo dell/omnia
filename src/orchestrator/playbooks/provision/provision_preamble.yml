@@ -54,7 +54,6 @@
 
     - name: Process PXE mapping and clean up securely
       when:
-        - read_mapping_file is not defined
         - _secure_provision_mapping is defined
         - _secure_provision_mapping is not skipped
       block:

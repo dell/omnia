@@ -83,7 +83,6 @@
 
 - name: Process PXE mapping and clean up securely
   when:
-    - read_mapping_file is not defined
     - pxe_mapping_file_path | default('') | length > 0
     - _secure_validate_mapping is defined
     - _secure_validate_mapping is not skipped
