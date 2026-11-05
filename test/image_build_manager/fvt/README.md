@@ -151,10 +151,9 @@ suite.
 | 4 | IMGBM_FVT_CATALOG_REUSE_V004 | `test_catalog_repository_change_rebuild` | deploy, functional, x86_64 | Changes one repository URL. | Every dependent Image Thrillhouse group receives a new entry. |
 | 5 | IMGBM_FVT_CATALOG_REUSE_V005 | `test_catalog_force_rebuild` | deploy, functional, x86_64 | Enables `force_rebuild`. | Every current group receives a refreshed build timestamp. |
 | 6 | IMGBM_FVT_CATALOG_REUSE_V006 | `test_catalog_missing_artifact_rebuild` | deploy, regression, x86_64 | Temporarily removes one rootfs object before rebuilding. | The affected group is rebuilt and again has complete artifacts. |
-| 7 | IMGBM_FVT_CATALOG_REUSE_V007 | `test_catalog_thrillhouse_output` | deploy, functional, x86_64 | Builds with Image Thrillhouse. | Complete Thrillhouse dictionary entries exist for all expected groups. |
-| 9 | IMGBM_FVT_CATALOG_REUSE_V009 | `test_catalog_versioned_output` | deploy, functional, x86_64 | Builds a unique temporary catalog version. | Latest and catalog-versioned status contracts match and report success. |
-| 10 | IMGBM_FVT_CATALOG_REUSE_V010 | `test_config_mode_cache_isolation` | deploy, regression, x86_64 | Runs config mode after catalog scenarios. | Config mode neither reads nor changes the global catalog dictionary or catalog-versioned status. |
-| 11 | IMGBM_FVT_CATALOG_REUSE_V011 | `test_catalog_suite_restores_target_state` | deploy, regression, x86_64 | Restores the target snapshots created before the suite. | Inputs, latest manifest, dictionary files, and temporary version output match the pre-suite state. |
+| 7 | IMGBM_FVT_CATALOG_REUSE_V007 | `test_catalog_versioned_output` | deploy, functional, x86_64 | Builds a unique temporary catalog version. | Latest and catalog-versioned status contracts match and report success. |
+| 8 | IMGBM_FVT_CATALOG_REUSE_V008 | `test_config_mode_cache_isolation` | deploy, regression, x86_64 | Runs config mode after catalog scenarios. | Config mode neither reads nor changes the global catalog dictionary or catalog-versioned status. |
+| 9 | IMGBM_FVT_CATALOG_REUSE_V009 | `test_catalog_suite_restores_target_state` | deploy, regression, x86_64 | Restores the target snapshots created before the suite. | Inputs, latest manifest, dictionary files, and temporary version output match the pre-suite state. |
 
 ### Naming test commands
 
@@ -221,10 +220,10 @@ retains those external resources.
 | Validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 | Input and template validation. |
 | Prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`008` | 9 | Infrastructure preparation. |
 | Build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 | AArch64, artifacts, naming, and package contracts. |
-| Catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`011` | 11 | Real-build reuse, rebuild, isolation, and state restoration scenarios. |
+| Catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`009` | 9 | Real-build reuse, rebuild, isolation, and state restoration scenarios. |
 | Cleanup images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 | Selective image deletion. |
 | Cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 | Full local infrastructure cleanup. |
-| Tagged FVT IDs | | | 63 | IDs emitted by tagged flows. |
+| Tagged FVT IDs | | | 61 | IDs emitted by tagged flows. |
 | Full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 | Alternate ID for the build deploy function. |
 
 There are 63 physical FVT functions. The registry contains 64 reportable IDs
