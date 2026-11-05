@@ -253,16 +253,16 @@ inferred unambiguously from `-imgth` or `-imgth` artifact directories.
 
 #### Catalog dictionary reuse scenarios (within `build` tag)
 
-The `catalog_reuse` suite owns its execution lifecycle and runs eleven ordered
+The `catalog_reuse` suite owns its execution lifecycle and runs nine ordered
 catalog dictionary scenarios. Each scenario performs its required state change
-and immediately validates the result. Run all eleven scenarios with either:
+and immediately validates the result. Run all nine scenarios with either:
 
 ```bash
-# Execute all eleven scenario actions and assertions
+# Execute all nine scenario actions and assertions
 ./run_validation.sh fvt_image_build_manager build exec \
   --suite catalog_reuse
 
-# Execute the same eleven scenarios, followed by the runner's verification phase
+# Execute the same nine scenarios, followed by the runner's verification phase
 ./run_validation.sh fvt_image_build_manager build test \
   --suite catalog_reuse
 ```
@@ -271,7 +271,7 @@ The suite is opt-in: the default `fvt_image_build_manager test`/`exec` flow
 and `build test`/`build exec` without `--suite` report these cases as skipped,
 so they do not block the default lifecycle verification.
 
-All eleven tests are deploy-marked. Consequently, standalone `verify` selects
+All nine tests are deploy-marked. Consequently, standalone `verify` selects
 only `not deploy` tests and has no catalog-reuse cases to execute. Do not use
 the following command to validate a previous catalog-reuse run:
 
@@ -288,9 +288,9 @@ does not create backup files beside production inputs or in a shared temporary
 directory.
 
 The suite covers the first build, dictionary reuse, selective package and
-repository rebuilds, forced rebuild, missing S3 artifact recovery, Image
-Thrillhouse output, catalog-versioned status output, config-mode isolation,
-and restoration of the target's pre-suite state.
+repository rebuilds, forced rebuild, missing S3 artifact recovery,
+catalog-versioned status output, config-mode isolation, and restoration of
+the target's pre-suite state.
 
 ### Options
 
