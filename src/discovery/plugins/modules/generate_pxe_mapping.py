@@ -434,10 +434,17 @@ def main() -> None:
             if su in su_kube_node_map:
                 row["PARENT_SERVICE_TAG"] = su_kube_node_map[su]
 
-        # Write CSV file with secure permissions (0640: owner rw, group r, no other)
+        # Write CSV file with secure permissions (0640: owner rw, group r, no other).
         # The file contains sensitive node inventory data (MAC addresses, BMC IPs,
         # IB addresses, service tags) and must not be world-readable.
+        # Use fchmod after open so the mode is enforced even when the file
+        # already exists (O_CREAT mode is only applied on creation).
         fd = os.open(output_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o640)
+        try:
+            os.fchmod(fd, 0o640)
+        except Exception:
+            os.close(fd)
+            raise
         with os.fdopen(fd, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers)
             writer.writeheader()
