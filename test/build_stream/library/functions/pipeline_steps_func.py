@@ -602,7 +602,7 @@ def verify_restart_node_results(host: Any, pipeline: str, settings: Dict[str, An
     Returns:
         Dict with keys: success, fields, failures, blocked, mode.
     """
-    del host, settings, emit
+    del settings, emit
     gate = _gate(pipeline, "restart node results")
     if gate:
         return gate
