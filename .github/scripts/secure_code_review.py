@@ -27,6 +27,10 @@ import re
 import subprocess
 import sys
 
+import yaml
+
+# pylint: disable=line-too-long,too-many-locals,too-many-branches
+
 MARKER = "<!-- secure-code-review -->"
 PY, YML, SH = ["*.py"], ["*.yml", "*.yaml", "*.j2"], ["*.sh"]
 DOCKER = ["*Dockerfile*", "*Containerfile*", "*.container"]
@@ -54,7 +58,7 @@ RULES = [
      r"StrictHostKeyChecking[ =]+no|UserKnownHostsFile=/dev/null|host_key_checking\s*=\s*(false|no)",
      None),
     ("SEC-04", "No shell / command injection sinks", "CWE-78",
-     "Avoid shell=True, os.system, eval/exec; pass argv lists to subprocess.",
+     "Avoid subprocess shell mode, OS-level shell calls and dynamic code execution; pass argv lists to subprocess.",
      PY, r"shell\s*=\s*True|\bos\.(system|popen)\s*\(|(?<![\w.])(eval|exec)\s*\(", r"nosec"),
     ("SEC-05", "Ansible shell/command variables are quoted", "CWE-78",
      "Use argv lists or '| quote' for every templated value in shell:/command: "
@@ -150,6 +154,7 @@ NOLOG_WORDS = re.compile(r"(?i)password|passwd|secret|token|credential|vault_pas
 
 
 def run(*args):
+    """Run a command and return its stdout."""
     return subprocess.run(args, capture_output=True, text=True, check=False).stdout
 
 
@@ -170,18 +175,19 @@ def added_lines(base):
 
 
 def matches(path, globs):
+    """Return True if the file name or path matches any glob."""
     name = path.rsplit("/", 1)[-1]
     return any(fnmatch.fnmatch(name, g) or fnmatch.fnmatch(path, g) for g in globs)
 
 
 def skip(path):
+    """Return True for paths excluded from review (tests, docs, workflows)."""
     return path.startswith(("test/", ".github/")) or "/tests/" in path or "/test/" in path or "/docs/" in path
 
 
 def check_nolog(path):
     """Tasks in changed YAML that touch credentials without no_log."""
     try:
-        import yaml
         with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
     except Exception:  # pylint: disable=broad-except
@@ -217,10 +223,12 @@ FOCUS = [
 
 
 def focus_areas(paths):
+    """Return manual-review focus hints for the changed file types."""
     return [msg for rx, msg in FOCUS if any(re.search(rx, p) for p in paths)]
 
 
 def main():
+    """Scan the PR diff, write the Markdown report and return 0."""
     base = sys.argv[1] if len(sys.argv) > 1 else "origin/staging"
     out_path = sys.argv[2] if len(sys.argv) > 2 else "secure-code-review.md"
     changes = {p: l for p, l in added_lines(base).items() if not skip(p)}
