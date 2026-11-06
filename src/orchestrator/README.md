@@ -266,5 +266,5 @@ Apache-2.0
 ## Links
 
 - [Omnia GitHub](https://github.com/dell/omnia)
-- [Documentation](https://omnia.readthedocs.io/en/latest/)
+- [Orchestrator Documentation](https://omnia.readthedocs.io/en/latest/HowTo/orchestrator/index.html)
 - [Issues](https://github.com/dell/omnia/issues)

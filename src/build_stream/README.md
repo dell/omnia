@@ -335,7 +335,7 @@ ansible-playbook prepare_build_stream.yml
 ```
 
 **API Documentation:**
-- See Omnia ReadTheDocs for complete API documentation
+- See [BuildStreaM documentation](https://omnia.readthedocs.io/en/latest/HowTo/build_stream/index.html) for complete API documentation
 - Health check endpoint: `/health`
 
 ## License

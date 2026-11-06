@@ -261,6 +261,12 @@ All paths are derived from `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`:
 | `$OMNIA_DATA_PATH/telemetry/output/$PROJECT/` | Status files and output |
 | `$OMNIA_DATA_PATH/telemetry/log/$PROJECT/` | Domain runtime logs |
 
+## Links
+
+- [Omnia GitHub](https://github.com/dell/omnia)
+- [Telemetry Documentation](https://omnia.readthedocs.io/en/latest/HowTo/Telemetry/index.html)
+- [Issues](https://github.com/dell/omnia/issues)
+
 ## License
 
 Apache-2.0

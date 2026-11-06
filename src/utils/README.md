@@ -326,6 +326,12 @@ caches.
 
 ---
 
+## Links
+
+- [Omnia GitHub](https://github.com/dell/omnia)
+- [Utilities Documentation](https://omnia.readthedocs.io/en/latest/HowTo/utils/index.html)
+- [Issues](https://github.com/dell/omnia/issues)
+
 ## License
 
 Apache License, Version 2.0

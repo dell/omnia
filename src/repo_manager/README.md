@@ -341,6 +341,12 @@ Full Pulp cleanup removes runtime logs by default. Use
 
 ---
 
+## Links
+
+- [Omnia GitHub](https://github.com/dell/omnia)
+- [Repository Manager Documentation](https://omnia.readthedocs.io/en/latest/HowTo/repo_manager/index.html)
+- [Issues](https://github.com/dell/omnia/issues)
+
 ## License
 
 Apache License, Version 2.0

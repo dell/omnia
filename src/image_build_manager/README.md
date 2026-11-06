@@ -359,6 +359,12 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 
 ---
 
+## Links
+
+- [Omnia GitHub](https://github.com/dell/omnia)
+- [Image Build Manager Documentation](https://omnia.readthedocs.io/en/latest/HowTo/image_build_manager/index.html)
+- [Issues](https://github.com/dell/omnia/issues)
+
 ## License
 
 Apache License, Version 2.0
