@@ -13,41 +13,117 @@
 # limitations under the License.
 
 ---
-# cleanup_build_stream.yml — BSM + Postgres + NFS cleanup for BuildStream
+# cleanup_build_stream.yml — BuildStream cleanup ORCHESTRATION WRAPPER.
 #
-# Cleans up the BuildStream infrastructure (NOT GitLab):
-#   1. Stops and removes omnia_build_stream container & quadlet service
-#   2. Stops and removes playbook-watcher service
-#   3. Removes automation framework (molecule/validate)
-#   4. Stops and removes omnia_postgres container & quadlet service
-#   5. Cleans up NFS directories (logs, queue, SSL, inventory, etc.)
-#   6. Removes build_stream credential files
+# Order of operations:
+#   1. Warn + 20s pause  (FIRST task; BuildStream-only cleanup deletes the
+#      credentials that GitLab cleanup needs). Suppressed only when GitLab is
+#      being cleaned in the same run — see conditions below.
+#   2. Optional GitLab cleanup — standalone extension '-e cleanup_gitlab=true'
+#      runs GitLab cleanup BEFORE the local BuildStream cleanup.
+#   3. Local BuildStream cleanup (cleanup_build_stream_domain.yml).
+#   4. Mode-aware summary.
 #
-# GitLab cleanup is handled separately by cleanup_gitlab.yml.
-# When invoked from build_stream.yml --tags cleanup, both are imported separately.
+# The pause is shown whenever BuildStream is cleaned WITHOUT GitLab being
+# cleaned first in the same invocation, i.e. in ALL of these:
+#   - ansible-playbook playbooks/cleanup/cleanup_build_stream.yml
+#   - ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=false
+#   - ansible-playbook build_stream.yml --tags cleanup_build_stream
+# The pause is SUPPRESSED (GitLab is handled first) in:
+#   - ansible-playbook build_stream.yml --tags cleanup            (combined)
+#   - ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
+#   - ansible-playbook build_stream.yml --tags cleanup_gitlab     (BuildStream not cleaned)
 #
 # Usage (standalone):
-#   cd /omnia/build_stream && ansible-playbook playbooks/cleanup/cleanup_build_stream.yml
+#   # BuildStream only (warns + pauses 20s, then cleans BuildStream):
+#   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml
 #
-# To also delete postgres data (default: preserved):
+#   # GitLab first, then BuildStream (no pause) — the combined cleanup extension:
+#   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
+#
+#   # Also delete postgres data (default: preserved):
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false
 #
-# To preserve build_stream credential files (default: removed):
+#   # Preserve build_stream credential files (default: removed):
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_credentials=false
 
-# ── Step 1: Self-contained setup (input dirs + OIM group + metadata) ─
-- name: Build Stream setup (input dirs + OIM group + metadata)
+# ── Step 1: Warn + pause before BuildStream-only cleanup (FIRST) ─────
+- name: Warn before BuildStream-only cleanup
   hosts: localhost
   connection: local
   gather_facts: false
-  roles:
-    - role: ../../roles/build_stream_setup
-      vars:
-        create_oim_group: true
+  tasks:
+    - name: Warn and pause because GitLab will NOT be cleaned
+      ansible.builtin.pause:
+        seconds: 20
+        prompt: |
 
-# ── Step 3: Container, service, and NFS cleanup on OIM host ────────
-- name: BuildStream domain cleanup (container, postgres, NFS)
-  hosts: oim
-  gather_facts: true
-  roles:
-    - cleanup_build_stream
+          ============================================================
+          WARNING: BuildStream-only cleanup was requested.
+
+          The remote GitLab deployment will NOT be cleaned by this run.
+          This cleanup removes BuildStream credentials that are REQUIRED
+          for a later GitLab cleanup. If you continue, you will not be
+          able to clean the remote GitLab host with the supported
+          automation afterward.
+
+          For COMPLETE cleanup (GitLab first, then BuildStream), cancel and run:
+            ansible-playbook build_stream.yml --tags cleanup
+          or, standalone:
+            ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
+
+          For GitLab-only cleanup, run:
+            ansible-playbook build_stream.yml --tags cleanup_gitlab
+
+          BuildStream-only cleanup will continue in 20 seconds.
+          Press Ctrl+C then 'A' to abort.
+          ============================================================
+      when:
+        - "'cleanup' not in (ansible_run_tags | default([]))"
+        - "'cleanup_gitlab' not in (ansible_run_tags | default([]))"
+        - not (cleanup_gitlab | default(false) | bool)
+
+# ── Step 2: Optional GitLab cleanup (standalone extension) ───────────
+# Runs ONLY for the standalone extension '-e cleanup_gitlab=true'. In the
+# top-level '--tags cleanup' flow, GitLab is already imported (first) by
+# build_stream.yml, so cleanup_gitlab defaults to false here and this is
+# skipped — GitLab is never cleaned twice.
+- name: Optionally clean GitLab before BuildStream (standalone extension)
+  ansible.builtin.import_playbook: cleanup_gitlab.yml
+  when: cleanup_gitlab | default(false) | bool
+
+# ── Step 3: Local BuildStream cleanup (container, postgres, NFS, creds)
+- name: BuildStream local infrastructure cleanup
+  ansible.builtin.import_playbook: cleanup_build_stream_domain.yml
+
+# ── Step 4: Mode-aware cleanup summary ───────────────────────────────
+- name: BuildStream cleanup summary
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Show cleanup mode summary
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            (
+              [
+                'GitLab cleanup:      COMPLETED (ran before BuildStream)',
+                'BuildStream cleanup: COMPLETED',
+              ]
+              if ('cleanup' in (ansible_run_tags | default([])))
+                 or (cleanup_gitlab | default(false) | bool)
+              else
+              [
+                'GitLab cleanup:      NOT REQUESTED',
+                'BuildStream cleanup: COMPLETED',
+                'WARNING: GitLab may remain installed on the remote host.',
+                'Run GitLab cleanup only if its credentials were preserved',
+                '(-e cleanup_credentials=false) or re-provided.',
+              ]
+            )
+            + [
+                'PostgreSQL data:     ' ~ ('DELETED' if not (postgres_backup | default(true) | bool) else 'PRESERVED'),
+                'BuildStream creds:   ' ~ ('PRESERVED' if not (cleanup_credentials | default(true) | bool) else 'REMOVED'),
+              ]
+          }}
