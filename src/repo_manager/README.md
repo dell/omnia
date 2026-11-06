@@ -1,27 +1,34 @@
 # Repository Manager
 
-Repository Manager is an Ansible Galaxy collection that deploys an HTTPS Pulp content server and synchronizes catalog content for offline Omnia clusters. It supports RPM repositories and packages, container images, Python packages, files, and source artifacts for both x86_64 and aarch64 architectures.
+Repository Manager (`omnia.repo_manager`) deploys an HTTPS Pulp content server on the OIM and synchronizes catalog-selected content (RPMs, container images, Python packages, files and source artifacts for `x86_64` and `aarch64`) so Omnia clusters can run offline.
 
 ## Overview
 
-Repository Manager enables air-gapped deployments by:
+All playbooks run locally on the Omnia Infrastructure Manager (OIM).
 
-- Deploying an HTTPS Pulp content server for package distribution
-- Synchronizing catalog-selected content from upstream repositories
-- Supporting multiple artifact types: RPMs, container images, Python packages, files
-- Providing version-qualified repository endpoints for downstream consumption
-- Managing RHEL subscription repositories
-- Supporting private registries with authentication
+### Related modules
+
+| Direction | Module | Contract |
+|-----------|--------|----------|
+| Upstream | None | Reads the catalog JSON at `CATALOG_FILE_PATH` |
+| Downstream | Image Build Manager, Orchestrator | `repo_status.yml` (repository endpoints and certificates) |
+| Automation | Build Stream | Its build pipeline invokes this module |
+
+## Architecture
+
+Repository Manager runs Pulp as a container on the OIM with a systemd-enabled `pulp.service` that starts after reboot. Pulp serves HTTPS only; the host port maps to Pulp container port `443`, and the managed Pulp CLI uses the generated CA.
+
+Execution order and runtime layout are described in [docs/architecture.md](docs/architecture.md); developer boundaries are in [docs/design/repo-manager-design.md](docs/design/repo-manager-design.md).
 
 ## Prerequisites
 
-| Requirement | Minimum | Validated |
-|-------------|---------|-----------|
-| OIM OS | RHEL 10.x | RHEL 10.0 |
-| Python | 3.12+ | 3.12.8 |
-| Ansible | ansible-core 2.20+ | 2.20.0 |
-| Podman | 5.0+ | 5.3.1 |
-| Privileges | Root or equivalent | Root |
+| Requirement | Minimum | Notes |
+|-------------|---------|-------|
+| OS | RHEL 10.x | Validated on RHEL 10.0 |
+| Python | 3.12+ | Validated: 3.12.8 |
+| Ansible | ansible-core 2.20+ | Validated: 2.20.0 |
+| Podman | 5.0+ | Validated: 5.3.1 |
+| Privileges | Root or equivalent | Validated: root |
 | Storage | Sized for retained catalog content | Deployment-specific |
 
 Use the shared Omnia virtual environment:
@@ -31,177 +38,26 @@ Use the shared Omnia virtual environment:
 source /opt/omnia/venv/bin/activate
 ```
 
----
+## Installation
 
-## Quick Start
-
-```bash
-# 1. Configure the common environment.
-vi src/main/omnia.env
-./src/main/omnia.sh --setup-venv
-source /opt/omnia/venv/bin/activate
-set -a
-source /etc/omnia/omnia.env
-set +a
-
-# Required values include:
-# SYSTEM_ADMIN_NIC_IPV4=<admin_ipv4>
-# CATALOG_FILE_PATH=/absolute/path/to/catalog.json
-
-# 2. Edit the flat source inputs.
-vi src/repo_manager/input/repo_manager_config.yml
-vi src/repo_manager/input/repo_manager_endpoint_config.yml
-
-# 3. Stage inputs into the selected runtime project.
-cd src/repo_manager
-./domain-init.sh
-
-# 4. Run the standard workflow.
-cd playbooks
-ansible-playbook repo_manager.yml \
-  --tags "prepare,precheck,download,status"
-```
-
-Running the playbook without `--tags` executes the standard non-cleanup
-workflow. Cleanup and catalog operations use `never` and must be selected
-explicitly.
-
----
-
-## Tags
-
-| Tag | Description | Credentials |
-|-----|-------------|-------------|
-| `prepare` / `deploy` | Collect/reuse credentials and deploy HTTPS Pulp | Yes |
-| `precheck` | Validate environment, input, catalog and subscription sources | No new credentials |
-| `download` / `execute` | Resolve and synchronize catalog content | Existing credentials |
-| `status` | Generate current `repo_status.yml` | Existing Pulp credentials |
-| `cleanup_repos` | Selectively remove Pulp RPM, container, File or Python content | Existing Pulp credentials |
-| `cleanup_pulp` / `cleanup` | Remove the Pulp deployment, runtime data, and credentials by default | `cleanup_credentials=false` preserves credentials |
-| `catalog_generate` | Create catalog JSON from text input | No |
-| `catalog_add` | Add or update catalog packages | No |
-| `catalog_delete` | Delete catalog packages | No |
-| `catalog_validate` | Validate catalog JSON | No |
-
-Standard tags can be combined. Their execution order is defined by
-`playbooks/repo_manager.yml`, not the order written after `--tags`. Do not mix a
-cleanup tag with a standard workflow command.
-
-### Exact RPM Repository Reconciliation
-
-Use the standalone playbook only after the normal download workflow has created
-the catalog-selected RPM repositories, remotes, publications and distributions:
+Run the shared setup once from the repository root. It creates the Omnia virtual environment, runs every domain's `domain-init.sh` (dependencies, log directories, input staging) and installs the default catalog if none is active.
 
 ```bash
-cd src/repo_manager/playbooks
-ansible-playbook repo_operations/repo_sync.yml
+cd src/main
+vi omnia.env                       # first run only; afterwards edit /etc/omnia/omnia.env
+sudo ./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
 ```
 
-This maintenance operation processes the catalog's RHEL minor-version contexts
-sequentially. It preflights every context before changing Pulp, synchronizes
-each referenced RPM repository with `mirror_content_only`, validates the new
-HTTPS `repomd.xml`, switches the stable distribution, updates the repository
-checkpoint and affected package states atomically, and only then prunes
-superseded publications and repository versions. Non-RPM artifacts are not
-processed. Do not run it concurrently with download or cleanup operations.
-
-The result is written to `output/<project>/repo_resync_status.yml`. The normal
-consumer contract in `repo_status.yml`, the standard playbook tags and the
-fresh-download/rerun behavior are unchanged.
-
-### Selective Cleanup
+To re-run only this module's initializer (for example after editing source inputs):
 
 ```bash
-# Remove one RPM repository by its complete Pulp name.
-ansible-playbook repo_manager.yml --tags cleanup_repos \
-  -e "cleanup_repos=x86_64_rhel_10.0_epel"
-
-# Remove only one image tag. Other tags remain.
-ansible-playbook repo_manager.yml --tags cleanup_repos \
-  -e "cleanup_containers=registry.example.com/team/image:v1"
-
-# Remove the complete image repository and all its tags.
-ansible-playbook repo_manager.yml --tags cleanup_repos \
-  -e "cleanup_containers=registry.example.com/team/image"
-
-# Remove selected File/Python artifacts.
-ansible-playbook repo_manager.yml --tags cleanup_repos \
-  -e "cleanup_files=helm-charts-2.17.0,helm-v3.20.1-amd64"
-
-# Remove all synchronized artifact types but keep the Pulp deployment.
-ansible-playbook repo_manager.yml --tags cleanup_repos \
-  -e "cleanup_repos=all" -e "cleanup_containers=all" \
-  -e "cleanup_files=all" -e "force=true"
+sudo ./omnia.sh --init repo_manager
 ```
-
-An exact tag is required when only one tag should be removed. An untagged image
-intentionally removes every tag in that Pulp container repository.
-
-### Full Pulp Cleanup
-
-```bash
-# Remove Pulp, runtime content, and Repo Manager credentials.
-ansible-playbook repo_manager.yml --tags cleanup_pulp
-
-# Preserve operational logs and credentials.
-ansible-playbook repo_manager.yml --tags cleanup_pulp \
-  -e "cleanup_logs=false" -e "cleanup_credentials=false"
-```
-
-Credential deletion is enabled by default and does not add a separate prompt;
-the explicit cleanup tag is the operator's request. `cleanup_repos` is selective
-content cleanup and retains credentials because the Pulp deployment remains.
-
-For a complete Omnia reset, run `sudo ./omnia.sh --run repo_manager --tags
-cleanup` from `src/main`, resolve any retained paths it reports, and then run
-`sudo ./omnia.sh --cleanup --all`. `src/repo_manager/domain-init.sh --cleanup`
-is a non-interactive helper that removes only initializer-owned staged input and
-domain log paths. Both global cleanup modes prompt for `yes`; trusted automation
-can add `--skip-approval`.
-
----
-
-## Input / Output
-
-### Input
-
-`domain-init.sh` copies flat source inputs into the active runtime project:
-
-```text
-src/repo_manager/input/
-        |
-        v
-<REPO_MANAGER_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/
-```
-
-| Input | Source | Runtime | Required |
-|-------|--------|---------|----------|
-| `repo_manager_config.yml` | `input/` | `input/<project>/` | Yes |
-| `repo_manager_endpoint_config.yml` | `input/` | `input/<project>/` | Yes |
-| Catalog JSON | External file | `CATALOG_FILE_PATH` | Yes |
-| `repo_manager_config_credentials.yml` | Generated | `input/<project>/` | After `prepare` |
-| `.repo_manager_config_credentials_key` | Generated | `input/<project>/` | After `prepare` |
-
-Credential files are Ansible Vault protected, root-owned and mode `0600`.
-
-### Output
-
-| Output | Location | Purpose |
-|--------|----------|---------|
-| `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM, artifact and content-base URLs plus certificate paths for consumers |
-| `repo_resync_status.yml` | `output/<project>/` | Administrative result for the latest standalone exact RPM reconciliation |
-| Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
-| Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
-
-Selective cleanup removes the now-stale `repo_status.yml`. Run `download,status`
-to restore cleaned catalog content and regenerate the consumer output, or run
-`status` alone to describe the intentionally incomplete current Pulp state.
-
----
 
 ## Configuration
 
-### Environment Variables
+### Environment variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -292,11 +148,121 @@ configuration entry.
 Keep DNF concurrency at one. Reduce either parallel setting when Pulp, network,
 CPU, memory, or storage capacity cannot sustain the default concurrency.
 
----
+Edit the flat source inputs, then stage them with `sudo ./omnia.sh --init repo_manager`:
+
+```bash
+vi src/repo_manager/input/repo_manager_config.yml
+vi src/repo_manager/input/repo_manager_endpoint_config.yml
+```
+
+## Usage
+
+Run this module through `omnia.sh`; it activates the virtual environment and runs `src/repo_manager/playbooks/repo_manager.yml`. All `./omnia.sh` commands in this document are run from `src/main` on the OIM. See [Tags](#tags) for the supported tags and combinations.
+
+```bash
+cd src/main
+./omnia.sh --run repo_manager --tags <tag> [-e <extra_var>=<value>]
+```
+
+To run the playbook directly, activate `$OMNIA_VENV_PATH/bin/activate`, source `/etc/profile.d/omnia-env.sh`, and run from the module root so its `ansible.cfg` is loaded:
+
+```bash
+cd src/repo_manager
+ansible-playbook playbooks/repo_manager.yml --tags <tag>
+```
+
+Typical flow:
+
+```bash
+cd src/main
+./omnia.sh --run repo_manager --tags prepare    # deploy HTTPS Pulp
+./omnia.sh --run repo_manager --tags precheck
+./omnia.sh --run repo_manager --tags download   # synchronize catalog content
+./omnia.sh --run repo_manager --tags status     # write repo_status.yml
+```
+
+Running without `--tags` executes the standard non-cleanup workflow. Cleanup and catalog operations use the `never` tag and must be selected explicitly.
+
+### Exact RPM repository reconciliation
+
+Use the standalone playbook only after the normal download workflow has created
+the catalog-selected RPM repositories, remotes, publications and distributions:
+
+```bash
+cd src/repo_manager
+ansible-playbook playbooks/repo_operations/repo_sync.yml
+```
+
+This maintenance operation processes the catalog's RHEL minor-version contexts
+sequentially. It preflights every context before changing Pulp, synchronizes
+each referenced RPM repository with `mirror_content_only`, validates the new
+HTTPS `repomd.xml`, switches the stable distribution, updates the repository
+checkpoint and affected package states atomically, and only then prunes
+superseded publications and repository versions. Non-RPM artifacts are not
+processed. Do not run it concurrently with download or cleanup operations.
+
+The result is written to `output/<project>/repo_resync_status.yml`. The normal
+consumer contract in `repo_status.yml`, the standard playbook tags and the
+fresh-download/rerun behavior are unchanged.
+
+## Tags
+
+| Tag | Description | Credentials |
+|-----|-------------|-------------|
+| `prepare` / `deploy` | Collect/reuse credentials and deploy HTTPS Pulp | Yes |
+| `precheck` | Validate environment, input, catalog and subscription sources | No new credentials |
+| `download` / `execute` | Resolve and synchronize catalog content | Existing credentials |
+| `status` | Generate current `repo_status.yml` | Existing Pulp credentials |
+| `cleanup_repos` | Selectively remove Pulp RPM, container, File or Python content | Existing Pulp credentials |
+| `cleanup_pulp` / `cleanup` | Remove the Pulp deployment, runtime data, and credentials by default | `cleanup_credentials=false` preserves credentials |
+| `catalog_generate` | Create catalog JSON from text input | No |
+| `catalog_add` | Add or update catalog packages | No |
+| `catalog_delete` | Delete catalog packages | No |
+| `catalog_validate` | Validate catalog JSON | No |
+
+Standard tags can be combined. Their execution order is defined by
+`playbooks/repo_manager.yml`, not the order written after `--tags`. Do not mix a
+cleanup tag with a standard workflow command.
+
+## Inputs and Outputs
+
+### Inputs
+
+`domain-init.sh` copies flat source inputs into the active runtime project:
+
+```text
+src/repo_manager/input/
+        |
+        v
+<REPO_MANAGER_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/
+```
+
+| Input | Source | Runtime | Required |
+|-------|--------|---------|----------|
+| `repo_manager_config.yml` | `input/` | `input/<project>/` | Yes |
+| `repo_manager_endpoint_config.yml` | `input/` | `input/<project>/` | Yes |
+| Catalog JSON | External file | `CATALOG_FILE_PATH` | Yes |
+| `repo_manager_config_credentials.yml` | Generated | `input/<project>/` | After `prepare` |
+| `.repo_manager_config_credentials_key` | Generated | `input/<project>/` | After `prepare` |
+
+Credential files are Ansible Vault protected, root-owned and mode `0600`.
+
+### Outputs
+
+| Output | Location | Purpose |
+|--------|----------|---------|
+| `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM, artifact and content-base URLs plus certificate paths for consumers |
+| `repo_resync_status.yml` | `output/<project>/` | Administrative result for the latest standalone exact RPM reconciliation |
+| Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
+| Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
+
+Selective cleanup removes the now-stale `repo_status.yml`. Run `download,status`
+to restore cleaned catalog content and regenerate the consumer output, or run
+`status` alone to describe the intentionally incomplete current Pulp state.
 
 ## Runtime Paths
 
-### Data Path (`$REPO_MANAGER_DATA_PATH`)
+### Data path (`$REPO_MANAGER_DATA_PATH`)
 
 ```text
 /opt/omnia/repo_manager/
@@ -311,7 +277,7 @@ CPU, memory, or storage capacity cannot sustain the default concurrency.
 `/opt/omnia/repo_manager` is the default only. Setting `OMNIA_DATA_PATH` or
 `REPO_MANAGER_DATA_PATH` moves domain runtime paths consistently.
 
-### Ansible Logs
+### Ansible logs
 
 | Log | Location |
 |-----|----------|
@@ -325,30 +291,86 @@ CPU, memory, or storage capacity cannot sustain the default concurrency.
 Full Pulp cleanup removes runtime logs by default. Use
 `-e "cleanup_logs=false"` to preserve them.
 
----
+## Cleanup
+
+### Selective cleanup
+
+```bash
+# Remove one RPM repository by its complete Pulp name.
+./omnia.sh --run repo_manager --tags cleanup_repos \
+  -e "cleanup_repos=x86_64_rhel_10.0_epel"
+
+# Remove only one image tag. Other tags remain.
+./omnia.sh --run repo_manager --tags cleanup_repos \
+  -e "cleanup_containers=registry.example.com/team/image:v1"
+
+# Remove the complete image repository and all its tags.
+./omnia.sh --run repo_manager --tags cleanup_repos \
+  -e "cleanup_containers=registry.example.com/team/image"
+
+# Remove selected File/Python artifacts.
+./omnia.sh --run repo_manager --tags cleanup_repos \
+  -e "cleanup_files=helm-charts-2.17.0,helm-v3.20.1-amd64"
+
+# Remove all synchronized artifact types but keep the Pulp deployment.
+./omnia.sh --run repo_manager --tags cleanup_repos \
+  -e "cleanup_repos=all" -e "cleanup_containers=all" \
+  -e "cleanup_files=all" -e "force=true"
+```
+
+An exact tag is required when only one tag should be removed. An untagged image
+intentionally removes every tag in that Pulp container repository.
+
+### Full Pulp cleanup
+
+```bash
+# Remove Pulp, runtime content, and Repo Manager credentials.
+./omnia.sh --run repo_manager --tags cleanup_pulp
+
+# Preserve operational logs and credentials.
+./omnia.sh --run repo_manager --tags cleanup_pulp \
+  -e "cleanup_logs=false" -e "cleanup_credentials=false"
+```
+
+Credential deletion is enabled by default and does not add a separate prompt;
+the explicit cleanup tag is the operator's request. `cleanup_repos` is selective
+content cleanup and retains credentials because the Pulp deployment remains.
+
+For a complete Omnia reset, run `sudo ./omnia.sh --run repo_manager --tags
+cleanup` from `src/main`, resolve any retained paths it reports, and then run
+`sudo ./omnia.sh --cleanup --all`. `src/repo_manager/domain-init.sh --cleanup`
+is a non-interactive helper that removes only initializer-owned staged input and
+domain log paths. Both global cleanup modes prompt for `yes`; trusted automation
+can add `--skip-approval`.
+
+## Troubleshooting
+
+- Ansible log: `/var/log/omnia/repo_manager/repo_manager.log` (top-level playbook execution).
+- Selective-cleanup details and results are under `<REPO_MANAGER_DATA_PATH>/log/<os>/<version>/cleanup/` (see [Runtime Paths](#runtime-paths)).
+- Re-run `sudo ./omnia.sh --init repo_manager` if inputs or dependencies were not staged.
+- [docs/troubleshooting.md](docs/troubleshooting.md), [docs/failure-modes.md](docs/failure-modes.md), and [docs/pulp-administration.md](docs/pulp-administration.md) cover failures, recovery, and Pulp health.
+
+## Security
+
+- Pulp is HTTPS only. Credential files are Ansible Vault protected, root-owned, and mode `0600`; `cleanup_pulp` deletes them by default (`-e cleanup_credentials=false` keeps them).
+- See [docs/security.md](docs/security.md) for HTTPS, Vault, registry TLS, and cleanup controls.
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Architecture](docs/architecture.md) | Execution flow, tags, Pulp and runtime paths |
-| [Content Configuration](docs/content-configuration-guide.md) | Catalog, RPM, registry and policy mapping |
-| [Catalog Operations](docs/catalog_operations.md) | Generate, add, delete and validate catalog JSON |
-| [Troubleshooting](docs/troubleshooting.md) | Common failures, logs and safe diagnostics |
-| [Security](docs/security.md) | HTTPS, Vault, registry TLS and cleanup controls |
-| [Input Contract](docs/contracts/input-contract.md) | Environment and input schemas |
-| [Output Contract](docs/contracts/output-contract.md) | `repo_status.yml`, state and logs |
-| [Samples](samples/README.md) | Current input examples and illustrative `repo_status.yml` output |
-| [Design](docs/design/repo-manager-design.md) | Developer implementation boundaries and invariants |
-| [Pulp Administration](docs/pulp-administration.md) | Pulp lifecycle, storage, health and recovery |
-
----
-
-## Links
-
-- [Omnia GitHub](https://github.com/dell/omnia)
-- [Repository Manager Documentation](https://omnia.readthedocs.io/en/latest/HowTo/repo_manager/index.html)
-- [Issues](https://github.com/dell/omnia/issues)
+- [Read the Docs: Repo Manager guides](https://omnia.readthedocs.io/en/latest/HowTo/repo_manager/index.html)
+- [Architecture](docs/architecture.md)
+- [Content configuration](docs/content-configuration-guide.md)
+- [Catalog operations](docs/catalog_operations.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Failure modes](docs/failure-modes.md)
+- [Pulp administration](docs/pulp-administration.md)
+- [Security](docs/security.md)
+- [Design](docs/design/repo-manager-design.md)
+- [Input contract](docs/contracts/input-contract.md)
+- [Output contract](docs/contracts/output-contract.md)
+- [Samples](samples/README.md)
+- [Omnia on GitHub](https://github.com/dell/omnia)
+- [Report an issue](https://github.com/dell/omnia/issues)
 
 ## License
 
