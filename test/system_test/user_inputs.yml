@@ -1,0 +1,437 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ==============================================================================
+# user_inputs.yml - the values of YOUR cluster, in one file
+# ==============================================================================
+# Fill this file, then (test/system_test):
+#
+#   ./setup_env.sh                      # configure, install, credentials
+#   ./setup_env.sh --configure          # only write these values (the generator,
+#                                       # theme of test_config.yml, see below)
+#
+# The generator writes every value into the Omnia input file of the same name,
+# at the same place (same keys, same indentation). It can also run alone:
+#
+#   cd test/system_test/dataset_generator
+#   ./generate_dataset.py               # update src/<domain>/input and
+#                                       # src/main/omnia.env
+#   ./generate_dataset.py /abc          # create /abc with the src inputs and
+#                                       # update there
+#   ./generate_dataset.py --dry-run     # only show what would change
+#
+# How values are used
+#   MANDATORY  must be filled; the run stops and names every empty one.
+#   optional   "" (or []) is written as empty, so clearing a value here clears
+#              it in the input file too. Exceptions: a blank vast_storage
+#              source turns VAST off, a blank catalog keeps the default one.
+#   Keep the quotes around IPs, versions and paths.
+#
+# Layout: one block per module, in this order
+#   main -> repo_manager -> image_build_manager -> orchestrator -> build_stream
+# Inside a module, one block per input file, holding only the keys a user sets.
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# MAIN                                                    src/main/omnia.env
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+main:
+  # +--------------------------------------------------------------------------+
+  # | omnia.env - identity of the OIM host                                     |
+  # |   SYSTEM_ADMIN_NIC_IPV4  MANDATORY  admin NIC IPv4 of the OIM (Pulp, S3, |
+  # |                                     registry and provisioning use it)    |
+  # |   SYSTEM_HOSTNAME        MANDATORY  short hostname of the OIM (no dots)  |
+  # |   SYSTEM_DOMAIN_NAME     MANDATORY  domain name of the OIM               |
+  # | OMNIA_DATA_PATH, OMNIA_PROJECT_NAME and OMNIA_VENV_PATH keep the values  |
+  # | of src/main/omnia.env (/opt/omnia, project_default, /opt/omnia/venv).    |
+  # +--------------------------------------------------------------------------+
+  omnia_env:
+    SYSTEM_ADMIN_NIC_IPV4: ""
+    SYSTEM_HOSTNAME: ""
+    SYSTEM_DOMAIN_NAME: ""
+
+  # +--------------------------------------------------------------------------+
+  # | catalog - the active catalog (omnia.env CATALOG_FILE_PATH)  optional     |
+  # |   "" keeps the default catalog that omnia.sh -s installs. Otherwise the  |
+  # |   number or the name shown by ./omnia.sh --list-catalogs; the install    |
+  # |   step runs ./omnia.sh --select-catalog <catalog> after omnia.sh -s.     |
+  # |    1 default                                                             |
+  # |    2 hybrid/slurm_hybrid_10_2_10_0_aarch64.json                          |
+  # |    3 hybrid/slurm_hybrid_10_2_10_0_aarch64_no_vast.json                  |
+  # |    4 hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64.json                   |
+  # |    5 hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64_no_vast.json           |
+  # |    6 hybrid/slurm_hybrid_10_2_10_0_x86_64.json                           |
+  # |    7 hybrid/slurm_hybrid_10_2_10_0_x86_64_no_vast.json                   |
+  # |    8 hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined.json             |
+  # |    9 hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined_no_vast.json     |
+  # |   10 hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64.json               |
+  # |   11 hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64_no_vast.json       |
+  # |   12 rhel/10.0/service_k8s_x86_64.json                                   |
+  # |   13 rhel/10.0/slurm_aarch64.json                                        |
+  # |   14 rhel/10.0/slurm_aarch64_no_vast.json                                |
+  # |   15 rhel/10.0/slurm_service_k8s_combined.json                           |
+  # |   16 rhel/10.0/slurm_service_k8s_combined_no_vast.json                   |
+  # |   17 rhel/10.0/slurm_service_k8s_x86_64.json                             |
+  # |   18 rhel/10.0/slurm_service_k8s_x86_64_no_vast.json                     |
+  # |   19 rhel/10.0/slurm_x86_64_aarch64.json                                 |
+  # |   20 rhel/10.0/slurm_x86_64_aarch64_no_vast.json                         |
+  # |   21 rhel/10.0/slurm_x86_64.json                                         |
+  # |   22 rhel/10.0/slurm_x86_64_no_vast.json                                 |
+  # |   23 rhel/10.2/service_k8s_x86_64.json                                   |
+  # |   24 rhel/10.2/slurm_aarch64.json                                        |
+  # |   25 rhel/10.2/slurm_aarch64_no_vast.json                                |
+  # |   26 rhel/10.2/slurm_service_k8s_combined.json                           |
+  # |   27 rhel/10.2/slurm_service_k8s_combined_no_vast.json                   |
+  # |   28 rhel/10.2/slurm_service_k8s_x86_64.json                             |
+  # |   29 rhel/10.2/slurm_service_k8s_x86_64_no_vast.json                     |
+  # |   30 rhel/10.2/slurm_x86_64_aarch64.json                                 |
+  # |   31 rhel/10.2/slurm_x86_64_aarch64_no_vast.json                         |
+  # |   32 rhel/10.2/slurm_x86_64.json                                         |
+  # |   33 rhel/10.2/slurm_x86_64_no_vast.json                                 |
+  # |   The numbers follow omnia.sh --list-catalogs; a name stays valid when a |
+  # |   catalog is added.                                                      |
+  # +--------------------------------------------------------------------------+
+  catalog: ""
+
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# REPO MANAGER                    src/repo_manager/input/repo_manager_config.yml
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+repo_manager:
+  repo_manager_config:
+    repositories:
+      # +----------------------------------------------------------------------+
+      # | RHEL 10.0 repositories                                               |
+      # |   baseos / appstream / codeready-builder                             |
+      # |     optional with a RHEL subscription on the OIM, MANDATORY without  |
+      # |   slurm_custom / ldms / vast (user_repos)                            |
+      # |     your mirrors of these packages; "" when the feature is not used  |
+      # | Each entry: url, then gpgkey, sslcacert, sslclientkey and            |
+      # | sslclientcert, as in repo_manager_config.yml ("" = not used).        |
+      # +----------------------------------------------------------------------+
+      "10.0":
+        x86_64:
+          baseos:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          appstream:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          codeready-builder:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          user_repos:
+            slurm_custom:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            ldms:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            vast:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+        aarch64:
+          baseos:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          appstream:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          codeready-builder:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          user_repos:
+            slurm_custom:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            ldms:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            vast:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+      # +----------------------------------------------------------------------+
+      # | RHEL 10.2 repositories - same rules as 10.0                          |
+      # +----------------------------------------------------------------------+
+      "10.2":
+        x86_64:
+          baseos:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          appstream:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          codeready-builder:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          user_repos:
+            slurm_custom:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            ldms:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            vast:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+        aarch64:
+          baseos:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          appstream:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          codeready-builder:
+            url: ""
+            gpgkey: ""
+            sslcacert: ""
+            sslclientkey: ""
+            sslclientcert: ""
+          user_repos:
+            slurm_custom:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            ldms:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+            vast:
+              url: ""
+              gpgkey: ""
+              sslcacert: ""
+              sslclientkey: ""
+              sslclientcert: ""
+
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# IMAGE BUILD MANAGER       src/image_build_manager/input/image_build_config.yml
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+image_build_manager:
+  # +--------------------------------------------------------------------------+
+  # | image_build_config.yml                                                   |
+  # |   aarch64_inventory_host_ip  optional  IP of the aarch64 build host;     |
+  # |                                        needed only for aarch64 images    |
+  # | The Repo Manager output path is derived automatically; nothing else to   |
+  # | give here.                                                               |
+  # +--------------------------------------------------------------------------+
+  image_build_config:
+    aarch64_inventory_host_ip: ""
+
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# ORCHESTRATOR                                     src/orchestrator/input/*
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+orchestrator:
+  # +--------------------------------------------------------------------------+
+  # | network_spec.yml - networks of this cluster                              |
+  # |   admin_network                                                          |
+  # |     oim_nic_name, subnet, netmask_bits, primary_oim_admin_ip,            |
+  # |     dynamic_range                                    MANDATORY           |
+  # |     primary_oim_bmc_ip, router, dns, ntp_servers     optional            |
+  # |     dynamic_range is the DHCP pool "first-last" inside the subnet;       |
+  # |     dns / ntp_servers are lists, e.g. ["10.0.0.2", "10.0.0.3"]           |
+  # |   ib_network (InfiniBand)                            optional            |
+  # +--------------------------------------------------------------------------+
+  network_spec:
+    Networks:
+      - admin_network:
+          oim_nic_name: ""
+          subnet: ""
+          netmask_bits: ""
+          primary_oim_admin_ip: ""
+          primary_oim_bmc_ip: ""
+          router: ""
+          dynamic_range: ""
+          dns: []
+          ntp_servers: []
+      - ib_network:
+          subnet: ""
+          netmask_bits: ""
+
+  # +--------------------------------------------------------------------------+
+  # | orchestrator_config.yml                                                  |
+  # |   dns_enabled  true | false   (shipped default: true)                    |
+  # |     true   nodes resolve names through CoreDNS (coresmd); every HOSTNAME |
+  # |            in pxe_mapping_file below must be nid001 ... nid999           |
+  # |     false  nodes use /etc/hosts and may have free-form hostnames         |
+  # |   The generator stops when dns_enabled is true and a hostname is not a   |
+  # |   nid name, so the two settings always agree.                            |
+  # +--------------------------------------------------------------------------+
+  orchestrator_config:
+    dns_enabled: false
+
+  # +--------------------------------------------------------------------------+
+  # | storage_config.yml - shared storage mounted on the nodes                 |
+  # |   One entry per mount, matched by name:                                  |
+  # |     source       "<server ip>:<export path>" of the NFS share            |
+  # |     mount_point  path where the nodes mount it                           |
+  # |   nfs_slurm  share for Slurm                                             |
+  # |   nfs_k8s    share for the Kubernetes service cluster                    |
+  # |   vast_storage  optional. Leave source "" when there is no VAST: the     |
+  # |                 generator then turns VAST off (comments out the mount    |
+  # |                 here and vast_storage_name in omnia_config.yml).         |
+  # +--------------------------------------------------------------------------+
+  storage_config:
+    mounts:
+      - name: "nfs_slurm"
+        source: ""
+        mount_point: "/share_omnia"
+      - name: "nfs_k8s"
+        source: ""
+        mount_point: "/opt/omnia/k8s_mount"
+      - name: "vast_storage"
+        source: ""
+        mount_point: "/mnt/vast"
+
+  # +--------------------------------------------------------------------------+
+  # | omnia_config.yml - Kubernetes service cluster                            |
+  # |   IP ranges differ per cluster; the values below are the defaults,       |
+  # |   change them when they overlap your networks:                           |
+  # |     pod_external_ip_range  "first-last" for LoadBalancer services,       |
+  # |                            inside the admin subnet, outside the DHCP pool|
+  # |     k8s_service_addresses  service CIDR                                  |
+  # |     k8s_pod_network_cidr   pod CIDR                                      |
+  # |     virtual_ip_address     control-plane VIP (used when enable_k8s_ha)   |
+  # |   Options:                                                               |
+  # |     enable_k8s_ha, etcd_on_local_disk   true | false                     |
+  # |     k8s_bootstrap_token_ttl             join token lifetime, e.g. "2h"   |
+  # |   PowerScale CSI (optional): enable_powerscale_csi true needs the secret |
+  # |   and values file paths.                                                 |
+  # +--------------------------------------------------------------------------+
+  omnia_config:
+    service_k8s_cluster:
+      - cluster_name: "service_cluster"
+        pod_external_ip_range: ""
+        k8s_service_addresses: "10.233.0.0/18"
+        k8s_pod_network_cidr: "10.233.64.0/18"
+        virtual_ip_address: ""
+        enable_k8s_ha: true
+        etcd_on_local_disk: true
+        k8s_bootstrap_token_ttl: "2h"
+        enable_powerscale_csi: false
+        csi_powerscale_driver_secret_file_path: ""
+        csi_powerscale_driver_values_file_path: ""
+
+  # +--------------------------------------------------------------------------+
+  # | pxe_mapping_file.csv - the nodes to provision                            |
+  # |   The file keeps its header line; ALL its rows are replaced by row1,     |
+  # |   row2, ... below. One CSV line per node, columns in this order:         |
+  # |   FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,       |
+  # |   HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP           |
+  # |   Empty columns stay empty (",,").                                       |
+  # +--------------------------------------------------------------------------+
+  pxe_mapping_file:
+    row1: "slurm_control_node_rhel_10_2_x86_64,grp0,ABCD12,,slurm-control-node1,xx:yy:zz:aa:bb:cc,172.16.107.52,xx:yy:zz:aa:bb:dd,172.17.107.52,,"
+    row2: "slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,slurm-node1,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,,"
+    row3: "slurm_node_rhel_10_0_aarch64,grp2,ABFG34,ABKD88,slurm-node2,aa:bb:cc:dd:ee:ff,172.16.107.44,aa:bb:cc:dd:ff:gg,172.17.107.44,,"
+    row4: "login_compiler_node_rhel_10_0_aarch64,grp8,ABCD78,,login-compiler-node1,aa:bb:cc:dd:ee:gg,172.16.107.41,aa:bb:cc:dd:ee:bb,172.17.107.41,,"
+    row5: "login_node_rhel_10_2_x86_64,grp9,ABFG78,,login-node1,aa:bb:cc:dd:ee:gg,172.16.107.42,aa:bb:cc:dd:ee:bb,172.17.107.42,,"
+    row6: "service_kube_control_plane_rhel_10_2_x86_64,grp3,ABFG79,,service-kube-control-plane1,aa:bb:cc:dd:ee:ff,172.16.107.53,xx:yy:zz:aa:bb:ff,172.17.107.53,,"  # noqa: yaml[line-length]
+    row7: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH78,,service-kube-control-plane2,aa:bb:cc:dd:ee:hh,172.16.107.54,xx:yy:zz:aa:bb:hh,172.17.107.54,,"  # noqa: yaml[line-length]
+    row8: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH80,,service-kube-control-plane3,aa:bb:cc:dd:ee:ii,172.16.107.55,xx:yy:zz:aa:bb:ii,172.17.107.55,,"  # noqa: yaml[line-length]
+    row9: "service_kube_node_rhel_10_2_x86_64,grp5,ABFL82,,service-kube-node1,aa:bb:cc:dd:ee:jj,172.16.107.56,xx:yy:zz:aa:bb:jj,172.17.107.56,,"
+    row10: "service_kube_node_rhel_10_2_x86_64,grp5,ABKD88,,service-kube-node2,aa:bb:cc:dd:ee:kk,172.16.107.57,xx:yy:zz:aa:bb:ff,172.17.107.57,,"
+    row11: "os_rhel_10_2_x86_64,grp6,ABEF56,,os-node1,xx:yy:zz:aa:bb:ff,172.16.107.60,xx:yy:zz:aa:bb:ee,172.17.107.60,,"
+    row12: "os_rhel_10_0_x86_64,grp7,ABEF78,,os-node2,xx:yy:zz:aa:bb:ab,172.16.107.61,xx:yy:zz:aa:bb:ac,172.17.107.61,,"
+    row13: "os_rhel_10_0_aarch64,grp8,ABGH90,,os-node3,xx:yy:zz:aa:bb:cd,172.16.107.62,xx:yy:zz:aa:bb:ce,172.17.107.62,,"
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# BUILD STREAM                    src/build_stream/input/build_stream_config.yml
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+build_stream:
+  # +--------------------------------------------------------------------------+
+  # | build_stream_config.yml                                                  |
+  # |   build_stream_host_ip  MANDATORY  IP where the BuildStream API runs     |
+  # |                                    (normally the OIM)                    |
+  # |   gitlab_host           MANDATORY  IP of the GitLab host                 |
+  # +--------------------------------------------------------------------------+
+  build_stream_config:
+    build_stream_host_ip: ""
+    gitlab_host: ""
