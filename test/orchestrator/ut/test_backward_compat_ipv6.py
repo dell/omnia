@@ -52,6 +52,7 @@ sys.modules.setdefault("ansible.module_utils", mock.MagicMock())
 sys.modules.setdefault("ansible.module_utils.basic", mock.MagicMock())
 
 from orchestrator_validation.validators.pxe_mapping_validator import (  # noqa: E402
+    BASE_HEADERS,
     CANONICAL_HEADERS,
     LEGACY_HEADERS,
     read_mapping,
@@ -1088,3 +1089,164 @@ class TestIbPairValidationAddrMode:
         assert len(ib_pair_errors) > 0, (
             "Without ib_network, default validation should require IB_IPV4 with IB_NIC_NAME"
         )
+
+
+# ===================================================================
+# TC-UT-BC: PXE Mapping — Optional IB columns
+# ===================================================================
+
+def _base_csv_row() -> list[str]:
+    """Return a valid 9-column data row (no IB columns)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",  # FUNCTIONAL_GROUP_NAME
+        "grp1",                          # GROUP_NAME
+        "ABCD01",                        # SERVICE_TAG
+        "",                              # PARENT_SERVICE_TAG
+        "node001",                       # HOSTNAME
+        "aa:bb:cc:dd:ee:01",             # ADMIN_MAC
+        "172.16.107.41",                 # ADMIN_IP
+        "aa:bb:cc:dd:ff:01",             # BMC_MAC
+        "172.17.107.41",                 # BMC_IP
+    ]
+
+
+def _base_csv_row_2() -> list[str]:
+    """Return a second valid 9-column data row."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",
+        "grp1",
+        "ABCD02",
+        "",
+        "node002",
+        "aa:bb:cc:dd:ee:02",
+        "172.16.107.42",
+        "aa:bb:cc:dd:ff:02",
+        "172.17.107.42",
+    ]
+
+
+def _network_spec(ib_network: dict | None = None) -> dict:
+    """Return a network_spec with optional ib_network section."""
+    networks: list[dict] = [
+        {"admin_network": {"subnet": "172.16.107.0", "netmask_bits": "24"}},
+    ]
+    if ib_network is not None:
+        networks.append({"ib_network": ib_network})
+    return {"Networks": networks}
+
+
+class TestOptionalIbColumns:
+    """Verify CSV files without IB columns are accepted and IB validations
+    are skipped; CSV files with IB columns still validate normally."""
+
+    def test_base_header_constant(self):
+        """ORCH_UT_BC_065: BASE_HEADERS has 9 columns, no IB fields."""
+        assert len(BASE_HEADERS) == 9
+        assert "IB_NIC_NAME" not in BASE_HEADERS
+        assert "IB_IPV4" not in BASE_HEADERS
+        assert "IB_IPV6" not in BASE_HEADERS
+
+    def test_base_csv_no_ib_network_passes(self, tmp_path):
+        """ORCH_UT_BC_066: 9-column CSV without ib_network passes validation."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row()],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_base_csv_with_ib_network_passes(self, tmp_path):
+        """ORCH_UT_BC_067: 9-column CSV with ib_network in network_spec passes."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row()],
+            network_spec=_network_spec(ib_network={
+                "ipv4_subnet": "192.168.0.0",
+                "ipv4_netmask_bits": "24",
+                "ipv6_subnet": "fd00:1b::",
+                "ipv6_netmask_bits": "64",
+                "ib_addr_mode": "dual-stack",
+            }),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_base_csv_multiple_rows_passes(self, tmp_path):
+        """ORCH_UT_BC_068: Multiple 9-column rows pass without IB errors."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row(), _base_csv_row_2()],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_canonical_csv_still_validates_ib(self, tmp_path):
+        """ORCH_UT_BC_069: 12-column CSV with IB_NIC_NAME still validates IB pairing."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[
+                [
+                    "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD01", "",
+                    "node001", "aa:bb:cc:dd:ee:01", "172.16.107.41",
+                    "aa:bb:cc:dd:ff:01", "172.17.107.41",
+                    "InfiniBand.Slot.7-1", "", "",  # IB_NIC_NAME set, IPs empty
+                ],
+            ],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        ib_errors = [e for e in errors if "IB" in e]
+        assert len(ib_errors) > 0, (
+            "12-column CSV with IB_NIC_NAME but empty IB_IPV4 should fail"
+        )
+
+    def test_canonical_csv_empty_ib_values_passes(self, tmp_path):
+        """ORCH_UT_BC_070: 12-column CSV with all IB values empty passes."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[
+                [
+                    "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD01", "",
+                    "node001", "aa:bb:cc:dd:ee:01", "172.16.107.41",
+                    "aa:bb:cc:dd:ff:01", "172.17.107.41",
+                    "", "", "",  # all IB empty
+                ],
+            ],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_invalid_header_rejected(self, tmp_path):
+        """ORCH_UT_BC_071: Header that is neither base, canonical, nor legacy is rejected."""
+        bad_header = list(BASE_HEADERS) + ["EXTRA_COLUMN"]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=bad_header,
+            csv_rows=[_base_csv_row() + ["extra"]],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert len(errors) == 1
+        assert "does not match" in errors[0]
+
+    def test_error_message_shows_both_formats(self, tmp_path):
+        """ORCH_UT_BC_072: Header error message lists both accepted formats."""
+        bad_header = ["COL1", "COL2"]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=bad_header,
+            csv_rows=[["v1", "v2"]],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert len(errors) == 1
+        assert "without InfiniBand" in errors[0]
+        assert "with InfiniBand" in errors[0]

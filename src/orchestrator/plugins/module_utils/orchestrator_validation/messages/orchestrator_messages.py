@@ -249,12 +249,17 @@ def pxe_mapping_header_contract_msg(
 ) -> str:
     """Return a PXE mapping header-contract error without echoing file content."""
     missing = [column for column in expected if column not in actual]
+    base = [
+        "FUNCTIONAL_GROUP_NAME", "GROUP_NAME", "SERVICE_TAG",
+        "PARENT_SERVICE_TAG", "HOSTNAME", "ADMIN_MAC", "ADMIN_IP",
+        "BMC_MAC", "BMC_IP",
+    ]
     return (
         f"orchestrator_config: Mapping file '{path}' has {len(actual)} "
-        f"column(s) and does not match the required header; missing "
+        f"column(s) and does not match any accepted header format; missing "
         f"columns: {missing or 'none (check order or extra columns)'}. "
-        f"Expected exactly {expected}, in this order, including "
-        "IB_NIC_NAME, IB_IPV4, and IB_IPV6."
+        f"Accepted formats: {base} (without InfiniBand) or "
+        f"{expected} (with InfiniBand)."
     )
 
 
