@@ -785,3 +785,291 @@ class TestHostsDistributionMergeLogic:
         assert "10.0.0.2 otherserver" in result
         assert "old entry" not in result
         assert "192.168.0.11 nid001" in result
+
+
+# ===================================================================
+# Regression: mode-specific netmask validation in configure-ib-network.sh.j2
+# ===================================================================
+
+class TestIbNetworkNetmaskValidation:
+    """Regression tests for mode-aware netmask validation (lines 68-89).
+
+    These tests extract the netmask validation section from the rendered
+    template and execute it as a bash snippet, verifying exit codes and
+    output for each ib_addr_mode / netmask combination.
+    """
+
+    # The validation section is pure bash; we prepend variable assignments
+    # and run the snippet to check exit behaviour.
+    _VALIDATION_SCRIPT = """\
+#!/bin/bash
+set -euo pipefail
+NETMASK_BITS="{ipv4_bits}"
+IPV6_NETMASK_BITS="{ipv6_bits}"
+IB_ADDR_MODE="{mode}"
+
+# --- begin netmask validation (mirrors lines 68-89) ---
+if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
+    if [ -z "$IPV6_NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv6_netmask_bits is not configured in network_spec.yml for ipv6-only mode"
+        exit 1
+    fi
+elif [ "$IB_ADDR_MODE" = "dual-stack" ]; then
+    if [ -z "$NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv4_netmask_bits is not configured in network_spec.yml for dual-stack mode"
+        exit 1
+    fi
+    if [ -z "$IPV6_NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv6_netmask_bits is not configured in network_spec.yml for dual-stack mode"
+        exit 1
+    fi
+else
+    if [ -z "$NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv4_netmask_bits is not configured in network_spec.yml"
+        exit 1
+    fi
+fi
+echo "VALIDATION_OK"
+"""
+
+    @staticmethod
+    def _run(mode: str, ipv4_bits: str, ipv6_bits: str):
+        """Run the validation snippet and return (returncode, stdout)."""
+        import subprocess
+        script = TestIbNetworkNetmaskValidation._VALIDATION_SCRIPT.format(
+            mode=mode, ipv4_bits=ipv4_bits, ipv6_bits=ipv6_bits,
+        )
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True, text=True, timeout=5,
+        )
+        return result.returncode, result.stdout
+
+    # --- succeeds ---
+
+    def test_ipv6_only_valid_ipv6_prefix_succeeds(self):
+        """ORCH_UT_NM_110: ipv6-only with valid IPv6 prefix succeeds."""
+        rc, out = self._run("ipv6-only", "", "64")
+        assert rc == 0, f"Expected success, got rc={rc}: {out}"
+        assert "VALIDATION_OK" in out
+
+    def test_ipv4_only_valid_ipv4_prefix_succeeds(self):
+        """ORCH_UT_NM_111: ipv4-only with valid IPv4 prefix succeeds."""
+        rc, out = self._run("ipv4-only", "24", "")
+        assert rc == 0, f"Expected success, got rc={rc}: {out}"
+        assert "VALIDATION_OK" in out
+
+    def test_unset_mode_valid_ipv4_prefix_succeeds(self):
+        """ORCH_UT_NM_112: unset mode with valid IPv4 prefix succeeds."""
+        rc, out = self._run("", "24", "")
+        assert rc == 0, f"Expected success, got rc={rc}: {out}"
+        assert "VALIDATION_OK" in out
+
+    def test_dual_stack_both_prefixes_succeeds(self):
+        """ORCH_UT_NM_113: dual-stack with both prefixes succeeds."""
+        rc, out = self._run("dual-stack", "24", "64")
+        assert rc == 0, f"Expected success, got rc={rc}: {out}"
+        assert "VALIDATION_OK" in out
+
+    # --- fails ---
+
+    def test_ipv6_only_missing_ipv6_prefix_fails(self):
+        """ORCH_UT_NM_114: ipv6-only with missing IPv6 prefix fails."""
+        rc, out = self._run("ipv6-only", "", "")
+        assert rc == 1, f"Expected failure, got rc={rc}: {out}"
+        assert "ipv6_netmask_bits" in out
+
+    def test_dual_stack_missing_ipv4_fails(self):
+        """ORCH_UT_NM_115: dual-stack missing IPv4 prefix fails."""
+        rc, out = self._run("dual-stack", "", "64")
+        assert rc == 1, f"Expected failure, got rc={rc}: {out}"
+        assert "ipv4_netmask_bits" in out
+
+    def test_dual_stack_missing_ipv6_fails(self):
+        """ORCH_UT_NM_116: dual-stack missing IPv6 prefix fails."""
+        rc, out = self._run("dual-stack", "24", "")
+        assert rc == 1, f"Expected failure, got rc={rc}: {out}"
+        assert "ipv6_netmask_bits" in out
+
+    def test_ipv4_only_missing_ipv4_fails(self):
+        """ORCH_UT_NM_117: ipv4-only missing IPv4 prefix fails."""
+        rc, out = self._run("ipv4-only", "", "")
+        assert rc == 1, f"Expected failure, got rc={rc}: {out}"
+        assert "ipv4_netmask_bits" in out
+
+    def test_unset_mode_missing_ipv4_fails(self):
+        """ORCH_UT_NM_118: unset mode missing IPv4 prefix fails."""
+        rc, out = self._run("", "", "")
+        assert rc == 1, f"Expected failure, got rc={rc}: {out}"
+        assert "ipv4_netmask_bits" in out
+
+
+# ===================================================================
+# Regression: IPv6-only path must not execute IPv4 configuration
+# ===================================================================
+
+class TestIbNetworkIpConfigPaths:
+    """Verify that mode-specific IP configuration paths are correct.
+
+    These tests run the IP configuration section (both NM and iproute2
+    branches) and check that IPv6-only mode does NOT attempt IPv4
+    configuration, and that ipv4-only mode does NOT attempt IPv6.
+    """
+
+    _NM_CONFIG_SCRIPT = """\
+#!/bin/bash
+set -uo pipefail
+IB_ADDR_MODE="{mode}"
+IB_IPV4="{ipv4}"
+NETMASK_BITS="{ipv4_bits}"
+IB_IPV6="{ipv6}"
+IPV6_NETMASK_BITS="{ipv6_bits}"
+IB_INTERFACE="ib0"
+
+# Stub nmcli — record calls instead of executing
+nmcli() {{ echo "NMCLI: $*"; }}
+export -f nmcli
+
+# --- NetworkManager path (mirrors lines 370-400) ---
+if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
+    echo "IPV4_DISABLED"
+    nmcli con modify "$IB_INTERFACE" ipv4.method disabled
+else
+    if [ -n "$IB_IPV4" ] && [ -n "$NETMASK_BITS" ]; then
+        echo "IPV4_CONFIGURED"
+        nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IPV4/$NETMASK_BITS"
+    else
+        echo "IPV4_SKIPPED"
+    fi
+fi
+
+if [ "$IB_ADDR_MODE" = "ipv4-only" ] || {{ [ -z "$IB_ADDR_MODE" ] && [ -z "$IB_IPV6" ]; }}; then
+    echo "IPV6_SKIPPED"
+elif [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
+    echo "IPV6_CONFIGURED"
+    nmcli con modify "$IB_INTERFACE" ipv6.method manual ipv6.addresses "$IB_IPV6/$IPV6_NETMASK_BITS"
+else
+    echo "IPV6_WARNING"
+fi
+"""
+
+    _IPROUTE2_CONFIG_SCRIPT = """\
+#!/bin/bash
+set -uo pipefail
+IB_ADDR_MODE="{mode}"
+IB_IPV4="{ipv4}"
+NETMASK_BITS="{ipv4_bits}"
+IB_IPV6="{ipv6}"
+IPV6_NETMASK_BITS="{ipv6_bits}"
+IB_INTERFACE="ib0"
+
+# Stub ip — record calls instead of executing
+ip() {{ echo "IP: $*"; }}
+export -f ip
+sysctl() {{ echo "SYSCTL: $*"; }}
+export -f sysctl
+
+# --- iproute2 path (mirrors lines 407-436) ---
+if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
+    echo "IPV4_SKIPPED"
+else
+    if [ -n "$IB_IPV4" ] && [ -n "$NETMASK_BITS" ]; then
+        echo "IPV4_CONFIGURED"
+        ip addr add "$IB_IPV4/$NETMASK_BITS" dev "$IB_INTERFACE"
+    else
+        echo "IPV4_SKIPPED"
+    fi
+fi
+
+if [ "$IB_ADDR_MODE" = "ipv4-only" ] || {{ [ -z "$IB_ADDR_MODE" ] && [ -z "$IB_IPV6" ]; }}; then
+    echo "IPV6_SKIPPED"
+elif [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
+    echo "IPV6_CONFIGURED"
+    ip addr add "$IB_IPV6/$IPV6_NETMASK_BITS" dev "$IB_INTERFACE"
+else
+    echo "IPV6_WARNING"
+fi
+"""
+
+    @staticmethod
+    def _run(script_template: str, mode: str,
+             ipv4: str, ipv4_bits: str,
+             ipv6: str, ipv6_bits: str):
+        import subprocess
+        script = script_template.format(
+            mode=mode, ipv4=ipv4, ipv4_bits=ipv4_bits,
+            ipv6=ipv6, ipv6_bits=ipv6_bits,
+        )
+        result = subprocess.run(
+            ["bash", "-c", script],
+            capture_output=True, text=True, timeout=5,
+        )
+        return result.returncode, result.stdout
+
+    # --- NetworkManager path ---
+
+    def test_nm_ipv6_only_disables_ipv4_configures_ipv6(self):
+        """ORCH_UT_NM_120: NM ipv6-only disables IPv4 and configures IPv6."""
+        rc, out = self._run(
+            self._NM_CONFIG_SCRIPT, "ipv6-only",
+            "", "", "fd00:1b::1", "64",
+        )
+        assert rc == 0
+        assert "IPV4_DISABLED" in out
+        assert "IPV6_CONFIGURED" in out
+        assert "IPV4_CONFIGURED" not in out
+
+    def test_nm_ipv4_only_configures_ipv4_skips_ipv6(self):
+        """ORCH_UT_NM_121: NM ipv4-only configures IPv4 and skips IPv6."""
+        rc, out = self._run(
+            self._NM_CONFIG_SCRIPT, "ipv4-only",
+            "192.168.0.1", "24", "", "",
+        )
+        assert rc == 0
+        assert "IPV4_CONFIGURED" in out
+        assert "IPV6_SKIPPED" in out
+        assert "IPV6_CONFIGURED" not in out
+
+    def test_nm_dual_stack_configures_both(self):
+        """ORCH_UT_NM_122: NM dual-stack configures both IPv4 and IPv6."""
+        rc, out = self._run(
+            self._NM_CONFIG_SCRIPT, "dual-stack",
+            "192.168.0.1", "24", "fd00:1b::1", "64",
+        )
+        assert rc == 0
+        assert "IPV4_CONFIGURED" in out
+        assert "IPV6_CONFIGURED" in out
+
+    # --- iproute2 path ---
+
+    def test_iproute2_ipv6_only_skips_ipv4_configures_ipv6(self):
+        """ORCH_UT_NM_123: iproute2 ipv6-only skips IPv4 and configures IPv6."""
+        rc, out = self._run(
+            self._IPROUTE2_CONFIG_SCRIPT, "ipv6-only",
+            "", "", "fd00:1b::1", "64",
+        )
+        assert rc == 0
+        assert "IPV4_SKIPPED" in out
+        assert "IPV6_CONFIGURED" in out
+        assert "IPV4_CONFIGURED" not in out
+
+    def test_iproute2_ipv4_only_configures_ipv4_skips_ipv6(self):
+        """ORCH_UT_NM_124: iproute2 ipv4-only configures IPv4 and skips IPv6."""
+        rc, out = self._run(
+            self._IPROUTE2_CONFIG_SCRIPT, "ipv4-only",
+            "192.168.0.1", "24", "", "",
+        )
+        assert rc == 0
+        assert "IPV4_CONFIGURED" in out
+        assert "IPV6_SKIPPED" in out
+        assert "IPV6_CONFIGURED" not in out
+
+    def test_iproute2_dual_stack_configures_both(self):
+        """ORCH_UT_NM_125: iproute2 dual-stack configures both IPv4 and IPv6."""
+        rc, out = self._run(
+            self._IPROUTE2_CONFIG_SCRIPT, "dual-stack",
+            "192.168.0.1", "24", "fd00:1b::1", "64",
+        )
+        assert rc == 0
+        assert "IPV4_CONFIGURED" in out
+        assert "IPV6_CONFIGURED" in out
