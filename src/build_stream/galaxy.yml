@@ -36,7 +36,7 @@ dependencies:
   community.general: ">=5.0.0"
   containers.podman: ">=1.10.0"
 repository: https://github.com/dell/omnia
-documentation: https://github.com/dell/omnia/tree/main/docs
+documentation: https://omnia.readthedocs.io/en/2.3.0/
 homepage: https://github.com/dell/omnia
 issues: https://github.com/dell/omnia/issues
 build_ignore:
