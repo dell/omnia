@@ -80,10 +80,43 @@ else
       --from-file=config="$SECRET_FILE" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
 
     if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
-      mkdir -p /dev/shm/omnia && chmod 700 /dev/shm/omnia
-      _pscale_tmpdir=$(mktemp -d /dev/shm/omnia/powerscale_csi.XXXXXX)
-      chmod 700 "$_pscale_tmpdir"
-      trap 'rm -rf "${_pscale_tmpdir:-}"' EXIT
+      # /dev/shm is world-writable (1777), so a non-root user could pre-create
+      # /dev/shm/omnia as a symlink or a directory they own. Following it would
+      # let chmod hit an attacker-chosen target and place credential-bearing
+      # temp files outside our control (CWE-59). Validate it is a real,
+      # root-owned, 0700 directory (creating it if absent) and fail closed.
+      _pscale_shmroot="/dev/shm/omnia"
+      if [ -L "$_pscale_shmroot" ]; then
+        echo "ERROR: $_pscale_shmroot is a symlink; refusing to use it (possible symlink attack, CWE-59)."
+        POWERSCALE_DEPLOYMENT_FAILED=1
+      elif [ -e "$_pscale_shmroot" ]; then
+        if [ ! -d "$_pscale_shmroot" ]; then
+          echo "ERROR: $_pscale_shmroot exists but is not a directory."
+          POWERSCALE_DEPLOYMENT_FAILED=1
+        elif [ "$(stat -c '%u' "$_pscale_shmroot" 2>/dev/null)" != "0" ]; then
+          echo "ERROR: $_pscale_shmroot is not owned by root."
+          POWERSCALE_DEPLOYMENT_FAILED=1
+        elif ! chmod 700 "$_pscale_shmroot"; then
+          echo "ERROR: failed to set permissions on $_pscale_shmroot."
+          POWERSCALE_DEPLOYMENT_FAILED=1
+        fi
+      elif ! mkdir -m 700 "$_pscale_shmroot"; then
+        echo "ERROR: failed to create $_pscale_shmroot."
+        POWERSCALE_DEPLOYMENT_FAILED=1
+      fi
+    fi
+
+    if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+      if _pscale_tmpdir=$(mktemp -d "$_pscale_shmroot/powerscale_csi.XXXXXX"); then
+        chmod 700 "$_pscale_tmpdir"
+        trap 'rm -rf "${_pscale_tmpdir:-}"' EXIT
+      else
+        echo "ERROR: failed to create temporary directory under $_pscale_shmroot."
+        POWERSCALE_DEPLOYMENT_FAILED=1
+      fi
+    fi
+
+    if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
       if (
         umask 077
         set -o pipefail
@@ -261,4 +294,3 @@ else
     fi
   fi
 fi
-
