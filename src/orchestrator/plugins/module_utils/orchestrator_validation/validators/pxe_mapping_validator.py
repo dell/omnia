@@ -62,6 +62,17 @@ LEGACY_HEADERS = (
     "IB_NIC_NAME",
     "IB_IP",
 )
+BASE_HEADERS = (
+    "FUNCTIONAL_GROUP_NAME",
+    "GROUP_NAME",
+    "SERVICE_TAG",
+    "PARENT_SERVICE_TAG",
+    "HOSTNAME",
+    "ADMIN_MAC",
+    "ADMIN_IP",
+    "BMC_MAC",
+    "BMC_IP",
+)
 REQUIRED_VALUE_FIELDS = (
     "FUNCTIONAL_GROUP_NAME",
     "GROUP_NAME",
@@ -745,6 +756,8 @@ def validate(
             (row_number, row + [""])
             for row_number, row in raw_rows
         ]
+    elif raw_header == list(BASE_HEADERS):
+        pass  # IB columns omitted; per-row IB fields will be absent
     elif raw_header != list(CANONICAL_HEADERS):
         record_error(
             errors,
