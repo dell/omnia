@@ -1,4 +1,4 @@
-# Telemetry — Design Overview
+# Telemetry Architecture
 
 ## Architecture
 
@@ -17,11 +17,14 @@ cluster. It consists of:
    - UFM (Unified Fabric Manager, InfiniBand)
    - PowerScale (Dell Isilon storage)
    - VAST (VAST Data storage)
-   - SFM (Smart Fabric Manager, network)
 
 3. **Bridges** — Data ingestion pipelines:
    - Vector-LDMS (Kafka-to-VictoriaMetrics for LDMS)
    - Vector-OME (Kafka-to-VictoriaMetrics for OME)
+
+4. **External integrations** — Clients such as SFM (Smart Fabric Manager) are not deployed by
+   this domain. The `external_kafka` and `external_victoria` utility tags print the Kafka and
+   VictoriaMetrics/VictoriaLogs connection details (endpoints, TLS certificates) they need.
 
 ## Execution Flow
 
