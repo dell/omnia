@@ -114,6 +114,7 @@ ansible-playbook playbooks/telemetry.yml --tags cleanup -e delete_sinks_volume=t
 ## Documentation
 
 - [Telemetry Documentation](https://omnia.readthedocs.io/en/latest/HowTo/Telemetry/index.html)
+- [Architecture](docs/architecture.md)
 - [Omnia GitHub](https://github.com/dell/omnia)
 - [Issues](https://github.com/dell/omnia/issues)
 

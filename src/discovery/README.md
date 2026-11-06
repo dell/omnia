@@ -108,6 +108,7 @@ ansible-playbook playbooks/discovery.yml --tags cleanup \
 ## Documentation
 
 - [Discovery Documentation](https://omnia.readthedocs.io/en/latest/HowTo/discovery/index.html)
+- [Architecture](docs/architecture.md)
 - [Omnia GitHub](https://github.com/dell/omnia)
 - [Issues](https://github.com/dell/omnia/issues)
 
