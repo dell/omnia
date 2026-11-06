@@ -1,0 +1,47 @@
+gitlab:
+  project_name: "omnia-system-test"
+  namespace: "root"
+  branch: "main"
+
+svt:
+  theme: "build_stream"
+  poll_seconds: "30"
+  timeouts_hours:
+    default_hours: 6
+    preflight: 0.25
+    checkout: 0.5
+    initialization: 4
+    prepare_build_stream: 6
+    build_deploy: 8
+    cadence: 8
+    automatic_cleanup: 4
+    summary: 1
+
+openbao:
+  server_url: ""
+  auth_role: "gitlab-role"
+  secret_path: "secret/data/omnia"
+  tls_skip_verify: "false"
+
+email:
+  recipients: ""
+  sender: ""
+  smtp_server: ""
+  smtp_port: "25"
+  required: "false"   # "true": the summary job fails when the email cannot be sent
+
+clusters:
+  oim1:
+    target:
+      ip: ""
+      user: "root"
+      ssh_skip_host_key: "false"   # "true" accepts an unchecked OIM host key (not recommended)
+    omnia:
+      repo: "https://github.com/dell/omnia.git"
+      branch: "staging"
+      install_path: "/root/omnia"
+      checkout_mode: "update"
+    svt:
+      clean_reinstall: "true"
+      skip_stages: ""
+    secret_path: ""
