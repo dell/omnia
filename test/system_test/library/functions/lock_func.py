@@ -14,14 +14,19 @@
 
 """One SVT step at a time on this OIM: the lock, its heartbeat, interrupted steps.
 
-Every ./setup_env.sh action and every ./run_validation.sh stage holds
-reports/svt.lock while it runs: pid, host, step, run id, start and a
-heartbeat refreshed every LOCK_HEARTBEAT_SECONDS.
+Every ./setup_env.sh action and every ./run_validation.sh stage owns the OIM
+while it runs. Ownership is a kernel lock (``flock``, LOCK_EX | LOCK_NB) on
+reports/svt.flock, taken atomically, so two steps starting together cannot both
+get it. reports/svt.lock only describes the owner: pid, host, step, run id,
+start and a heartbeat refreshed every LOCK_HEARTBEAT_SECONDS.
 
-- A second step while the holder is alive is refused (exit 2).
-- A lock whose process is gone (kill -9, a dropped SSH session, a reboot) or
-  whose heartbeat stopped is stale: the step it names is recorded as
-  interrupted (the run is marked failed at it), then the lock is taken.
+- A second step while the owner lives is refused (exit 2).
+- The kernel drops the lock when its process ends however it ends (kill -9, a
+  dropped SSH session, a reboot). A description left behind by such a process
+  means its step was interrupted: it is recorded as interrupted (the run is
+  marked failed at it) by the step that takes the lock next.
+- A clean exit removes the description before it releases the lock.
+- A frozen owner (SIGSTOP) keeps the lock: stop it by its pid.
 - Ctrl-C is recorded by the drivers themselves (_setup.py, _run.py).
 
 Other test processes on the OIM (an FVT suite run by hand, an
@@ -29,6 +34,7 @@ ansible-playbook of another checkout) cannot take this lock; they are listed
 as a warning when a step starts.
 """
 
+import fcntl
 import json
 import os
 import socket
@@ -42,6 +48,7 @@ from .svt_report_func import load_json, write_atomic
 from ..messages.svt_msgs import LOCK_MSGS
 from ..vars.common_vars import (
     LOCK_FILE,
+    LOCK_GUARD_FILE,
     LOCK_HEARTBEAT_SECONDS,
     LOCK_STALE_SECONDS,
     REPORT_ROOT,
@@ -104,12 +111,13 @@ def other_test_processes() -> List[str]:
 
 
 class StepLock:
-    """Context manager: hold reports/svt.lock for one step, with a heartbeat."""
+    """Context manager: own the OIM for one step (kernel lock), with a heartbeat."""
 
     def __init__(self, step: str, emit: Optional[Emit] = None):
         self.step, self.emit = step, emit or print
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._guard: Optional[int] = None
         self.record: Dict[str, Any] = {}
 
     def _write(self) -> None:
@@ -124,15 +132,36 @@ class StepLock:
             except OSError:
                 pass
 
+    def _take_guard(self) -> None:
+        """Take the kernel lock without waiting; raise LockError naming the owner."""
+        self._guard = os.open(LOCK_GUARD_FILE, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(self._guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            os.close(self._guard)
+            self._guard = None
+            held: Dict[str, Any] = {}
+            for _ in range(10):  # the owner writes its description right after the lock
+                held = read_lock()
+                if held.get("pid"):
+                    break
+                time.sleep(0.1)
+            raise LockError(LOCK_MSGS["held"].format(
+                step=held.get("step") or "a step", pid=held.get("pid") or "?",
+                run_id=held.get("run_id") or "?", heartbeat=held.get("heartbeat") or "?")) from exc
+
     def __enter__(self) -> "StepLock":
         os.makedirs(REPORT_ROOT, mode=0o750, exist_ok=True)
+        self._take_guard()
         held = read_lock()
-        state = lock_state(held)
-        if state == "held":
+        if held.get("pid") and lock_state(held) == "held":
+            # A live owner that holds no kernel lock: a step of an SVT version without it
+            # (during an upgrade), or a recycled pid within the heartbeat window. Refuse.
+            self._release_guard()
             raise LockError(LOCK_MSGS["held"].format(
                 step=held.get("step"), pid=held.get("pid"), run_id=held.get("run_id"),
                 heartbeat=held.get("heartbeat")))
-        if state == "stale":
+        if held.get("pid"):  # its owner is gone (the kernel lock was free): it was interrupted
             record_interrupted(held, self.emit)
         run = run_func.load_run()
         self.record = {"pid": os.getpid(), "host": socket.gethostname(), "step": self.step,
@@ -151,6 +180,12 @@ class StepLock:
                 os.unlink(LOCK_FILE)
             except FileNotFoundError:
                 pass
+        self._release_guard()
+
+    def _release_guard(self) -> None:
+        if self._guard is not None:
+            os.close(self._guard)
+            self._guard = None
 
 
 def record_interrupted(lock: Dict[str, Any], emit: Emit) -> None:

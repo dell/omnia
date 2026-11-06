@@ -17,12 +17,13 @@
 - configures omnia_auto for this module (output helpers only; the SVT itself
   holds no credentials and opens no SSH session: FVT steps run locally)
 - registers the theme and test case markers from library/vars/domain_vars.py
-- writes one result record per test case to <run folder>/svt_results.json
+- merges one result record per test case into <run folder>/svt_results.json
   for the summary stage
 """
 
 import json
 import os
+import tempfile
 from datetime import datetime, timezone
 
 import omnia_auto
@@ -65,9 +66,31 @@ def pytest_runtest_logreport(report):
                      "outcome": report.outcome, "duration": f"{report.duration:.0f}s"})
 
 
+def _stored_results(path: str) -> list:
+    """Return the case results already written for this run ([] when none or unreadable)."""
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            data = json.load(stream)
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
+
+
 def pytest_sessionfinish(session):
-    """Write the case results for the summary stage."""
+    """Add this session's case results to the run's svt_results.json (summary stage).
+
+    Every stage is its own pytest session (a pipeline runs one per job), so the file is
+    merged by case id: the cases of other stages stay, a case that ran again (a retry)
+    replaces its earlier result, and the cases keep the order of TEST_CASES.
+    """
     del session
-    directory = run_dir(_run_id())
-    with open(os.path.join(directory, "svt_results.json"), "w", encoding="utf-8") as stream:
-        json.dump(_RESULTS, stream, indent=2)
+    path = os.path.join(run_dir(_run_id()), "svt_results.json")
+    current = {item["id"]: item for item in _RESULTS}
+    merged = {item.get("id"): item for item in _stored_results(path)}
+    merged.update(current)
+    order = {case["id"]: case["order"] for case in TEST_CASES.values()}
+    results = sorted(merged.values(), key=lambda item: order.get(item.get("id"), len(order)))
+    handle, temp = tempfile.mkstemp(prefix=".tmp.", dir=os.path.dirname(path))
+    with os.fdopen(handle, "w", encoding="utf-8") as stream:
+        json.dump(results, stream, indent=2)
+    os.replace(temp, path)

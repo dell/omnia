@@ -182,13 +182,18 @@ step (if any) and the previous run.
     run's SVT report failed. Results other processes write into the FVT report
     (a suite run by hand, the BuildStream validate stage) do not count;
   - another SVT step holds the lock (see below).
-- **One step at a time (`reports/svt.lock`):** every `./setup_env.sh` action and
-  `./run_validation.sh` stage holds the lock (pid, step, run, heartbeat every
-  30 s). A second step is refused while the holder lives. A lock whose process
-  is gone, or whose heartbeat is older than 10 minutes, is stale: its step is
-  recorded as interrupted (the run is failed at `<step> (interrupted)`, history
-  in `reports/interrupted.json`) and the lock is taken. Ctrl-C is recorded as
-  a failed step. Other test processes on the OIM (an FVT run by hand, an
+- **One step at a time (`reports/svt.flock`, `reports/svt.lock`):** every
+  `./setup_env.sh` action and `./run_validation.sh` stage takes a kernel lock
+  (`flock`, non-blocking) on `reports/svt.flock`, so two steps starting at the
+  same instant cannot both run: one gets it, the others are refused. The owner
+  describes itself in `reports/svt.lock` (pid, step, run, heartbeat every
+  30 s). The kernel frees the lock when its process ends however it ends (kill,
+  lost SSH session, reboot); the description it leaves behind means the step was
+  interrupted, so the next step records it (the run is failed at
+  `<step> (interrupted)`, history in `reports/interrupted.json`) and takes the
+  lock. A clean exit removes the description first. A frozen owner
+  (`kill -STOP`) keeps the lock: stop it by the pid in the message. Ctrl-C is
+  recorded as a failed step. Other test processes on the OIM (an FVT run by hand, an
   ansible-playbook of another checkout) are listed as a warning when a step
   starts. `--status` shows the lock.
 - **Settings drift:** before every step and stage the run's settings (cleanup
@@ -301,14 +306,14 @@ run by hand, the BuildStream validate stage) are never shown under a step.
 | `reports/setup/<step>.log` | Output of each setup step (`configure`, `cleanup`, `install`, `creds`), appended per run; credential prompts excluded |
 | `reports/setup/setup.json` | Last outcome of each step: status, time, duration, error, checksums, venv, suites installed, stale inputs, stores written |
 | `reports/current_run.json` | The current run: id, theme, folder, start time, failed step, previous run |
-| `reports/svt.lock`, `reports/interrupted.json` | The step running now (pid, heartbeat); steps found interrupted |
+| `reports/svt.flock`, `reports/svt.lock`, `reports/interrupted.json` | The kernel lock; the step running now (pid, heartbeat); steps found interrupted |
 | `<run folder>/svt_run.json` | The run id and theme the folder belongs to |
 | `<run folder>/<report_name>.json`, `.html` | The SVT report of the run, see above |
 | `<run folder>/fvt/` | The FVT suites' own omnia_auto reports of the run (the source of the FVT results) |
 | `<run folder>/run.json` | Theme, commit, checksums, cleanup flags, setup outcomes, every stage outcome |
 | `<run folder>/setup/` | Copy of `reports/setup/` taken by `initialization` |
 | `<run folder>/<stage>.log`, `.progress`, `.status` | Stage output, current step, final status |
-| `<run folder>/junit_<theme>_<stage>.xml`, `svt_results.json` | SVT test results |
+| `<run folder>/junit_<theme>_<stage>.xml`, `svt_results.json` | SVT test results (merged by test id across stages and retries) |
 
 The run folder is `<report_path>/<run_id>/` (default `reports/<run_id>/`).
 

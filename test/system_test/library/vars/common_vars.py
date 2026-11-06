@@ -50,10 +50,13 @@ REPORT_PATH_RE = re.compile(r"[A-Za-z0-9_./-]{1,255}")
 # ./setup_env.sh --configure and recorded in RUN_STATE; every later step uses
 # it, and none runs after a step of it failed.
 RUN_STATE = os.path.join(REPORT_ROOT, "current_run.json")
-# One SVT step at a time on this OIM (lock_func.py): the holder refreshes the
-# heartbeat; a lock whose process is gone or whose heartbeat is older than
-# LOCK_STALE_SECONDS is stale and its step is recorded as interrupted.
+# One SVT step at a time on this OIM (lock_func.py): the owner holds a kernel lock on
+# LOCK_GUARD_FILE and describes itself in LOCK_FILE with a heartbeat. A description whose
+# owner is gone (or whose heartbeat is older than LOCK_STALE_SECONDS, in the status box)
+# is stale: its step is recorded as interrupted.
 LOCK_FILE = os.path.join(REPORT_ROOT, "svt.lock")
+# The kernel lock (flock) that decides who owns the OIM; LOCK_FILE only describes the owner.
+LOCK_GUARD_FILE = os.path.join(REPORT_ROOT, "svt.flock")
 LOCK_HEARTBEAT_SECONDS = 30
 LOCK_STALE_SECONDS = 600
 # Written into the run folder: the theme the folder belongs to.
