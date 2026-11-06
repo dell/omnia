@@ -136,20 +136,20 @@ src/build_stream/
 | Credential key | `.build_stream_credentials_key` |
 | Input subdir | `input/project_default/` |
 | Output subdir | `output/project_default/` |
-| Log path | `./output/build_stream.log` (relative to playbook CWD) |
+| Log path | `/var/log/omnia/build_stream/build_stream.log` |
 | API log path | `/opt/omnia/build_stream/log/` |
 | Playbook queue | `/opt/omnia/build_stream/playbook_queue/` |
 
 ### Ansible Config (ansible.cfg)
 
 ```ini
-roles_path = roles
-callback_plugins = ../playbooks/utils/callback_plugins
-library = ../common/library/modules
-module_utils = ../common/library/module_utils
+roles_path = roles:~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles
+library = plugins/modules
+module_utils = plugins/module_utils
+callback_plugins = plugins/callback
 ```
 
-**Note**: Unlike image_build_manager, build_stream still references `../common/` for shared modules. Future refactoring may eliminate this dependency.
+The domain is self-contained: modules, module utilities, and the callback plugin are local to `plugins/`, with no `../common/` dependency. `playbooks/ansible.cfg` uses the same paths relative to `playbooks/` (`../roles`, `../plugins/...`).
 
 ---
 
@@ -738,10 +738,8 @@ ansible-playbook playbooks/cleanup_build_stream.yml --skip-tags gitlab
 
 ## 14. Future Enhancements
 
-1. **Eliminate `../common/` dependency** — Copy shared modules locally like image_build_manager
-2. **Add L1/L2 validation** — JSON schema + cross-field logic validation for `build_stream_config.yml`
-3. **OAuth2 integration** — Replace basic auth with OAuth2 for API security
-4. **Multi-tenant support** — Isolate jobs by client_id with RBAC
-5. **Horizontal scaling** — Multiple API instances behind load balancer
-6. **Observability** — Prometheus metrics + Grafana dashboards
-7. **Automated rollback** — Detect failures and auto-rollback to previous version
+1. **OAuth2 integration** — Replace basic auth with OAuth2 for API security
+2. **Multi-tenant support** — Isolate jobs by client_id with RBAC
+3. **Horizontal scaling** — Multiple API instances behind load balancer
+4. **Observability** — Prometheus metrics + Grafana dashboards
+5. **Automated rollback** — Detect failures and auto-rollback to previous version
