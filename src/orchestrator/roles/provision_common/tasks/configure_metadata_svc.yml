@@ -447,3 +447,13 @@
     - >-
       ((_metadata_fg_reconcile.created | default([]))
        + (_metadata_fg_reconcile.updated | default([]))) | length > 0
+
+- name: Track hosts whose per-host metadata changed for {{ fg_name }}
+  ansible.builtin.set_fact:
+    omnia_metadata_changed_hostnames: >-
+      {{ ((omnia_metadata_changed_hostnames | default([]))
+          + (_metadata_fg_reconcile.inventory_updated | default({})
+             | dict2items | map(attribute='value') | flatten | list))
+         | unique | list }}
+  when:
+    - _metadata_fg_reconcile.inventory_updated | default({}) | length > 0

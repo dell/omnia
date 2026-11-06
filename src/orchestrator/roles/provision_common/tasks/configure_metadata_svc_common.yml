@@ -82,3 +82,13 @@
     - >-
       ((_metadata_common_reconcile.created | default([]))
        + (_metadata_common_reconcile.updated | default([]))) | length > 0
+
+- name: Track hosts whose per-host common metadata changed
+  ansible.builtin.set_fact:
+    omnia_metadata_changed_hostnames: >-
+      {{ ((omnia_metadata_changed_hostnames | default([]))
+          + (_metadata_common_reconcile.inventory_updated | default({})
+             | dict2items | map(attribute='value') | flatten | list))
+         | unique | list }}
+  when:
+    - _metadata_common_reconcile.inventory_updated | default({}) | length > 0
