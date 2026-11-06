@@ -39,4 +39,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `docs/contracts/INPUT_CONTRACT.md` and `OUTPUT_CONTRACT.md` to lowercase `input-contract.md` and `output-contract.md`; updated references.
 - Moved `BUILD_STREAM_DESIGN.md` to `docs/design/build-stream-design.md`.
 - Fixed the broken `developer-guide.md` links in `README.md` and `docs/README.md`; they now point to `docs/architecture.md`.
+- README restructured to the common domain layout; Architecture lists every role, module, and plugin; documented how the `credentials` tag works.
 - Corrected README quick start, entry playbook path (`playbooks/build_stream.yml`), and initializer references (`domain-init.sh`).

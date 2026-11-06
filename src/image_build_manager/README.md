@@ -30,6 +30,50 @@ Image Build Manager uses OpenCHAMI Image Thrillhouse as the sole image build eng
 - **Storage backends**: MinIO S3 for image artifacts, local OCI registry for container images
 - **Image reuse**: Global dictionary lookup for catalog mode, per-group cache for config mode
 
+### Roles
+
+Roles are invoked as `omnia.image_build.<role>`.
+
+| Role | Description |
+|------|-------------|
+| [`build_os_images`](roles/build_os_images/README.md) | Build base and compute OS images for HPC cluster provisioning |
+| [`cleanup_build_artifacts`](roles/cleanup_build_artifacts/README.md) | Clean up build artifacts and temporary files from the image build process |
+| [`collect_build_credentials`](roles/collect_build_credentials/README.md) | Collect and prepare credentials for the image build process |
+| [`deploy_minio`](roles/deploy_minio/README.md) | Deploy MinIO S3-compatible object storage for image build artifacts |
+| [`deploy_registry`](roles/deploy_registry/README.md) | Deploy local OCI container registry for storing built OS images |
+| [`fetch_build_packages`](roles/fetch_build_packages/README.md) | Collect and resolve RPM packages for OS image building |
+| [`image_build_setup`](roles/image_build_setup/README.md) | Setup role for image build — loads config, validates environment, checks prerequisites |
+| [`precheck_environment`](roles/precheck_environment/README.md) | Validate environment prerequisites (env vars, hostname, IP, domain, omnia.sh setup) before running any image_build_manager playbook |
+| [`prepare_aarch64_node`](roles/prepare_aarch64_node/README.md) | Prepare ARM64 build hosts for cross-architecture image building |
+| [`validate_build_runtime`](roles/validate_build_runtime/README.md) | Validate build environment runtime dependencies and versions |
+| [`validate_image_build_input`](roles/validate_image_build_input/README.md) | Validate input configuration files for the image build process |
+
+### Modules
+
+Modules are invoked as `omnia.image_build.<module>`.
+
+| Module | Description |
+|--------|-------------|
+| `base_image_package_collector` | Collect RPM packages for base image creation |
+| `functional_group_parser` | Parse and normalize functional group input |
+| `generate_functional_groups` | Generate functional_groups.yaml from a CSV mapping file |
+| `image_build_orchestrator` | Orchestrate parallel OS image builds with concurrency control |
+| `image_package_collector` | Collect RPM packages per functional group for image builds |
+| `load_validated_yaml` | Load literal runtime YAML without Jinja evaluation |
+| `manage_image_group_dictionary` | Query and update the catalog image-group dictionary |
+| `parse_catalog` | Parse catalog JSON and resolve packages by architecture |
+| `parse_repo_status` | Parse repo_status.yml and build per-architecture repo lists |
+| `validate_image_build_config` | Validate image build configuration files |
+| `validate_repo_status_contract` | Validate repo_status.yml for image build execution |
+| `validate_system_environment` | Validate Omnia environment variables against system state |
+| `validate_yaml_schema` | Validate YAML file against JSON Schema |
+
+### Plugins
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
+
 ## Prerequisites
 
 | Requirement | Minimum | Notes |

@@ -39,32 +39,36 @@ Discovery is optional when a PXE mapping is supplied manually.
 
 ### Roles
 
+Roles are invoked as `omnia.discovery.<role>`.
+
 | Role | Description |
 |------|-------------|
-| `omnia.discovery.discovery_setup` | Setup project dirs, config loading, tag validation |
-| `omnia.discovery.precheck_environment` | Validate the data path and OME HTTPS endpoint readiness |
-| `omnia.discovery.validate_discovery_input` | L1 schema + L2 logic validation |
-| `omnia.discovery.discovery_credentials` | Credential prompting, encryption, vault |
-| `omnia.discovery.discovery_common` | Shared task library (vault and OME endpoint helpers) |
-| `omnia.discovery.ome_discovery` | OME-specific discovery, inventory, PXE mapping |
-| `omnia.discovery.discovery_cleanup` | Project output, runtime-log, and credential cleanup |
+| [`discovery_cleanup`](roles/discovery_cleanup/README.md) | Remove Discovery-owned outputs, logs, and optional credential artifacts |
+| [`discovery_common`](roles/discovery_common/README.md) | Shared task library (Vault and OME endpoint helpers); included with `tasks_from`, not run standalone |
+| [`discovery_credentials`](roles/discovery_credentials/README.md) | Prompt for, validate, encrypt, and Vault-store OME credentials |
+| [`discovery_setup`](roles/discovery_setup/README.md) | Set up project directories, load configuration, and validate tags |
+| [`ome_discovery`](roles/ome_discovery/README.md) | Collect inventory from OME and generate the PXE mapping and discovery report |
+| [`precheck_environment`](roles/precheck_environment/README.md) | Validate the Discovery data path and OME endpoint readiness |
+| [`validate_discovery_input`](roles/validate_discovery_input/README.md) | L1 schema and L2 logic validation of `discovery_config.yml` |
 
 ### Modules
 
+Modules are invoked as `omnia.discovery.<module>`.
+
 | Module | Description |
 |--------|-------------|
-| `omnia.discovery.validate_discovery_config` | Validate discovery configuration (L1+L2) |
-| `omnia.discovery.validate_system_environment` | Validate selected OIM environment values and paths; Discovery precheck uses its data-path check |
-| `omnia.discovery.validate_credentials` | Validate credential input against rules |
-| `omnia.discovery.ome_server_inventory` | Collect server inventory from OME |
-| `omnia.discovery.generate_pxe_mapping` | Generate PXE mapping CSV from inventory |
-| `omnia.discovery.generate_discovery_report` | Generate BMC discovery report |
+| `generate_discovery_report` | Generate BMC discovery report from server inventory |
+| `generate_pxe_mapping` | Generate PXE mapping file from server inventory |
+| `ome_server_inventory` | Collect server inventory from Dell OME |
+| `validate_credentials` | Validate credential input against rules |
+| `validate_discovery_config` | Validate discovery configuration files |
+| `validate_system_environment` | Validate the Discovery system environment |
 
-### Callback plugins
+### Plugins
 
-| Plugin | Description |
-|--------|-------------|
-| `omnia.discovery.omnia_default` | Custom stdout callback with clean error formatting |
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
 
 ## Prerequisites
 

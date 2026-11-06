@@ -20,6 +20,53 @@ Repository Manager runs Pulp as a container on the OIM with a systemd-enabled `p
 
 Execution order and runtime layout are described in [docs/architecture.md](docs/architecture.md); developer boundaries are in [docs/design/repo-manager-design.md](docs/design/repo-manager-design.md).
 
+### Roles
+
+Roles are invoked as `omnia.repo_manager.<role>`.
+
+| Role | Description |
+|------|-------------|
+| [`catalog`](roles/catalog/README.md) | Catalog management operations for repo_manager |
+| [`collect_repo_credentials`](roles/collect_repo_credentials/README.md) | Collects and manages repository manager credentials with encryption support |
+| [`common`](roles/common/README.md) | Common tasks and utilities shared across repo_manager playbooks |
+| [`deploy_pulp`](roles/deploy_pulp/README.md) | Deploy and configure Pulp container for repository management |
+| [`parse_and_download`](roles/parse_and_download/README.md) | Parse configuration and download packages to Pulp |
+| [`precheck_environment`](roles/precheck_environment/README.md) | Validates system environment before repo_manager operations |
+| [`pulp_validation`](roles/pulp_validation/README.md) | Validate Pulp server connectivity and configuration |
+| [`repo_manager_execution`](roles/repo_manager_execution/README.md) | Execute resolved Repo Manager catalog contexts sequentially |
+| [`repo_manager_setup`](roles/repo_manager_setup/README.md) | Initial setup and configuration for repo_manager |
+| [`repository_access`](roles/repository_access/README.md) | Resolve platform-specific repository access |
+| [`validate_input`](roles/validate_input/README.md) | Validate input configuration files |
+| [`validation`](roles/validation/README.md) | General validation tasks for repo_manager |
+
+### Modules
+
+Modules are invoked as `omnia.repo_manager.<module>`.
+
+| Module | Description |
+|--------|-------------|
+| `cert_vault_handler` | Handle certificate vault operations |
+| `check_user_registry` | Validate user container registry configuration |
+| `generate_local_repo_access` | Generate repo_status.yml with repository URLs |
+| `load_validated_yaml` | Load literal runtime YAML without Jinja evaluation |
+| `parallel_tasks` | Execute tasks in parallel with thread pool |
+| `prepare_tasklist` | Prepare task list for parallel execution |
+| `process_rpm_config` | Process RPM repository configuration |
+| `pulp_cleanup` | Clean up Pulp repositories and distributions |
+| `pulp_repo_name_migration` | Migrate legacy Pulp repository names |
+| `resolve_catalog_context` | Resolve Repo Manager catalog execution contexts |
+| `resolve_rhel_subscription_repositories` | Resolve RHEL subscription repositories for Pulp |
+| `validate_input` | Validate input configuration files |
+| `validate_system_environment` | Validate Omnia environment variables against system state |
+| `validate_user_repo` | Validate user repository configuration |
+| `vault_handler` | Encrypt, decrypt, or view Ansible Vault files |
+
+### Plugins
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
+
 ## Prerequisites
 
 | Requirement | Minimum | Notes |

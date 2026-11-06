@@ -96,6 +96,51 @@ telemetry/
 └── output/                        # Runtime output (status files)
 ```
 
+### Roles
+
+Roles are invoked as `omnia.telemetry.<role>`.
+
+| Role | Description |
+|------|-------------|
+| [`cleanup`](roles/cleanup/README.md) | Cleanup telemetry resources (all components) |
+| [`collect_telemetry_credentials`](roles/collect_telemetry_credentials/README.md) | Collects and manages credentials for telemetry sources (iDRAC, OME, etc.) |
+| [`common`](roles/common/README.md) | Shared telemetry utilities — loads telemetry config, validates prerequisites, common variables |
+| [`deploy_idrac_telemetry`](roles/deploy_idrac_telemetry/README.md) | Deploys iDRAC telemetry collection for Dell server hardware monitoring |
+| [`deploy_kafka`](roles/deploy_kafka/README.md) | Deploys Apache Kafka (Strimzi operator) for telemetry data streaming |
+| [`deploy_ldms`](roles/deploy_ldms/README.md) | Deploys LDMS (Lightweight Distributed Metric Service) for HPC telemetry collection |
+| [`deploy_ome`](roles/deploy_ome/README.md) | Deploys OME (OpenManage Enterprise) telemetry collection for infrastructure monitoring |
+| [`deploy_powerscale`](roles/deploy_powerscale/README.md) | Deploys PowerScale telemetry collection for Dell PowerScale storage monitoring |
+| [`deploy_ufm`](roles/deploy_ufm/README.md) | Deploys UFM (Unified Fabric Manager) telemetry for InfiniBand fabric monitoring |
+| [`deploy_vast`](roles/deploy_vast/README.md) | Deploys VAST Data telemetry collection for VAST storage monitoring |
+| [`deploy_victoria`](roles/deploy_victoria/README.md) | Deploys VictoriaMetrics and VictoriaLogs for telemetry data storage and querying |
+| [`external_kafka_connect`](roles/external_kafka_connect/README.md) | Fetches Kafka external connection details (mTLS and HTTP endpoints, TLS certs) from the Kubernetes cluster for external client integration (e.g., OME) |
+| [`external_victoria_connect`](roles/external_victoria_connect/README.md) | Fetches VictoriaMetrics and VictoriaLogs external connection details (endpoints, TLS certs, syslog target) from the Kubernetes cluster for external client integration (e.g., SFM, PowerScale) |
+| [`precheck`](roles/precheck/README.md) | Validates telemetry prerequisites — checks kube_vip connectivity, SSH access, and cluster readiness |
+| [`telemetry_setup`](roles/telemetry_setup/README.md) | Initial setup for telemetry domain — creates directories, loads config, sets guard fact |
+
+### Modules
+
+Modules are invoked as `omnia.telemetry.<module>`.
+
+| Module | Description |
+|--------|-------------|
+| `delete_idracips_from_mysqldb` | Delete iDRAC IPs from MySQL database in Kubernetes |
+| `enable_telemetry_service` | Enable all telemetry reports on iDRAC nodes via Redfish |
+| `fetch_idrac_ips` | Map iDRAC pod names to their associated BMC IPs |
+| `idrac_telemetry_filter` | Filter iDRAC BMCs by firmware and license eligibility |
+| `insert_idracips_mysqldb` | Insert iDRAC IPs into MySQL database in Kubernetes |
+| `read_idracips_from_mysqldb` | Read iDRAC IPs from MySQL database in Kubernetes |
+| `update_bmc_group_entry` | Add, delete, or verify BMC entries in a group CSV file |
+| `validate_bmc_group_data` | Validate BMC group data CSV structure and content |
+| `validate_input` | Validates telemetry input configuration files |
+| `validate_system_environment` | Validate Omnia environment variables against system state |
+
+### Plugins
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
+
 ## Prerequisites
 
 | Requirement | Minimum | Notes |

@@ -14,35 +14,47 @@ Utils is independent of the main deployment order and is run only when an operat
 
 ## Architecture
 
-### Active playbook roles
+### Roles
 
-| Role | Purpose |
-|------|---------|
-| `utils_setup` | Optional prerequisite/config/disk checks and shared guard facts |
-| `precheck_environment` | Validate the OIM environment against exported settings |
-| `log_collector` | Prepare inventory, collect node logs, and create support bundles |
-| `validate_install_os_config` | Load and mode-conditionally validate OS-install input |
-| `collect_install_os_credentials` | Collect and Vault-encrypt BMC and OS credentials |
-| `fetch_iso` | Validate the source ISO and install required tooling |
-| `iso_creation` | Render Kickstart and build embedded or NFS-delivered custom ISOs |
-| `iso_delivery` | Attach virtual media through iDRAC and verify installation |
-| `oim_log_backup` | Archive Omnia domain log directories with metadata |
-| `slurm_config_common` | Shared setup for the three Slurm config utility roles (resolves controller, paths, backup destination) |
-| `slurm_config_backup` | Back up the active Slurm controller configuration with checksummed metadata |
-| `slurm_cleanup` | Delete the active Slurm configuration (with optional pre-cleanup backup) |
-| `slurm_config_rollback` | Restore a Slurm configuration backup and reconfigure `slurmctld` |
-| `utils_status_writer` | Write and validate `utils_status.yml` |
+Roles are invoked as `omnia.utils.<role>`.
 
-### Modules and plugins
+| Role | Description |
+|------|-------------|
+| [`collect_install_os_credentials`](roles/collect_install_os_credentials/README.md) | Self-contained credential collection for OS installation operations |
+| [`fetch_iso`](roles/fetch_iso/README.md) | Download and validate OS ISO images for bare-metal provisioning |
+| [`iso_creation`](roles/iso_creation/README.md) | Create custom OS installation ISO images with Kickstart automation |
+| [`iso_delivery`](roles/iso_delivery/README.md) | Deliver custom ISO images via iDRAC virtual media for OS installation |
+| [`log_collector`](roles/log_collector/README.md) | Collect system logs from cluster nodes for troubleshooting |
+| [`oim_log_backup`](roles/oim_log_backup/README.md) | Archive OIM domain log directories into a single backup bundle |
+| [`precheck_environment`](roles/precheck_environment/README.md) | Validate environment prerequisites (env vars, hostname, IP, domain, omnia.sh setup) before running any utils playbook |
+| [`slurm_cleanup`](roles/slurm_cleanup/README.md) | Clean up Slurm configuration files and cluster settings |
+| [`slurm_config_backup`](roles/slurm_config_backup/README.md) | Create backups of Slurm configuration files for recovery operations |
+| [`slurm_config_common`](roles/slurm_config_common/README.md) | Shared setup for Slurm config backup/cleanup/rollback utilities |
+| [`slurm_config_rollback`](roles/slurm_config_rollback/README.md) | Rollback Slurm configuration files from previous backups |
+| [`utils_setup`](roles/utils_setup/README.md) | Initialize and validate utils domain environment |
+| [`utils_status_writer`](roles/utils_status_writer/README.md) | Write domain execution status to status file contract |
+| `validate_backup_oim_logs_config` | Validates backup_oim_logs_config.yml for OIM log backup playbook |
+| `validate_collect_config` | Validates collect_pxe.yml configuration for log collection |
+| [`validate_install_os_config`](roles/validate_install_os_config/README.md) | Validates install_os_config.yml parameters for the OS installation utility |
+| `validate_slurm_config_util_config` | Validates slurm_config_util_config.yml for Slurm configuration utility |
 
-| Component | Purpose |
-|-----------|---------|
-| `validate_system_environment` | Validate hostname, domain, admin IP, and data path |
-| `fetch_credential_rule` | Read credential validation rules |
-| `validate_credentials` | Validate credential values using shared security rules |
-| `fetch_telemetry_status` | Read enabled telemetry-source status |
-| `security_filters` | Credential and input security filters |
-| `omnia_default` | Domain stdout callback |
+### Modules
+
+Modules are invoked as `omnia.utils.<module>`.
+
+| Module | Description |
+|--------|-------------|
+| `fetch_credential_rule` | Fetch validation rules for credential fields |
+| `fetch_telemetry_status` | Fetch enabled telemetry sources from telemetry configuration |
+| `validate_credentials` | Validate credential inputs against defined rules |
+| `validate_system_environment` | Validate Omnia environment variables against system state |
+
+### Plugins
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `security_filters` | Filter | Ansible filter plugins for security operations |
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
 
 ## Prerequisites
 

@@ -44,59 +44,64 @@ src/orchestrator/
 
 ### Roles
 
+Roles are invoked as `omnia.orchestrator.<role>`.
+
 | Role | Description |
 |------|-------------|
-| `omnia.orchestrator.cleanup` | Select and coordinate Orchestrator cleanup components |
-| `omnia.orchestrator.orchestrator_setup` | Setup project dirs, OIM host group |
-| `omnia.orchestrator.validate_orchestrator_input` | L1 schema + L2 logic validation |
-| `omnia.orchestrator.orchestrator_credentials` | Credential prompting, encryption, vault |
-| `omnia.orchestrator.orchestrator_functional_groups` | Generate functional groups from PXE mapping |
-| `omnia.orchestrator.orchestrator_validations` | Parameter and environment validation |
-| `omnia.orchestrator.orchestrator_common` | Shared task library (S3, auth, vault helpers) |
-| `omnia.orchestrator.passwordless_ssh` | SSH key distribution and host list management |
-| `omnia.orchestrator.deploy_openchami` | Deploy OpenCHAMI containers on OIM |
-| `omnia.orchestrator.deploy_openldap` | Deploy the OpenLDAP container on OIM |
-| `omnia.orchestrator.generate_inventories` | Generate downstream Ansible and BMC inventories |
-| `omnia.orchestrator.k8s_config` | Kubernetes cluster configuration |
-| `omnia.orchestrator.slurm_config` | Slurm workload manager configuration |
-| `omnia.orchestrator.mount_config` | NFS/shared filesystem mount configuration |
-| `omnia.orchestrator.openldap` | OpenLDAP directory service configuration |
-| `omnia.orchestrator.idrac_pxe_boot` | Configure Dell iDRAC PXE boot via Redfish API |
-| `omnia.orchestrator.precheck_environment` | Validate OIM environment prerequisites |
-| `omnia.orchestrator.provision_common` | Prepare common provisioning data and Metadata Service content |
-| `omnia.orchestrator.orchestrator_node_topology` | Publish shared node and functional-group topology facts |
-| `omnia.orchestrator.validate_openchami` | Validate OpenCHAMI service and artifact readiness |
-| `omnia.orchestrator.validate_preamble` | Prepare shared facts for deployment validation |
-| `omnia.orchestrator.validate_provisioning` | Validate provisioned node and service state |
-| `omnia.orchestrator.verify_node_registration` | Fresh-boot and cloud-init verification after PXE boot |
+| [`cleanup`](roles/cleanup/README.md) | Clean up selected Omnia Orchestrator components and artifacts |
+| [`deploy_openchami`](roles/deploy_openchami/README.md) | Install or refresh the OpenCHAMI deployment and start its services on the OIM |
+| [`deploy_openldap`](roles/deploy_openldap/README.md) | Deploy the OpenLDAP (`omnia_auth`) container on the OIM |
+| [`external_boot_verification`](roles/external_boot_verification/README.md) | Prepare and report verification for nodes booted outside iDRAC PXE (manually or by hypervisor) |
+| [`generate_inventories`](roles/generate_inventories/README.md) | Generate Ansible inventories from SMD registered nodes |
+| [`idrac_pxe_boot`](roles/idrac_pxe_boot/README.md) | Configure Dell iDRAC systems for PXE boot and restart nodes through Redfish |
+| [`k8s_config`](roles/k8s_config/README.md) | Generate service Kubernetes cluster configuration (manifests, Helm values) in NFS-shared storage, including optional PowerScale CSI |
+| [`mount_config`](roles/mount_config/README.md) | Configure NFS client mounts on cluster nodes by functional group or host |
+| [`openldap`](roles/openldap/README.md) | Derive OpenLDAP client facts for Slurm and Kubernetes node configuration (the server is deployed by `deploy_openldap`) |
+| [`orchestrator_common`](roles/orchestrator_common/README.md) | Shared task library for lifecycle playbooks; included with `tasks_from`, not run standalone |
+| [`orchestrator_credentials`](roles/orchestrator_credentials/README.md) | Collect and protect credentials required by Omnia Orchestrator |
+| [`orchestrator_functional_groups`](roles/orchestrator_functional_groups/README.md) | Generate the normalized functional-group configuration from the PXE mapping |
+| [`orchestrator_lifecycle_status`](roles/orchestrator_lifecycle_status/README.md) | Persist the reconciled aggregate lifecycle status (`orchestrator_status.yml`) |
+| [`orchestrator_node_topology`](roles/orchestrator_node_topology/README.md) | Resolve shared node, group, address, and Slurm topology facts |
+| [`orchestrator_setup`](roles/orchestrator_setup/README.md) | Bootstrap role (`always` tag): project and lifecycle context for later plays |
+| [`orchestrator_validations`](roles/orchestrator_validations/README.md) | Environment and availability checks that need resolved runtime facts or external services |
+| [`passwordless_ssh`](roles/passwordless_ssh/README.md) | Build category-specific cluster host lists and configure OIM SSH access |
+| [`precheck_environment`](roles/precheck_environment/README.md) | Validate the environment required by Omnia Orchestrator |
+| [`provision_common`](roles/provision_common/README.md) | Common provisioning tasks for all functional group categories |
+| [`pxe_boot_inventory`](roles/pxe_boot_inventory/README.md) | Resolve SMD identities and build PXE target inventories from `pxe_mapping_file.csv` |
+| [`pxe_boot_reporting`](roles/pxe_boot_reporting/README.md) | Collect PXE trigger and registration results, reconcile lifecycle state, and persist reports |
+| [`pxe_boot_setup`](roles/pxe_boot_setup/README.md) | Load and validate the PXE boot configuration (skip flags, timing controls) |
+| [`slurm_config`](roles/slurm_config/README.md) | Build Slurm controller, database, compute, login, and shared-filesystem configuration |
+| [`validate_openchami`](roles/validate_openchami/README.md) | Verify OpenCHAMI services are ready for provisioning |
+| [`validate_orchestrator_input`](roles/validate_orchestrator_input/README.md) | L1 schema and L2 logic validation of Orchestrator inputs |
+| [`validate_preamble`](roles/validate_preamble/README.md) | Load persisted prerequisites for standalone Orchestrator validation |
+| [`validate_provisioning`](roles/validate_provisioning/README.md) | Post-provisioning validation and reporting |
+| [`verify_node_registration`](roles/verify_node_registration/README.md) | Verify fresh boot and cloud-init completion on Orchestrator- or externally booted nodes |
 
 ### Modules
 
+Modules are invoked as `omnia.orchestrator.<module>`.
+
 | Module | Description |
 |--------|-------------|
-| `omnia.orchestrator.additional_images_collector` | Collect additional container images from the catalog |
-| `omnia.orchestrator.bulk_discover_node_specs` | Discover hardware specifications for multiple nodes |
-| `omnia.orchestrator.bulk_update_hosts` | Update managed `/etc/hosts` entries across multiple hosts |
-| `omnia.orchestrator.validate_orchestrator_config` | Validate orchestrator configuration (L1+L2) |
-| `omnia.orchestrator.validate_credentials` | Validate credential input against rules |
-| `omnia.orchestrator.fetch_credential_rule` | Fetch validation rules for a credential field |
-| `omnia.orchestrator.generate_functional_groups` | Generate functional groups from PXE mapping CSV |
-| `omnia.orchestrator.node_boot_status` | Verify fresh boot and cloud-init completion on a provisioned node |
-| `omnia.orchestrator.openchami_reconcile` | Resolve persistent SMD identities and reconcile OpenCHAMI state through verified APIs |
-| `omnia.orchestrator.slurm_conf` | Parse, merge, and render Slurm configuration |
-| `omnia.orchestrator.validate_system_environment` | Validate the OIM system environment |
+| `additional_images_collector` | Collect container images from an Omnia catalog |
+| `bulk_discover_node_specs` | Discover hardware specifications from multiple iDRACs |
+| `bulk_update_hosts` | Update managed hosts-file entries over parallel SSH connections |
+| `fetch_credential_rule` | Fetch validation rules for a credential field |
+| `generate_functional_groups` | Generate functional groups from PXE mapping CSV |
+| `node_boot_status` | Verify a fresh PXE boot and cloud-init completion |
+| `openchami_reconcile` | Reconcile Omnia node state with OpenCHAMI services |
+| `orchestrator_status_reconcile` | Reconcile Omnia Orchestrator PXE lifecycle status |
+| `slurm_conf` | Parse, convert, and merge Slurm configuration files |
+| `validate_credentials` | Validate credential input against rules |
+| `validate_orchestrator_config` | Validate Orchestrator configuration files |
+| `validate_system_environment` | Validate Omnia environment variables against system state |
 
-### Action plugins
+### Plugins
 
-| Plugin | Description |
-|--------|-------------|
-| `omnia.orchestrator.node_boot_status` | Convert transient SSH transport failures into structured retryable results before invoking the node-local module |
-
-### Callback plugins
-
-| Plugin | Description |
-|--------|-------------|
-| `omnia.orchestrator.omnia_default` | Custom stdout callback with clean error formatting |
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `node_boot_status` | Action | Keep transient SSH failures retryable for node boot verification |
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
 
 ## Prerequisites
 

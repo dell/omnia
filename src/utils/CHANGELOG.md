@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/index.html) instead of GitHub Pages
-- README restructured to the common domain layout (same sections in the same order across all domains); commands and links validated.
+- README restructured to the common domain layout (same sections in the same order across all domains); Architecture lists every role, module, and plugin; commands and links validated.
 
 ## [2.2.0] - 2026-08-04
 

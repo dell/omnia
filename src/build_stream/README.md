@@ -107,6 +107,40 @@ build_stream/                              # Omnia Build Stream domain
 └── scripts/                         # JWT key generation, etc.
 ```
 
+### Roles
+
+Roles are invoked as `omnia.build_stream.<role>`.
+
+| Role | Description |
+|------|-------------|
+| [`build_stream_setup`](roles/build_stream_setup/README.md) | Domain setup role for Build Stream — resolves input/output directories and loads OIM metadata |
+| [`cleanup_build_stream`](roles/cleanup_build_stream/README.md) | Cleans up Build Stream containers, services, credentials, and data directories |
+| [`cleanup_gitlab`](roles/cleanup_gitlab/README.md) | Removes GitLab CE, runner, TLS certificates, CI/CD configuration, and credentials |
+| [`credential_utility`](roles/credential_utility/README.md) | Manages Build Stream domain credentials — creates, validates, prompts, and encrypts credential files |
+| [`deploy_bsm`](roles/deploy_bsm/README.md) | Deploys the Build Stream Manager container and playbook watcher service |
+| [`gitlab_passwordless_ssh`](roles/gitlab_passwordless_ssh/README.md) | Configures passwordless SSH access from the control node to the GitLab server |
+| [`hosted_gitlab`](roles/hosted_gitlab/README.md) | Deploys GitLab CE Omnibus with TLS, CI/CD pipelines, runner, and project configuration |
+| [`postgres`](roles/postgres/README.md) | Deploys the PostgreSQL container for the Build Stream database |
+| [`precheck_build_stream`](roles/precheck_build_stream/README.md) | Precheck for build_stream domain — verifies repo_manager and image_build_manager containers are running, credentials are present, and output files exist |
+| [`pxe_buildstream_manager`](roles/pxe_buildstream_manager/README.md) | Manage PXE boot operations with BuildStream integration |
+| [`validate_build_stream_input`](roles/validate_build_stream_input/README.md) | Validate BuildStream input configuration files |
+
+### Modules
+
+Modules are invoked as `omnia.build_stream.<module>`.
+
+| Module | Description |
+|--------|-------------|
+| `validate_build_stream_config` | Validate build stream configuration files |
+| `validate_system_environment` | Validate Omnia environment variables against system state |
+| `validate_yaml_schema` | Validate YAML file against JSON Schema |
+
+### Plugins
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| `omnia_default` | Callback | Custom Ansible stdout callback plugin for Omnia |
+
 ## Prerequisites
 
 | Requirement | Minimum | Notes |
@@ -284,6 +318,8 @@ Run one tag at a time (from the `build_stream.yml` header).
 | `execute` | Deploy GitLab CE and CI/CD configuration | Yes |
 | `build` | Alias for `prepare` plus `execute` | Yes |
 | `cleanup` | Remove GitLab, BSM, PostgreSQL, and credentials (`-e cleanup_credentials=false` keeps credentials) | No |
+
+`credentials` has no dedicated play. Setup, input validation, and the credential step run under the `always` tag, and the setup role skips the credential step only for `precheck`, `validate`, and `cleanup`. Running `--tags credentials` therefore performs setup, validation, and the credential prompt, and stops there.
 
 ## Inputs and Outputs
 
