@@ -354,7 +354,6 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
 - OS-install credentials are collected by the `install_os` flow and stored Vault-encrypted with a vault key created with restrictive permissions; `cleanup` removes them unless `-e cleanup_credentials=false` is passed.
 - Credential values are validated with the shared security rules (`validate_credentials`, `security_filters`).
-- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -363,7 +362,6 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 - [Input contract](docs/contracts/input-contract.md)
 - [Output contract](docs/contracts/output-contract.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

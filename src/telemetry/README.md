@@ -331,7 +331,6 @@ run with `-e delete_sinks_volume=true`.
 
 - Telemetry credentials are stored in `telemetry_credentials.yml` with a vault key; full `cleanup` deletes both by default (`-e cleanup_credentials=false` keeps them).
 - A granular source cleanup blanks only that source's stored credential fields and preserves credentials for components that remain deployed.
-- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -341,7 +340,6 @@ run with `-e delete_sinks_volume=true`.
 - [Output contract](docs/contracts/output-contract.md)
 - [LDMS container build](containers/README.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

@@ -314,7 +314,6 @@ automation can add `--skip-approval`.
 
 - OME credentials are collected by the `credentials` tag and stored Vault-encrypted with a separate vault key; `cleanup` removes both unless `-e cleanup_credentials=false` is passed.
 - Cleanup is limited to the project selected by `OMNIA_PROJECT_NAME`.
-- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -324,7 +323,6 @@ automation can add `--skip-approval`.
 - [Input contract](docs/contracts/input-contract.md)
 - [Output contract](docs/contracts/output-contract.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

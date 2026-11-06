@@ -410,7 +410,6 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
 - API endpoints are secured with JWT-based authentication; TLS certificates for the API are stored under `<data_path>/build_stream/ssl/`.
 - Credentials are collected by the `credentials` tag and stored in Vault-protected files owned by Build Stream; `cleanup` removes them unless `-e cleanup_credentials=false` is passed.
-- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -426,7 +425,6 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 - [Image build](docs/build_image.md)
 - [Validation](docs/validation.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

@@ -14,7 +14,7 @@ Run `./omnia.sh --run build_stream --tags precheck` to check that the Repository
 | `The deployment of the <build stream> container has failed` | Container start failed | Run the `utility/oim_cleanup.yml` playbook to clean up existing OIM resources, then re-run the original playbook |
 | `The deployment of the <postgres> container has failed` | Typically database initialization issues when data from a previous deployment exists | Option 1: re-run with the same PostgreSQL credentials used before to reuse the existing database. Option 2 (permanently deletes the preserved database): run `playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false --skip-tags credentials` from `src/build_stream`, then `sudo ./omnia.sh --init build_stream`, then re-run `--tags prepare` |
 | `OMNIA_SRC_PATH ... is inside the Omnia data path` | The data path is mounted read-write into the Build Stream API container and the root playbook watcher runs from `OMNIA_SRC_PATH` | Keep the Omnia source tree outside the data path |
-| NFS data path warning during precheck | The data path is on NFS, and the playbook queue under it drives root playbook execution | Export it with `root_squash` and only to trusted clients (`exportfs -ra`); see [Security](security.md) |
+| NFS data path warning during precheck | The data path is on NFS, and the playbook queue under it drives root playbook execution | Export it with `root_squash` and only to trusted clients (`exportfs -ra`) |
 
 Credentials: `--tags credentials` runs setup, validation, and the credential prompt only.
 

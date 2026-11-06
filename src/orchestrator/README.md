@@ -309,7 +309,6 @@ component cleanup behavior is documented in
 
 - Orchestrator credentials are collected by the `credentials` tag and stored Vault-encrypted; `cleanup` removes the file and vault key unless `-e cleanup_credentials=false` is passed.
 - Provisioning-password hashes use a stable project-and-cluster salt, and plaintext is passed to OpenSSL over standard input rather than as a process argument.
-- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -321,7 +320,6 @@ component cleanup behavior is documented in
 - [Output contract](docs/contracts/output-contract.md)
 - [Cleanup playbooks](playbooks/cleanup/README.md)
 - [OpenLDAP authentication container](containers/omnia_auth/README.md)
-- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 
