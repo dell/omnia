@@ -1,4 +1,4 @@
-# Build Stream Domain Architecture
+# Build Stream Architecture
 
 > **Version**: Omnia 3.0
 > **Last Updated**: 2026-09-03

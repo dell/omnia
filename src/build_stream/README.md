@@ -378,6 +378,7 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
 - [Read the Docs: Build Stream guides](https://omnia.readthedocs.io/en/latest/HowTo/build_stream/index.html)
 - [Architecture](docs/architecture.md)
+- [Design](docs/design/build-stream-design.md)
 - [Documentation index](docs/README.md)
 - [Input contract](docs/contracts/input-contract.md)
 - [Output contract](docs/contracts/output-contract.md)

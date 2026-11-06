@@ -1,4 +1,4 @@
-# Utils Domain -- Architecture
+# Utils Architecture
 
 ## System Context
 

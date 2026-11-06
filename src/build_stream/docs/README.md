@@ -6,6 +6,7 @@ This directory contains comprehensive documentation for the Build Stream module 
 
 ### Overview Documentation
 - **[Architecture](./architecture.md)** - Domain architecture, layers, and design
+- **[Design](./design/build-stream-design.md)** - Detailed domain design and structure
 - **[Main README](../README.md)** - High-level overview and getting started guide
 - **[Input Contract](./contracts/input-contract.md)** - Input file specification
 - **[Output Contract](./contracts/output-contract.md)** - Output artifact specification

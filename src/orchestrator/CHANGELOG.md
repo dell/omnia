@@ -23,7 +23,7 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - Provision report shows wrong `missing_nodes` by comparing GROUP_NAMEs against xnames (#458).
 - Missing `configs_vars.yaml` pre-check causes unclear error during provision (#450).
 - OS-versioned FG names (e.g. `slurm_control_node_rhel_10_0_x86_64`) fail metadata-service template lookup — normalize template path.
-- Galaxy collection documentation URL now points to versioned Read the Docs (https://omnia.readthedocs.io/en/latest/) instead of GitHub source tree
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/index.html) instead of GitHub source tree
 - README restructured around the module's purpose, upstream/downstream contracts, and workflow; documentation links validated.
 - Removed unreleased 3.0.0 changelog entry to avoid version history confusion (DOC-RC1-018)
 
