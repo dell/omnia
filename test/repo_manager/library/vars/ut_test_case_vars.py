@@ -699,6 +699,17 @@ UT_TEST_CASE_IDS = {
             329: "test_validate_points_to_transform",
         },
     ),
+    # ── no_log must not mask the package counters of a sync result ────────
+    **_class_cases(
+        "test_no_log_counters.py",
+        "NoLogCounterTests",
+        {
+            330: "test_counter_containing_a_numeric_no_log_string_is_masked_by_ansible",
+            331: "test_short_numeric_values_are_dropped",
+            332: "test_counters_survive_after_the_filter",
+            333: "test_secrets_are_still_masked",
+        },
+    ),
 }
 
 
