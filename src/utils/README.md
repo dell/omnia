@@ -33,10 +33,10 @@ Roles are invoked as `omnia.utils.<role>`.
 | [`slurm_config_rollback`](roles/slurm_config_rollback/README.md) | Rollback Slurm configuration files from previous backups |
 | [`utils_setup`](roles/utils_setup/README.md) | Initialize and validate utils domain environment |
 | [`utils_status_writer`](roles/utils_status_writer/README.md) | Write domain execution status to status file contract |
-| `validate_backup_oim_logs_config` | Validates backup_oim_logs_config.yml for OIM log backup playbook |
-| `validate_collect_config` | Validates collect_pxe.yml configuration for log collection |
+| [`validate_backup_oim_logs_config`](roles/validate_backup_oim_logs_config/README.md) | Validates backup_oim_logs_config.yml for OIM log backup playbook |
+| [`validate_collect_config`](roles/validate_collect_config/README.md) | Validates collect_pxe.yml configuration for log collection |
 | [`validate_install_os_config`](roles/validate_install_os_config/README.md) | Validates install_os_config.yml parameters for the OS installation utility |
-| `validate_slurm_config_util_config` | Validates slurm_config_util_config.yml for Slurm configuration utility |
+| [`validate_slurm_config_util_config`](roles/validate_slurm_config_util_config/README.md) | Validates slurm_config_util_config.yml for Slurm configuration utility |
 
 ### Modules
 
@@ -348,11 +348,13 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 - Runtime logs: `$OMNIA_DATA_PATH/utils/log/<project>/`; the latest run status is in `utils/output/<project>/utils_status.yml`.
 - Re-run `sudo ./omnia.sh --init utils` if inputs or dependencies were not staged.
 - Role documentation: `roles/*/README.md`.
+- See [docs/troubleshooting.md](docs/troubleshooting.md) for common failures and fixes.
 
 ## Security
 
 - OS-install credentials are collected by the `install_os` flow and stored Vault-encrypted with a vault key created with restrictive permissions; `cleanup` removes them unless `-e cleanup_credentials=false` is passed.
 - Credential values are validated with the shared security rules (`validate_credentials`, `security_filters`).
+- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -360,6 +362,8 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 - [Architecture](docs/architecture.md)
 - [Input contract](docs/contracts/input-contract.md)
 - [Output contract](docs/contracts/output-contract.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

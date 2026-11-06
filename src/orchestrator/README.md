@@ -110,15 +110,10 @@ Modules are invoked as `omnia.orchestrator.<module>`.
 | OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | `requirements.txt` |
-| Podman | 5.0+ | OpenCHAMI and OpenLDAP service deployment |
-| `ansible.posix` | 2.0.0 | `requirements.yml` |
-| `ansible.utils` | 5.1.1 | `requirements.yml` |
-| `community.general` | 10.3.0 | `requirements.yml` |
-| `dellemc.openmanage` | 10.0.3+ | `requirements.yml` |
+| Podman | Required | OpenCHAMI and OpenLDAP service deployment |
+| Ansible collections | Installed from `requirements.yml` | Versions are pinned there |
 
-Install through `src/main/omnia.sh --setup-venv` for the supported dependency
-set. The collection metadata permits Ansible 2.15 or newer, while the supported
-v2.3 runtime dependency file installs Ansible 2.20 or newer.
+Install through `src/main/omnia.sh --setup-venv`; the supported dependency versions are those pinned in `requirements.txt` and `requirements.yml`.
 
 ## Installation
 
@@ -314,6 +309,7 @@ component cleanup behavior is documented in
 
 - Orchestrator credentials are collected by the `credentials` tag and stored Vault-encrypted; `cleanup` removes the file and vault key unless `-e cleanup_credentials=false` is passed.
 - Provisioning-password hashes use a stable project-and-cluster salt, and plaintext is passed to OpenSSL over standard input rather than as a process argument.
+- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -325,6 +321,7 @@ component cleanup behavior is documented in
 - [Output contract](docs/contracts/output-contract.md)
 - [Cleanup playbooks](playbooks/cleanup/README.md)
 - [OpenLDAP authentication container](containers/omnia_auth/README.md)
+- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

@@ -81,7 +81,7 @@ Modules are invoked as `omnia.image_build.<module>`.
 | OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
-| Podman | 5.0+ | Container runtime |
+| Podman | Required | Container runtime |
 | Disk | 50 GB free |  |
 
 ## Installation
@@ -135,7 +135,7 @@ sudo ./omnia.sh --init image_build_manager
 |------------|---------|
 | Architecture | ARM64 (`uname -m` = `aarch64`) |
 | OS | RHEL 10.0, 10.2; Rocky 10.x |
-| Podman | 5.0+ (for builder container image) |
+| Podman | Required (for the builder container image) |
 | SSH | SSH password for initial key installation; passwordless SSH is then configured automatically |
 | Network | IP reachable from OIM admin NIC; port 22 open |
 | Internet | Optional only when the builder image is available through Pulp and the ARM `regctl` binary is already staged on OIM; otherwise upstream registry/GitHub access is needed |
@@ -170,10 +170,10 @@ sudo ./omnia.sh --init image_build_manager
 **Current Implementation**:
 - x86_64 builds: Run directly on OIM host
 - aarch64 builds: Orchestrate via SSH to dedicated aarch64 node
-- `image-thrillhouse` uses `ghcr.io/openchami/image-thrillhouse:v0.0.26` on both
-  architectures using the same pinned Image Thrillhouse container from GHCR.
+- `image-thrillhouse` runs from the same pinned Image Thrillhouse container (GHCR) on both
+  architectures.
 - The default, cadence, RHEL 10.0, RHEL 10.2, and hybrid catalogs under
-  `src/main/samples/` pin the same Image Thrillhouse `v0.0.26` tag. Unit tests
+  `src/main/samples/` pin the same Image Thrillhouse tag as the runtime. Unit tests
   recursively enforce this catalog/runtime alignment.
 - Separate hosts are required for each architecture
 

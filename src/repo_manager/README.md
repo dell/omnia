@@ -74,7 +74,7 @@ Modules are invoked as `omnia.repo_manager.<module>`.
 | OS | RHEL 10.0, 10.2 | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
-| Podman | 5.0+ | Runs the Pulp container |
+| Podman | Required | Runs the Pulp container |
 | Privileges | Root or equivalent |  |
 | Storage | Sized for retained catalog content | Deployment-specific |
 
@@ -358,7 +358,7 @@ Full Pulp cleanup removes runtime logs by default. Use
 
 # Remove selected File/Python artifacts.
 ./omnia.sh --run repo_manager --tags cleanup_repos \
-  -e "cleanup_files=helm-charts-2.17.0,helm-v3.20.1-amd64"
+  -e "cleanup_files=helm-charts-<version>,helm-<version>-amd64"
 
 # Remove all synchronized artifact types but keep the Pulp deployment.
 ./omnia.sh --run repo_manager --tags cleanup_repos \

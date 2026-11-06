@@ -77,7 +77,7 @@ Modules are invoked as `omnia.discovery.<module>`.
 | OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
-| Collection | `community.general` >= 5.0.0 |  |
+| Ansible collections | Installed from `requirements.yml` | Versions are pinned there |
 | OME | Reachable from the OIM | HTTPS port 443 |
 
 ## Installation
@@ -308,11 +308,13 @@ automation can add `--skip-approval`.
 - Validation and runtime logs: `<DISCOVERY_DATA_PATH>/log/<project>/discovery_validation_<project>.log`.
 - Run `--tags precheck` to confirm the data path and OME reachability.
 - Re-run `sudo ./omnia.sh --init discovery` if inputs or dependencies were not staged.
+- See [docs/troubleshooting.md](docs/troubleshooting.md) for common failures and fixes.
 
 ## Security
 
 - OME credentials are collected by the `credentials` tag and stored Vault-encrypted with a separate vault key; `cleanup` removes both unless `-e cleanup_credentials=false` is passed.
 - Cleanup is limited to the project selected by `OMNIA_PROJECT_NAME`.
+- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -321,6 +323,8 @@ automation can add `--skip-approval`.
 - [Design](docs/design/discovery-design.md)
 - [Input contract](docs/contracts/input-contract.md)
 - [Output contract](docs/contracts/output-contract.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 

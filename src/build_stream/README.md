@@ -148,8 +148,8 @@ Modules are invoked as `omnia.build_stream.<module>`.
 | OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
-| Container runtime | Podman 5.0+ | Runs the Build Stream API and PostgreSQL containers |
-| Database | PostgreSQL 17+ | Containerized |
+| Container runtime | Podman | Runs the Build Stream API and PostgreSQL containers |
+| Database | PostgreSQL | Containerized; deployed by the `prepare` tag |
 
 ## Installation
 
@@ -404,11 +404,13 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 - Re-run `sudo ./omnia.sh --init build_stream` if inputs or dependencies were not staged.
 - Job, stage, cadence, and validation logs are under `<data_path>/build_stream/log/` (see [Runtime Paths](#runtime-paths)).
 - Workflow-specific guidance: [docs/README.md](docs/README.md).
+- See [docs/troubleshooting.md](docs/troubleshooting.md) for common failures and fixes.
 
 ## Security
 
 - API endpoints are secured with JWT-based authentication; TLS certificates for the API are stored under `<data_path>/build_stream/ssl/`.
 - Credentials are collected by the `credentials` tag and stored in Vault-protected files owned by Build Stream; `cleanup` removes them unless `-e cleanup_credentials=false` is passed.
+- See [docs/security.md](docs/security.md) for the full security notes.
 
 ## Documentation
 
@@ -423,6 +425,8 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 - [Local repository](docs/local_repo.md)
 - [Image build](docs/build_image.md)
 - [Validation](docs/validation.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Security](docs/security.md)
 - [Omnia on GitHub](https://github.com/dell/omnia)
 - [Report an issue](https://github.com/dell/omnia/issues)
 
