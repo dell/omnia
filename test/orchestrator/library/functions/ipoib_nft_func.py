@@ -24,6 +24,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from ._ipoib_helpers import has_ib_nic
+from ._provision_helpers import load_context
 from ..vars.ipoib_vars import (
     ALLOCATION_VALIDATOR_PATH,
     IPOIB_NFT_INTERFACES_PER_NODE,
@@ -95,11 +97,26 @@ def _allocation_export(record_count: int) -> dict[str, Any]:
     }
 
 
-def check_ipoib_allocation_validation_latency(_host) -> dict[str, Any]:
+def _skip_result(summary: str, reason: str) -> dict[str, Any]:
+    """Return a skip result compatible with the NFT result contract."""
+    return {
+        "success": True,
+        "skipped": True,
+        "reason": reason,
+        "details": summary,
+        "fields": [("Reason", reason)],
+        "error": "",
+    }
+
+
+def check_ipoib_allocation_validation_latency(host) -> dict[str, Any]:
     """TC-NFT-001: full preflight validation p95 stays under the per-record target."""
     summary = "IPoIB allocation validation latency"
     records = IPOIB_NFT_VALIDATION_RECORDS
     try:
+        context = load_context(host)
+        if not has_ib_nic(context["rows"]):
+            return _skip_result(summary, "No mapped node has IB_NIC_NAME")
         validator = _product_module(ALLOCATION_VALIDATOR_PATH, "omnia_nft_allocation_validator")
         data = _allocation_export(records)
         expected_nodes = -(-records // IPOIB_NFT_INTERFACES_PER_NODE)
@@ -136,11 +153,14 @@ def check_ipoib_allocation_validation_latency(_host) -> dict[str, Any]:
         return _result(False, summary, [("Records", records)], str(exc))
 
 
-def check_ipoib_artifact_generation_throughput(_host) -> dict[str, Any]:
+def check_ipoib_artifact_generation_throughput(host) -> dict[str, Any]:
     """TC-NFT-002: per-node artifact rendering p95 stays under the target and is stable."""
     summary = "IPoIB artifact generation throughput"
     nodes = IPOIB_NFT_RENDER_NODES
     try:
+        context = load_context(host)
+        if not has_ib_nic(context["rows"]):
+            return _skip_result(summary, "No mapped node has IB_NIC_NAME")
         validator = _product_module(ALLOCATION_VALIDATOR_PATH, "omnia_nft_allocation_validator")
         renderer = _product_module(NM_RENDERER_PATH, "omnia_nft_nm_renderer")
         normalized, node_errors = validator.preflight_validate(
