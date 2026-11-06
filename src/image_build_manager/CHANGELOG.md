@@ -19,3 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standard tag support: precheck, validate, credentials, prepare, execute/build, cleanup
 - `domain-init.sh` with idempotent input staging and dependency caching
 - `docs/contracts/` with input and output contracts
+
+### Fixed
+- Galaxy collection documentation URL now points to versioned Read the Docs (https://omnia.readthedocs.io/en/2.3.0/) instead of GitHub source tree

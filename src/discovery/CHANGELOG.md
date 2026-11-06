@@ -15,6 +15,9 @@ All notable changes to the `omnia.discovery` collection will be documented in th
   `/var/log/omnia/discovery` by default, and supports `cleanup_logs=false`
   when log retention is required.
 
+### Fixed
+- Galaxy collection documentation URL now points to versioned Read the Docs (https://omnia.readthedocs.io/en/2.3.0/) instead of GitHub source tree
+
 ## [3.0.0] - 2026-07-30
 
 ### Added

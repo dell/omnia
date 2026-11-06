@@ -26,7 +26,7 @@ dependencies:
   community.general: ">=9.4.0"
 repository: https://github.com/dell/omnia
 documentation: https://omnia.readthedocs.io/en/2.3.0/
-homepage: https://dell.github.io/omnia
+homepage: https://github.com/dell/omnia
 issues: https://github.com/dell/omnia/issues
 build_ignore:
   - '*.pyc'
