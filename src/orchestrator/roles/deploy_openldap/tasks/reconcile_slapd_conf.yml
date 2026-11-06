@@ -118,8 +118,8 @@
             dest: "{{ auth_config_dir }}/slapd.conf"
             remote_src: true
             owner: root
-            group: root
-            mode: "0600"
+            group: "{{ auth_ldap_group }}"
+            mode: "0640"
           register: _slapd_install
           no_log: true
 
@@ -151,8 +151,8 @@
             dest: "{{ auth_config_dir }}/slapd.conf"
             remote_src: true
             owner: root
-            group: root
-            mode: "0600"
+            group: "{{ auth_ldap_group }}"
+            mode: "0640"
           when:
             - _slapd_install is defined
             - _slapd_backup_copy is succeeded

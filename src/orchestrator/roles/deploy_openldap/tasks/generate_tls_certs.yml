@@ -35,15 +35,17 @@
           -addext "subjectAltName=IP:{{ ldap_server_ip }},DNS:{{ domain_name }}"
       changed_when: true
 
-    - name: Set certificate file permissions
-      ansible.builtin.file:
-        path: "{{ auth_certs_dir }}/{{ item.name }}"
-        owner: root
-        group: root
-        mode: "{{ item.mode }}"
-      loop:
-        - { name: "{{ tls_cert_file }}", mode: "0644" }
-        - { name: "{{ tls_key_file }}", mode: "0600" }
+- name: Set certificate file permissions
+  ansible.builtin.file:
+    path: "{{ auth_certs_dir }}/{{ item.name }}"
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { name: "{{ tls_cert_file }}", mode: "0644", group: root }
+    - { name: "{{ tls_key_file }}", mode: "0640", group: "{{ auth_ldap_group }}" }
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Check TLS certificate validity period
   ansible.builtin.command:

@@ -57,17 +57,22 @@ def _argv(task):
 
 
 def test_credentials_load_before_running_and_fresh_paths():
+    """Credentials load before the redeploy and reconcile paths."""
     outer = _load(MAIN)[0]["block"]
     names = [task.get("name") for task in outer]
     load = names.index("Load OpenLDAP credentials")
-    assert load < names.index("Deploy OpenLDAP when container is not running")
-    reconcile = _named(outer, "Reconcile slapd.conf when container is already running")
+    deploy = "Deploy OpenLDAP when container is not running or runs a different image"
+    assert load < names.index(deploy)
+    reconcile = _named(
+        outer, "Reconcile slapd.conf when container is already running the desired image"
+    )
     assert reconcile["ansible.builtin.include_tasks"] == "reconcile_slapd_conf.yml"
     assert load < names.index(reconcile["name"])
-    assert "== 'running'" in reconcile["when"]
+    assert reconcile["when"] == "not (omnia_auth_needs_deploy | bool)"
 
 
 def test_candidate_is_private_and_compared_with_mounted_file():
+    """The candidate is private and compared with the mounted file."""
     tasks = _load(RECONCILE)
     assert _load(VARS)["slapd_reconcile_tmp_dir"] == "/dev/shm"
     render = _named(tasks, "Render candidate slapd.conf")
@@ -81,6 +86,7 @@ def test_candidate_is_private_and_compared_with_mounted_file():
 
 
 def test_validation_precedes_install_and_restart():
+    """The candidate is validated before it is installed and applied."""
     apply = _named(_load(RECONCILE), "Apply updated slapd.conf")
     names = [task.get("name") for task in apply["block"]]
     validate = _named(apply["block"], "Check candidate slapd.conf syntax")
@@ -98,6 +104,7 @@ def test_validation_precedes_install_and_restart():
 
 
 def test_failure_restores_previous_file_and_cleans_up():
+    """A failed restart restores the previous file and cleans up."""
     tasks = _load(RECONCILE)
     apply = _named(tasks, "Apply updated slapd.conf")
     rescue = [task.get("name") for task in apply["rescue"]]
