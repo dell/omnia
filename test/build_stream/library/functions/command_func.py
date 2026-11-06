@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 from omnia_auto import is_local_execution, load_test_config, load_test_credentials
 from omnia_auto.functions.process_security import descriptor_tuple, sshpass_pipe
-from omnia_auto.functions.runner_func import _fail, _stream_cmd, _wrap_ssh
+from omnia_auto.functions.runner_func import _fail, _ssh_argv, _stream_cmd
 
 from .config_func import to_ansible_extra_vars
 from .execute_probe_func import render_cmd
@@ -72,7 +72,7 @@ def run_streamed(command: str, label: str, workdir: str,
     credentials = load_test_credentials()
     try:
         with sshpass_pipe(credentials.get("oim_password", "")) as auth_fd:
-            ssh_cmd = _wrap_ssh(command, config, credentials, auth_fd=auth_fd)
+            ssh_cmd = _ssh_argv(command, config, credentials, auth_fd=auth_fd)
             result = _stream_cmd(
                 ssh_cmd, label, timeout, None, config, workdir,
                 pass_fds=descriptor_tuple(auth_fd),
