@@ -24,7 +24,7 @@ dependencies:
   containers.podman: ">=1.10.0"
   ansible.posix: ">=2.0.0"
 repository: https://github.com/dell/omnia
-documentation: https://github.com/dell/omnia/tree/main/docs
+documentation: https://omnia.readthedocs.io/en/latest/index.html
 homepage: https://github.com/dell/omnia
 issues: https://github.com/dell/omnia/issues
 build_ignore:

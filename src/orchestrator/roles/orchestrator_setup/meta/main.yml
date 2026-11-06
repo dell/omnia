@@ -16,7 +16,7 @@ galaxy_info:
   role_name: orchestrator_setup
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia orchestrator role: orchestrator_setup"
+  description: "Bootstrap role (`always` tag): project and lifecycle context for later plays"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:
