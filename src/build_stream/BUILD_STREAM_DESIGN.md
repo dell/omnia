@@ -115,8 +115,9 @@ src/build_stream/
 │   └── build_stream_config.yml          # BuildStream configuration template
 ├── containers/
 │   └── build_images.sh                  # Self-contained build_stream container build
-├── INPUT_CONTRACT.md
-├── OUTPUT_CONTRACT.md
+├── docs/contracts/
+│   ├── input-contract.md
+│   └── output-contract.md
 └── BUILD_STREAM_DESIGN.md              # This file
 ```
 

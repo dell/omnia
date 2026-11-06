@@ -22,3 +22,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/) instead of GitHub source tree
+- README restructured around the module's purpose and workflow; documentation links validated.

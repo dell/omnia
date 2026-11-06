@@ -36,3 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hardcoded path violations (49 instances replaced with OMNIA_DATA_PATH)
 - Cross-domain coupling to repo_manager domain
 - Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/) instead of GitHub source tree
+- Renamed `docs/contracts/INPUT_CONTRACT.md` and `OUTPUT_CONTRACT.md` to lowercase `input-contract.md` and `output-contract.md`; updated references.
+- Fixed the broken `developer-guide.md` links in `README.md` and `docs/README.md`; they now point to `docs/architecture.md`.
+- Corrected README quick start, entry playbook path (`playbooks/build_stream.yml`), and initializer references (`domain-init.sh`).

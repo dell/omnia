@@ -5,8 +5,10 @@ This directory contains comprehensive documentation for the Build Stream module 
 ## Documentation Structure
 
 ### Overview Documentation
-- **[Developer Guide](./developer-guide.md)** - Complete development guide with architecture deep dive
+- **[Architecture](./architecture.md)** - Domain architecture, layers, and design
 - **[Main README](../README.md)** - High-level overview and getting started guide
+- **[Input Contract](./contracts/input-contract.md)** - Input file specification
+- **[Output Contract](./contracts/output-contract.md)** - Output artifact specification
 
 ### Workflow Documentation
 - **[Jobs Management](./jobs.md)** - Job lifecycle and orchestration
@@ -19,18 +21,18 @@ This directory contains comprehensive documentation for the Build Stream module 
 
 ### For New Contributors
 1. Start with the [main README](../README.md) for architecture overview
-2. Read the [Developer Guide](./developer-guide.md) for detailed understanding
+2. Read the [Architecture](./architecture.md) document for detailed understanding
 3. Explore specific workflow documentation based on your area of focus
 
 ### For Debugging Issues
 1. Check the relevant workflow documentation for your issue area
-2. Use the Developer Guide for troubleshooting steps
+2. Use the Architecture document to trace the failing component
 3. Review the audit trail and logging sections
 
 ### For Feature Development
-1. Read the Developer Guide for architecture and patterns
+1. Read the Architecture document for design and patterns
 2. Review the relevant workflow documentation
-3. Follow the contribution guidelines in the Developer Guide
+3. Follow the documentation standards below
 
 ## Documentation Standards
 
@@ -46,7 +48,7 @@ All Build Stream documentation follows these standards:
 If you need additional help beyond the documentation:
 1. Check the troubleshooting sections in workflow docs
 2. Review the audit trail and error handling patterns
-3. Consult the architecture diagrams in the Developer Guide
+3. Consult the architecture diagrams in the Architecture document
 4. Reach out to the Build Stream development team
 
 ## Contributing to Documentation

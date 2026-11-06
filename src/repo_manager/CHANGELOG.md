@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML lint configuration with reasonable line-length limits
 - Security vulnerabilities in credential debug output
 - Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/) instead of GitHub source tree
+- README restructured around the module's purpose and workflow; documentation links validated.
 
 ### Security
 - Masked passwords in deployment configuration debug output
