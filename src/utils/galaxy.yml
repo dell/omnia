@@ -25,8 +25,8 @@ dependencies:
   community.crypto: ">=2.21.0"
   community.general: ">=9.4.0"
 repository: https://github.com/dell/omnia
-documentation: https://dell.github.io/omnia
-homepage: https://dell.github.io/omnia
+documentation: https://omnia.readthedocs.io/en/latest/
+homepage: https://github.com/dell/omnia
 issues: https://github.com/dell/omnia/issues
 build_ignore:
   - '*.pyc'

@@ -1,20 +1,154 @@
 # Omnia Telemetry
 
-Dell Omnia Telemetry deploys and manages a comprehensive telemetry stack for
-HPC and AI clusters. It collects metrics and logs from multiple sources
-(iDRAC, LDMS, OME, UFM, PowerScale, VAST, SFM)
-and stores them in sink backends (Kafka, VictoriaMetrics, VictoriaLogs).
+**Collection**: `omnia.telemetry` v2.3.0
+
+Telemetry is an Ansible Galaxy collection that deploys and manages a
+comprehensive telemetry stack for HPC and AI clusters. It collects metrics and
+logs from multiple sources (iDRAC, LDMS, OME, UFM, PowerScale, VAST, SFM)
+and stores them in sink backends (Kafka, VictoriaMetrics, VictoriaLogs)
+running on Kubernetes.
+
+## Overview
+
+This README follows the common Omnia domain structure and retains the complete Telemetry reference below.
+
+## Architecture and Dependencies
+
+Telemetry deploys selected sources, bridges, and sinks to the service Kubernetes cluster.
 
 ## Prerequisites
+
+Complete Orchestrator service Kubernetes deployment and provide source-specific connectivity, storage, and credentials.
+
+## Installation and Initialization
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+```
+
+## Configuration and Credentials
+
+Configure telemetry, storage, package, and encrypted source credential inputs.
+
+## Run with omnia.sh
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run telemetry
+./omnia.sh --run telemetry --tags precheck
+./omnia.sh --run telemetry --tags validate
+./omnia.sh --run telemetry --tags credentials
+./omnia.sh --run telemetry --tags prepare
+./omnia.sh --run telemetry --tags deploy
+./omnia.sh --run telemetry --tags deploy_sinks
+./omnia.sh --run telemetry --tags cleanup
+./omnia.sh --run telemetry --tags cleanup_sinks
+./omnia.sh --run telemetry --tags external_kafka
+./omnia.sh --run telemetry --tags external_victoria
+```
+
+## Run with ansible-playbook
+
+```bash
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_VENV_PATH/bin/activate"
+cd <OMNIA_SOURCE_PATH>/src/telemetry/playbooks
+export ANSIBLE_CONFIG=../ansible.cfg
+ansible-playbook telemetry.yml
+ansible-playbook telemetry.yml --tags precheck
+ansible-playbook telemetry.yml --tags validate
+ansible-playbook telemetry.yml --tags credentials
+ansible-playbook telemetry.yml --tags prepare
+ansible-playbook telemetry.yml --tags deploy
+ansible-playbook telemetry.yml --tags deploy_sinks
+ansible-playbook telemetry.yml --tags cleanup
+ansible-playbook telemetry.yml --tags cleanup_sinks
+ansible-playbook telemetry.yml --tags external_kafka
+ansible-playbook telemetry.yml --tags external_victoria
+```
+
+## Tags and Workflows
+
+Source, sink, validation, credential, export, and cleanup workflows are detailed below.
+
+## Roles, Modules, and Plugins
+
+The collection includes Kafka, VictoriaMetrics, VictoriaLogs, iDRAC, LDMS, OME, UFM, PowerScale, VAST, and SFM components.
+
+## Inputs, Outputs, and Runtime Paths
+
+Project configuration, generated manifests, connection exports, credentials, status, and logs use Telemetry paths.
+
+## Cleanup
+
+Use source- or sink-specific cleanup when other components must remain; volume deletion is always explicit.
+
+## Security
+
+Vault, Kubernetes secrets, TLS, mTLS exports, validated registries, and output redaction protect telemetry access.
+
+## Troubleshooting and Verification
+
+Verify Kubernetes readiness, enabled sources and sinks, pods, services, persistent volumes, bridges, data flow, and status.
+
+## Documentation and Support
+
+See the linked design and input/output contracts plus the Read the Docs deployment guides.
+
+## Detailed Domain Reference
+
+### Overview
+
+Telemetry provides end-to-end observability for HPC and AI clusters by:
+
+- Deploying telemetry sources: iDRAC, LDMS, OME, UFM, PowerScale, VAST, SFM
+- Deploying telemetry sinks: Kafka (Strimzi), VictoriaMetrics, VictoriaLogs
+- Running on Kubernetes as workloads on kube_vip
+- Using Vector bridges to connect sources to sinks
+- Supporting selective deployment of individual components
+- Providing retention and cleanup management
+- Exporting external Kafka and VictoriaMetrics/VictoriaLogs connection details
+
+### Architecture
+
+Telemetry follows a Sources -> Bridge (Vector) -> Sinks architecture:
+
+#### Sources
+
+| Source | Description |
+|--------|-------------|
+| **iDRAC** | Dell server BMC hardware telemetry via ActiveMQ -> KafkaPump/VictoriaPump |
+| **LDMS** | Lightweight Distributed Metric Service -> aggregator -> Kafka -> Vector LDMS bridge -> VictoriaMetrics |
+| **OME** | OpenManage Enterprise monitoring -> Kafka -> Vector OME bridge -> VictoriaMetrics/VictoriaLogs |
+| **UFM** | Unified Fabric Manager (InfiniBand) -> VictoriaMetrics |
+| **SFM** | Smart Fabric Manager (network) |
+| **PowerScale** | Dell PowerScale (Isilon) -> OpenTelemetry Collector -> VictoriaMetrics |
+| **VAST** | VAST Data storage -> VictoriaMetrics |
+
+#### Sinks
+
+| Sink | Description |
+|------|-------------|
+| **Kafka (Strimzi)** | Telemetry data streaming |
+| **VictoriaMetrics** | Time-series metrics storage and querying |
+| **VictoriaLogs** | Log aggregation and querying |
+
+---
+
+### Prerequisites
 
 | Requirement | Version |
 |-------------|---------|
 | Ansible     | >= 2.20 |
 | Python      | >= 3.12 |
 | OS          | RHEL/Rocky Linux 10.x |
-| Kubernetes  | Required — telemetry runs as K8s workloads on kube_vip |
+| Kubernetes  | Required -- telemetry runs as K8s workloads on kube_vip |
 
-## Quick Start
+---
+
+### Quick Start
 
 ```bash
 # 1. Source omnia.env (sets OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, etc.)
@@ -23,7 +157,7 @@ set -a; source src/main/omnia.env; set +a
 # 2. Setup virtual environment (one-time)
 ./omnia.sh --setup-venv
 
-# 3. Run telemetry (via omnia.sh — recommended)
+# 3. Run telemetry (via omnia.sh -- recommended)
 ./omnia.sh -r telemetry --tags deploy       # Full deployment
 ./omnia.sh -r telemetry --tags precheck     # Environment validation
 ./omnia.sh -r telemetry --tags validate     # Input config validation
@@ -39,11 +173,13 @@ ansible-playbook playbooks/telemetry.yml --tags cleanup
 # Explicitly delete sink PVCs during cleanup
 ansible-playbook playbooks/telemetry.yml --tags cleanup -e delete_sinks_volume=true
 
-# Default (no tags) = validate + deploy (safe — cleanup never runs by default)
+# Default (no tags) = validate + deploy (safe -- cleanup never runs by default)
 ansible-playbook playbooks/telemetry.yml
 ```
 
-## Environment Variables (from omnia.env)
+---
+
+### Environment Variables (from omnia.env)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -55,17 +191,21 @@ ansible-playbook playbooks/telemetry.yml
 | `SYSTEM_DOMAIN_NAME` | `omnia.cluster` | OIM domain name |
 | `TELEMETRY_DATA_PATH` | `$OMNIA_DATA_PATH/telemetry` | Override telemetry data path |
 
-## Input Files
+---
+
+### Input Files
 
 | File | Description |
 |------|-------------|
-| `input/telemetry_config.yml` | Main configuration — kube_vip, sources, sinks, bridges, credentials |
+| `input/telemetry_config.yml` | Main configuration -- kube_vip, sources, sinks, bridges, credentials |
 | `input/telemetry_storage_config.yml` | Storage backend configuration (PVC sizes, retention) |
 | `input/telemetry_packages.yml` | Container registry, image versions, cluster_mount |
 
-## Tags
+---
 
-### Lifecycle Tags (mutually exclusive — pick ONE)
+### Tags
+
+#### Lifecycle Tags (mutually exclusive -- pick ONE)
 
 | Tag | Default? | Description |
 |-----|----------|-------------|
@@ -76,7 +216,7 @@ ansible-playbook playbooks/telemetry.yml
 | `deploy_sinks` | No | Deploy only selected sink infrastructure: Kafka, VictoriaMetrics, and/or VictoriaLogs |
 | `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
 
-### Granular Cleanup Tags (opt-in — requires `--tags`)
+#### Granular Cleanup Tags (opt-in -- requires `--tags`)
 
 | Tag | Scope |
 |-----|-------|
@@ -93,6 +233,8 @@ it never executes unless explicitly requested with `--tags`. `precheck` runs
 automatically for the default, `deploy`, and `execute` flows, and can also be
 requested alone for a check-only run.
 
+#### Sink Deployment
+
 Deploy one or more sinks independently of telemetry sources:
 
 ```bash
@@ -104,7 +246,9 @@ Deploy one or more sinks independently of telemetry sources:
 When invoking Ansible directly, use the `sinks` variable, for example:
 `ansible-playbook playbooks/telemetry.yml --tags deploy_sinks -e sinks=kafka,victoria_logs`.
 
-### Credential and Global Cleanup
+---
+
+#### Credential and Global Cleanup
 
 Full `cleanup` deletes `telemetry_credentials.yml` and its vault key by default.
 Use `-e cleanup_credentials=false` to preserve credentials during cleanup, which
@@ -142,7 +286,9 @@ for `yes`; trusted automation can add `--skip-approval`. Source volumes are
 deleted by default; sink volumes are preserved unless the telemetry cleanup is
 run with `-e delete_sinks_volume=true`.
 
-## Telemetry Components
+---
+
+### Telemetry Components
 
 | Category | Source | Description |
 |----------|--------|-------------|
@@ -151,14 +297,30 @@ run with `-e delete_sinks_volume=true`.
 | | VictoriaLogs | Log aggregation and querying |
 | **Compute** | iDRAC | Dell server BMC hardware telemetry |
 | | LDMS | Lightweight Distributed Metric Service (HPC) |
-
 | **Infrastructure** | OME | OpenManage Enterprise monitoring |
 | | UFM | Unified Fabric Manager (InfiniBand) |
 | | SFM | Smart Fabric Manager (network) |
 | **Storage** | PowerScale | Dell PowerScale (Isilon) |
 | | VAST | VAST Data storage |
 
-## Directory Structure
+---
+
+### Deploy Execution Order
+
+```
+Step 0: Setup (always) -- read omnia.env, derive paths, create dirs
+Step 1: Validate       -- L1 schema + L2 logic validation
+Step 2: Deploy
+  Phase 0: Prerequisites -- load config, derive flags, resolve kube_vip
+  Phase 1: Sink infrastructure -- Kafka, VictoriaMetrics, VictoriaLogs
+  Phase 2: Source components -- each enabled source generates K8s manifests
+  Phase 3: Root kustomization -- generate root kustomization.yaml
+  Phase 4: Full-stack apply -- kubectl apply -k deployments/
+```
+
+---
+
+### Directory Structure
 
 ```
 telemetry/
@@ -176,7 +338,7 @@ telemetry/
 │   └── callback/                  # Callback plugins
 │
 ├── playbooks/
-│   ├── telemetry.yml              # Entry point — Step 0 setup + tag-based orchestrator
+│   ├── telemetry.yml              # Entry point -- Step 0 setup + tag-based orchestrator
 │   ├── ansible.cfg                # Playbook-level Ansible config
 │   ├── precheck/
 │   │   └── precheck.yml           # K8s cluster readiness checks
@@ -221,13 +383,16 @@ telemetry/
 │   ├── deploy_powerscale/         # PowerScale telemetry
 │   ├── deploy_vast/               # VAST telemetry
 │   ├── deploy_sfm/                # SFM telemetry
+│   ├── external_kafka_connect/    # External Kafka connection export
+│   ├── external_victoria_connect/ # External Victoria connection export
+│   ├── cleanup/                   # Cleanup orchestration
 │   └── collect_telemetry_credentials/
 │
 ├── input/                         # Default input configuration files
 ├── output/                        # Runtime output (status files)
 ├── containers/                    # Container build files (LDMS)
 ├── rpm_build/                     # RPM build scripts (LDMS)
-│   ├── build_rpm.sh              # Entry point — clones OVIS, dispatches build
+│   ├── build_rpm.sh              # Entry point -- clones OVIS, dispatches build
 │   ├── README.md                 # RPM build documentation
 │   └── ldms/                     # LDMS build scripts
 │       ├── start_build_container.rockylinux10.bash  # Podman container for RPM build
@@ -237,20 +402,9 @@ telemetry/
 └── docs/                          # Domain documentation
 ```
 
-## Deploy Execution Order
+---
 
-```
-Step 0: Setup (always) — read omnia.env, derive paths, create dirs
-Step 1: Validate       — L1 schema + L2 logic validation
-Step 2: Deploy
-  Phase 0: Prerequisites — load config, derive flags, resolve kube_vip
-  Phase 1: Sink infrastructure — Kafka, VictoriaMetrics, VictoriaLogs
-  Phase 2: Source components — each enabled source generates K8s manifests
-  Phase 3: Root kustomization — generate root kustomization.yaml
-  Phase 4: Full-stack apply — kubectl apply -k deployments/
-```
-
-## Runtime Paths
+### Runtime Paths
 
 All paths are derived from `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`:
 
@@ -261,10 +415,21 @@ All paths are derived from `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`:
 | `$OMNIA_DATA_PATH/telemetry/output/$PROJECT/` | Status files and output |
 | `$OMNIA_DATA_PATH/telemetry/log/$PROJECT/` | Domain runtime logs |
 
-## License
+---
+
+### Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Telemetry Documentation](https://omnia.readthedocs.io/en/latest/HowTo/Telemetry/index.html) | Read the Docs user guide |
+| [Design](docs/design.md) | Domain architecture and design |
+| [Input Contract](docs/contracts/input-contract.md) | Input file specifications |
+| [Output Contract](docs/contracts/output-contract.md) | Output file specifications |
+
+### License
 
 Apache-2.0
 
-## Author Information
+### Author Information
 
 Dell Technologies (<omnia-support@dell.com>)

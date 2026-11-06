@@ -1,16 +1,112 @@
-# Repo Manager
+# Repository Manager
 
 **Collection**: `omnia.repo_manager` v2.3.0
 
-Deploys an HTTPS Pulp content server and synchronizes catalog content for
-offline Omnia clusters. Supports RPM repositories and packages, container
-images, Python packages, files and source artifacts for `x86_64` and `aarch64`.
+Repository Manager is an Ansible Galaxy collection that deploys an HTTPS Pulp
+content server and synchronizes catalog content for offline Omnia clusters. It
+supports RPM repositories and packages, container images, Python packages,
+files, and source artifacts for both `x86_64` and `aarch64` architectures.
 
 All playbooks run locally on the Omnia Infrastructure Manager (OIM).
 
----
+## Overview
+
+This README follows the common Omnia domain structure and retains the complete Repository Manager reference below.
+
+## Architecture and Dependencies
+
+Repository Manager validates catalog content, deploys Pulp, synchronizes artifacts, and publishes downstream status.
 
 ## Prerequisites
+
+Complete Main setup and provide network, storage, subscription, registry, and upstream repository access.
+
+## Installation and Initialization
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+```
+
+## Configuration and Credentials
+
+Configure repository and endpoint inputs and collect encrypted subscription and private-source credentials.
+
+## Run with omnia.sh
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run repo_manager
+./omnia.sh --run repo_manager --tags precheck
+./omnia.sh --run repo_manager --tags validate
+./omnia.sh --run repo_manager --tags credentials
+./omnia.sh --run repo_manager --tags prepare
+./omnia.sh --run repo_manager --tags execute
+./omnia.sh --run repo_manager --tags cleanup
+```
+
+## Run with ansible-playbook
+
+```bash
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_VENV_PATH/bin/activate"
+cd <OMNIA_SOURCE_PATH>/src/repo_manager/playbooks
+export ANSIBLE_CONFIG=../ansible.cfg
+ansible-playbook repo_manager.yml
+ansible-playbook repo_manager.yml --tags precheck
+ansible-playbook repo_manager.yml --tags validate
+ansible-playbook repo_manager.yml --tags credentials
+ansible-playbook repo_manager.yml --tags prepare
+ansible-playbook repo_manager.yml --tags execute
+ansible-playbook repo_manager.yml --tags cleanup
+```
+
+## Tags and Workflows
+
+Validation, credential, Pulp deployment, synchronization, status, and cleanup workflows are detailed below.
+
+## Roles, Modules, and Plugins
+
+The collection includes catalog, validation, credentials, Pulp, repository access, execution, status, and cleanup components.
+
+## Inputs, Outputs, and Runtime Paths
+
+Catalogs, project inputs, Pulp state, certificates, synchronized content, logs, and `repo_status.yml` use configured paths.
+
+## Cleanup
+
+Use repository or Pulp cleanup intentionally because downstream domains depend on published content and certificates.
+
+## Security
+
+Vault, TLS, source validation, certificate management, registry controls, and protected credentials secure content handling.
+
+## Troubleshooting and Verification
+
+Verify catalog resolution, Pulp services, remotes, repositories, distributions, content counts, certificates, and status.
+
+## Documentation and Support
+
+See the linked architecture, catalog, content, Pulp, security, contract, and troubleshooting guides.
+
+## Detailed Domain Reference
+
+### Overview
+
+Repository Manager enables air-gapped deployments by:
+
+- Deploying an HTTPS Pulp content server for package distribution
+- Synchronizing catalog-selected content from upstream repositories
+- Supporting multiple artifact types: RPMs, container images, Python packages, files
+- Providing version-qualified repository endpoints for downstream consumption
+- Managing RHEL subscription repositories with entitlement certificates
+- Supporting private registries with authentication and TLS
+- Offering exact RPM repository reconciliation for cadence-driven mirrors
+
+---
+
+### Prerequisites
 
 | Requirement | Minimum | Validated |
 |-------------|---------|-----------|
@@ -30,7 +126,7 @@ source /opt/omnia/venv/bin/activate
 
 ---
 
-## Quick Start
+### Quick Start
 
 ```bash
 # 1. Configure the common environment.
@@ -65,7 +161,7 @@ explicitly.
 
 ---
 
-## Tags
+### Tags
 
 | Tag | Description | Credentials |
 |-----|-------------|-------------|
@@ -84,7 +180,7 @@ Standard tags can be combined. Their execution order is defined by
 `playbooks/repo_manager.yml`, not the order written after `--tags`. Do not mix a
 cleanup tag with a standard workflow command.
 
-### Exact RPM Repository Reconciliation
+#### Exact RPM Repository Reconciliation
 
 Use the standalone playbook only after the normal download workflow has created
 the catalog-selected RPM repositories, remotes, publications and distributions:
@@ -106,7 +202,7 @@ The result is written to `output/<project>/repo_resync_status.yml`. The normal
 consumer contract in `repo_status.yml`, the standard playbook tags and the
 fresh-download/rerun behavior are unchanged.
 
-### Selective Cleanup
+#### Selective Cleanup
 
 ```bash
 # Remove one RPM repository by its complete Pulp name.
@@ -134,7 +230,7 @@ ansible-playbook repo_manager.yml --tags cleanup_repos \
 An exact tag is required when only one tag should be removed. An untagged image
 intentionally removes every tag in that Pulp container repository.
 
-### Full Pulp Cleanup
+#### Full Pulp Cleanup
 
 ```bash
 # Remove Pulp, runtime content, and Repo Manager credentials.
@@ -158,9 +254,9 @@ can add `--skip-approval`.
 
 ---
 
-## Input / Output
+### Input / Output
 
-### Input
+#### Input
 
 `domain-init.sh` copies flat source inputs into the active runtime project:
 
@@ -181,7 +277,7 @@ src/repo_manager/input/
 
 Credential files are Ansible Vault protected, root-owned and mode `0600`.
 
-### Output
+#### Output
 
 | Output | Location | Purpose |
 |--------|----------|---------|
@@ -196,9 +292,9 @@ to restore cleaned catalog content and regenerate the consumer output, or run
 
 ---
 
-## Configuration
+### Configuration
 
-### Environment Variables
+#### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -208,7 +304,7 @@ to restore cleaned catalog content and regenerate the consumer output, or run
 | `REPO_MANAGER_DATA_PATH` | `<OMNIA_DATA_PATH>/repo_manager` | Optional Repo Manager runtime override |
 | `OMNIA_PROJECT_NAME` | `project_default` | Active input/output project |
 
-### Endpoint
+#### Endpoint
 
 Pulp uses HTTPS only. The user controls the host port; certificate paths and
 container TLS port are internal:
@@ -221,7 +317,7 @@ The host port maps to Pulp container port `443`. The systemd-enabled
 `pulp.service` starts after reboot. The managed Pulp CLI automatically uses the
 generated CA.
 
-### Repository Policies
+#### Repository Policies
 
 ```yaml
 repo_config: "partial"   # always | partial
@@ -243,7 +339,7 @@ to `immediate`. An `rpm_repo` item may not explicitly declare `policy: never`.
 When another policy/caching combination maps to `streamed`, Repo Manager uses
 validation-only handling for that item.
 
-### RHEL Subscription Repositories
+#### RHEL Subscription Repositories
 
 ```yaml
 baseos: {}
@@ -255,7 +351,7 @@ Empty mappings use the matching subscription/EUS repository and entitlement
 certificates. Without a valid subscription, provide explicit URLs. Explicit
 user fields always take precedence over subscription-derived values.
 
-### Private Registry
+#### Private Registry
 
 ```yaml
 registries:
@@ -278,7 +374,7 @@ The catalog source `registry` must match this configuration key. During
 and passes them to the Pulp remote. Known public registries work without a
 configuration entry.
 
-### Concurrency
+#### Concurrency
 
 | Setting | Default | Scope |
 |---------|---------|-------|
@@ -291,9 +387,9 @@ CPU, memory, or storage capacity cannot sustain the default concurrency.
 
 ---
 
-## Runtime Paths
+### Runtime Paths
 
-### Data Path (`$REPO_MANAGER_DATA_PATH`)
+#### Data Path (`$REPO_MANAGER_DATA_PATH`)
 
 ```text
 /opt/omnia/repo_manager/
@@ -308,7 +404,7 @@ CPU, memory, or storage capacity cannot sustain the default concurrency.
 `/opt/omnia/repo_manager` is the default only. Setting `OMNIA_DATA_PATH` or
 `REPO_MANAGER_DATA_PATH` moves domain runtime paths consistently.
 
-### Ansible Logs
+#### Ansible Logs
 
 | Log | Location |
 |-----|----------|
@@ -324,10 +420,11 @@ Full Pulp cleanup removes runtime logs by default. Use
 
 ---
 
-## Documentation
+### Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Repository Manager Documentation](https://omnia.readthedocs.io/en/latest/HowTo/repo_manager/index.html) | Read the Docs user guide |
 | [Architecture](docs/architecture.md) | Execution flow, tags, Pulp and runtime paths |
 | [Content Configuration](docs/content-configuration-guide.md) | Catalog, RPM, registry and policy mapping |
 | [Catalog Operations](docs/catalog_operations.md) | Generate, add, delete and validate catalog JSON |
@@ -341,6 +438,6 @@ Full Pulp cleanup removes runtime logs by default. Use
 
 ---
 
-## License
+### License
 
 Apache License, Version 2.0
