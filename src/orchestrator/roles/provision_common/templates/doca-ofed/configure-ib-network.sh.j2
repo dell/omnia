@@ -65,9 +65,27 @@ if [ -z "$IB_NIC_NAME" ]; then
     exit 0
 fi
 
-if [ -z "$NETMASK_BITS" ]; then
-    echo "ERROR: IB network netmask_bits is not configured in network_spec.yml"
-    exit 1
+# Validate netmask bits based on ib_addr_mode
+if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
+    if [ -z "$IPV6_NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv6_netmask_bits is not configured in network_spec.yml for ipv6-only mode"
+        exit 1
+    fi
+elif [ "$IB_ADDR_MODE" = "dual-stack" ]; then
+    if [ -z "$NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv4_netmask_bits is not configured in network_spec.yml for dual-stack mode"
+        exit 1
+    fi
+    if [ -z "$IPV6_NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv6_netmask_bits is not configured in network_spec.yml for dual-stack mode"
+        exit 1
+    fi
+else
+    # ipv4-only or unset: require IPv4 netmask
+    if [ -z "$NETMASK_BITS" ]; then
+        echo "ERROR: IB network ipv4_netmask_bits is not configured in network_spec.yml"
+        exit 1
+    fi
 fi
 
 echo "Target IB NIC name: $IB_NIC_NAME"
@@ -196,7 +214,7 @@ fi
 echo "============================================="
 echo "SLOT-BASED IB DEVICE SELECTION"
 echo "============================================="
-echo "INFO: Target Slot=$SLOT_NUMBER Port=$PORT_NUMBER IPv4=$IB_IPV4/$NETMASK_BITS"
+echo "INFO: Target Slot=$SLOT_NUMBER Port=$PORT_NUMBER IPv4=$IB_IPV4/$NETMASK_BITS IPv6=$IB_IPV6/$IPV6_NETMASK_BITS"
 echo
 
 # ==============================
@@ -354,8 +372,12 @@ if command -v nmcli >/dev/null 2>&1; then
     echo "INFO: IP CONFIGURATION: IPv6-only mode — disabling IPv4 on $IB_INTERFACE"
     nmcli con modify "$IB_INTERFACE" ipv4.method disabled
   else
-    echo "DEBUG: IP CONFIGURATION: Setting IPv4 address $IB_IPV4/$NETMASK_BITS on $IB_INTERFACE"
-    nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IPV4/$NETMASK_BITS"
+    if [ -n "$IB_IPV4" ] && [ -n "$NETMASK_BITS" ]; then
+      echo "DEBUG: IP CONFIGURATION: Setting IPv4 address $IB_IPV4/$NETMASK_BITS on $IB_INTERFACE"
+      nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IPV4/$NETMASK_BITS"
+    else
+      echo "INFO: IP CONFIGURATION: No IPv4 address configured for this node"
+    fi
   fi
 
   # Configure IPv6 based on ib_addr_mode
@@ -386,8 +408,12 @@ else
   if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
     echo "INFO: IP CONFIGURATION: IPv6-only mode — skipping IPv4 on $IB_INTERFACE"
   else
-    echo "DEBUG: IP CONFIGURATION: Adding IPv4 address $IB_IPV4/$NETMASK_BITS to $IB_INTERFACE"
-    ip addr add "$IB_IPV4/$NETMASK_BITS" dev "$IB_INTERFACE"
+    if [ -n "$IB_IPV4" ] && [ -n "$NETMASK_BITS" ]; then
+      echo "DEBUG: IP CONFIGURATION: Adding IPv4 address $IB_IPV4/$NETMASK_BITS to $IB_INTERFACE"
+      ip addr add "$IB_IPV4/$NETMASK_BITS" dev "$IB_INTERFACE"
+    else
+      echo "INFO: IP CONFIGURATION: No IPv4 address configured for this node"
+    fi
   fi
 
   # Configure IPv6 based on ib_addr_mode
