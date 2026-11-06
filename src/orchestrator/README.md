@@ -266,5 +266,5 @@ Apache-2.0
 ## Links
 
 - [Omnia GitHub](https://github.com/dell/omnia)
-- [Documentation](https://github.com/dell/omnia/tree/main/docs)
+- [Documentation](https://omnia.readthedocs.io/en/latest/)
 - [Issues](https://github.com/dell/omnia/issues)
