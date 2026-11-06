@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Domain initialization now stages flat input templates and caches dependency installation by checksum.
 
 ### Fixed
-- Galaxy collection documentation URL now points to versioned Read the Docs (https://omnia.readthedocs.io/en/2.3.0/) instead of GitHub Pages
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/) instead of GitHub Pages
 
 ## [2.2.0] - 2026-08-04
 

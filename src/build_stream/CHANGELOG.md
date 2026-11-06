@@ -35,4 +35,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared variables structure for cross-role configuration
 - Hardcoded path violations (49 instances replaced with OMNIA_DATA_PATH)
 - Cross-domain coupling to repo_manager domain
-- Galaxy collection documentation URL now points to versioned Read the Docs (https://omnia.readthedocs.io/en/2.3.0/) instead of GitHub source tree
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/) instead of GitHub source tree
