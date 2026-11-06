@@ -11,7 +11,6 @@ local file.
 1. Verify that `source_iso_path` exists.
 2. Compute and compare SHA256 when `source_iso_checksum` is set.
 3. Install `xorriso` and `isomd5sum` when their commands are missing.
-4. Create `iso_target_directory`.
 
 ## Variables
 
@@ -19,7 +18,6 @@ local file.
 |----------|---------|-------------|
 | `iso_source_path` | Value of `source_iso_path` | Local source ISO |
 | `iso_source_checksum` | Value of `source_iso_checksum` | Optional SHA256 checksum |
-| `iso_target_directory` | Resolved local NFS directory or `/tmp/install_os` | Build destination |
 | `required_iso_tools` | `xorriso`, `implantisomd5` | Commands and packages required for repacking |
 
 These values are normally set by `validate_install_os_config` before this role
