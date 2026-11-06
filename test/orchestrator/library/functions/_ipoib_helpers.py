@@ -29,6 +29,11 @@ from ..vars.ipoib_vars import (
 )
 
 
+def has_ib_nic(rows) -> bool:
+    """Return True when at least one row has a non-empty IB_NIC_NAME."""
+    return any(str(row.get("IB_NIC_NAME") or "").strip() for row in rows)
+
+
 def ib_network_block(network_spec: Mapping[str, Any]) -> dict[str, Any]:
     """Return the ib_network mapping from a parsed network_spec.yml."""
     networks = network_spec.get("Networks")

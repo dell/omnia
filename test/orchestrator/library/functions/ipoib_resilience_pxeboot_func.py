@@ -57,7 +57,7 @@ from ..vars.pxeboot_vars import (
     RECOVERY_WAIT_TIMEOUT_SECONDS,
     SLURM_COMPUTE_PREFIX,
 )
-from ._ipoib_helpers import ib_addr_mode, ib_network_block
+from ._ipoib_helpers import has_ib_nic, ib_addr_mode, ib_network_block
 from ._ipoib_runtime_helpers import (
     allocation_records,
     classify_live,
@@ -304,6 +304,8 @@ def check_ipoib_nodeaddr_reapply(host) -> dict[str, Any]:
         ]
         if control is None or not compute:
             return optional_skip(summary, "No Slurm compute nodes are mapped")
+        if not has_ib_nic(compute):
+            return optional_skip(summary, "No mapped node has IB_NIC_NAME")
         mode = ib_addr_mode(ib_network_block(context["network_spec"]))
         names = [row["HOSTNAME"] for row in compute]
         expected = {row["HOSTNAME"]: _expected_nodeaddr(mode, row) for row in compute}

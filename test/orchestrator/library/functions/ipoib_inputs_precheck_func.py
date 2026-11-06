@@ -65,6 +65,7 @@ from ..vars.provision_vars import DEFAULT_MAPPING_FILE
 from ..vars.pxeboot_vars import SLURM_COMPUTE_PREFIX
 from ._ipoib_helpers import (
     canonical_ip,
+    has_ib_nic,
     ib_network_block,
     ib_subnet,
     row_address,
@@ -404,6 +405,9 @@ def check_ipoib_input_case(host, case_key: str) -> dict[str, Any]:
     summary = f"IPoIB input case {case_key}"
     try:
         live = _read_live(host)
+        live_rows = _parse_mapping(live["mapping_text"])
+        if not has_ib_nic(live_rows):
+            return optional_skip(summary, "No mapped node has IB_NIC_NAME")
         network_spec, rows, indexes, tokens = _base_inputs(live)
         baseline = _baseline_errors(host, live, network_spec, rows)
         case_network, case_rows, value, changes = _apply_case(

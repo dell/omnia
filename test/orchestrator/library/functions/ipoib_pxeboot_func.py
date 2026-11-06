@@ -46,6 +46,7 @@ from ..vars.ipoib_vars import (
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
 from ._ipoib_helpers import (
     canonical_ip,
+    has_ib_nic,
     ib_addr_mode,
     ib_network_block,
     prefix_length,
@@ -540,6 +541,8 @@ def check_ipoib_slurm_nodeaddr(host) -> dict[str, Any]:
         ]
         if control is None or not compute:
             return optional_skip(summary, "No Slurm compute nodes are mapped")
+        if not has_ib_nic(compute):
+            return optional_skip(summary, "No mapped node has IB_NIC_NAME")
         mode = ib_addr_mode(ib_network_block(context["network_spec"]))
         out = remote_command(host, control, PXEBOOT_COMMANDS["slurm_nodes"])
         if out.rc != 0:
@@ -588,6 +591,8 @@ def check_ipoib_custom_slurm_conf(host) -> dict[str, Any]:
             return optional_skip(
                 summary, "slurm_cluster config_sources does not provide slurm.conf"
             )
+        if not has_ib_nic(rows):
+            return optional_skip(summary, "No mapped node has IB_NIC_NAME")
         mode = ib_addr_mode(ib_network_block(context["network_spec"]))
         family = slurm_family(mode)
         states = remote_command(host, control, PXEBOOT_COMMANDS["slurm_partitions"])
