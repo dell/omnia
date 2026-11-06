@@ -1073,3 +1073,175 @@ fi
         assert rc == 0
         assert "IPV4_CONFIGURED" in out
         assert "IPV6_CONFIGURED" in out
+
+
+# ===================================================================
+# Regression: firewall trusted zone and MPI OOB configuration
+# in metadata-service cloud-init templates
+# ===================================================================
+
+class TestFirewallAndMpiOobTemplates:
+    """Verify firewall trusted-zone and MPI OOB port-range configuration
+    across all metadata-service cloud-init templates.
+
+    Covers:
+    - additional_subnets rendered into trusted zone commands
+    - MPI OOB port range configured via /etc/profile.d/ env vars
+    - Both OMPI_MCA_ and PRTE_MCA_ env vars present
+    - No stale /etc/openmpi/ references remain
+    - x86_64 and aarch64 templates are behaviorally consistent
+    """
+
+    TEMPLATES_DIR = (
+        _REPO_ROOT / "src" / "orchestrator" / "roles" / "provision_common"
+        / "templates" / "metadata_svc"
+    )
+
+    # Templates that must have the trusted-zone + MPI OOB configuration
+    _FIREWALL_TEMPLATES = [
+        "ms-group-slurm_node_x86_64.yaml.j2",
+        "ms-group-slurm_node_aarch64.yaml.j2",
+        "ms-group-login_node_x86_64.yaml.j2",
+        "ms-group-login_node_aarch64.yaml.j2",
+        "ms-group-login_compiler_node_x86_64.yaml.j2",
+        "ms-group-login_compiler_node_aarch64.yaml.j2",
+    ]
+
+    def _load(self, name: str) -> str:
+        path = self.TEMPLATES_DIR / name
+        if not path.exists():
+            pytest.skip(f"Template {name} not found")
+        return path.read_text(encoding="utf-8")
+
+    # --- MPI OOB env-var mechanism ---
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_mpi_oob_uses_profile_d(self, template_name):
+        """ORCH_UT_NM_130: MPI OOB config is written to /etc/profile.d/, not /etc/openmpi/."""
+        content = self._load(template_name)
+        assert "/etc/profile.d/omnia_mpi_oob.sh" in content, (
+            f"{template_name} must write MPI OOB config to /etc/profile.d/omnia_mpi_oob.sh"
+        )
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_no_stale_etc_openmpi(self, template_name):
+        """ORCH_UT_NM_131: No stale /etc/openmpi/ references remain."""
+        content = self._load(template_name)
+        assert "/etc/openmpi" not in content, (
+            f"{template_name} still references /etc/openmpi (should use /etc/profile.d/)"
+        )
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_ompi_mca_env_var_present(self, template_name):
+        """ORCH_UT_NM_132: OMPI_MCA_oob_tcp_dynamic_ipv4_ports env var is set (OpenMPI 4.x)."""
+        content = self._load(template_name)
+        assert "OMPI_MCA_oob_tcp_dynamic_ipv4_ports" in content, (
+            f"{template_name} must set OMPI_MCA_oob_tcp_dynamic_ipv4_ports for OpenMPI 4.x"
+        )
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_prte_mca_env_var_present(self, template_name):
+        """ORCH_UT_NM_133: PRTE_MCA_oob_tcp_dynamic_ipv4_ports env var is set (PRRTE/OpenMPI 5.x)."""
+        content = self._load(template_name)
+        assert "PRTE_MCA_oob_tcp_dynamic_ipv4_ports" in content, (
+            f"{template_name} must set PRTE_MCA_oob_tcp_dynamic_ipv4_ports for PRRTE"
+        )
+
+    # --- Port range derivation ---
+
+    @pytest.mark.parametrize("template_name", [
+        "ms-group-slurm_node_x86_64.yaml.j2",
+        "ms-group-slurm_node_aarch64.yaml.j2",
+    ])
+    def test_slurm_node_derives_port_range_from_slurm_conf(self, template_name):
+        """ORCH_UT_NM_134: Slurm node templates derive port range from slurm.conf at runtime."""
+        content = self._load(template_name)
+        assert "SrunPortRange" in content, (
+            f"{template_name} must parse SrunPortRange from slurm.conf"
+        )
+        assert "${SRUN_RANGE}" in content, (
+            f"{template_name} must use $SRUN_RANGE shell variable for port range"
+        )
+
+    @pytest.mark.parametrize("template_name", [
+        "ms-group-login_node_x86_64.yaml.j2",
+        "ms-group-login_node_aarch64.yaml.j2",
+        "ms-group-login_compiler_node_x86_64.yaml.j2",
+        "ms-group-login_compiler_node_aarch64.yaml.j2",
+    ])
+    def test_login_node_uses_jinja2_port_range(self, template_name):
+        """ORCH_UT_NM_135: Login node templates use Jinja2 SrunPortRange variable."""
+        content = self._load(template_name)
+        assert "slurm_conf_dict.SrunPortRange" in content, (
+            f"{template_name} must use slurm_conf_dict.SrunPortRange Jinja2 variable"
+        )
+
+    # --- Additional subnets in trusted zone ---
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_additional_subnets_in_trusted_zone(self, template_name):
+        """ORCH_UT_NM_136: Template adds additional admin subnets to trusted zone."""
+        content = self._load(template_name)
+        assert "admin_additional_subnets" in content, (
+            f"{template_name} must reference admin_additional_subnets"
+        )
+        assert "trusted" in content and "add-source" in content, (
+            f"{template_name} must add sources to the trusted zone"
+        )
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_additional_subnets_use_cidr(self, template_name):
+        """ORCH_UT_NM_137: Additional subnet firewall commands use CIDR notation."""
+        content = self._load(template_name)
+        # The Jinja2 loop should produce subnet/netmask_bits CIDR notation
+        assert "extra.subnet" in content and "extra.netmask_bits" in content, (
+            f"{template_name} must use extra.subnet/extra.netmask_bits for CIDR"
+        )
+
+    # --- Primary PXE subnet in trusted zone ---
+
+    @pytest.mark.parametrize("template_name", _FIREWALL_TEMPLATES)
+    def test_primary_pxe_subnet_in_trusted_zone(self, template_name):
+        """ORCH_UT_NM_138: Template adds primary PXE/admin subnet to trusted zone."""
+        content = self._load(template_name)
+        assert "zone=trusted" in content, (
+            f"{template_name} must configure the trusted zone"
+        )
+
+    # --- x86_64 / aarch64 behavioral consistency ---
+
+    _ARCH_PAIRS = [
+        ("ms-group-slurm_node_x86_64.yaml.j2",
+         "ms-group-slurm_node_aarch64.yaml.j2"),
+        ("ms-group-login_node_x86_64.yaml.j2",
+         "ms-group-login_node_aarch64.yaml.j2"),
+        ("ms-group-login_compiler_node_x86_64.yaml.j2",
+         "ms-group-login_compiler_node_aarch64.yaml.j2"),
+    ]
+
+    @pytest.mark.parametrize("x86_name,arm_name", _ARCH_PAIRS)
+    def test_arch_pair_mpi_oob_consistency(self, x86_name, arm_name):
+        """ORCH_UT_NM_139: x86_64 and aarch64 templates have same MPI OOB mechanism."""
+        x86 = self._load(x86_name)
+        arm = self._load(arm_name)
+        # Both must use the same profile.d file
+        assert ("/etc/profile.d/omnia_mpi_oob.sh" in x86) == \
+               ("/etc/profile.d/omnia_mpi_oob.sh" in arm), (
+            f"MPI OOB mechanism differs between {x86_name} and {arm_name}"
+        )
+        # Both must set both env vars
+        for var in ("OMPI_MCA_oob_tcp_dynamic_ipv4_ports",
+                    "PRTE_MCA_oob_tcp_dynamic_ipv4_ports"):
+            assert (var in x86) == (var in arm), (
+                f"{var} presence differs between {x86_name} and {arm_name}"
+            )
+
+    @pytest.mark.parametrize("x86_name,arm_name", _ARCH_PAIRS)
+    def test_arch_pair_trusted_zone_consistency(self, x86_name, arm_name):
+        """ORCH_UT_NM_140: x86_64 and aarch64 templates have same trusted-zone logic."""
+        x86 = self._load(x86_name)
+        arm = self._load(arm_name)
+        assert ("admin_additional_subnets" in x86) == \
+               ("admin_additional_subnets" in arm), (
+            f"admin_additional_subnets presence differs between {x86_name} and {arm_name}"
+        )
