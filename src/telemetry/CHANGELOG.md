@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   node reachability (#5507).
 - `domain-init.sh` with idempotent input staging and `--cleanup` mode.
 - Input/output contract documentation (`docs/contracts/`).
-- Domain design documentation (`docs/design.md`).
+- Domain architecture documentation (`docs/architecture.md`).
 
 ### Changed
 - Galaxy version set to 2.3.0.

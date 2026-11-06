@@ -473,7 +473,7 @@ validation module is invoked directly without `log_dir`, it falls back to
 | Document | Description |
 |----------|-------------|
 | [Discovery Documentation](https://omnia.readthedocs.io/en/latest/HowTo/discovery/index.html) | Read the Docs user guide |
-| [Design](docs/design/discovery-architecture.md) | Discovery architecture |
+| [Architecture](docs/architecture.md) | Discovery architecture |
 | [Input Contract](docs/contracts/input-contract.md) | Input file specifications |
 | [Output Contract](docs/contracts/output-contract.md) | Output file specifications |
 

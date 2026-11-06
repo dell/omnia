@@ -422,7 +422,7 @@ All paths are derived from `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME`:
 | Document | Description |
 |----------|-------------|
 | [Telemetry Documentation](https://omnia.readthedocs.io/en/latest/HowTo/Telemetry/index.html) | Read the Docs user guide |
-| [Design](docs/design.md) | Domain architecture and design |
+| [Architecture](docs/architecture.md) | Domain architecture and design |
 | [Input Contract](docs/contracts/input-contract.md) | Input file specifications |
 | [Output Contract](docs/contracts/output-contract.md) | Output file specifications |
 
