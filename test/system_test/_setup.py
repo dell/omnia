@@ -19,7 +19,7 @@ settings are <theme>_test_config.yml)::
 
     _setup.py all       [--force] [--yes]   configure, [cleanup], install, creds
     _setup.py configure
-    _setup.py cleanup   [--yes]
+    _setup.py cleanup   [--yes | --dry-run]   --dry-run: show the plan, change nothing
     _setup.py install   [--force] [--yes]   --force: cleanup first, full reinstall
     _setup.py creds     --flag --set-domain-creds|--update-domain-creds|--domain-creds-stdin
                         [--domain <domain>]
@@ -46,7 +46,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from library.functions import (
     cleanup_func,
@@ -85,6 +85,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true",
                         help="all/install: clean up first, then install everything again")
     parser.add_argument("--yes", action="store_true", help="answer every confirmation")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="cleanup: show what would be run and removed; change nothing")
     parser.add_argument("--retry", action="store_true",
                         help="run again the step the run failed at (or was interrupted at), in "
                              "the same run; with no action: resume at the failed step")
@@ -185,6 +187,22 @@ def _print_status(theme: str) -> None:
     print("\n".join(render_status(theme)), flush=True)
 
 
+def _without_step(args: argparse.Namespace, config: Dict[str, Any]) -> Optional[int]:
+    """Return the exit code of what needs no step (--status, --dry-run, a refused option)."""
+    if args.action == "status":
+        _print_status(config["theme"])
+        return 0
+    if args.dry_run:
+        if args.action != "cleanup":
+            print("ERROR: --dry-run applies to --cleanup only", file=sys.stderr)
+            return 2
+        return cleanup_func.plan(config, _emit)
+    if args.retry and args.action == "configure":
+        print("ERROR: --retry does not apply to configure (it starts a run)", file=sys.stderr)
+        return 2
+    return None
+
+
 def main(argv: List[str]) -> int:
     """Parse the arguments, load <theme>_test_config.yml and run the steps in order."""
     try:
@@ -196,12 +214,9 @@ def main(argv: List[str]) -> int:
     except ConfigError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    if args.action == "status":
-        _print_status(config["theme"])
-        return 0
-    if args.retry and args.action == "configure":
-        print("ERROR: --retry does not apply to configure (it starts a run)", file=sys.stderr)
-        return 2
+    early = _without_step(args, config)
+    if early is not None:
+        return early
     try:
         with StepLock(f"setup {args.action}", _emit):
             return _run_steps(args, config)

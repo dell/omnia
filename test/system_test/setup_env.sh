@@ -42,6 +42,9 @@
 #                            --force-deps, every test requirement again)
 #   --cleanup                DESTRUCTIVE: each suite's cleanup FVT, then
 #                            omnia.sh --cleanup; asks for 'yes' unless --yes
+#   --cleanup --dry-run      show what --cleanup would run and remove (the
+#                            steps, the domains, the data path); changes
+#                            nothing, asks nothing, needs no run
 #   --set-domain-creds       prompt every domain credential store (repo_manager,
 #                            image_build_manager, orchestrator, build_stream)
 #   --update-domain-creds    update existing stores
@@ -103,6 +106,7 @@ DOMAIN=""
 THEME=""
 FORCE=false
 YES=false
+DRY_RUN=false
 RETRY=false
 RECREATE_VENV=false
 PIP_QUIET="--quiet"
@@ -128,6 +132,7 @@ while [ $# -gt 0 ]; do
         --theme=*)             THEME="${1#--theme=}"; shift ;;
         --yes|-y)              YES=true; shift ;;
         --force)               FORCE=true; shift ;;
+        --dry-run)             DRY_RUN=true; shift ;;
         --retry)               RETRY=true; shift ;;
         --recreate-venv)       RECREATE_VENV=true; shift ;;
         --debug)               PIP_QUIET=""; shift ;;
@@ -158,6 +163,11 @@ if [ "$RETRY" = true ]; then
         configure|status) fail "--retry does not apply to --$ACTION" ;;
         *) DRIVER_ARGS+=(--retry) ;;
     esac
+fi
+if [ "$DRY_RUN" = true ]; then
+    [ "$ACTION" = cleanup ] || fail "--dry-run is only valid with --cleanup"
+    [ "$YES" = false ] || fail "--dry-run changes nothing: drop --yes"
+    DRIVER_ARGS+=(--dry-run)
 fi
 if [ "$YES" = true ]; then
     case "$ACTION" in

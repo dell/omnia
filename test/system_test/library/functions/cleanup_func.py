@@ -32,7 +32,9 @@ from .fvt_func import describe_step, domain_dir, run_fvt_step
 from .omnia_func import omnia_env
 from .process_func import stream_command, tee_command
 from .readiness_func import omnia_venv_path
+from .run_func import load_run
 from .setup_func import current_run, install_requirements, result_row, row, venv_env
+from ..messages.cleanup_msgs import CLEANUP_DRY_MSGS
 from ..messages.svt_msgs import SETUP_MSGS, STAGE_MSGS
 from ..vars.common_vars import (
     DOMAIN_INIT_CLEANUP_ARG,
@@ -90,8 +92,8 @@ def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> 
     return steps
 
 
-def _confirm(steps: List[tuple], full: bool, emit: Emit, assume_yes: bool) -> str:
-    """Show the steps and ask for 'yes'; return an error, or "" when confirmed."""
+def _show_plan(steps: List[tuple], full: bool, emit: Emit) -> None:
+    """Print the steps a cleanup runs, in order, and what a full reset removes."""
     emit(SETUP_MSGS["cleanup_plan"])
     for step in steps:
         if full and step[0] in OWN_VENV_DOMAINS:
@@ -99,6 +101,11 @@ def _confirm(steps: List[tuple], full: bool, emit: Emit, assume_yes: bool) -> st
         emit(f"    {describe_step(step)}")
     if full:
         emit(SETUP_MSGS["cleanup_all_warning"].format(data=omnia_env().get(OMNIA_DATA_KEY, "")))
+
+
+def _confirm(steps: List[tuple], full: bool, emit: Emit, assume_yes: bool) -> str:
+    """Show the steps and ask for 'yes'; return an error, or "" when confirmed."""
+    _show_plan(steps, full, emit)
     if assume_yes:
         emit(SETUP_MSGS["cleanup_confirmed_yes"])
         return ""
@@ -190,6 +197,37 @@ def _run_steps(steps: List[tuple], full: bool, venv: str, emit: Emit, rows: Rows
         if not result["success"]:
             return STAGE_MSGS["step_failed"].format(label=label, rc=result["rc"])
     return ""
+
+
+def plan(config: Dict[str, Any], emit: Emit) -> int:
+    """--dry-run: print what ./setup_env.sh --cleanup would run and remove; change nothing.
+
+    It writes no test_config, report, record or run state and takes no lock; it prints
+    the same steps and warnings the confirmation shows, the domains whose
+    domain-init.sh --cleanup would run, and whether the cleanup would refuse.
+    """
+    if not os.path.isfile(OMNIA_ENV_FILE):
+        emit(STAGE_MSGS["no_previous_setup"].format(path=OMNIA_ENV_FILE))
+        return 0
+    full = cleanup_all(config)
+    steps = _select_steps(config, _venv_ready(), emit, [])
+    if not steps:
+        emit(SETUP_MSGS["cleanup_nothing"])
+        return 0
+    if full and _kept_credentials(config):
+        emit(SETUP_MSGS["cleanup_all_credentials"].format(
+            suites=", ".join(_kept_credentials(config))))
+    _show_plan(steps, full, emit)
+    if full:
+        domains = [os.path.basename(os.path.dirname(script))
+                   for script in sorted(glob.glob(DOMAIN_INIT_GLOB))]
+        if domains:
+            emit(CLEANUP_DRY_MSGS["domains"].format(domains=", ".join(domains)))
+        report = load_run().get("report_path", "")
+        if report and _report_inside_data(report):
+            emit(CLEANUP_DRY_MSGS["report_inside"].format(path=report))
+    emit(CLEANUP_DRY_MSGS["done"])
+    return 0
 
 
 def cleanup(config: Dict[str, Any], emit: Emit, assume_yes: bool = False) -> Dict[str, Any]:

@@ -49,6 +49,10 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
   MANDATORY value or an unknown catalog.
 
 **cleanup** (DESTRUCTIVE)
+- **Preview first:** `./setup_env.sh --cleanup --dry-run` prints the steps it
+  would run, the domains whose `domain-init.sh --cleanup` would run, the data
+  path a full reset removes, and whether the cleanup would refuse. It changes
+  nothing, asks nothing, takes no lock and needs no run.
 - It writes the cleanup flags again, lists the steps and asks for `yes`; `--yes`
   confirms without asking.
 - It then runs, in order:
@@ -139,6 +143,20 @@ with `rsync --exclude='.*'`. Each store's vault key is a dot file
 (`.<store>_key`), so it would not be copied, and the stores would sit in the
 git checkout. They are therefore written directly to the runtime folders,
 after `omnia.sh -s` has created them.
+
+### One step at a time
+
+Every `./setup_env.sh` action and every `./run_validation.sh` stage takes a
+kernel lock (`flock`, non-blocking) on `reports/svt.flock`, so two steps
+started together cannot both run: one gets the lock, the others are refused
+(exit 2) with the pid, step and run of the owner. `reports/svt.lock` describes
+the owner (pid, step, run, heartbeat). The kernel frees the lock when its
+process ends however it ends (kill, lost SSH session, reboot); the description
+it leaves behind means the step was interrupted, so the next step records that
+(the run is failed at `<step> (interrupted)`, history in
+`reports/interrupted.json`) and takes the lock. A frozen owner (`kill -STOP`)
+keeps the lock: stop it by the pid in the message. `--status` shows the lock.
+The runner README describes the run and the lock in full.
 
 ### `--status`
 
