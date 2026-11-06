@@ -26,10 +26,16 @@ from typing import Any
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    functional_group_config_applicable,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic as validate_orchestrator_config_l2,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_additional_cloud_init as validate_additional_cloud_init,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_functional_group_config as validate_functional_group_config,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_network as validate_network_spec,
@@ -63,6 +69,7 @@ description:
   - Validates orchestrator_config.yml, omnia_config.yml, network_spec.yml,
     security_config.yml, and storage_config.yml.
   - Validates Kubernetes HA settings on the deployed service_k8s_cluster entry.
+  - Validates functional_group_config.yml when present.
   - Validates PXE mapping and additional cloud-init cross-file contracts.
   - Validates storage_config.yml when present and requires it when referenced.
 options:
@@ -101,6 +108,11 @@ validation_failed:
   type: bool
 errors:
   description: Validation error messages.
+  returned: always
+  type: list
+  elements: str
+validation_warnings:
+  description: Non-blocking compatibility and support warnings.
   returned: always
   type: list
   elements: str
@@ -153,6 +165,16 @@ VALIDATION_FILES = (
         "required": True,
     },
 )
+# Optional: a standard cluster with no flexible functional groups never needs
+# this file, because Omnia supplies defaults equivalent to standard Slurm-node
+# behavior.
+FUNCTIONAL_GROUP_VALIDATION_FILE = {
+    "config_file": "functional_group_config.yml",
+    "schema_file": "functional_group_config.json",
+    "required": False,
+    # An all-commented file is a valid "use Omnia defaults" document.
+    "allow_empty": True,
+}
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
@@ -161,6 +183,7 @@ class _ValidationState:
     """Track validation data and structured result collections."""
 
     errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     valid_files: list[str] = field(default_factory=list)
     invalid_files: list[str] = field(default_factory=list)
     loaded_data: dict[str, Any] = field(default_factory=dict)
@@ -224,6 +247,15 @@ def load_yaml(path: str) -> Any:
         return None
 
 
+def _is_empty_yaml(path: str) -> bool:
+    """Return whether a file parses as YAML with no document content."""
+    try:
+        with open(path, "r", encoding="utf-8") as yaml_file:
+            return yaml.safe_load(yaml_file) is None
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return False
+
+
 def load_json(path: str) -> dict[str, Any] | None:
     """Load a JSON object, returning None when parsing fails."""
     if not os.path.isfile(path):
@@ -266,6 +298,10 @@ def _validate_file(
         return
 
     data = load_yaml(config_path)
+    if data is None and file_config.get("allow_empty") and _is_empty_yaml(
+        config_path
+    ):
+        data = {}
     if data is None:
         error = msg.yaml_parse_failed_msg(config_path)
         state.errors.append(error)
@@ -319,11 +355,22 @@ def _run_l2_validation(
         configured_mapping_path = orchestrator_data.get(
             "pxe_mapping_file_path", ""
         )
+        # Resolve path and enforce project root containment
         mapping_path = os.path.realpath(
             configured_mapping_path
             or os.path.join(input_project_dir, "pxe_mapping_file.csv")
         )
-        state.mark_file(mapping_path, not mapping_errors)
+        # Reject paths outside project directory
+        try:
+            os.path.relpath(mapping_path, input_project_dir)
+        except ValueError:
+            state.errors.append(
+                f"PXE mapping path must be inside project directory: {mapping_path}"
+            )
+            logger.error(f"PXE mapping path outside project: {mapping_path}")
+            mapping_path = None
+        if mapping_path:
+            state.mark_file(mapping_path, not mapping_errors)
         if mapping_errors:
             state.errors.extend(mapping_errors)
             logger.error(
@@ -345,12 +392,45 @@ def _run_l2_validation(
             cloud_init_path = os.path.realpath(
                 configured_cloud_init_path.strip()
             )
-            state.mark_file(cloud_init_path, not cloud_init_errors)
+            # Reject paths outside project directory
+            try:
+                os.path.relpath(cloud_init_path, input_project_dir)
+            except ValueError:
+                state.errors.append(
+                    f"Cloud-init path must be inside project directory: {cloud_init_path}"
+                )
+                logger.error(f"Cloud-init path outside project: {cloud_init_path}")
+                cloud_init_path = None
+            if cloud_init_path:
+                state.mark_file(cloud_init_path, not cloud_init_errors)
         if cloud_init_errors:
             state.errors.extend(cloud_init_errors)
             logger.error(
                 msg.l2_validation_errors_msg(
                     "additional_cloud_init", cloud_init_errors
+                )
+            )
+
+    functional_group_path = os.path.realpath(
+        os.path.join(input_project_dir, "functional_group_config.yml")
+    )
+    if (
+        os.path.isfile(functional_group_path)
+        and functional_group_path not in state.invalid_files
+    ):
+        functional_group_errors = validate_functional_group_config(
+            state.loaded_data.get("functional_group_config.json"),
+            orchestrator_data,
+            input_project_dir,
+            logger,
+            state.warnings,
+        )
+        if functional_group_errors:
+            state.errors.extend(functional_group_errors)
+            state.mark_file(functional_group_path, False)
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "functional_group_config", functional_group_errors
                 )
             )
 
@@ -457,6 +537,14 @@ def run_module() -> None:
         _validate_file(
             file_config, input_project_dir, schema_dir, state, logger
         )
+    if functional_group_config_applicable(input_project_dir):
+        _validate_file(
+            FUNCTIONAL_GROUP_VALIDATION_FILE,
+            input_project_dir,
+            schema_dir,
+            state,
+            logger,
+        )
     _run_l2_validation(input_project_dir, state, logger)
     logger.info(msg.VALIDATION_END_MSG)
 
@@ -475,6 +563,7 @@ def run_module() -> None:
         error_msg=summary,
         log_file=log_file,
         errors=state.errors,
+        validation_warnings=state.warnings,
         valid_files=state.valid_files,
         invalid_files=state.invalid_files,
     )

@@ -16,6 +16,7 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_hpc_platform_scripts.py` | Per-node RHEL HPC storage and Pulp paths, OS-dependent Slurm scripts, and offline benchmark downloads |
 | `test_orchestrator_status_reconcile.py` | Lifecycle status reconciliation for external and platform-managed PXE boot results |
 | `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
+| `test_functional_group_configuration_contract.py` | Functional-group precedence, cloud-init merging, safe template staging, and functional-group validation |
 
 Parameterized cases count as separate pytest results. Function names and
 docstrings carry `ORCH_UT_*` identifiers where a stable unit contract has been
@@ -54,6 +55,7 @@ python3 -m pytest --confcutdir=ut ut/test_additional_cloud_init_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_hpc_platform_scripts.py -q
 python3 -m pytest --confcutdir=ut ut/test_orchestrator_status_reconcile.py -q
 python3 -m pytest --confcutdir=ut ut/test_kubernetes_etcd_contracts.py -q
+python3 -m pytest --confcutdir=ut ut/test_functional_group_configuration_contract.py -q
 ```
 
 Unit tests must remain isolated: mock external commands at the helper boundary

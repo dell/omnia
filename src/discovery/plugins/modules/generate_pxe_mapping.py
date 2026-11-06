@@ -19,6 +19,7 @@ import csv
 import ipaddress
 import os
 import re
+from typing import Optional
 
 from ansible.module_utils.basic import AnsibleModule
 
@@ -119,7 +120,25 @@ server_count:
 DEFAULT_FUNCTIONAL_GROUP = "slurm_node_rhel_10_0_aarch64"
 PARENT_TAG_SOURCE_PREFIX = "service_kube_node_"
 
-# Supported architectures in functional group names
+# Supported functional group role prefixes.
+# OME static group names must match one of these prefixes (followed by an
+# optional OS version segment and an architecture suffix) to be included
+# in the PXE mapping file.
+# "fg_" is the flexible functional-group prefix (ER-ORCH-009). Flexible-group
+# names (fg_<label>_<os>_<version>_<arch>) are accepted and preserved verbatim
+# through the operator-reviewed mapping handoff; Discovery does not interpret
+# them further.
+SUPPORTED_ROLE_PREFIXES = (
+    "service_kube_control_plane_",
+    "service_kube_node_",
+    "login_node_",
+    "login_compiler_node_",
+    "slurm_control_node_",
+    "slurm_node_",
+    "os_",
+    "fg_",
+)
+
 SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
 
 # Pattern to detect architecture suffix (e.g. _x86_64 or _aarch64)

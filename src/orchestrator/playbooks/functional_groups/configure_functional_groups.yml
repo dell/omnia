@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# configure_functional_groups.yml — Configuration-only publication (ER-ORCH-009).
+# =============================================================================
+# Publish Boot Service configuration, cloud-init metadata, or both for one or
+# more existing flexible (fg_) functional groups WITHOUT:
+#   - creating groups or registering nodes,
+#   - running category provisioning playbooks or category bolt-on roles,
+#   - scheduler configuration, inventory generation, PXE boot, or reboot.
+#
+# It reuses the shared resolver and the generic provision_common publish
+# pipeline in publish-only mode (provision_common_registration_complete: true),
+# so the configuration-only path and the add path resolve settings identically
+# from functional_group_config.yml. It does not require repo_status.yml
+# (FR-4.3) and does not consume omnia_config.yml / storage_config.yml.
+#
+# Usage (imported by orchestrator.yml under --tags configure-functional-groups):
+#   ansible-playbook playbooks/orchestrator.yml --tags configure-functional-groups \
+#     -e configure_scope=both -e fg_target_group=fg_webserver_rhel_10_2_x86_64
+#
+# Variables:
+#   configure_scope  both (default) | boot | cloud_init
+#   fg_target_group  optional exact fg_ name; when unset, every fg_ group in the
+#                    active mapping is targeted.
+#
+# Prerequisites: provision_preamble.yml runs first (imported for this tag in
+# orchestrator.yml).
+
+- name: Configure flexible (fg_) functional groups (publication only)
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars:
+    target_category: flexible
+    configure_scope: both
+    # Publish-only: never re-register nodes for a configuration-only run.
+    provision_common_registration_complete: true
+    # Scope gates consumed by provision_common; default to publishing both when
+    # a caller does not restrict the scope.
+    fg_publish_boot: "{{ configure_scope in ['both', 'boot'] }}"
+    fg_publish_cloud_init: "{{ configure_scope in ['both', 'cloud_init'] }}"
+  pre_tasks:
+    - name: Validate requested configuration scope
+      ansible.builtin.assert:
+        that:
+          - configure_scope in ['both', 'boot', 'cloud_init']
+        fail_msg: >-
+          Unsupported configure_scope '{{ configure_scope }}'. Supported scopes
+          are 'both', 'boot', and 'cloud_init'.
+
+    - name: Load orchestrator state
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/orchestrator_state.yml"
+
+    - name: Load functional groups configuration
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+
+    - name: Load classification rules
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/vars/functional_group_classification.yml"
+
+    - name: Select flexible functional groups
+      ansible.builtin.set_fact:
+        target_functional_groups: >-
+          {{ functional_groups
+             | selectattr('name', 'match', '^fg_')
+             | selectattr('name', 'equalto', fg_target_group)
+             | list
+             if fg_target_group is defined and fg_target_group | length > 0
+             else functional_groups
+                  | selectattr('name', 'match', '^fg_')
+                  | list }}
+
+    - name: Fail when a requested target is not a mapped flexible group
+      ansible.builtin.fail:
+        msg: >-
+          Requested flexible group '{{ fg_target_group }}' is not an fg_-prefixed
+          functional group in the active PXE mapping.
+      when:
+        - fg_target_group is defined
+        - fg_target_group | length > 0
+        - target_functional_groups | length == 0
+
+    - name: Report configuration-only publication plan
+      ansible.builtin.debug:
+        msg: >-
+          configure_scope={{ configure_scope }};
+          targets={{ target_functional_groups | map(attribute='name') | list }}
+
+  roles:
+    - role: provision_common
+      when: target_functional_groups | length > 0

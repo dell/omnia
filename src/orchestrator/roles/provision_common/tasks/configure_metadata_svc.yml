@@ -16,6 +16,10 @@
 # Called in a loop with fg_name set by the caller.
 # Reconciles resources in place so Metadata Service UIDs remain stable.
 
+# Flexible (fg_) groups do not require repo_status.yml (ER-ORCH-009 FR-4.3) and
+# must not consume repo/omnia/storage configuration or run category bolt-on
+# roles (FR-4.1). The repo assert, the slurm_config bolt-on, and the omnia /
+# storage loads below are therefore skipped for the flexible category.
 - name: Validate repo_manager configuration is available for node configuration
   ansible.builtin.assert:
     that:
@@ -23,6 +27,7 @@
       - hostvars['localhost']['pulp_port'] is defined
       - hostvars['localhost']['cluster_os_type'] | default('') | length > 0
     fail_msg: "{{ repo_config_not_available_msg }}"
+  when: target_category | default('') != 'flexible'
 
 - name: Publish Slurm metadata context through the role interface
   ansible.builtin.include_role:
@@ -32,16 +37,19 @@
   vars:
     slurm_metadata_nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
     slurm_metadata_target_category: "{{ target_category }}"
+  when: target_category | default('') != 'flexible'
 
 - name: Load storage config for NFS paths
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/storage_config.yml"
   failed_when: false
+  when: target_category | default('') != 'flexible'
 
 - name: Load omnia config for slurm_cluster settings
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/omnia_config.yml"
   failed_when: false
+  when: target_category | default('') != 'flexible'
 
 - name: Resolve Slurm storage references for metadata configuration
   ansible.builtin.set_fact:
@@ -344,6 +352,9 @@
          if (fg_name is match(functional_group_versioned_role_regex))
          else fg_name }}
 
+# The generic ms-group-default_x86_64 template carries only the arch-agnostic
+# Omnia baseline (SSH key + root), so it is the correct fallback for both the
+# custom catch-all and flexible (fg_) groups, which ship no per-group template.
 - name: Build metadata-service template candidates for {{ fg_name }}
   ansible.builtin.set_fact:
     _ms_template_candidates: >-
@@ -351,7 +362,7 @@
           ~ _ms_template_base ~ '.yaml.j2']
          + ([ochami_template_dir
              ~ '/metadata_svc/ms-group-default_x86_64.yaml.j2']
-            if (target_category | default('')) == 'custom' else []) }}
+            if (target_category | default('')) in ['custom', 'flexible'] else []) }}
 
 - name: Load metadata-service group template - {{ fg_name }}
   block:

@@ -43,6 +43,9 @@
         file: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/vars/functional_group_classification.yml"
 
     - name: Filter functional groups for custom category (catch-all)
+      # Flexible (fg_) groups are provisioned only through the dedicated
+      # manage-functional-group / configure-functional-groups flows, so they are
+      # excluded from the custom catch-all (ER-ORCH-009 FR-4.1, FR-6.2).
       ansible.builtin.set_fact:
         target_functional_groups: >-
           {{ functional_groups
@@ -50,6 +53,7 @@
              | rejectattr('name', 'match', '^slurm_')
              | rejectattr('name', 'match', '^login_')
              | rejectattr('name', 'match', '^os_')
+             | rejectattr('name', 'match', '^fg_')
              | list }}
 
     - name: Skip message when no custom FGs found

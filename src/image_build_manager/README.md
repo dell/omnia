@@ -2,13 +2,114 @@
 
 **Collection**: `omnia.image_build` v2.3.0
 
-Builds OS images (RHEL/Rocky x86_64 + aarch64) for HPC cluster provisioning
-using OpenCHAMI. Deploys MinIO S3 + local OCI registry, builds per-functional-group
-images, and writes `build_status.yml` for downstream consumption by the provisioning workflow.
+Image Build Manager is an Ansible Galaxy collection that builds stateless OS
+images (RHEL/Rocky x86_64 + aarch64) for HPC cluster provisioning using
+OpenCHAMI. It deploys MinIO S3 and a local OCI registry, builds
+per-functional-group images, and writes `build_status.yml` for downstream
+consumption by the Orchestrator provisioning workflow.
+
+## Overview
+
+This README follows the common Omnia domain structure and retains the complete Image Build Manager reference below.
+
+## Architecture and Dependencies
+
+Image Build Manager consumes repository status, manages S3 and OCI services, and builds functional-group images.
+
+## Prerequisites
+
+Complete Main and Repository Manager setup and provide an ARM build host for `aarch64` images.
+
+## Installation and Initialization
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+```
+
+## Configuration and Credentials
+
+Configure image-build, package-group, storage, registry, and encrypted credential inputs.
+
+## Run with omnia.sh
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run image_build_manager
+./omnia.sh --run image_build_manager --tags precheck
+./omnia.sh --run image_build_manager --tags validate
+./omnia.sh --run image_build_manager --tags credentials
+./omnia.sh --run image_build_manager --tags prepare
+./omnia.sh --run image_build_manager --tags execute
+./omnia.sh --run image_build_manager --tags build
+./omnia.sh --run image_build_manager --tags cleanup
+./omnia.sh --run image_build_manager --tags cleanup_images
+```
+
+## Run with ansible-playbook
+
+```bash
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_VENV_PATH/bin/activate"
+cd <OMNIA_SOURCE_PATH>/src/image_build_manager/playbooks
+export ANSIBLE_CONFIG=../ansible.cfg
+ansible-playbook image_build_manager.yml
+ansible-playbook image_build_manager.yml --tags precheck
+ansible-playbook image_build_manager.yml --tags validate
+ansible-playbook image_build_manager.yml --tags credentials
+ansible-playbook image_build_manager.yml --tags prepare
+ansible-playbook image_build_manager.yml --tags execute
+ansible-playbook image_build_manager.yml --tags build
+ansible-playbook image_build_manager.yml --tags cleanup
+ansible-playbook image_build_manager.yml --tags cleanup_images
+```
+
+## Tags and Workflows
+
+The public lifecycle and image-cleanup tags are documented in the detailed reference.
+
+## Roles, Modules, and Plugins
+
+The collection includes validation, credentials, storage, registry, package, build, status, and cleanup components.
+
+## Inputs, Outputs, and Runtime Paths
+
+Inputs and `build_status.yml` are project scoped; images are stored in the selected S3 backend and OCI registry.
+
+## Cleanup
+
+Use image-scoped or domain cleanup according to whether built artifacts or supporting services must be retained.
+
+## Security
+
+Vault encryption, validated image names, registry controls, and protected storage credentials secure build operations.
+
+## Troubleshooting and Verification
+
+Verify repository status, S3, registry, build containers, architecture host access, artifacts, and build status.
+
+## Documentation and Support
+
+See the linked architecture, contracts, package mapping, and troubleshooting guides.
+
+## Detailed Domain Reference
+
+### Overview
+
+Image Build Manager automates OS image creation for HPC and AI clusters by:
+
+- Deploying MinIO S3 object storage for image artifacts
+- Deploying a local OCI registry for container image storage
+- Building stateless bootable OS images (RHEL/Rocky) for x86_64 and aarch64
+- Supporting dual-mode functional groups: config-based and catalog-driven
+- Integrating with OpenCHAMI Image Thrillhouse as the sole build engine
+- Producing `build_status.yml` with kernel, initrd, and rootfs artifact locations
+- Supporting image reuse through global dictionary lookup (catalog) and per-group hash cache (config)
 
 ---
 
-## Prerequisites
+### Prerequisites
 
 | Requirement | Minimum | Validated |
 |------------|---------|-----------|
@@ -20,7 +121,7 @@ images, and writes `build_status.yml` for downstream consumption by the provisio
 
 ---
 
-## Quick Start
+### Quick Start
 
 ```bash
 # From the repository root
@@ -48,7 +149,7 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 
 ---
 
-## Tags
+### Tags
 
 | Tag | Description | Credentials |
 |-----|-------------|-------------|
@@ -64,7 +165,7 @@ Run exactly one supported tag at a time. Although internal imported plays carry
 `x86_64` and `aarch64` tags, the top-level tag validator does not accept them as
 public tags; a `build` or `execute` run builds every configured architecture.
 
-### Full Domain Cleanup (`cleanup`)
+#### Full Domain Cleanup (`cleanup`)
 
 The public cleanup removes MinIO, the OCI registry, build outputs, runtime data,
 logs, `image_build_credentials.yml`, and its vault key. The shared `output/` and
@@ -84,7 +185,7 @@ domain cleanup tag has completed, `sudo ./omnia.sh --cleanup --all` performs the
 guarded global reset. Both global cleanup modes prompt for `yes`; trusted
 automation can add `--skip-approval`.
 
-### Image Cleanup (`cleanup_images`)
+#### Image Cleanup (`cleanup_images`)
 
 Delete built OS images from S3 buckets and OCI registry without tearing down
 the MinIO/registry infrastructure itself. Supports pattern-based deletion.
@@ -119,9 +220,9 @@ are removed too, so the next build rebuilds them instead of skipping.
 
 ---
 
-## Input / Output
+### Input / Output
 
-### Input
+#### Input
 
 | File | Source | Required |
 |------|--------|----------|
@@ -131,7 +232,7 @@ are removed too, so the next build rebuilds them instead of skipping.
 | `catalog_rhel.json` | `CATALOG_FILE_PATH` env var | When `functional_groups_source: "catalog"` |
 | `image_build_credentials.yml` | Auto-generated and Vault-encrypted | Credentials/prepare/build/default flow |
 
-### Output
+#### Output
 
 | File | Location | Description |
 |------|----------|-------------|
@@ -141,9 +242,9 @@ See `samples/` for example input and output files.
 
 ---
 
-## Configuration
+### Configuration
 
-### `image_build_config.yml`
+#### `image_build_config.yml`
 
 | Section | Key Fields |
 |---------|-----------|
@@ -154,7 +255,7 @@ See `samples/` for example input and output files.
 | **Build controls** | `build_image.max_parallel`, `build_image.build_timeout`, `build_image.force_rebuild`, `build_image.backup_s3_images`, `build_image.repo_ssl_verify` |
 | **ARM** | `aarch64_inventory_host_ip`, `aarch64_ssh_user` |
 
-### Environment Variables
+#### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -169,9 +270,9 @@ See `samples/` for example input and output files.
 
 ---
 
-## AArch64 Build Host
+### AArch64 Build Host
 
-### Prerequisites
+#### Prerequisites
 
 | Requirement | Details |
 |------------|---------|
@@ -183,7 +284,7 @@ See `samples/` for example input and output files.
 | Internet | Optional only when the builder image is available through Pulp and the ARM `regctl` binary is already staged on OIM; otherwise upstream registry/GitHub access is needed |
 | Disk | 30 GB free in the configured image-build data path |
 
-### Constraints
+#### Constraints
 
 - **Single node only**: The `admin_aarch64` inventory group must contain exactly one host.
 - **Work directory follows `OMNIA_DATA_PATH`**: the remote path is constructed
@@ -199,7 +300,7 @@ See `samples/` for example input and output files.
 - **No NFS**: Build artifacts use local directories on the aarch64 node
   (no shared filesystem required).
 
-### Cross-Architecture Building
+#### Cross-Architecture Building
 
 **Important**: Cross-architecture building is **NOT supported**.
 
@@ -219,7 +320,7 @@ See `samples/` for example input and output files.
   recursively enforce this catalog/runtime alignment.
 - Separate hosts are required for each architecture
 
-### Configuration
+#### Configuration
 
 Set in `image_build_config.yml`:
 
@@ -238,9 +339,9 @@ Leave `aarch64_inventory_host_ip` empty to skip aarch64 builds entirely.
 
 ---
 
-## Functional Groups
+### Functional Groups
 
-### Config Mode (`functional_groups_source: "config"`)
+#### Config Mode (`functional_groups_source: "config"`)
 
 Functional groups derived from `package_groups.yml` keys (filtered by architecture suffix).
 OS type and version from `os` / `os_version` fields in `package_groups.yml`.
@@ -260,7 +361,7 @@ the `os_*` and Kubernetes entries are currently skipped because they are empty.
 | `service_kube_control_plane_x86_64` | |
 | `service_kube_node_x86_64` | |
 
-### Catalog Mode (`functional_groups_source: "catalog"`)
+#### Catalog Mode (`functional_groups_source: "catalog"`)
 
 Full names auto-detected from `catalog.functionallayer[]`.
 OS type from baseos group's `os` field; version from `os_version` field.
@@ -278,7 +379,7 @@ Example groups from a typical catalog:
 | `service_kube_control_plane_rhel_10_0_x86_64` | |
 | `service_kube_node_rhel_10_0_x86_64` | |
 
-### Image Reuse and S3 Backup Behavior
+#### Image Reuse and S3 Backup Behavior
 
 | Package source | `backup_s3_images` | Reuse behavior | `_prev` backup |
 |----------------|--------------------|----------------|----------------|
@@ -297,9 +398,9 @@ control for both direct and BuildStream-triggered catalog builds.
 
 ---
 
-## Runtime Paths
+### Runtime Paths
 
-### Data Path (`$IMAGE_BUILD_MANAGER_DATA_PATH`)
+#### Data Path (`$IMAGE_BUILD_MANAGER_DATA_PATH`)
 
 The domain path defaults to `$OMNIA_DATA_PATH/image_build_manager`:
 
@@ -317,7 +418,7 @@ The domain path defaults to `$OMNIA_DATA_PATH/image_build_manager`:
 +-- workdir/                  OpenCHAMI build workdir
 ```
 
-### Ansible Log Path (`/var/log/omnia/image_build_manager/`)
+#### Ansible Log Path (`/var/log/omnia/image_build_manager/`)
 
 All Ansible playbook execution logs are flat (no subfolders) under a single directory:
 
@@ -340,18 +441,20 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 
 ---
 
-## Documentation
+### Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Image Build Manager Documentation](https://omnia.readthedocs.io/en/latest/HowTo/image_build_manager/index.html) | Read the Docs user guide |
 | `docs/architecture.md` | Execution flow, tag reference, role dependency |
 | `docs/package-mapping-guide.md` | RPM package customization guide |
 | `docs/troubleshooting.md` | Common issues and fixes |
+| `docs/security.md` | Security controls and credential handling |
 | `docs/contracts/input-contract.md` | Input file specifications |
 | `docs/contracts/output-contract.md` | Output file specifications |
 
 ---
 
-## License
+### License
 
 Apache License, Version 2.0

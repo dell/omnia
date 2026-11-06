@@ -405,6 +405,7 @@ The `hosted_gitlab` role syncs Omnia input files to the GitLab repository:
 | `storage_config.yml` | No | Storage configuration |
 | `telemetry_config.yml` | No | Telemetry settings |
 | `security_config.yml` | No | Security settings |
+| `functional_group_config.yml` | No | Per-functional-group boot and cloud-init configuration |
 | `omnia_config.yml` | No | General Omnia config |
 
 **Fix Applied**: Added existence check before copying optional files to prevent failures when files are missing.

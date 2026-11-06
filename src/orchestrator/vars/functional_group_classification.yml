@@ -79,6 +79,20 @@ functional_group_categories:
       os: "Minimal OS Node"
     default_description: "Minimal OS Node"
 
+  # Flexible functional groups (ER-ORCH-009). Groups whose names carry the
+  # mandatory, non-configurable `fg_` prefix are classified here. This entry
+  # MUST be evaluated before the `custom` catch-all so `fg_`-prefixed groups are
+  # never misclassified as `custom`. Flexible groups map to the dedicated
+  # manage_functional_group provisioning path, receive no default bolt-ons, and
+  # do not consume omnia_config.yml or storage_config.yml.
+  flexible:
+    patterns:
+      - "^fg_"
+    layer_rules: {}
+    default_layer: compute
+    description_map: {}
+    default_description: "Flexible Functional Group"
+
   # catch-all for user-defined functional groups
   custom:
     patterns:
@@ -99,6 +113,7 @@ category_provisioning_map:
   slurm: "provision_slurm"
   login: "provision_slurm"
   os_only: "provision_os"
+  flexible: "manage_functional_group"
   custom: "provision_custom"
 
 # ---------------------------------------------------------------------------
@@ -117,4 +132,6 @@ default_bolt_ons:
     - openldap
   login: []
   os_only: []
+  # Flexible groups never run category bolt-on roles (ER-ORCH-009 FR-4.1).
+  flexible: []
   custom: []

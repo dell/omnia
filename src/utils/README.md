@@ -2,14 +2,113 @@
 
 **Collection**: `omnia.utils` v2.3.0
 
-Provides OIM utilities for collecting cluster logs, installing an operating
-system through iDRAC virtual media, and backing up logs from all Omnia domains.
-The top-level playbook also provides targeted cleanup operations and writes a
-project-scoped `utils_status.yml` status file.
+Utils is an Ansible Galaxy collection that provides OIM utilities for cluster
+operations, including log collection, OS installation through iDRAC virtual
+media, OIM domain log backup, and Slurm configuration backup/cleanup/rollback.
+These utilities run on-demand and are independent of the main deployment
+workflow.
+
+## Overview
+
+This README follows the common Omnia domain structure and retains the complete Utils reference below.
+
+## Architecture and Dependencies
+
+Utils provides independent OIM workflows for logs, OS installation, backups, and Slurm configuration management.
+
+## Prerequisites
+
+Complete Main setup and satisfy the selected utility's target, network, storage, mapping, and credential requirements.
+
+## Installation and Initialization
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+```
+
+## Configuration and Credentials
+
+Configure only the selected utility inputs and collect encrypted credentials where required.
+
+## Run with omnia.sh
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run utils
+./omnia.sh --run utils --tags precheck
+./omnia.sh --run utils --tags collect
+./omnia.sh --run utils --tags install_os
+./omnia.sh --run utils --tags backup_oim_logs
+./omnia.sh --run utils --tags slurm_config_backup
+./omnia.sh --run utils --tags slurm_config_cleanup
+./omnia.sh --run utils --tags slurm_config_rollback
+./omnia.sh --run utils --tags cleanup
+```
+
+## Run with ansible-playbook
+
+```bash
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_VENV_PATH/bin/activate"
+cd <OMNIA_SOURCE_PATH>/src/utils/playbooks
+export ANSIBLE_CONFIG=../ansible.cfg
+ansible-playbook utils.yml
+ansible-playbook utils.yml --tags precheck
+ansible-playbook utils.yml --tags collect
+ansible-playbook utils.yml --tags install_os
+ansible-playbook utils.yml --tags backup_oim_logs
+ansible-playbook utils.yml --tags slurm_config_backup
+ansible-playbook utils.yml --tags slurm_config_cleanup
+ansible-playbook utils.yml --tags slurm_config_rollback
+ansible-playbook utils.yml --tags cleanup
+```
+
+## Tags and Workflows
+
+Log collection, OS installation, OIM backup, Slurm configuration, and scoped cleanup workflows are detailed below.
+
+## Roles, Modules, and Plugins
+
+The collection includes validation, collection, ISO, virtual-media, backup, Slurm configuration, status, and cleanup components.
+
+## Inputs, Outputs, and Runtime Paths
+
+Inputs, credentials, archives, metadata, backups, installation artifacts, status, and logs use project-scoped Utils paths.
+
+## Cleanup
+
+Use the utility-specific cleanup tag when unrelated artifacts and backups must remain available.
+
+## Security
+
+Vault, checksum metadata, confirmation tokens, protected backup data, validated paths, and redaction protect utility operations.
+
+## Troubleshooting and Verification
+
+Verify target reachability, mappings, storage mounts, archives, checksums, installation state, Slurm services, and status.
+
+## Documentation and Support
+
+See the linked architecture, contracts, Read the Docs workflows, and operation guides.
+
+## Detailed Domain Reference
+
+### Overview
+
+Utils provides operational utilities for HPC and AI clusters by:
+
+- Collecting cluster logs from Kubernetes, Slurm, and login nodes
+- Installing operating systems through iDRAC virtual media (x86_64 and aarch64)
+- Backing up OIM log directories from all Omnia domains
+- Managing Slurm controller configuration backup, cleanup, and rollback
+- Providing targeted cleanup operations for utility artifacts
+- Writing project-scoped `utils_status.yml` status files
 
 ---
 
-## Prerequisites
+### Prerequisites
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
@@ -23,7 +122,7 @@ project-scoped `utils_status.yml` status file.
 
 ---
 
-## Quick Start
+### Quick Start
 
 ```bash
 # From the repository root
@@ -58,7 +157,7 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 
 ---
 
-## Public Tags
+### Public Tags
 
 | Tag | Description | Input required |
 |-----|-------------|----------------|
@@ -80,7 +179,7 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 Run exactly one public tag at a time. With no tag, `utils.yml` runs the common
 setup and status writer only; utility flows are opt-in.
 
-### Direct Utility Tags
+#### Direct Utility Tags
 
 The imported playbooks expose additional stage tags when run directly:
 
@@ -91,7 +190,7 @@ The imported playbooks expose additional stage tags when run directly:
 | `playbooks/backup_oim_logs/backup_oim_logs.yml` | `setup`, `bundle`; no tag runs both stages |
 | `playbooks/slurm_config_util/slurm_config_util.yml` | `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback` (each self-contained; run one at a time) |
 
-### Cleanup and Reset
+#### Cleanup and Reset
 
 The public `cleanup` tag removes log-collection artifacts, OS-installation
 temporary files, OIM log backups, and stored OS-install credentials and their
@@ -113,9 +212,9 @@ cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
 ---
 
-## Utilities
+### Utilities
 
-### Cluster Log Collection
+#### Cluster Log Collection
 
 `collect.yml` reads functional-group node addresses from `collect_pxe.yml`,
 builds dynamic inventory groups, collects predefined logs over SSH, and writes
@@ -130,7 +229,7 @@ ansible-playbook playbooks/collect.yml --tags k8s
 ansible-playbook playbooks/collect.yml --tags slurm
 ```
 
-### OS Installation
+#### OS Installation
 
 `install_os.yml` creates or reuses an NFS-hosted custom ISO, renders a Kickstart
 file, mounts the ISO through Dell iDRAC virtual media, and optionally verifies
@@ -147,7 +246,7 @@ ansible-playbook playbooks/install_os.yml --tags deploy
 ansible-playbook playbooks/install_os.yml --tags generate_ks
 ```
 
-### OIM Domain Log Backup
+#### OIM Domain Log Backup
 
 `backup_oim_logs` archives the `log/` directory of each selected Omnia domain
 directly into a compressed bundle. It writes `metadata.json` beside the archive
@@ -168,11 +267,11 @@ ansible-playbook playbooks/utils.yml --tags backup_oim_logs \
 ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs
 ```
 
-### Slurm Configuration Utilities
+#### Slurm Configuration Utilities
 
 `slurm_config_backup`, `slurm_config_cleanup`, and `slurm_config_rollback` manage the active
 Slurm controller configuration (`etc/slurm`, `etc/munge`, `etc/my.cnf.d`)
-stored on the Slurm NFS share (`storage_config.yml` → `slurm_cluster[].nfs_storage_name`).
+stored on the Slurm NFS share (`storage_config.yml` -> `slurm_cluster[].nfs_storage_name`).
 Each tag resolves the controller from the PXE mapping (YAML `nodes_slurm.yaml`
 or CSV `pxe_mapping_file.csv`, auto-detected) and is self-contained, so any
 one can be run standalone without the others.
@@ -204,9 +303,9 @@ ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_backups
 
 ---
 
-## Input / Output
+### Input / Output
 
-### Input
+#### Input
 
 | File | Runtime location | Required |
 |------|------------------|----------|
@@ -220,7 +319,7 @@ ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_backups
 | `storage_config.yml` | `utils/input/<project>/` | Slurm config utilities (default: from orchestrator domain) |
 | `nodes_slurm.yaml` or `pxe_mapping_file.csv` | `utils/input/<project>/` | Slurm config utilities (YAML from OpenChami, CSV from orchestrator) |
 
-#### Input File Sourcing
+##### Input File Sourcing
 
 Some input files used by the Slurm configuration utilities are typically generated by other Omnia domains:
 
@@ -230,7 +329,7 @@ Some input files used by the Slurm configuration utilities are typically generat
 
 The PXE/node mapping file auto-detects format based on file extension (.csv = CSV, otherwise YAML). These files should be copied from their respective domain locations to the utils input directory (`OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/`), or the paths can be overridden via CLI extra-vars or the `slurm_config_util_config.yml` configuration file.
 
-### Output
+#### Output
 
 | Output | Default location | Description |
 |--------|------------------|-------------|
@@ -246,9 +345,9 @@ See `docs/contracts/` for field-level contracts.
 
 ---
 
-## Roles
+### Roles
 
-### Active Playbook Roles
+#### Active Playbook Roles
 
 | Role | Purpose |
 |------|---------|
@@ -261,6 +360,9 @@ See `docs/contracts/` for field-level contracts.
 | `iso_creation` | Render Kickstart and build embedded or NFS-delivered custom ISOs |
 | `iso_delivery` | Attach virtual media through iDRAC and verify installation |
 | `oim_log_backup` | Archive Omnia domain log directories with metadata |
+| `validate_backup_oim_logs_config` | Validate OIM log backup configuration |
+| `validate_collect_config` | Validate log collection configuration |
+| `validate_slurm_config_util_config` | Validate Slurm config utility configuration |
 | `slurm_config_common` | Shared setup for the three Slurm config utility roles (resolves controller, paths, backup destination) |
 | `slurm_config_backup` | Back up the active Slurm controller configuration with checksummed metadata |
 | `slurm_cleanup` | Delete the active Slurm configuration (with optional pre-cleanup backup) |
@@ -269,7 +371,7 @@ See `docs/contracts/` for field-level contracts.
 
 ---
 
-## Modules and Plugins
+### Modules and Plugins
 
 | Component | Purpose |
 |-----------|---------|
@@ -282,7 +384,7 @@ See `docs/contracts/` for field-level contracts.
 
 ---
 
-## Runtime Paths
+### Runtime Paths
 
 The domain root defaults to `$OMNIA_DATA_PATH/utils`:
 
@@ -296,8 +398,8 @@ $OMNIA_DATA_PATH/utils/
 |   +-- slurm_config_util_config.yml
 |   +-- omnia_config.yml (from orchestrator domain)
 |   +-- storage_config.yml (from orchestrator domain)
-|   +-- nodes_slurm.yaml (from OpenChami: OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml) OR
-|   +-- pxe_mapping_file.csv (from orchestrator: OMNIA_DATA_PATH/orchestrator/input/<project>/pxe_mapping_file.csv)
+|   +-- nodes_slurm.yaml (from OpenChami) OR
+|   +-- pxe_mapping_file.csv (from orchestrator)
 +-- output/<project>/
 |   +-- collect/
 |   +-- backup_oim_logs/
@@ -315,10 +417,11 @@ caches.
 
 ---
 
-## Documentation
+### Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Utilities Documentation](https://omnia.readthedocs.io/en/latest/HowTo/utils/index.html) | Read the Docs user guide |
 | `docs/architecture.md` | Execution flow, tags, role dependencies, and cleanup behavior |
 | `docs/contracts/input-contract.md` | Input files and environment-variable contracts |
 | `docs/contracts/output-contract.md` | Archives, metadata, status files, and runtime paths |
@@ -326,6 +429,6 @@ caches.
 
 ---
 
-## License
+### License
 
 Apache License, Version 2.0

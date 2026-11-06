@@ -35,6 +35,7 @@ Discovery derives it as `$OMNIA_DATA_PATH/discovery`.
 src/discovery/
 ├── ansible.cfg                      # Root-level config (run from src/discovery/)
 ├── docs/
+│   ├── architecture.md             # Architecture overview
 │   ├── DISCOVERY_DESIGN.md          # This document
 │   └── contracts/
 │       ├── input-contract.md        # Input contract

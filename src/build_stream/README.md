@@ -1,14 +1,116 @@
 # Omnia Build Stream
 
-**Build Stream** is a **RESTful API** service that orchestrates the creation and management
-of build jobs for the Omnia infrastructure platform. It provides a centralized interface
-for managing software catalog parsing, local repository creation, image building, and
-validation workflows.
+**Collection**: `omnia.build_stream` v2.3.0
 
-**Runs on a RHEL host** with Ansible + Python. The FastAPI service runs inside a Podman
-container; Ansible playbooks run directly on the host from the shared Omnia venv.
+Build Stream is a RESTful API service that orchestrates the creation and
+management of build jobs for the Omnia infrastructure platform. It provides a
+centralized interface for managing software catalog parsing, local repository
+creation, image building, and validation workflows through GitLab CI/CD
+integration.
+
+**Runs on a RHEL host** with Ansible + Python. The FastAPI service runs inside a
+Podman container; Ansible playbooks run directly on the host from the shared
+Omnia venv.
+
+## Overview
+
+This README follows the common Omnia domain structure and retains the complete Build Stream reference below.
+
+## Architecture and Dependencies
+
+Build Stream runs the BSM API, PostgreSQL, playbook watcher, and GitLab CI/CD integration on the configured infrastructure.
 
 ## Prerequisites
+
+Complete Main setup and provide reachable OIM and GitLab hosts.
+
+## Installation and Initialization
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+```
+
+## Configuration and Credentials
+
+Configure `build_stream_config.yml`; collect GitLab, BSM, and PostgreSQL credentials through the encrypted workflow.
+
+## Run with omnia.sh
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run build_stream
+./omnia.sh --run build_stream --tags precheck
+./omnia.sh --run build_stream --tags validate
+./omnia.sh --run build_stream --tags credentials
+./omnia.sh --run build_stream --tags prepare
+./omnia.sh --run build_stream --tags execute
+./omnia.sh --run build_stream --tags build
+./omnia.sh --run build_stream --tags cleanup
+```
+
+## Run with ansible-playbook
+
+```bash
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_VENV_PATH/bin/activate"
+cd <OMNIA_SOURCE_PATH>/src/build_stream/playbooks
+export ANSIBLE_CONFIG=../ansible.cfg
+ansible-playbook build_stream.yml
+ansible-playbook build_stream.yml --tags precheck
+ansible-playbook build_stream.yml --tags validate
+ansible-playbook build_stream.yml --tags credentials
+ansible-playbook build_stream.yml --tags prepare
+ansible-playbook build_stream.yml --tags execute
+ansible-playbook build_stream.yml --tags build
+ansible-playbook build_stream.yml --tags cleanup
+```
+
+## Tags and Workflows
+
+The public tags are documented with their prerequisites and effects in the detailed reference.
+
+## Roles, Modules, and Plugins
+
+The collection includes API deployment, GitLab, PostgreSQL, watcher, validation, credential, and cleanup components.
+
+## Inputs, Outputs, and Runtime Paths
+
+Project inputs, API state, job logs, status, and generated artifacts are scoped below `OMNIA_DATA_PATH`.
+
+## Cleanup
+
+Use scoped cleanup tags before global cleanup and preserve required external data explicitly.
+
+## Security
+
+JWT, TLS, Vault encryption, request validation, path validation, and output redaction protect Build Stream operations.
+
+## Troubleshooting and Verification
+
+Verify API health, containers, systemd services, GitLab access, database connectivity, status, and job logs.
+
+## Documentation and Support
+
+See the linked architecture, workflow, and contract documents in this README.
+
+## Detailed Domain Reference
+
+### Overview
+
+Build Stream automates the end-to-end software lifecycle for HPC and AI
+clusters by:
+
+- Parsing software catalogs to determine required packages and images
+- Triggering repository synchronization via Repository Manager
+- Orchestrating OS image builds via Image Build Manager
+- Managing build job queues and execution status
+- Integrating with GitLab for CI/CD pipeline automation
+- Running periodic cadence-based catalog refresh and reconciliation
+- Providing automatic image cleanup based on retention policies
+
+### Prerequisites
 
 | Requirement | Minimum | Validated |
 |------------|---------|-----------|
@@ -18,9 +120,9 @@ container; Ansible playbooks run directly on the host from the shared Omnia venv
 | Container runtime | Podman 5.0+ | 5.3.1 |
 | Database | PostgreSQL 17+ | 17.x (containerized) |
 
-### Ansible Installation (Common Omnia Venv)
+#### Ansible Installation (Common Omnia Venv)
 
-**Recommended — use the shared Omnia venv**:
+**Recommended -- use the shared Omnia venv**:
 
 ```bash
 # From the Omnia repo root:
@@ -44,10 +146,10 @@ ansible --version          # ansible-core 2.20+
 ansible-galaxy collection list | grep containers.podman
 ```
 
-## Quick Start
+### Quick Start
 
 ```bash
-# 1. Configure environment (REQUIRED — do this first)
+# 1. Configure environment (REQUIRED -- do this first)
 vi src/main/omnia.env                         # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
 
 # 2. Set up env + venv + input files (one-time)
@@ -70,7 +172,7 @@ cd playbooks
 ansible-playbook prepare_build_stream.yml     # Deploy Postgres + GitLab + BSM
 ```
 
-## Input Files
+### Input Files
 
 Input files are **edited in the source tree** and **staged to the runtime data path** before
 playbook execution. The staging happens automatically during `omnia.sh -s`, or you can
@@ -78,11 +180,11 @@ run `copy-input.sh` manually after editing.
 
 ```
 Source (git repo)                           Runtime (data path)
-─────────────────                           ───────────────────
-src/build_stream/input/                   ──copy──>  /opt/omnia/build_stream/input/project_default/
-src/build_stream/app/                     ──copy──>  /opt/omnia/build_stream/
-                                                        │
-                                                        ▼
+-----------------                           -------------------
+src/build_stream/input/                   --copy-->  /opt/omnia/build_stream/input/project_default/
+src/build_stream/app/                     --copy-->  /opt/omnia/build_stream/
+                                                        |
+                                                        v
                                                Ansible playbooks + container read from here
 ```
 
@@ -92,7 +194,7 @@ src/build_stream/app/                     ──copy──>  /opt/omnia/build_st
 | `build_stream_config.yml` | `input/` | `<data_path>/build_stream/input/<project>/` | Yes | BSM + GitLab configuration |
 | `app/` (source code) | `app/` | `<data_path>/build_stream/` | Yes | FastAPI application code |
 
-## Architecture Overview
+### Architecture
 
 Build Stream follows a clean architecture pattern with clear separation of concerns:
 
@@ -102,7 +204,7 @@ Build Stream follows a clean architecture pattern with clear separation of conce
 - **Infrastructure Layer** (`app/infra/`): External integrations and data persistence
 - **Common Layer** (`app/common/`): Shared utilities and configuration
 
-### Runtime Components
+#### Runtime Components
 
 | Component | Runs As | Description |
 |-----------|---------|-------------|
@@ -112,9 +214,9 @@ Build Stream follows a clean architecture pattern with clear separation of conce
 | Playbook watcher | systemd service | Monitors queue and triggers Ansible playbooks |
 | Ansible playbooks | Host (Omnia venv) | Infrastructure provisioning and deployment |
 
-## Configuration Reference
+### Configuration Reference
 
-### Environment Variables
+#### Environment Variables
 
 Host and project settings are configured via environment variables. Source `omnia.env`
 or export them directly in your shell before running.
@@ -128,29 +230,29 @@ or export them directly in your shell before running.
 | `SYSTEM_ADMIN_NIC_IPV4` | Admin NIC IPv4 | **REQUIRED** |
 | `OMNIA_VENV_PATH` | Path to the shared Omnia Python venv | `/opt/omnia/venv` |
 
-### `build_stream_config.yml`
+#### `build_stream_config.yml`
 
 Per-domain configuration. Key sections:
-- **`enable_build_stream`** — Enable/disable the domain (`true`/`false`)
-- **`build_stream_host_ip`** — API server host IP
-- **`build_stream_port`** — API server port (default: `8010`)
-- **`gitlab_host`** — Target host for GitLab deployment
-- **`gitlab_project_name`** — GitLab project name (default: `omnia-catalog`)
-- **`cadence.enabled`** — Enable periodic repository reconciliation and catalog-driven pipelines
-- **`cadence.interval_days`** — Poll interval for cadence cycles (default 7 days, minimum 1 day)
-- **`cadence.sync_timeout_seconds`** — Maximum wait for repository synchronization
-- **`cadence.sync_poll_interval_seconds`** — Poll interval while waiting for repository synchronization
-- **`retention.auto_cleanup_enabled`** — Enable automatic image cleanup (default `true`)
-- **`retention.retention_age_days`** — Age after which a never-deployed, unprotected image group is cleaned up (default 90, minimum 1)
-- **`retention.min_keep_count`** — Image groups always kept per functional group (default 5)
-- **`retention.evaluation_interval_hours`** — Interval between automatic cleanup cycles (default 24, minimum 1)
+- **`enable_build_stream`** -- Enable/disable the domain (`true`/`false`)
+- **`build_stream_host_ip`** -- API server host IP
+- **`build_stream_port`** -- API server port (default: `8010`)
+- **`gitlab_host`** -- Target host for GitLab deployment
+- **`gitlab_project_name`** -- GitLab project name (default: `omnia-catalog`)
+- **`cadence.enabled`** -- Enable periodic repository reconciliation and catalog-driven pipelines
+- **`cadence.interval_days`** -- Poll interval for cadence cycles (default 7 days, minimum 1 day)
+- **`cadence.sync_timeout_seconds`** -- Maximum wait for repository synchronization
+- **`cadence.sync_poll_interval_seconds`** -- Poll interval while waiting for repository synchronization
+- **`retention.auto_cleanup_enabled`** -- Enable automatic image cleanup (default `true`)
+- **`retention.retention_age_days`** -- Age after which a never-deployed, unprotected image group is cleaned up (default 90, minimum 1)
+- **`retention.min_keep_count`** -- Image groups always kept per functional group (default 5)
+- **`retention.evaluation_interval_hours`** -- Interval between automatic cleanup cycles (default 24, minimum 1)
 
 The cadence catalog (`cadence_catalog_rhel.json`) and reconciliation playbook
 (`repo_sync.yml`) are fixed system contracts. Cadence settings are reloaded at
 the start of each cycle. Disabling cadence suppresses work but keeps the timer
 alive so it can be re-enabled without restarting `playbook-watcher.service`.
 
-### Automatic Image Cleanup
+#### Automatic Image Cleanup
 
 The `omnia_build_stream` API container runs automatic cleanup in the
 background (`AutoCleanupScheduler`). Each cycle cleans up `FAILED` image
@@ -162,7 +264,7 @@ value keeps the last valid settings. The first cycle runs 5 minutes after
 the container starts. A manual pass can be run inside the container with
 `python3 /opt/omnia/build_stream/cleanup_cron.py`.
 
-### Cadence Pipeline
+#### Cadence Pipeline
 
 When cadence is enabled, the playbook-watcher runs the registered
 `repo_sync.yml` playbook and validates `repo_resync_status.yml`. A failed sync,
@@ -171,15 +273,15 @@ the catalog is changed. After every successful reconciliation, the watcher
 increments the catalog version and pushes exactly one GitLab commit. That
 commit starts the unified pipeline:
 
-`initialization` → `parse-catalog` → `configure-local-repository` →
-`build-images` → `deploy` → `restart` → `validate` → `summary`
+`initialization` -> `parse-catalog` -> `configure-local-repository` ->
+`build-images` -> `deploy` -> `restart` -> `validate` -> `summary`
 
 Cadence never suppresses the pipeline based on `packages_added` or
 `packages_removed`. Those counts cannot reveal a package-version replacement
 that leaves the total package count unchanged. A successful exact-mirror sync
 therefore always advances the full cadence pipeline.
 
-## High-Level Workflow
+### High-Level Workflow
 
 1. **Authentication**: JWT-based authentication secures all API endpoints
 2. **Job Creation**: Clients submit build requests through the jobs API
@@ -188,7 +290,7 @@ therefore always advances the full cadence pipeline.
 5. **Artifact Management**: Build artifacts are stored and tracked throughout the process
 6. **Audit Trail**: All operations are logged for traceability and compliance
 
-## Output Paths
+### Output Paths
 
 All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omnia/build_stream/`):
 
@@ -201,7 +303,7 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 | `<data_path>/build_stream_root/` | API runtime data (JWT keys, artifacts) |
 | `<data_path>/build_stream_ssl/` | TLS certificates for the API |
 
-## Domain Structure
+### Domain Structure
 
 ```
 build_stream/                              # Omnia Build Stream domain
@@ -221,7 +323,7 @@ build_stream/                              # Omnia Build Stream domain
 ├── containers/                            # Container build files
 │   └── omnia_build_stream/
 │       └── Containerfile                  # FastAPI container image
-├── input/                                 # User input (source — staged to runtime)
+├── input/                                 # User input (source -- staged to runtime)
 │   └── build_stream_config.yml            # Domain configuration
 ├── playbooks/                             # Ansible playbooks
 │   ├── prepare_build_stream.yml           # Deploy Postgres + GitLab + BSM
@@ -242,7 +344,7 @@ build_stream/                              # Omnia Build Stream domain
 └── README.md                              # This file
 ```
 
-### Runtime Directory (auto-created at `/opt/omnia/build_stream/`)
+#### Runtime Directory (auto-created at `/opt/omnia/build_stream/`)
 
 ```
 /opt/omnia/build_stream/
@@ -256,7 +358,7 @@ build_stream/                              # Omnia Build Stream domain
 └── scripts/                         # JWT key generation, etc.
 ```
 
-## Cleanup and Reset
+### Cleanup and Reset
 
 Run the public `cleanup` tag before requesting an Omnia-wide reset. It removes
 the BuildStream and GitLab services, generated artifacts, and BuildStream-owned
@@ -293,9 +395,9 @@ services or output. After all domain cleanup tags have completed, use
 `sudo ./omnia.sh --cleanup --all` for the guarded global reset. Both global
 cleanup modes prompt for `yes`; trusted automation can add `--skip-approval`.
 
-## Development
+### Development
 
-### API Development
+#### API Development
 
 ```bash
 # Install app + test dependencies
@@ -311,7 +413,7 @@ export HOST=<host_ip> PORT=8010
 uvicorn app.main:app --reload
 ```
 
-### Ansible Playbook Development
+#### Ansible Playbook Development
 
 ```bash
 # Activate the shared Omnia venv
@@ -330,6 +432,20 @@ ansible-playbook prepare_build_stream.yml
 - See Omnia ReadTheDocs for complete API documentation
 - Health check endpoint: `/health`
 
-## License
+### Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Build Stream Documentation](https://omnia.readthedocs.io/en/latest/HowTo/build_stream/index.html) | Read the Docs user guide |
+| [Architecture](docs/architecture.md) | Domain architecture documentation |
+| [Build Image](docs/build_image.md) | Build image workflow |
+| [Catalog](docs/catalog.md) | Catalog processing |
+| [Jobs](docs/jobs.md) | Jobs management |
+| [Local Repo](docs/local_repo.md) | Local repository operations |
+| [Validation](docs/validation.md) | Validation workflow |
+| [Input Contract](docs/contracts/INPUT_CONTRACT.md) | Input file specifications |
+| [Output Contract](docs/contracts/OUTPUT_CONTRACT.md) | Output file specifications |
+
+### License
 
 Apache License, Version 2.0

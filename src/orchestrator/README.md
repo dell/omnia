@@ -1,12 +1,140 @@
-# Omnia Orchestrator Collection
-
-Ansible Galaxy collection for Dell Omnia Orchestrator — OpenCHAMI deployment,
-PXE boot orchestration, image deployment, and Kubernetes and Slurm lifecycle
-management for HPC and AI clusters.
+# Omnia Orchestrator
 
 **Collection**: `omnia.orchestrator` v2.3.0
 
+Orchestrator is an Ansible Galaxy collection that deploys OpenCHAMI services,
+configures Slurm and Kubernetes clusters, manages networking and storage, and
+orchestrates PXE boot for HPC and AI cluster provisioning. It is the primary
+domain responsible for node lifecycle management and cluster configuration.
+
+## Overview
+
+This README follows the common Omnia domain structure and retains the complete Orchestrator reference below.
+
+## Architecture and Dependencies
+
+Orchestrator consumes repository, image, catalog, and mapping contracts to deploy services and provision clusters.
+
 ## Prerequisites
+
+Complete upstream domains and stage all required project, network, security, storage, and mapping inputs.
+
+## Installation and Initialization
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --setup-venv
+source /etc/profile.d/omnia-env.sh
+```
+
+## Configuration and Credentials
+
+Configure Orchestrator inputs and collect encrypted provisioning, BMC, LDAP, Slurm, and storage credentials.
+
+## Run with omnia.sh
+
+```bash
+cd <OMNIA_SOURCE_PATH>/src/main
+./omnia.sh --run orchestrator
+./omnia.sh --run orchestrator --tags precheck
+./omnia.sh --run orchestrator --tags validate
+./omnia.sh --run orchestrator --tags credentials
+./omnia.sh --run orchestrator --tags prepare
+./omnia.sh --run orchestrator --tags deploy
+./omnia.sh --run orchestrator --tags provision
+./omnia.sh --run orchestrator --tags execute
+./omnia.sh --run orchestrator --tags pxeboot
+./omnia.sh --run orchestrator --tags validate-deployment
+./omnia.sh --run orchestrator --tags verify_node_registration
+./omnia.sh --run orchestrator --tags cleanup
+./omnia.sh --run orchestrator --tags cleanup_credentials
+```
+
+## Run with ansible-playbook
+
+```bash
+source /etc/profile.d/omnia-env.sh
+source "$OMNIA_VENV_PATH/bin/activate"
+cd <OMNIA_SOURCE_PATH>/src/orchestrator/playbooks
+export ANSIBLE_CONFIG=../ansible.cfg
+ansible-playbook orchestrator.yml
+ansible-playbook orchestrator.yml --tags precheck
+ansible-playbook orchestrator.yml --tags validate
+ansible-playbook orchestrator.yml --tags credentials
+ansible-playbook orchestrator.yml --tags prepare
+ansible-playbook orchestrator.yml --tags deploy
+ansible-playbook orchestrator.yml --tags provision
+ansible-playbook orchestrator.yml --tags execute
+ansible-playbook orchestrator.yml --tags pxeboot
+ansible-playbook orchestrator.yml --tags validate-deployment
+ansible-playbook orchestrator.yml --tags verify_node_registration
+ansible-playbook orchestrator.yml --tags cleanup
+ansible-playbook orchestrator.yml --tags cleanup_credentials
+```
+
+## Tags and Workflows
+
+Lifecycle, deployment, provisioning, PXE, verification, functional-group, and cleanup workflows are detailed below.
+
+## Roles, Modules, and Plugins
+
+The collection contains OpenCHAMI, OpenLDAP, Slurm, Kubernetes, storage, network, PXE, validation, and reporting components.
+
+## Inputs, Outputs, and Runtime Paths
+
+Project inputs, upstream contracts, generated inventories, reports, state, credentials, and logs use configured domain paths.
+
+## Cleanup
+
+Component-aware cleanup preserves or removes workload data and credentials according to explicit options.
+
+## Security
+
+Validated inputs, Vault, TLS, CA verification, redaction, secure temporary files, and command controls protect provisioning.
+
+## Troubleshooting and Verification
+
+Verify upstream statuses, services, SMD identity, boot configuration, metadata, reports, PXE state, and node completion.
+
+## Documentation and Support
+
+See the linked architecture, identity, contracts, troubleshooting, and container guides.
+
+## Detailed Domain Reference
+
+### Overview
+
+Orchestrator automates cluster provisioning and configuration by:
+
+- Deploying OpenCHAMI services (Metadata Service, Boot Service, CoreDHCP, CoreDNS, CoreSMD)
+- Optionally deploying OpenLDAP for authentication
+- Configuring Slurm workload manager for HPC workloads
+- Configuring Kubernetes for service workloads
+- Managing network configuration (bonding, segmentation, DNS, DHCP)
+- Configuring storage (NFS mounts, PowerScale, VAST)
+- Orchestrating iDRAC PXE boot for physical node provisioning
+- Managing node registration and completion verification
+- Reconciling OpenCHAMI state with persistent Service Tag-to-XNAME identity
+
+#### Key Responsibilities
+
+Orchestrator is the **primary provisioning domain** that:
+- Deploys and configures OpenCHAMI infrastructure services
+- Configures cluster-wide networking and storage
+- Provisions Slurm or Kubernetes clusters
+- Bootstraps physical nodes via PXE
+- Manages node lifecycle from boot to registration
+- Reconciles hardware identity through SMD Hardware Inventory
+
+Orchestrator does **not**:
+- Build OS images (Image Build Manager responsibility)
+- Discover hardware (Discovery responsibility)
+- Synchronize repositories (Repository Manager responsibility)
+- Deploy telemetry (Telemetry responsibility)
+
+---
+
+### Prerequisites
 
 | Requirement | Supported version | Source |
 |-------------|-------------------|--------|
@@ -23,13 +151,15 @@ Install through `src/main/omnia.sh --setup-venv` for the supported dependency
 set. The collection metadata permits Ansible 2.15 or newer, while the supported
 v2.3 runtime dependency file installs Ansible 2.20 or newer.
 
-## Installation
+### Installation
 
 ```bash
 ansible-galaxy collection install omnia.orchestrator
 ```
 
-## Quick Start
+---
+
+### Quick Start
 
 ```bash
 # From the repository root
@@ -54,7 +184,9 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 `$OMNIA_VENV_PATH/bin/activate`, and run commands from
 `src/orchestrator/playbooks/`.
 
-## Tags
+---
+
+### Tags
 
 | Tag | Description |
 |-----|-------------|
@@ -88,9 +220,11 @@ node manually or through the hypervisor and run the verification tag. The
 external verifier requires a boot newer than the persisted lifecycle status;
 a boot started before the failed PXE workflow finishes is treated as stale.
 
-## Input / Output
+---
 
-### Input
+### Input / Output
+
+#### Input
 
 | File | Source | Purpose |
 |------|--------|---------|
@@ -102,7 +236,7 @@ a boot started before the failed PXE workflow finishes is treated as stale.
 | `repo_status.yml` | Repository Manager | Repository endpoints, certificates, and staged artifacts |
 | Catalog JSON | Catalog workflow | OS metadata and feature resolution |
 
-### Output
+#### Output
 
 | File | Purpose |
 |------|---------|
@@ -114,37 +248,11 @@ a boot started before the failed PXE workflow finishes is treated as stale.
 
 See the input and output contracts for field-level specifications.
 
-## Runtime Paths
+---
 
-`ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator`.
+### Included Content
 
-```text
-<ORCHESTRATOR_DATA_PATH>/
-+-- input/<project>/       Project inputs and encrypted credentials
-+-- output/<project>/      State files, reports, and generated data
-+-- log/                   Component lifecycle logs
-```
-
-Top-level Ansible logs are written under `/var/log/omnia/orchestrator/`.
-
-## Directory Layout
-
-```text
-src/orchestrator/
-+-- playbooks/              Lifecycle entry points by phase
-+-- roles/                  Domain roles and role documentation
-+-- plugins/modules/        Ansible modules
-+-- plugins/module_utils/   Shared validation and OpenCHAMI clients
-+-- plugins/action/         Controller-side action plugins
-+-- input/                  Project input templates
-+-- samples/                Upstream contract examples
-+-- containers/             Orchestrator-owned container sources
-+-- docs/                   Architecture, contracts, and troubleshooting
-```
-
-## Included Content
-
-### Roles
+#### Roles
 
 | Role | Description |
 |------|-------------|
@@ -171,8 +279,13 @@ src/orchestrator/
 | `omnia.orchestrator.validate_preamble` | Prepare shared facts for deployment validation |
 | `omnia.orchestrator.validate_provisioning` | Validate provisioned node and service state |
 | `omnia.orchestrator.verify_node_registration` | Fresh-boot and cloud-init verification after PXE boot |
+| `omnia.orchestrator.orchestrator_lifecycle_status` | Lifecycle status persistence and reconciliation |
+| `omnia.orchestrator.pxe_boot_inventory` | PXE boot inventory generation |
+| `omnia.orchestrator.pxe_boot_reporting` | PXE boot reporting and failure collection |
+| `omnia.orchestrator.pxe_boot_setup` | PXE boot setup and configuration |
+| `omnia.orchestrator.external_boot_verification` | External/hypervisor boot verification |
 
-### Modules
+#### Modules
 
 | Module | Description |
 |--------|-------------|
@@ -185,23 +298,58 @@ src/orchestrator/
 | `omnia.orchestrator.generate_functional_groups` | Generate functional groups from PXE mapping CSV |
 | `omnia.orchestrator.node_boot_status` | Verify fresh boot and cloud-init completion on a provisioned node |
 | `omnia.orchestrator.openchami_reconcile` | Resolve persistent SMD identities and reconcile OpenCHAMI state through verified APIs |
+| `omnia.orchestrator.orchestrator_status_reconcile` | Reconcile orchestrator lifecycle status |
 | `omnia.orchestrator.slurm_conf` | Parse, merge, and render Slurm configuration |
 | `omnia.orchestrator.generate_argon2_password` | Generate Argon2 password hashes |
 | `omnia.orchestrator.validate_system_environment` | Validate the OIM system environment |
 
-### Action Plugins
+#### Action Plugins
 
 | Plugin | Description |
 |--------|-------------|
 | `omnia.orchestrator.node_boot_status` | Convert transient SSH transport failures into structured retryable results before invoking the node-local module |
 
-### Callback Plugins
+#### Callback Plugins
 
 | Plugin | Description |
 |--------|-------------|
 | `omnia.orchestrator.omnia_default` | Custom stdout callback with clean error formatting |
 
-## Usage
+---
+
+### Runtime Paths
+
+`ORCHESTRATOR_DATA_PATH` defaults to `$OMNIA_DATA_PATH/orchestrator`.
+
+```text
+<ORCHESTRATOR_DATA_PATH>/
++-- input/<project>/       Project inputs and encrypted credentials
++-- output/<project>/      State files, reports, and generated data
++-- log/                   Component lifecycle logs
+```
+
+Top-level Ansible logs are written under `/var/log/omnia/orchestrator/`.
+
+---
+
+### Directory Layout
+
+```text
+src/orchestrator/
++-- playbooks/              Lifecycle entry points by phase
++-- roles/                  Domain roles and role documentation
++-- plugins/modules/        Ansible modules
++-- plugins/module_utils/   Shared validation and OpenCHAMI clients
++-- plugins/action/         Controller-side action plugins
++-- input/                  Project input templates
++-- samples/                Upstream contract examples
++-- containers/             Orchestrator-owned container sources
++-- docs/                   Architecture, contracts, and troubleshooting
+```
+
+---
+
+### Usage
 
 ```yaml
 - name: Run orchestrator
@@ -214,7 +362,9 @@ src/orchestrator/
         oim_group: true
 ```
 
-## Cleanup and Reset
+---
+
+### Cleanup and Reset
 
 Full Orchestrator cleanup removes all enabled components and the encrypted
 Orchestrator credential file and vault key by default. Set
@@ -235,7 +385,9 @@ modes prompt for `yes`; trusted automation can add `--skip-approval`. Detailed
 component cleanup behavior is documented in
 [`playbooks/cleanup/README.md`](playbooks/cleanup/README.md).
 
-## Omnia 2.2 to 2.3
+---
+
+### Omnia 2.2 to 2.3
 
 For deployments moving from Omnia 2.2:
 
@@ -248,11 +400,13 @@ For deployments moving from Omnia 2.2:
 - Lifecycle automation should consume `provisioning_report.yml`, the aggregate
   `orchestrator_status.yml`, and `failed_nodes.json` for PXE failures.
 
+---
 
-## Documentation
+### Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Orchestrator Documentation](https://omnia.readthedocs.io/en/latest/HowTo/orchestrator/index.html) | Read the Docs user guide |
 | [`docs/architecture.md`](docs/architecture.md) | System context, lifecycle phases, tag behavior, and service interactions |
 | [`docs/hardware-identity-mapping.md`](docs/hardware-identity-mapping.md) | Persistent Service Tag-to-XNAME identity and reconciliation behavior |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common failures, recovery guidance, logs, and diagnostic commands |
@@ -260,12 +414,12 @@ For deployments moving from Omnia 2.2:
 | [`docs/contracts/output-contract.md`](docs/contracts/output-contract.md) | Output artifact and lifecycle-status specifications |
 | [`containers/omnia_auth/README.md`](containers/omnia_auth/README.md) | OpenLDAP authentication container contents, build, and runtime behavior |
 
-## License
+### License
 
 Apache-2.0
 
-## Links
+### Links
 
 - [Omnia GitHub](https://github.com/dell/omnia)
-- [Documentation](https://github.com/dell/omnia/tree/main/docs)
+- [Documentation](https://omnia.readthedocs.io/en/latest/HowTo/orchestrator/index.html)
 - [Issues](https://github.com/dell/omnia/issues)
