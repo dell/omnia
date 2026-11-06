@@ -482,6 +482,15 @@ explicitly excluded from aggregate FVT execution.
 |-------|------|-------------|
 | RM_UT_329 | `test_validate_points_to_transform` | Validate command points to transform for legacy catalogs. |
 
+#### NoLogCounterTests (`test_no_log_counters.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_330 | `test_counter_containing_a_numeric_no_log_string_is_masked_by_ansible` | Documents the Ansible behavior that masked a counter whose digits contain a no_log string. |
+| RM_UT_331 | `test_short_numeric_values_are_dropped` | Numeric strings of up to 6 digits are removed from the masked set. |
+| RM_UT_332 | `test_counters_survive_after_the_filter` | Package counters stay integers after the filter. |
+| RM_UT_333 | `test_secrets_are_still_masked` | Tokens, URLs and longer numeric values stay masked. |
+
 ## Registry summary
 
 | Suite | Count | Coverage |
@@ -506,6 +515,7 @@ explicitly excluded from aggregate FVT execution.
 | `test_fvt_policy_helpers.py` | 9 | Policy config keys, Pulp JSON parsing, selected contexts and HTTPS verification |
 | `test_input_validation_fail_closed.py` | 17 | Unknown/empty tags fail closed; credential file mapped to a schema; tag guard covers public tags |
 | `test_mirror_state.py` | 16 | Rerun/resync selection, checkpoints, ambiguity, corruption and atomic replacement |
+| `test_no_log_counters.py` | 4 | no_log does not mask the package counters of a sync result; secrets stay masked |
 | `test_pulp_command_contract.py` | 13 | Central structured argv and allowlisted grammar |
 | `test_pulp_container_remote_api.py` | 6 | Authenticated container remote API compatibility |
 | `test_pulp_object_state.py` | 9 | Tri-state Pulp queries, digest reuse and distribution bindings |
@@ -515,4 +525,4 @@ explicitly excluded from aggregate FVT execution.
 | `test_shared_artifact_state.py` | 16 | Integrity-verified reuse, ownership, atomic persistence and Git resolution |
 | `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
 | `test_vault_in_memory_read.py` | 16 | In-memory vault decryption, error redaction and subprocess safety |
-| **Total** | **331** | |
+| **Total** | **335** | |
