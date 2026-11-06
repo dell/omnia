@@ -359,14 +359,18 @@
 {% endfor %}
           '
 
-        # Configure OpenMPI ORTE to use SrunPortRange for OOB communication
-        - mkdir -p /etc/openmpi
+        # Configure MPI OOB port range to match firewall-allowed SrunPortRange.
+        # Uses /etc/profile.d/ environment variables so the setting is picked up
+        # regardless of the OpenMPI installation prefix.
+        #   OMPI_MCA_  — read by OpenMPI 4.x (DOCA / HPC-X)
+        #   PRTE_MCA_  — read by PRRTE (OpenMPI 5.x runtime)
         - |
-          cat > /etc/openmpi/openmpi-mca-params.conf <<'MCAEOF'
-          # Restrict ORTE OOB TCP to the Slurm SrunPortRange (firewall-allowed)
-          oob_tcp_dynamic_ipv4_ports = {{ slurm_conf_dict.SrunPortRange }}
-          MCAEOF
-        - chmod 0644 /etc/openmpi/openmpi-mca-params.conf
+          cat > /etc/profile.d/omnia_mpi_oob.sh <<'MPIEOF'
+          # Restrict MPI OOB TCP to the Slurm SrunPortRange (firewall-allowed)
+          export OMPI_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
+          export PRTE_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
+          MPIEOF
+        - chmod 0644 /etc/profile.d/omnia_mpi_oob.sh
 
         - firewall-cmd --reload
         - systemctl enable sshd
