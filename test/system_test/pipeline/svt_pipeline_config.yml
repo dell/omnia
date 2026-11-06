@@ -28,12 +28,14 @@ email:
   sender: ""
   smtp_server: ""
   smtp_port: "25"
+  required: "false"   # "true": the summary job fails when the email cannot be sent
 
 clusters:
   oim1:
     target:
       ip: ""
       user: "root"
+      ssh_skip_host_key: "false"   # "true" accepts an unchecked OIM host key (not recommended)
     omnia:
       repo: "https://github.com/dell/omnia.git"
       branch: "staging"

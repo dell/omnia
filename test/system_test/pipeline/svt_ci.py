@@ -37,7 +37,8 @@ a dropped SSH connection does not stop it.
 
 Environment (CI/CD variables, see svt_pipeline_config.yml): SVT_TARGET_IP,
 SVT_TARGET_USER, SVT_TARGET_PASS (masked) or SVT_SSH_KEY (file variable),
-SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key),
+SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key; required unless
+SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
 SVT_THEME, SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
 SVT_CREDENTIAL_DOMAINS, SVT_LABEL, BAO_SERVER_URL, BAO_AUTH_ROLE,
@@ -143,13 +144,32 @@ def _ci_dir() -> str:
 
 
 # --------------------------------------------------------------------- ssh
+_WARNED: set = set()
+
+
+def _warn_once(message: str) -> None:
+    if message not in _WARNED:
+        _WARNED.add(message)
+        print(f"WARNING: {message}", flush=True)
+
+
 def _ssh_command() -> Tuple[List[str], Dict[str, str]]:
     """Return the ssh argument list and its environment (password via SSHPASS only)."""
     target = f"{_env('SVT_TARGET_USER', 'root')}@{_env('SVT_TARGET_IP')}"
     known_hosts = _env("SVT_SSH_KNOWN_HOSTS")
-    host_check = (["-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known_hosts}"]
-                  if known_hosts else
-                  ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null"])
+    if known_hosts:
+        host_check = ["-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known_hosts}"]
+    elif _env("SVT_SSH_SKIP_HOST_KEY").lower() == "true":
+        _warn_once("SVT_SSH_SKIP_HOST_KEY=true: the OIM host key is not checked, so the "
+                   "connection can be intercepted (man in the middle) and the OIM password "
+                   "and credentials captured. Set SVT_SSH_KNOWN_HOSTS instead.")
+        host_check = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null"]
+    else:
+        _fail("SVT_SSH_KNOWN_HOSTS (a File variable with the OIM host key line) is required. "
+              "HOW TO FIX: ./setup_svt_project.py --update --scan-host-keys stores it, or "
+              "ssh-keyscan -t ed25519 <OIM> and add it by hand; SVT_SSH_SKIP_HOST_KEY=true "
+              "accepts the risk of an unchecked host key")
+        host_check = []
     options = [*host_check, "-o", "LogLevel=ERROR", "-o", "ServerAliveInterval=30",
                "-o", "ServerAliveCountMax=10", "-o", "ConnectTimeout=30"]
     env = dict(os.environ)
@@ -293,6 +313,24 @@ def preflight() -> int:
     return 0
 
 
+def _check_svt_scripts(svt_dir: str) -> None:
+    """Fail now, with the reason, when the checkout has no usable SVT setup script.
+
+    The jobs call ./setup_env.sh (configure, --install, --domain-creds-stdin) and
+    ./run_validation.sh; a branch without the SVT, or with an older setup script, would
+    otherwise fail later with a less clear error.
+    """
+    rc, out = remote(
+        f"cd {svt_dir} && test -x setup_env.sh && test -x run_validation.sh && "
+        "./setup_env.sh --help 2>&1 | grep -c -e '--configure' -e '--domain-creds-stdin'",
+        capture=True, timeout=120)
+    if rc != 0 or out.decode(errors="replace").strip() != "2":
+        _fail("the checkout has no usable SVT: test/system_test/setup_env.sh (with "
+              "--configure and --domain-creds-stdin) and run_validation.sh must exist and be "
+              "executable. HOW TO FIX: use an Omnia branch that has the system test "
+              "(clusters.<name>.omnia.branch), or checkout_mode: update")
+
+
 def checkout() -> int:
     """Clone, update or keep the Omnia checkout; copy the svt/ inputs into it."""
     path, mode = _install_path(), _env("SVT_CHECKOUT_MODE", "update")
@@ -318,6 +356,7 @@ def checkout() -> int:
     _, commit = remote(f"git -C {qpath} rev-parse HEAD", capture=True)
     with open(os.path.join(STATE_DIR, "commit.txt"), "w", encoding="utf-8") as stream:
         stream.write(commit.decode(errors="replace").strip())
+    _check_svt_scripts(shlex.quote(_svt_dir()))
     theme = _theme()
     for name in ("user_inputs.yml", f"{theme}_test_config.yml"):
         local = os.path.join(_inputs_dir(), name)
@@ -493,12 +532,13 @@ def _status_cell(status: str) -> str:
     return f"<b style='color:{color}'>{html.escape(status.upper() or 'NOT RUN')}</b>"
 
 
-def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) -> None:
+def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) -> bool:
+    """Send the summary email; return False only when it was configured and could not be sent."""
     recipients = [r.strip() for r in _env("EMAIL_RECIPIENTS").split(",") if r.strip()]
     server, sender = _env("SMTP_SERVER"), _env("EMAIL_SENDER")
     if not (recipients and server and sender):
         _say("email not configured (EMAIL_RECIPIENTS, EMAIL_SENDER, SMTP_SERVER): not sent")
-        return
+        return True
     meta = report.get("meta") or {}
     title = meta.get("theme_title") or _theme()
     label = _env("SVT_LABEL")
@@ -551,7 +591,11 @@ def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) 
             smtp.send_message(message)
         _say(f"email sent to {', '.join(recipients)}")
     except (OSError, smtplib.SMTPException) as exc:
-        print(f"WARNING: email not sent: {type(exc).__name__}: {exc}", flush=True)
+        print("=" * 72 + f"\nERROR: the summary email was NOT sent to {', '.join(recipients)}: "
+              f"{type(exc).__name__}: {exc}\nThe report is in the job artifacts "
+              "(svt_report/).\n" + "=" * 72, flush=True)
+        return False
+    return True
 
 
 def summary() -> int:
@@ -570,7 +614,10 @@ def summary() -> int:
     verdict = "FAILED" if problems else "PASSED"
     statuses["summary"] = "failed" if problems else "success"
     _say(f"overall: {verdict}" + (f" ({'; '.join(problems)})" if problems else ""))
-    _send_email(verdict, statuses, report)
+    sent = _send_email(verdict, statuses, report)
+    if not sent and _env("SVT_EMAIL_REQUIRED").lower() == "true":
+        _say("SVT_EMAIL_REQUIRED=true: the summary job fails because the email was not sent")
+        return 1
     return 1 if problems else 0
 
 

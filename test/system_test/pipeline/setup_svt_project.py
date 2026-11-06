@@ -22,11 +22,19 @@ no change here::
     ./setup_svt_project.py --render [--config svt_pipeline_config.yml]   # print the CI files
     ./setup_svt_project.py --create --gitlab-url https://gitlab.example.com
     ./setup_svt_project.py --update --gitlab-url ... [--update-inputs] [--set-password]
+                           [--scan-host-keys] [--bao-cacert ca.pem]
     ./setup_svt_project.py --validate --gitlab-url ...                   # GitLab CI lint
 
 The GitLab token comes from GITLAB_TOKEN or a prompt, each cluster's OIM SSH
 password from <CLUSTER>_SVT_TARGET_PASS or a prompt (--create, --set-password);
 none is printed, stored in a file or passed as an argument.
+
+--scan-host-keys stores each cluster's OIM host key (ssh-keyscan, run from this
+machine) as the File variable <CLUSTER>_SVT_SSH_KNOWN_HOSTS that the jobs require, and
+prints its fingerprint: compare it with the OIM's
+(ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub). --bao-cacert FILE stores the
+OpenBao CA certificate as the File variable BAO_CACERT. Both only change the variable
+they name and can be repeated.
 
 Files committed: .gitlab-ci.yml (one trigger job per cluster, each holding the
 cluster's resource group), .gitlab-ci-svt.yml (the jobs: the theme's stages
@@ -41,6 +49,7 @@ import argparse
 import getpass
 import os
 import re
+import subprocess  # nosec B404  # ssh-keyscan and ssh-keygen, fixed argument lists
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -78,12 +87,14 @@ GLOBAL_VARIABLES = {
     ("email", "sender"): "EMAIL_SENDER",
     ("email", "smtp_server"): "SMTP_SERVER",
     ("email", "smtp_port"): "SMTP_PORT",
+    ("email", "required"): "SVT_EMAIL_REQUIRED",
     ("svt", "poll_seconds"): "SVT_POLL_SECONDS",
 }
 # Cluster keys: section.key of clusters.<name> -> variable <PREFIX>_<name>.
 CLUSTER_VARIABLES = {
     ("target", "ip"): "SVT_TARGET_IP",
     ("target", "user"): "SVT_TARGET_USER",
+    ("target", "ssh_skip_host_key"): "SVT_SSH_SKIP_HOST_KEY",
     ("omnia", "repo"): "SVT_OMNIA_REPO",
     ("omnia", "branch"): "SVT_OMNIA_BRANCH",
     ("omnia", "install_path"): "SVT_OMNIA_INSTALL_PATH",
@@ -114,8 +125,15 @@ def load_config(path: Path) -> Dict[str, Any]:
     bad = [name for name in clusters if not CLUSTER_NAME.fullmatch(str(name))]
     if bad:
         raise SystemExit(f"invalid cluster name(s) {bad}: letters, digits, _ and -")
-    if len({prefix(name) for name in clusters}) != len(clusters):
-        raise SystemExit("two cluster names give the same variable prefix")
+    by_prefix: Dict[str, List[str]] = {}
+    for name in clusters:
+        by_prefix.setdefault(prefix(name), []).append(str(name))
+    clash = {key: names for key, names in by_prefix.items() if len(names) > 1}
+    if clash:
+        raise SystemExit("cluster names that give the same variable prefix (their CI/CD "
+                         "variables would collide): " + "; ".join(
+                             f"{', '.join(names)} -> {key}" for key, names in clash.items())
+                         + ". Rename one of them.")
     return config
 
 
@@ -344,6 +362,53 @@ def _set_password(client: GitLabClient, project_id: int, cluster: str) -> None:
     raise SystemExit(f"could not set {key}: HTTP {response.status_code}")
 
 
+def _scan_host_key(address: str) -> str:
+    """Return the ssh-keyscan lines of an OIM ("" when it does not answer)."""
+    try:
+        done = subprocess.run(  # nosec B603 B607  # fixed list, address from the config
+            ["ssh-keyscan", "-T", "10", "-t", "ed25519,ecdsa,rsa", address],
+            capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return "\n".join(line for line in done.stdout.splitlines()
+                     if line.strip() and not line.startswith("#"))
+
+
+def _fingerprints(lines: str) -> List[str]:
+    """Return the ssh-keygen fingerprint lines of known_hosts text."""
+    try:
+        done = subprocess.run(  # nosec B603 B607  # fixed list, text on stdin
+            ["ssh-keygen", "-lf", "-"], input=lines, capture_output=True, text=True,
+            timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    return [line.strip() for line in done.stdout.splitlines() if line.strip()]
+
+
+def _set_file_variable(client: GitLabClient, project_id: int, key: str, value: str) -> None:
+    """Create or update a protected File variable (its value is never printed)."""
+    state = client.set_variable(project_id, key, value, var_type="file", protected=True)
+    print(f"  {state} {key} (File, protected)")
+
+
+def _store_host_keys(client: GitLabClient, project_id: int, config: Dict[str, Any]) -> None:
+    """--scan-host-keys: store every cluster's OIM host key as <CLUSTER>_SVT_SSH_KNOWN_HOSTS."""
+    for cluster, block in config["clusters"].items():
+        address = str(_value(block or {}, "target", "ip") or "")
+        if not address:
+            print(f"  {cluster}: target.ip is empty, host key not scanned")
+            continue
+        lines = _scan_host_key(address)
+        if not lines:
+            print(f"  {cluster}: ssh-keyscan found no host key at {address} (is ssh-keyscan "
+                  "installed and port 22 reachable from here?)")
+            continue
+        _set_file_variable(client, project_id, f"{prefix(cluster)}_SVT_SSH_KNOWN_HOSTS", lines)
+        for line in _fingerprints(lines):
+            print(f"    {line}")
+        print("    compare with the OIM: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub")
+
+
 def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -> int:
     """--create / --update: commit the files, set the variables and the CI timeout."""
     client = _client(args)
@@ -360,6 +425,11 @@ def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -
     if args.create or args.set_password:
         for cluster in config["clusters"]:
             _set_password(client, project_id, cluster)
+    if args.scan_host_keys:
+        _store_host_keys(client, project_id, config)
+    if args.bao_cacert:
+        _set_file_variable(client, project_id, "BAO_CACERT",
+                           Path(args.bao_cacert).read_text(encoding="utf-8"))
     # pylint: disable-next=protected-access
     response = client._put(f"/projects/{project_id}", json={"build_timeout": longest})
     print(f"  project CI timeout: {longest // 3600}h{(longest % 3600) // 60:02d}m "
@@ -400,6 +470,12 @@ def main(argv: List[str]) -> int:
                              "files of test/system_test")
     parser.add_argument("--set-password", action="store_true",
                         help="--update: set every cluster's <CLUSTER>_SVT_TARGET_PASS again")
+    parser.add_argument("--scan-host-keys", action="store_true",
+                        help="--create/--update: store each cluster's OIM host key (ssh-keyscan) "
+                             "as <CLUSTER>_SVT_SSH_KNOWN_HOSTS, which the jobs require")
+    parser.add_argument("--bao-cacert", metavar="FILE",
+                        help="--create/--update: store this OpenBao CA certificate (PEM) as "
+                             "the File variable BAO_CACERT")
     parser.add_argument("--no-verify-ssl", action="store_true")
     args = parser.parse_args(argv)
     config_path = Path(args.config).resolve()
@@ -410,6 +486,10 @@ def main(argv: List[str]) -> int:
         return 0
     if not args.gitlab_url:
         parser.error("--gitlab-url is required")
+    if (args.scan_host_keys or args.bao_cacert) and not (args.create or args.update):
+        parser.error("--scan-host-keys and --bao-cacert go with --create or --update")
+    if args.bao_cacert and not Path(args.bao_cacert).is_file():
+        parser.error(f"--bao-cacert: {args.bao_cacert} is not a file")
     return validate(args, config) if args.validate else apply(args, config, config_path)
 
 

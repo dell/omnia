@@ -52,7 +52,9 @@ bao kv get secret/omnia/build_stream          # check
   "secret/data/omnia/cluster2"`.
 - **CA certificate (required):** after the project exists, add the CI/CD
   variable `BAO_CACERT`, type **File**, with the OpenBao CA certificate
-  (e.g. `/opt/openbao/tls/tls.crt` of a self-signed OpenBao).
+  (e.g. `/opt/openbao/tls/tls.crt` of a self-signed OpenBao), or let the tool
+  do it: `./setup_svt_project.py --update --gitlab-url ... --bao-cacert
+  /opt/openbao/tls/tls.crt`.
   `openbao.tls_skip_verify: "true"` skips the check instead (not
   recommended).
 - The pipeline reads the four secrets in the initialization job and pipes
@@ -69,7 +71,7 @@ svt:
 openbao: {server_url: "https://10.0.0.50:8200", auth_role: "gitlab-role",
           secret_path: "secret/data/omnia", tls_skip_verify: "false"}
 email: {recipients: "you@example.com", sender: "svt@example.com",
-        smtp_server: "smtp.example.com", smtp_port: "25"}
+        smtp_server: "smtp.example.com", smtp_port: "25", required: "false"}
 clusters:
   cluster1:
     target: {ip: "10.0.0.11", user: "root"}
@@ -94,9 +96,20 @@ clusters:
 cd test/system_test/pipeline
 ./setup_svt_project.py --render            # check the generated .gitlab-ci.yml and .gitlab-ci-svt.yml
 export GITLAB_TOKEN='<your-gitlab-token>' # or type it at the prompt
-./setup_svt_project.py --create --gitlab-url https://<gitlab-host>
+./setup_svt_project.py --create --gitlab-url https://<gitlab-host> --scan-host-keys
 ./setup_svt_project.py --validate --gitlab-url https://<gitlab-host>   # GitLab CI lint
 ```
+
+**OIM host key (required).** The jobs refuse to connect to an OIM whose host
+key they cannot check, because an unchecked key lets someone in the middle read
+the OIM password and the credentials the initialization job pipes over SSH.
+`--scan-host-keys` runs `ssh-keyscan` from your machine for every cluster's
+`target.ip` and stores the result as the File variable
+`<CLUSTER>_SVT_SSH_KNOWN_HOSTS`; it prints the fingerprint, so compare it with
+the OIM's (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`), because the scan
+trusts whatever answers at that moment. Or add that variable by hand with the
+line `ssh-keyscan -t ed25519 <OIM>` prints. Only if you accept the risk, set
+`clusters.<name>.target.ssh_skip_host_key: "true"` (the jobs then warn).
 
 `--create` asks for each cluster's OIM SSH password (or reads
 `CLUSTER1_SVT_TARGET_PASS` from the environment) and stores it as a masked,
@@ -119,9 +132,11 @@ Then, in GitLab (Settings > CI/CD > Variables), when needed:
 
 | Variable | Type | When |
 |---|---|---|
-| `BAO_CACERT` | File | With OpenBao (required) |
+| `BAO_CACERT` | File | With OpenBao (required; `--bao-cacert` sets it) |
 | `<CLUSTER>_SVT_SSH_KEY` | File | SSH key instead of the password |
-| `<CLUSTER>_SVT_SSH_KNOWN_HOSTS` | File | Check the OIM host key (its `known_hosts` line) |
+| `<CLUSTER>_SVT_SSH_KNOWN_HOSTS` | File | The OIM host key (its `known_hosts` line); **required** unless `ssh_skip_host_key` is `true` (`--scan-host-keys` sets it) |
+| `<CLUSTER>_SVT_SSH_SKIP_HOST_KEY` | Variable | `true`: do not check the OIM host key (not recommended; set from `target.ssh_skip_host_key`) |
+| `SVT_EMAIL_REQUIRED` | Variable | `true`: the summary job fails when the email cannot be sent (set from `email.required`) |
 | `SMTP_USER`, `SMTP_PASSWORD` | Variable, masked | SMTP server needs a login |
 
 ## 5. Give the inputs
@@ -197,6 +212,9 @@ Also: CI/CD > Schedules (nightly), or the API
 
 | Symptom | Check |
 |---|---|
+| `SVT_SSH_KNOWN_HOSTS ... is required` | `./setup_svt_project.py --update --scan-host-keys`, or add the File variable; `ssh_skip_host_key: "true"` accepts the risk |
+| `the checkout has no usable SVT` | The branch has no `test/system_test/setup_env.sh` (with `--configure` and `--domain-creds-stdin`) and `run_validation.sh`: use a branch that has the system test |
+| `the summary email was NOT sent` | `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USER`/`SMTP_PASSWORD`; the report is still in the job artifacts. `email.required: "true"` makes it fail the job |
 | `preflight`: SSH failed | `<CLUSTER>_SVT_TARGET_IP`, password/key, port 22 from the runner, `sshpass` on the runner |
 | `BAO_CACERT ... is required` | Add the File variable `BAO_CACERT`, or `BAO_TLS_SKIP_VERIFY=true` |
 | `OpenBao: could not read the credentials` | `BAO_SERVER_URL`, `BAO_AUTH_ROLE`, the role's `bound_audiences` (= the OpenBao URL), the secret path |
