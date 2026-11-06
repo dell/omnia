@@ -16,7 +16,7 @@ galaxy_info:
   role_name: k8s_config
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia orchestrator role: k8s_config"
+  description: "Generate service Kubernetes cluster configuration (manifests, Helm values) in NFS-shared storage, including optional PowerScale CSI"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

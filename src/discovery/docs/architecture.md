@@ -1,4 +1,4 @@
-# Discovery Domain Architecture
+# Discovery Architecture
 
 ## Overview
 

@@ -74,3 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Galaxy version set to 2.3.0.
+
+### Fixed
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/index.html) instead of GitHub source tree
+- Renamed `docs/design.md` to `docs/architecture.md`.
+- README restructured around the module's purpose and workflow; documentation links validated.
