@@ -626,6 +626,16 @@ def pxe_mapping_ib_ipv6_without_nic_msg(row: int) -> str:
     )
 
 
+def pxe_mapping_ib_ipv6_outside_prefix_msg(
+    value: str, row: int, prefix: str
+) -> str:
+    """Return an IB_IPV6 address outside the approved prefix message."""
+    return (
+        f"orchestrator_config: IB_IPV6 '{value}' at mapping row {row} "
+        f"is not within the approved prefix {prefix}."
+    )
+
+
 def subnet_overlap_msg(label: str) -> str:
     """Return the overlapping subnet error message."""
     return f"network_spec: {label} overlaps another configured admin subnet."

@@ -653,6 +653,67 @@ def _load_ib_addr_mode(input_project_dir: str) -> str:
     return ""
 
 
+def _load_ib_ipv6_prefix(
+    input_project_dir: str,
+) -> ipaddress.IPv6Network | None:
+    """Load the approved IB IPv6 prefix from network_spec.yml."""
+    network_spec_path = os.path.realpath(
+        os.path.join(input_project_dir, "network_spec.yml")
+    )
+    if not os.path.isfile(network_spec_path):
+        return None
+    try:
+        with open(network_spec_path, "r", encoding="utf-8") as network_file:
+            network_data = yaml.safe_load(network_file)
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return None
+    if not isinstance(network_data, dict):
+        return None
+    for entry in network_data.get("Networks", []):
+        if not isinstance(entry, dict):
+            continue
+        ib_config = entry.get("ib_network")
+        if isinstance(ib_config, dict):
+            ipv6_subnet = str(ib_config.get("ipv6_subnet", "") or "").strip()
+            ipv6_bits = str(ib_config.get("ipv6_netmask_bits", "") or "").strip()
+            if ipv6_subnet and ipv6_bits:
+                try:
+                    return ipaddress.IPv6Network(
+                        f"{ipv6_subnet}/{ipv6_bits}", strict=False
+                    )
+                except (ValueError, TypeError):
+                    return None
+    return None
+
+
+def _validate_ib_ipv6_subnet(
+    rows: list[tuple[int, dict[str, str]]],
+    input_project_dir: str,
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Reject IB_IPV6 addresses that fall outside the approved prefix."""
+    prefix = _load_ib_ipv6_prefix(input_project_dir)
+    if prefix is None:
+        return
+    for row_number, row in rows:
+        ib_ipv6 = row.get("IB_IPV6", "").strip()
+        if not ib_ipv6:
+            continue
+        try:
+            addr = ipaddress.IPv6Address(ib_ipv6)
+        except ValueError:
+            continue  # format error already caught by _validate_addresses
+        if addr not in prefix:
+            record_error(
+                errors,
+                logger,
+                msg.pxe_mapping_ib_ipv6_outside_prefix_msg(
+                    ib_ipv6, row_number, str(prefix)
+                ),
+            )
+
+
 def _load_admin_networks(
     input_project_dir: str,
 ) -> list[ipaddress.IPv4Network]:
@@ -814,4 +875,5 @@ def validate(
     _validate_admin_subnet_membership(
         rows, input_project_dir, errors, logger
     )
+    _validate_ib_ipv6_subnet(rows, input_project_dir, errors, logger)
     return errors
