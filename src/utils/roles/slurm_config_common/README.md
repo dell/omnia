@@ -59,7 +59,7 @@ Same as `oim_log_backup`:
 4. Default: `OMNIA_DATA_PATH/utils/output/OMNIA_PROJECT_NAME/slurm_config_util`
 
 A raw NFS export (`<server>:/<path>`) is detected and mounted at a fixed
-local mountpoint (`/tmp/omnia_slurm_config_util_nfs`).
+local mountpoint (`/run/omnia/mnt/omnia_slurm_config_util_nfs`).
 
 ## Dependencies
 

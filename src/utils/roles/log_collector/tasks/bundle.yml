@@ -296,18 +296,23 @@
 
 - name: Move collected k8s/slurm folders into current run folder
   ansible.builtin.shell: |
-    [ -d "{{ log_root }}/k8s" ] && mv "{{ log_root }}/k8s" "{{ log_root }}/{{ bundle_dir_name }}/" || true
-    [ -d "{{ log_root }}/slurm" ] && mv "{{ log_root }}/slurm" "{{ log_root }}/{{ bundle_dir_name }}/" || true
+    log_root={{ log_root | quote }}
+    bundle_dir_name={{ bundle_dir_name | quote }}
+    [ -d "$log_root/k8s" ] && mv "$log_root/k8s" "$log_root/$bundle_dir_name/" || true
+    [ -d "$log_root/slurm" ] && mv "$log_root/slurm" "$log_root/$bundle_dir_name/" || true
   args:
     executable: /bin/bash
   changed_when: true
 
 - name: Create tar.gz bundle from collected workspace
   ansible.builtin.shell: |
+    log_root={{ log_root | quote }}
+    bundle_dir_name={{ bundle_dir_name | quote }}
+    bundle_rel_path={{ bundle_rel_path | quote }}
     dirs=""
-    [ -d "{{ log_root }}/{{ bundle_dir_name }}/k8s" ] && dirs="$dirs k8s"
-    [ -d "{{ log_root }}/{{ bundle_dir_name }}/slurm" ] && dirs="$dirs slurm"
-    tar -czf "{{ log_root }}/{{ bundle_rel_path }}" -C "{{ log_root }}/{{ bundle_dir_name }}" $dirs
+    [ -d "$log_root/$bundle_dir_name/k8s" ] && dirs="$dirs k8s"
+    [ -d "$log_root/$bundle_dir_name/slurm" ] && dirs="$dirs slurm"
+    tar -czf "$log_root/$bundle_rel_path" -C "$log_root/$bundle_dir_name" $dirs
   args:
     executable: /bin/bash
   changed_when: true
