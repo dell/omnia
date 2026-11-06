@@ -1,0 +1,44 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Actionable error messages surfaced by rescue blocks protecting no_log tasks.
+# These are intentionally printed with no_log: false so operators get context
+# instead of a generic "skipped due to no_log" message.
+validate_preamble_read_csv_rescue_msg: |
+  Failed to read the PXE mapping CSV into memory in role 'validate_preamble'
+  (tasks/main.yml: "Read PXE mapping CSV into temp var").
+  Context:
+    - Temp mapping file: /tmp/omnia_validate_mapping.csv
+    - Source mapping file (pxe_mapping_file_path): {{ pxe_mapping_file_path | default('<unset>') }}
+  Likely causes:
+    - The source mapping file is missing, unreadable or was not copied.
+    - The CSV is malformed or is missing the ADMIN_MAC key column.
+  Next steps:
+    1. Confirm the source file exists and is readable: ls -l "{{ pxe_mapping_file_path | default('<unset>') }}"
+    2. Inspect the generated temp file: cat /tmp/omnia_validate_mapping.csv
+    3. Ensure the CSV header contains an ADMIN_MAC column with unique values.
+    4. Re-run the validate stage once the mapping file is corrected.
+
+validate_preamble_promote_csv_rescue_msg: |
+  Failed to promote the parsed CSV result to the read_mapping_file fact in role
+  'validate_preamble' (tasks/main.yml: "Promote CSV result to read_mapping_file
+  fact").
+  Context:
+    - Source variable: _validate_csv_result (parsed from /tmp/omnia_validate_mapping.csv)
+  Likely causes:
+    - The preceding CSV read was skipped or produced an unexpected structure.
+  Next steps:
+    1. Verify the temp mapping file parsed correctly: cat /tmp/omnia_validate_mapping.csv
+    2. Confirm pxe_mapping_file_path is set and points to a valid CSV.
+    3. Re-run the validate stage once the mapping file is corrected.

@@ -70,3 +70,52 @@ pxe_boot_inventory_selection_msg: >-
 pxe_boot_inventory_no_hosts_msg: >-
   No BMC hosts found in {{ pxeboot_inventory_source }}. Ensure the BMC_IP column
   is populated.
+
+# Actionable error messages surfaced by rescue blocks protecting no_log tasks.
+# Printed with no_log: false so operators get context instead of a generic
+# "skipped due to no_log" message.
+pxe_boot_inventory_read_csv_rescue_msg: |
+  Failed to read the PXE inventory CSV in role 'pxe_boot_inventory'
+  (tasks/main.yml: "Read inventory CSV by column name").
+  Context:
+    - Inventory source (pxeboot_inventory_source): {{ pxeboot_inventory_source | default('<unset>') }}
+    - Using custom inventory: {{ pxeboot_using_custom_inventory | default(false) }}
+  Likely causes:
+    - The inventory file is unreadable or malformed.
+    - The CSV header is missing or columns are inconsistent across rows.
+  Next steps:
+    1. Confirm the file exists and is readable: ls -l "{{ pxeboot_inventory_source | default('<unset>') }}"
+    2. Inspect the CSV header and rows: head "{{ pxeboot_inventory_source | default('<unset>') }}"
+    3. Ensure required columns are present: {{ pxe_boot_inventory_required_columns | join(', ') }}
+    4. Re-run the PXE boot stage once the inventory file is corrected.
+
+pxe_boot_inventory_token_rescue_msg: |
+  Failed to generate an OpenCHAMI access token for SMD identity lookup in role
+  'pxe_boot_inventory' (tasks/main.yml: "Generate access token for SMD identity
+  lookup") after {{ pxe_boot_inventory_token_retries }} retries.
+  Context:
+    - Token command: sudo bash -lc 'gen_access_token'
+  Likely causes:
+    - The OpenCHAMI services (keycloak/opaal) are not running or not ready.
+    - The gen_access_token helper is missing or sudo access is unavailable.
+  Next steps:
+    1. Verify OpenCHAMI is up: systemctl status openchami.target
+    2. Run the token helper manually: sudo bash -lc 'gen_access_token'
+    3. Check service logs: journalctl -u openchami.target -n 50
+    4. Re-run the PXE boot stage once a token can be generated.
+
+pxe_boot_inventory_resolve_identities_rescue_msg: |
+  Failed to resolve PXE identities from SMD Hardware Inventory in role
+  'pxe_boot_inventory' (tasks/main.yml: "Resolve PXE identities from SMD
+  Hardware Inventory").
+  Context:
+    - Cluster URI: https://{{ oim_node_name | default('<oim>') }}.{{ domain_name | default('<domain>') }}:8443
+    - CA cert: {{ hostvars['localhost']['openchami_ca_cert_path'] | default('<unset>') }}
+  Likely causes:
+    - SMD is unreachable, the access token expired, or the CA cert path is wrong.
+    - Nodes in the inventory are not yet present in SMD Hardware Inventory.
+  Next steps:
+    1. Verify SMD connectivity: /usr/bin/ochami smd service status
+    2. Confirm the CA cert path exists and the access token is valid.
+    3. Ensure the provision stage ran so Service Tag identities exist in SMD.
+    4. Re-run the PXE boot stage once SMD is reachable.

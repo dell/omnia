@@ -182,3 +182,274 @@ openchami_config_missing_fail_msg: >-
   This file is generated during the deploy stage. Run the orchestrator
   deploy stage first: ansible-playbook orchestrator.yml --tags deploy
 smd_service_fail_msg: "smd service is not running"
+
+# Actionable error messages surfaced by rescue blocks protecting no_log tasks.
+# Printed with no_log: false so operators get context instead of a generic
+# "skipped due to no_log" message.
+
+# --- register_nodes.yml ---
+register_nodes_ensure_mapping_rescue_msg: |
+  Failed to load read_mapping_file from localhost in role 'provision_common'
+  (tasks/register_nodes.yml: "Ensure read_mapping_file is available") for
+  category '{{ target_category | default('<unknown>') }}'.
+  Likely causes:
+    - The PXE mapping was not published to localhost by an earlier phase.
+  Next steps:
+    1. Confirm hostvars['localhost']['read_mapping_file'] was populated by the
+       pxe mapping / preamble phase.
+    2. Verify pxe_mapping_file_path points to a valid CSV.
+    3. Re-run provisioning from the preamble stage.
+
+register_nodes_reread_mapping_rescue_msg: |
+  Failed to re-read the PXE mapping CSV in role 'provision_common'
+  (tasks/register_nodes.yml: "Re-read mapping file if not available") for
+  category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Mapping file (pxe_mapping_file_path): {{ hostvars['localhost']['pxe_mapping_file_path'] | default('<unset>') }}
+  Likely causes:
+    - The mapping file is missing, unreadable, or lacks a unique ADMIN_MAC column.
+  Next steps:
+    1. Confirm the file exists and is readable.
+    2. Ensure the CSV header contains ADMIN_MAC with unique values.
+    3. Re-run provisioning once the mapping file is corrected.
+
+register_nodes_set_mapping_rescue_msg: |
+  Failed to set read_mapping_file from the re-read CSV result in role
+  'provision_common' (tasks/register_nodes.yml: "Set read_mapping_file from
+  re-read result") for category '{{ target_category | default('<unknown>') }}'.
+  Likely causes:
+    - The preceding CSV re-read was skipped or produced an unexpected structure.
+  Next steps:
+    1. Confirm pxe_mapping_file_path is set and valid.
+    2. Re-run provisioning once the mapping file is corrected.
+
+register_nodes_token_refresh_rescue_msg: |
+  Failed to refresh the OpenCHAMI access token in role 'provision_common'
+  (tasks/register_nodes.yml: "Refresh access token before OpenCHAMI
+  reconciliation") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Token command: sudo bash -lc 'gen_access_token'
+  Likely causes:
+    - OpenCHAMI auth services are down, or gen_access_token/sudo is unavailable.
+  Next steps:
+    1. Verify OpenCHAMI is up: systemctl status openchami.target
+    2. Run the token helper manually: sudo bash -lc 'gen_access_token'
+    3. Re-run provisioning once a token can be generated.
+
+register_nodes_update_auth_rescue_msg: |
+  Failed to update OpenCHAMI authentication with the refreshed token in role
+  'provision_common' (tasks/register_nodes.yml: "Update OpenCHAMI authentication
+  with refreshed token") for category '{{ target_category | default('<unknown>') }}'.
+  Likely causes:
+    - The refreshed token result was empty or malformed.
+  Next steps:
+    1. Confirm the gen_access_token output is a valid token.
+    2. Re-run provisioning once a token can be generated.
+
+register_nodes_check_apis_rescue_msg: |
+  Failed to verify OpenCHAMI APIs (JWT + CA trust) in role 'provision_common'
+  (tasks/register_nodes.yml: "Verify OpenCHAMI APIs with JWT and CA trust") for
+  category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+    - CA cert: {{ hostvars['localhost']['openchami_ca_cert_path'] | default('<unset>') }}
+  Likely causes:
+    - OpenCHAMI APIs are unreachable, the token expired, or the CA cert is wrong.
+  Next steps:
+    1. Verify the cluster endpoint responds and the CA cert path exists.
+    2. Check service health: systemctl status openchami.target
+    3. Re-run provisioning once the APIs are reachable.
+
+register_nodes_resolve_identities_rescue_msg: |
+  Failed to resolve persistent OpenCHAMI identities in role 'provision_common'
+  (tasks/register_nodes.yml: "Resolve persistent OpenCHAMI identities") for
+  category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+  Likely causes:
+    - SMD is unreachable, or nodes are missing from SMD Hardware Inventory.
+  Next steps:
+    1. Verify SMD connectivity: /usr/bin/ochami smd service status
+    2. Confirm the nodes exist in SMD and the access token is valid.
+    3. Re-run provisioning once SMD is reachable.
+
+register_nodes_publish_mapping_rescue_msg: |
+  Failed to publish internally resolved XNAMEs to the provisioning mapping on
+  localhost in role 'provision_common' (tasks/register_nodes.yml: "Publish
+  internally resolved XNAMEs to the provisioning mapping") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Likely causes:
+    - The resolved identities or localhost read_mapping_file are missing.
+  Next steps:
+    1. Confirm identity resolution succeeded earlier in this run.
+    2. Re-run provisioning from the registration stage.
+
+register_nodes_delete_group_rescue_msg: |
+  Failed to remove the obsolete node_registration SMD group through the API in
+  role 'provision_common' (tasks/register_nodes.yml: "Remove obsolete
+  node-registration SMD group through the API") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+  Likely causes:
+    - SMD is unreachable or the access token expired.
+  Next steps:
+    1. Verify SMD connectivity: /usr/bin/ochami smd service status
+    2. Confirm the access token is valid.
+    3. Re-run provisioning once SMD is reachable.
+
+register_nodes_verify_components_rescue_msg: |
+  Target nodes did not register in SMD after {{ service_retries }} retries in
+  role 'provision_common' (tasks/register_nodes.yml: "Wait until target nodes
+  are registered in SMD") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Expected XNAMEs: {{ _category_nodes | default([]) | map(attribute='XNAME') | list }}
+  Likely causes:
+    - SMD discovery did not complete, or the nodes are not yet discoverable.
+  Next steps:
+    1. Check SMD state: /usr/bin/ochami smd component get
+    2. Review smd/metadata-service logs for discovery errors.
+    3. Re-run provisioning once SMD discovery completes.
+
+register_nodes_reconcile_instanceinfo_rescue_msg: |
+  Failed to reconcile hostnames in the Metadata Service in role
+  'provision_common' (tasks/register_nodes.yml: "Reconcile hostnames in Metadata
+  Service") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+    - Project: {{ hostvars['localhost']['project_name'] | default('<unset>') }}
+  Likely causes:
+    - metadata-service is unreachable or the instance_infos payload is invalid.
+  Next steps:
+    1. Check metadata-service health and HAProxy routing.
+    2. Verify the generated hostname YAML for this category.
+    3. Re-run provisioning once metadata-service is reachable.
+
+# --- main.yml ---
+provision_prune_boot_config_rescue_msg: |
+  Failed to prune stale Boot Service configurations in role 'provision_common'
+  (tasks/main.yml: "Prune stale Boot Service configurations for current node
+  MACs") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+    - Target boot configs: {{ target_fg_names | default([]) }}
+  Likely causes:
+    - Boot Service is unreachable or the access token expired.
+  Next steps:
+    1. Check Boot Service health: systemctl status openchami.target
+    2. Confirm the access token is valid.
+    3. Re-run provisioning once Boot Service is reachable.
+
+provision_list_boot_config_rescue_msg: |
+  Failed to read Boot Service configurations in role 'provision_common'
+  (tasks/main.yml: "Read Boot Service configurations through the verified API
+  client") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+  Likely causes:
+    - Boot Service is unreachable or the access token expired.
+  Next steps:
+    1. Check Boot Service health: systemctl status openchami.target
+    2. Confirm the access token is valid.
+    3. Re-run provisioning once Boot Service is reachable.
+
+provision_read_ssh_key_rescue_msg: |
+  Failed to read the SSH public key in role 'provision_common'
+  (tasks/main.yml: "Read SSH public key") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Public key path (ssh_key_path): {{ ssh_key_path | default('<unset>') }}
+  Likely causes:
+    - The key file is missing or unreadable.
+  Next steps:
+    1. Confirm the file exists: ls -l "{{ ssh_key_path | default('<unset>') }}"
+    2. Generate/restore the OIM SSH keypair if missing.
+    3. Re-run provisioning once the key is present.
+
+provision_read_ssh_private_key_rescue_msg: |
+  Failed to read the SSH private key in role 'provision_common'
+  (tasks/main.yml: "Read SSH private key") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Private key path (ssh_private_key_path): {{ ssh_private_key_path | default('<unset>') }}
+  Likely causes:
+    - The key file is missing or unreadable.
+  Next steps:
+    1. Confirm the file exists: ls -l "{{ ssh_private_key_path | default('<unset>') }}"
+    2. Generate/restore the OIM SSH keypair if missing.
+    3. Re-run provisioning once the key is present.
+
+provision_password_salt_rescue_msg: |
+  Failed to derive the project-specific password salt in role 'provision_common'
+  (tasks/main.yml: "Derive stable project-specific password salt") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Likely causes:
+    - project_name, cluster_name or cluster_domain is undefined.
+  Next steps:
+    1. Confirm hostvars['localhost']['project_name'], cluster_name and
+       cluster_domain are set.
+    2. Re-run provisioning once these values are available.
+
+provision_hash_password_rescue_msg: |
+  Failed to hash the provision password in role 'provision_common'
+  (tasks/main.yml: "Hash the provision password") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Likely causes:
+    - openssl is unavailable, or provision_password is undefined.
+  Next steps:
+    1. Confirm openssl is installed on the OIM.
+    2. Confirm hostvars['localhost']['provision_password'] is set.
+    3. Re-run provisioning once resolved.
+
+provision_load_ms_defaults_rescue_msg: |
+  Failed to load the rendered metadata-service defaults in role
+  'provision_common' (tasks/main.yml: "Load rendered metadata-service
+  defaults") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Defaults file (ms_defaults_dest): {{ ms_defaults_dest | default('<unset>') }}
+  Likely causes:
+    - The template render step did not produce the defaults file.
+  Next steps:
+    1. Confirm the file exists: ls -l "{{ ms_defaults_dest | default('<unset>') }}"
+    2. Re-run the metadata-service defaults render step.
+
+provision_parse_ms_defaults_rescue_msg: |
+  Failed to parse the metadata-service defaults YAML in role 'provision_common'
+  (tasks/main.yml: "Parse metadata-service defaults YAML") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Defaults file (ms_defaults_dest): {{ ms_defaults_dest | default('<unset>') }}
+  Likely causes:
+    - The rendered defaults file contains invalid YAML.
+  Next steps:
+    1. Inspect the file for YAML errors: cat "{{ ms_defaults_dest | default('<unset>') }}"
+    2. Fix the template inputs and re-run provisioning.
+
+provision_reconcile_cluster_defaults_rescue_msg: |
+  Failed to reconcile metadata-service cluster defaults in role
+  'provision_common' (tasks/main.yml: "Reconcile metadata-service cluster
+  defaults") for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+    - Project: {{ hostvars['localhost']['project_name'] | default('<unset>') }}
+  Likely causes:
+    - metadata-service is unreachable or the cluster_defaults payload is invalid.
+  Next steps:
+    1. Check metadata-service health and HAProxy routing.
+    2. Verify the rendered defaults values.
+    3. Re-run provisioning once metadata-service is reachable.
+
+# --- configure_cloud_init_common.yml ---
+provision_ci_group_common_template_rescue_msg: |
+  Failed to render the common cloud-init group template in role
+  'provision_common' (tasks/configure_cloud_init_common.yml: "Render ci group
+  common template").
+  Context:
+    - Template (ci_group_common_template): {{ ci_group_common_template | default('<unset>') }}
+    - Destination (ci_group_common_dest): {{ ci_group_common_dest | default('<unset>') }}
+  Likely causes:
+    - The template is missing, or a referenced variable is undefined.
+  Next steps:
+    1. Confirm the template exists at ci_group_common_template.
+    2. Verify all variables referenced by the template are defined.
+    3. Re-run provisioning once the template renders cleanly.

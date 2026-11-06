@@ -39,24 +39,45 @@
     cluster_domain: "{{ lookup('file', openchami_config_vars_path) | from_yaml | json_query('cluster_domain') }}"
 
 - name: Ensure read_mapping_file is available
-  ansible.builtin.set_fact:
-    read_mapping_file: "{{ hostvars['localhost']['read_mapping_file'] }}"
-  no_log: true
   when: hostvars['localhost']['read_mapping_file'] is defined
+  block:
+    - name: Ensure read_mapping_file is available
+      ansible.builtin.set_fact:
+        read_mapping_file: "{{ hostvars['localhost']['read_mapping_file'] }}"
+      no_log: true
+  rescue:
+    - name: Report read_mapping_file load failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_ensure_mapping_rescue_msg }}"
+      no_log: false
 
 - name: Re-read mapping file if not available
-  community.general.read_csv:
-    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
-    key: ADMIN_MAC
-  register: _mapping_file_result
-  no_log: true
   when: hostvars['localhost']['read_mapping_file'] is not defined
+  block:
+    - name: Re-read mapping file if not available
+      community.general.read_csv:
+        path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+        key: ADMIN_MAC
+      register: _mapping_file_result
+      no_log: true
+  rescue:
+    - name: Report PXE mapping re-read failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_reread_mapping_rescue_msg }}"
+      no_log: false
 
 - name: Set read_mapping_file from re-read result
-  ansible.builtin.set_fact:
-    read_mapping_file: "{{ _mapping_file_result }}"
-  no_log: true
   when: hostvars['localhost']['read_mapping_file'] is not defined
+  block:
+    - name: Set read_mapping_file from re-read result
+      ansible.builtin.set_fact:
+        read_mapping_file: "{{ _mapping_file_result }}"
+      no_log: true
+  rescue:
+    - name: Report read_mapping_file set failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_set_mapping_rescue_msg }}"
+      no_log: false
 
 - name: Create ochami nodes directory
   ansible.builtin.file:
@@ -82,31 +103,52 @@
     target_fg_names: "{{ target_functional_groups | map(attribute='name') | list }}"
 
 - name: Refresh access token before OpenCHAMI reconciliation
-  ansible.builtin.command: sudo bash -lc 'gen_access_token'
-  register: refreshed_token_result
-  changed_when: false
-  retries: 3
-  delay: 5
-  until: >-
-    refreshed_token_result.rc == 0
-    and refreshed_token_result.stdout not in ["", "null"]
-  no_log: true
+  block:
+    - name: Refresh access token before OpenCHAMI reconciliation
+      ansible.builtin.command: sudo bash -lc 'gen_access_token'
+      register: refreshed_token_result
+      changed_when: false
+      retries: 3
+      delay: 5
+      until: >-
+        refreshed_token_result.rc == 0
+        and refreshed_token_result.stdout not in ["", "null"]
+      no_log: true
+  rescue:
+    - name: Report access token refresh failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_token_refresh_rescue_msg }}"
+      no_log: false
 
 - name: Update OpenCHAMI authentication with refreshed token
-  ansible.builtin.set_fact:
-    ochami_env: >-
-      {{ {cluster_env_key:
-          refreshed_token_result.stdout} }}
-  no_log: true
+  block:
+    - name: Update OpenCHAMI authentication with refreshed token
+      ansible.builtin.set_fact:
+        ochami_env: >-
+          {{ {cluster_env_key:
+              refreshed_token_result.stdout} }}
+      no_log: true
+  rescue:
+    - name: Report OpenCHAMI authentication update failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_update_auth_rescue_msg }}"
+      no_log: false
 
 - name: Verify OpenCHAMI APIs with JWT and CA trust
-  openchami_reconcile:
-    action: check_apis
-    cluster_uri: "{{ openchami_api_uri }}"
-    access_token: >-
-      {{ ochami_env[cluster_env_key] }}
-    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-  no_log: true
+  block:
+    - name: Verify OpenCHAMI APIs with JWT and CA trust
+      openchami_reconcile:
+        action: check_apis
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+      no_log: true
+  rescue:
+    - name: Report OpenCHAMI API verification failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_check_apis_rescue_msg }}"
+      no_log: false
 
 - name: Compute filtered nodes for {{ target_category }}
   ansible.builtin.set_fact:
@@ -118,15 +160,22 @@
          | list }}
 
 - name: Resolve persistent OpenCHAMI identities for {{ target_category }}
-  openchami_reconcile:
-    action: resolve_identities
-    cluster_uri: "{{ openchami_api_uri }}"
-    access_token: >-
-      {{ ochami_env[cluster_env_key] }}
-    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-    nodes: "{{ _category_nodes }}"
-  register: _resolved_openchami_identities
-  no_log: true
+  block:
+    - name: Resolve persistent OpenCHAMI identities for {{ target_category }}
+      openchami_reconcile:
+        action: resolve_identities
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        nodes: "{{ _category_nodes }}"
+      register: _resolved_openchami_identities
+      no_log: true
+  rescue:
+    - name: Report OpenCHAMI identity resolution failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_resolve_identities_rescue_msg }}"
+      no_log: false
 
 - name: Use internally resolved XNAMEs for {{ target_category }}
   ansible.builtin.set_fact:
@@ -149,16 +198,23 @@
 # Publish the resolved XNAMEs there so all downstream tasks consume only the
 # permanent Service Tag identity resolved from SMD Hardware Inventory.
 - name: Publish internally resolved XNAMEs to the provisioning mapping
-  ansible.builtin.set_fact:
-    read_mapping_file: >-
-      {{ hostvars['localhost']['read_mapping_file']
-         | combine({
-             'dict': hostvars['localhost']['read_mapping_file']['dict']
-                     | combine(_resolved_category_nodes_by_mac)
-           }) }}
-  delegate_to: localhost
-  delegate_facts: true
-  no_log: true
+  block:
+    - name: Publish internally resolved XNAMEs to the provisioning mapping
+      ansible.builtin.set_fact:
+        read_mapping_file: >-
+          {{ hostvars['localhost']['read_mapping_file']
+             | combine({
+                 'dict': hostvars['localhost']['read_mapping_file']['dict']
+                         | combine(_resolved_category_nodes_by_mac)
+               }) }}
+      delegate_to: localhost
+      delegate_facts: true
+      no_log: true
+  rescue:
+    - name: Report provisioning mapping publish failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_publish_mapping_rescue_msg }}"
+      no_log: false
 
 - name: Reset stale OpenCHAMI data for {{ target_category }}
   ansible.builtin.include_tasks: delete_smd_endpoints.yml
@@ -274,17 +330,24 @@
     - openchami_target_status is not success
 
 - name: Remove obsolete node-registration SMD group through the API
-  openchami_reconcile:
-    action: delete_groups
-    cluster_uri: "{{ openchami_api_uri }}"
-    access_token: >-
-      {{ ochami_env[cluster_env_key] }}
-    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-    group_labels:
-      - node_registration
-  no_log: true
   when:
     - refreshed_token_result.rc == 0
+  block:
+    - name: Remove obsolete node-registration SMD group through the API
+      openchami_reconcile:
+        action: delete_groups
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        group_labels:
+          - node_registration
+      no_log: true
+  rescue:
+    - name: Report obsolete SMD group removal failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_delete_group_rescue_msg }}"
+      no_log: false
 
 - name: Discover nodes in SMD (upsert with --overwrite)
   block:
@@ -361,18 +424,25 @@
       no_log: true
 
 - name: Wait until target nodes are registered in SMD
-  openchami_reconcile:
-    action: verify_components
-    cluster_uri: "{{ openchami_api_uri }}"
-    access_token: >-
-      {{ ochami_env[cluster_env_key] }}
-    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-    expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
-  register: openchami_smd_status
-  retries: "{{ service_retries }}"
-  delay: "{{ service_retry_interval }}"
-  until: openchami_smd_status is success
-  no_log: true
+  block:
+    - name: Wait until target nodes are registered in SMD
+      openchami_reconcile:
+        action: verify_components
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
+      register: openchami_smd_status
+      retries: "{{ service_retries }}"
+      delay: "{{ service_retry_interval }}"
+      until: openchami_smd_status is success
+      no_log: true
+  rescue:
+    - name: Report SMD node registration verification failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_verify_components_rescue_msg }}"
+      no_log: false
 
 - name: Display SMD status
   ansible.builtin.debug:
@@ -409,16 +479,23 @@
       {{ result }}
 
 - name: Reconcile hostnames in Metadata Service
-  openchami_reconcile:
-    action: reconcile_instanceinfos
-    cluster_uri: "{{ openchami_api_uri }}"
-    access_token: >-
-      {{ ochami_env[cluster_env_key] }}
-    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-    instance_infos: "{{ _desired_instance_infos }}"
-    project_name: "{{ hostvars['localhost']['project_name'] }}"
-  register: _metadata_instanceinfo_reconcile
-  no_log: true
+  block:
+    - name: Reconcile hostnames in Metadata Service
+      openchami_reconcile:
+        action: reconcile_instanceinfos
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        instance_infos: "{{ _desired_instance_infos }}"
+        project_name: "{{ hostvars['localhost']['project_name'] }}"
+      register: _metadata_instanceinfo_reconcile
+      no_log: true
+  rescue:
+    - name: Report Metadata Service hostname reconciliation failure
+      ansible.builtin.fail:
+        msg: "{{ register_nodes_reconcile_instanceinfo_rescue_msg }}"
+      no_log: false
 
 - name: Track nodes with changed Metadata Service InstanceInfo
   ansible.builtin.set_fact:
