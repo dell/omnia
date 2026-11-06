@@ -15,9 +15,8 @@
 """Contract tests: OpenLDAP verification expects the unprivileged-slapd layout.
 
 slapd runs as the ``ldap`` user and reads ``slapd.conf`` and the TLS key
-through the ``ldap`` group. The prepare verification must accept that layout
-(``root:ldap 0640``), still reject anything looser, and require that slapd does
-not run as root.
+through the ``ldap`` group. The prepare verification must accept only that
+layout (``root:ldap 0640``) and require that slapd does not run as root.
 """
 
 from types import SimpleNamespace
@@ -70,9 +69,9 @@ def _check(files, slapd_user="ldap"):
     return prepare.check_prepare_openldap_artifacts(FakeHost(files, slapd_user))
 
 
-def test_secret_layouts_allow_only_group_read_or_owner_only():
-    """Only root:ldap 0640 and root:root 0600 are accepted for secrets."""
-    assert set(OPENLDAP_SECRET_MODES) == {("ldap", 0o640), ("root", 0o600)}
+def test_secret_layouts_allow_only_group_read():
+    """Only root:ldap 0640 is accepted for slapd.conf and the TLS key."""
+    assert set(OPENLDAP_SECRET_MODES) == {("ldap", 0o640)}
 
 
 @pytest.mark.usefixtures("patched")
@@ -99,6 +98,8 @@ def test_slapd_running_as_root_fails():
         (KEY, ("root", "users", 0o640)),
         (CONFIG, ("ldap", "ldap", 0o640)),
         (CONFIG, ("root", "root", 0o640)),
+        (CONFIG, ("root", "root", 0o600)),
+        (KEY, ("root", "root", 0o600)),
     ],
 )
 def test_looser_or_wrong_owner_layouts_fail(path, state):
