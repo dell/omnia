@@ -48,7 +48,7 @@
          else ({'NodeName': item} | combine({'NodeAddr': _ib_nodeaddr_map[item]})
                if (_ib_nodeaddr_map | default({})).get(item, '')
                else {'NodeName': item}) }}
-  loop: "{{ compiler_login_list }}"
+  loop: "{{ compiler_login_list | default([]) }}"
   when: compiler_login_list is defined and (compiler_login_list | length > 0)
   no_log: "{{ _no_log }}"
 
