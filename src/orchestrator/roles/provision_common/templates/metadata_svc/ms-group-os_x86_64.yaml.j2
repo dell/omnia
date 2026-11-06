@@ -18,6 +18,7 @@
           hashed_passwd: "{{ hashed_password_output.stdout }}"
       disable_root: false
 
+      {% if hostvars['localhost']['read_mapping_file'] is defined %}
       write_files:
         - path: /usr/local/bin/configure-ib-network.sh
           owner: root:root
@@ -27,3 +28,4 @@
 
       runcmd:
         - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"
+      {% endif %}

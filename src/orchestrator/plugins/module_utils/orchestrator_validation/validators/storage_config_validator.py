@@ -25,7 +25,9 @@ from typing import Any
 from ..messages import orchestrator_messages as msg
 from .network_spec_validator import record_error
 from .pxe_mapping_validator import (
+    BASE_HEADERS,
     CANONICAL_HEADERS,
+    LEGACY_HEADERS,
     read_mapping,
     resolve_mapping_path,
 )
@@ -95,7 +97,13 @@ def _mapping_targets(
         raw_header, header, rows = read_mapping(path)
     except (csv.Error, OSError, UnicodeError):
         return None
-    if raw_header != list(CANONICAL_HEADERS):
+    # Handle 9-column base CSV (no IB columns) and legacy 11-column IB_IP header
+    if raw_header == list(BASE_HEADERS):
+        header = list(BASE_HEADERS)
+    elif raw_header == list(LEGACY_HEADERS):
+        header = list(CANONICAL_HEADERS)
+        rows = [(n, vals + [""]) for n, vals in rows]
+    elif raw_header != list(CANONICAL_HEADERS):
         return None
     if any(len(row) != len(header) for _, row in rows):
         return None
