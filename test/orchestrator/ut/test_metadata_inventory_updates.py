@@ -213,3 +213,83 @@ def test_new_group_is_created_not_an_inventory_update():
 
     assert result["created"] == [GROUP]
     assert not result["inventory_updated"]
+
+
+def _hosts_template(*entries, before="runcmd: [a]\n", after="runcmd: [b]\n"):
+    """Return group template text whose /etc/hosts block lists ``entries``."""
+    lines = "".join(f"            {ip} {name}\n" for name, ip in entries)
+    return (
+        before
+        + "          content: |\n"
+        + "            # omnia-inventory-begin\n"
+        + lines
+        + "            # omnia-inventory-end\n"
+        + after
+    )
+
+
+def _hosts_spec(*entries, **kwargs):
+    return _spec(None, template=_hosts_template(*entries, **kwargs))
+
+
+def test_a_new_hosts_line_concerns_only_the_new_host():
+    """Adding a node to the /etc/hosts block names that node and nothing else."""
+    result, metadata = _reconcile(
+        _hosts_spec(("n1", "10.0.0.1"), ("n2", "10.0.0.2")),
+        _hosts_spec(("n1", "10.0.0.1"), ("n2", "10.0.0.2"), ("n3", "10.0.0.3")),
+    )
+
+    assert result["inventory_updated"] == {GROUP: ["n3"]}
+    assert not result["updated"]
+    assert metadata.updates == [GROUP], "the group must still be written"
+
+
+def test_a_changed_address_concerns_only_that_host():
+    """Only the host whose line changed is named."""
+    result, _ = _reconcile(
+        _hosts_spec(("n1", "10.0.0.1"), ("n2", "10.0.0.2")),
+        _hosts_spec(("n1", "10.0.0.1"), ("n2", "10.0.0.9")),
+    )
+
+    assert result["inventory_updated"] == {GROUP: ["n2"]}
+    assert not result["updated"]
+
+
+def test_a_removed_hosts_line_names_no_host():
+    """A removed node leaves nothing to reprovision."""
+    result, _ = _reconcile(
+        _hosts_spec(("n1", "10.0.0.1"), ("n2", "10.0.0.2")),
+        _hosts_spec(("n1", "10.0.0.1")),
+    )
+
+    assert result["inventory_updated"] == {GROUP: []}
+    assert not result["updated"]
+
+
+def test_a_change_outside_the_hosts_block_stays_group_wide():
+    """Text outside the markers is real group content."""
+    result, _ = _reconcile(
+        _hosts_spec(("n1", "10.0.0.1")),
+        _hosts_spec(("n1", "10.0.0.1"), ("n2", "10.0.0.2"), after="runcmd: [c]\n"),
+    )
+
+    assert result["updated"] == [GROUP]
+    assert not result["inventory_updated"]
+
+
+def test_first_time_the_markers_appear_stays_group_wide():
+    """A group written before the markers existed is updated as a whole once."""
+    old = _spec(None, template="runcmd: [a]\n            10.0.0.1 n1\nruncmd: [b]\n")
+    result, _ = _reconcile(old, _hosts_spec(("n1", "10.0.0.1")))
+
+    assert result["updated"] == [GROUP]
+    assert not result["inventory_updated"]
+
+
+def test_unchanged_hosts_block_is_not_an_update():
+    """The same block means no write."""
+    same = _hosts_spec(("n1", "10.0.0.1"))
+    result, metadata = _reconcile(same, _hosts_spec(("n1", "10.0.0.1")))
+
+    assert result["unchanged"] == [GROUP]
+    assert not metadata.updates

@@ -16,6 +16,7 @@
 """Idempotent OpenCHAMI reconciliation operations used by Ansible."""
 
 import json
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -33,6 +34,15 @@ class OpenChamiReconciler:
     # list, so a change that only adds or edits host entries concerns those
     # hosts and must not make every other node of the cluster reprovision.
     INVENTORY_METADATA_KEYS = ("host_mount_map",)
+    # The same for generated text: the host list a template writes into
+    # /etc/hosts sits between these comment lines, which are valid in a hosts
+    # file. A change that is confined to such a region concerns the hosts
+    # whose line was added or edited.
+    INVENTORY_REGION = re.compile(
+        r"^[ \t]*# omnia-inventory-begin[ \t]*\n(?P<body>.*?)"
+        r"^[ \t]*# omnia-inventory-end[ \t]*$",
+        re.DOTALL | re.MULTILINE,
+    )
     MANAGED_BY_VALUE = "omnia"
 
     def __init__(self, base_url, token, ca_cert=None, timeout=15, retries=3):
@@ -959,9 +969,40 @@ class OpenChamiReconciler:
             if before is None or after is None:
                 return None
             hosts.update(host for host, entry in after.items() if before.get(host) != entry)
+        current["template"], before_regions = cls._split_regions(current["template"])
+        desired["template"], after_regions = cls._split_regions(desired["template"])
+        if len(before_regions) != len(after_regions):
+            return None
+        for before_body, after_body in zip(before_regions, after_regions):
+            before_lines = cls._region_entries(before_body)
+            after_lines = cls._region_entries(after_body)
+            hosts.update(
+                name for name, line in after_lines.items() if before_lines.get(name) != line
+            )
         if current != desired:
             return None
         return sorted(hosts)
+
+    @classmethod
+    def _split_regions(cls, text):
+        """Return the text with every inventory region masked, and the region bodies."""
+        bodies = []
+
+        def _mask(match):
+            bodies.append(match.group("body"))
+            return "# omnia-inventory-region"
+
+        return cls.INVENTORY_REGION.sub(_mask, str(text)), bodies
+
+    @staticmethod
+    def _region_entries(body):
+        """Return the host lines of a region as {host name: normalised line}."""
+        entries = {}
+        for raw in body.splitlines():
+            parts = raw.split()
+            if parts and not parts[0].startswith("#"):
+                entries[parts[1] if len(parts) > 1 else parts[0]] = " ".join(parts)
+        return entries
 
     @staticmethod
     def _host_entries(raw):
