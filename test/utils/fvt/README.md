@@ -137,7 +137,7 @@ These cases verify OS installation cleanup functionality.
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
 | 0 | UTILS_FVT_CLEANUP_INSTALL_OS_E001 | `test_deploy_cleanup_install_os` | deploy, sanity | Runs `utils.yml --tags cleanup_install_os`. | Playbook exits successfully. |
-| 1 | UTILS_FVT_CLEANUP_INSTALL_OS_V001 | `test_cleanup_install_os_temp_iso_removed` | sanity | Checks /tmp/install_os removed. | Directory does not exist. |
+| 1 | UTILS_FVT_CLEANUP_INSTALL_OS_V001 | `test_cleanup_install_os_temp_iso_removed` | sanity | Checks legacy /tmp/install_os removed. | Directory does not exist. |
 | 2 | UTILS_FVT_CLEANUP_INSTALL_OS_V002 | `test_cleanup_install_os_nfs_unmounted` | sanity | Checks NFS unmounted and removed. | Not mounted, directory removed. |
 | 3 | UTILS_FVT_CLEANUP_INSTALL_OS_V003 | `test_cleanup_install_os_credentials_removed` | functional | Checks credential files status. | Reports credential file state (informational). |
 

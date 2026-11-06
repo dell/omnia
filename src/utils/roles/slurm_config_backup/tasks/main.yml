@@ -50,7 +50,7 @@
 - name: Compute SHA256 checksums of backed-up files
   ansible.builtin.shell: >-
     set -o pipefail;
-    find "{{ backup_dir }}/{{ slurm_controller_hostname }}" -type f -exec sha256sum {} \; | sort
+    find {{ (backup_dir ~ '/' ~ slurm_controller_hostname) | quote }} -type f -exec sha256sum {} \; | sort
   args:
     executable: /bin/bash
   register: backup_checksums
