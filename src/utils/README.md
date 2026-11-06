@@ -60,7 +60,7 @@ Modules are invoked as `omnia.utils.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x or compatible | Utilities run from the OIM |
+| OS | RHEL 10.0, 10.2 or compatible | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Declared in `requirements.txt` |
 | Disk | 50 GB free | Recommended for ISO and log operations |

@@ -74,7 +74,7 @@ Modules are invoked as `omnia.discovery.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x, Rocky 10.x | Runs on the OIM |
+| OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
 | Collection | `community.general` >= 5.0.0 |  |
@@ -110,7 +110,7 @@ The resolved component root contains `input/<project>`, `output/<project>`, and
 lookup, output generation, and Discovery cleanup all use the same resolved
 root.
 
-Edit the staged `discovery_config.yml` under `$DISCOVERY_DATA_PATH/input/$OMNIA_PROJECT_NAME/` (source template: `src/discovery/input/discovery_config.yml`) before running.
+Edit the staged `discovery_config.yml` and `network_spec.yml` under `$DISCOVERY_DATA_PATH/input/$OMNIA_PROJECT_NAME/` (source template: `src/discovery/input/discovery_config.yml`) before running.
 
 ## Usage
 
@@ -194,6 +194,7 @@ Run one tag at a time; `cleanup` plus `cleanup_credentials` is the only supporte
 | File | Description |
 |------|-------------|
 | `discovery_config.yml` | Discovery configuration, including `ome_ip` (validated by the `validate` tag) |
+| `network_spec.yml` | User-created network topology (`Networks[].admin_network.subnet`, optional `ib_network.subnet`) used to derive `ADMIN_IP` and IB addresses in the PXE mapping; validated against the same schema as Orchestrator |
 | `discovery_credentials.yml` | OME credentials, collected by the `credentials` tag and Vault-encrypted |
 
 ### Outputs

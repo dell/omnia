@@ -145,7 +145,7 @@ Modules are invoked as `omnia.telemetry.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x, Rocky 10.x | Runs from the OIM |
+| OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
 | Kubernetes | Service Kubernetes cluster | Telemetry runs as Kubernetes workloads on the `kube_vip` host |
@@ -224,7 +224,7 @@ Running without a tag runs setup, validate, precheck, and deploy; `cleanup` neve
 |-----|----------|-------------|
 | _(none)_ | Yes | Default flow: setup + validate + precheck + deploy |
 | `precheck` | No | Run K8s and enabled Slurm prerequisite checks without deploying |
-| `validate` / `prepare` | Yes | L1 schema + L2 logic validation of all input files, and credential collection (the two tags are aliases) |
+| `validate` / `validation` / `prepare` | Yes | L1 schema + L2 logic validation of all input files, and credential collection (the three tags are aliases) |
 | `credentials` | No | Collect telemetry credentials only (opt-in) |
 | `deploy` / `execute` | Yes | Precheck, then deploy sinks + sources + kustomize apply |
 | `deploy_sinks` | No | Deploy only selected sink infrastructure: Kafka, VictoriaMetrics, and/or VictoriaLogs |

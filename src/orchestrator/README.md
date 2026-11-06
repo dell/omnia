@@ -107,7 +107,7 @@ Modules are invoked as `omnia.orchestrator.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x, Rocky 10.x | Omnia platform support matrix |
+| OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
 | Python | 3.12+ | Shared Omnia virtual environment |
 | Ansible | ansible-core 2.20+ | `requirements.txt` |
 | Podman | 5.0+ | OpenCHAMI and OpenLDAP service deployment |
@@ -249,6 +249,10 @@ a boot started before the failed PXE workflow finishes is treated as stale.
 | `pxe_mapping_file.csv` | Discovery or user | Physical-node, network, and functional-group mapping |
 | `omnia_config.yml` | Main domain input | Cluster, service, Slurm, Kubernetes, and storage configuration |
 | `network_spec.yml` | Project input | Admin, BMC, InfiniBand, DNS, and DHCP network data |
+| `storage_config.yml` | Project input | Storage mounts; required only when `omnia_config.yml` references an `nfs_storage_name` or `vast_storage_name` (schema validated whenever present) |
+| `security_config.yml` | Project input | Security settings |
+| `set_pxe_boot_config.yml` | Project input | PXE boot retry and post-boot verification settings |
+| `additional_cloud_init.yml` | Project input | Default template for extra cloud-init configuration, referenced by `additional_cloud_init_config_file` in `orchestrator_config.yml` |
 | `build_status.yml` | Image Build Manager | Kernel, initrd, and rootfs artifact locations |
 | `repo_status.yml` | Repository Manager | Repository endpoints, certificates, and staged artifacts |
 | Catalog JSON | Catalog workflow | OS metadata and feature resolution |

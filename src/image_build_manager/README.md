@@ -78,10 +78,10 @@ Modules are invoked as `omnia.image_build.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x, Rocky 10.x | Validated on RHEL 10.0 |
-| Python | 3.12+ | Validated: 3.12.8 |
-| Ansible | ansible-core 2.20+ | Validated: 2.20.0 |
-| Podman | 5.0+ | Validated: 5.3.1 |
+| OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
+| Python | 3.12+ | Shared Omnia virtual environment |
+| Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
+| Podman | 5.0+ | Container runtime |
 | Disk | 50 GB free |  |
 
 ## Installation
@@ -134,7 +134,7 @@ sudo ./omnia.sh --init image_build_manager
 | Requirement | Details |
 |------------|---------|
 | Architecture | ARM64 (`uname -m` = `aarch64`) |
-| OS | RHEL 10.x / Rocky 10.x |
+| OS | RHEL 10.0, 10.2; Rocky 10.x |
 | Podman | 5.0+ (for builder container image) |
 | SSH | SSH password for initial key installation; passwordless SSH is then configured automatically |
 | Network | IP reachable from OIM admin NIC; port 22 open |

@@ -145,11 +145,11 @@ Modules are invoked as `omnia.build_stream.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x, Rocky 10.x | Validated on RHEL 10.0 |
-| Python | 3.12+ | Validated: 3.12.8 |
-| Ansible | ansible-core 2.20+ | Validated: 2.20.0 |
-| Container runtime | Podman 5.0+ | Validated: 5.3.1 |
-| Database | PostgreSQL 17+ | Validated: 17.x (containerized) |
+| OS | RHEL 10.0, 10.2; Rocky 10.x | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
+| Python | 3.12+ | Shared Omnia virtual environment |
+| Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
+| Container runtime | Podman 5.0+ | Runs the Build Stream API and PostgreSQL containers |
+| Database | PostgreSQL 17+ | Containerized |
 
 ## Installation
 

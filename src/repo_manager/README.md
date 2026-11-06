@@ -71,11 +71,11 @@ Modules are invoked as `omnia.repo_manager.<module>`.
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|
-| OS | RHEL 10.x | Validated on RHEL 10.0 |
-| Python | 3.12+ | Validated: 3.12.8 |
-| Ansible | ansible-core 2.20+ | Validated: 2.20.0 |
-| Podman | 5.0+ | Validated: 5.3.1 |
-| Privileges | Root or equivalent | Validated: root |
+| OS | RHEL 10.0, 10.2 | Runs on the OIM; see the [support matrix](https://omnia.readthedocs.io/en/latest/Reference/SupportMatrix/index.html) |
+| Python | 3.12+ | Shared Omnia virtual environment |
+| Ansible | ansible-core 2.20+ | Pinned in `requirements.txt` |
+| Podman | 5.0+ | Runs the Pulp container |
+| Privileges | Root or equivalent |  |
 | Storage | Sized for retained catalog content | Deployment-specific |
 
 Use the shared Omnia virtual environment:
@@ -256,6 +256,7 @@ fresh-download/rerun behavior are unchanged.
 
 | Tag | Description | Credentials |
 |-----|-------------|-------------|
+| `credentials` | Collect or update credentials without deploying Pulp | Yes |
 | `prepare` / `deploy` | Collect/reuse credentials and deploy HTTPS Pulp | Yes |
 | `precheck` | Validate environment, input, catalog and subscription sources | No new credentials |
 | `download` / `execute` | Resolve and synchronize catalog content | Existing credentials |
