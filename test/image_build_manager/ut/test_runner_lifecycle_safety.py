@@ -114,7 +114,7 @@ def test_catalog_reuse_e2e_owns_execution_and_restores_state():
     assert "catalog_reuse" in SUITE_EXEC_OWNERS["build"]
     assert (
         TEST_CASES["catalog_suite_restores_target_state"]["id"]
-        == "IMGBM_FVT_CATALOG_REUSE_V011"
+        == "IMGBM_FVT_CATALOG_REUSE_V009"
     )
 
 
