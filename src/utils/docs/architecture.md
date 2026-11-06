@@ -151,14 +151,14 @@ requested directories exists.
 
 Destination precedence is CLI `backup_path`, config-file `backup_path`,
 `OMNIA_BACKUP_PATH`, then the project-scoped default. Raw NFS exports are
-mounted at `/tmp/omnia_backup_oim_logs_nfs`.
+mounted at `/run/omnia/mnt/omnia_backup_oim_logs_nfs`.
 
 ### Cleanup
 
 | Flow | Behavior |
 |------|----------|
 | `cleanup_logs` | Selects tar.gz files older than `log_retention_days` (default 7), then removes every matching `omnia_logs_*` run directory and temporary `k8s`/`slurm` workspace; current run-directory deletion is not age-filtered |
-| `cleanup_install_os` | Removes `/tmp/install_os`, unmounts/removes `/tmp/install_os_nfs`, and removes generated credentials by default; set `cleanup_credentials=false` to preserve them |
+| `cleanup_install_os` | Removes `/tmp/install_os`, unmounts/removes `/run/omnia/mnt/install_os_nfs`, and removes generated credentials by default; set `cleanup_credentials=false` to preserve them |
 | `cleanup_backup_oim_logs` | Resolves the same local/NFS destination as backup and removes every `omnia_oim_logs_*` run directory; no retention policy |
 | `cleanup` | Runs `cleanup_logs` and `cleanup_install_os`; it does not run OIM log-backup cleanup |
 
