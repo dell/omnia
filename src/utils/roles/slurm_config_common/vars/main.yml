@@ -19,7 +19,7 @@ default_pxe_mapping_path: "{{ omnia_data_path }}/utils/input/{{ project_name }}/
 slurm_backup_default_dir: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}/slurm_config_util"
 
 # Fixed local mountpoint used when a backup path resolves to an NFS export
-slurm_backup_nfs_mountpoint: "/tmp/omnia_slurm_config_util_nfs"  # nosec: B108 - fixed local mount, not a secret path
+slurm_backup_nfs_mountpoint: "/run/omnia/mnt/omnia_slurm_config_util_nfs"
 
 # Directories that make up a Slurm controller's configuration
 slurm_config_directories:

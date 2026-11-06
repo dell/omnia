@@ -100,13 +100,21 @@
         mode: "0755"
 
     - name: Download kubernetes and prometheus_client wheels from Pulp (offline mode)
-      ansible.builtin.command: >
-        pip3 download --no-index
-        --find-links {{ offline_pip_module_path }}/kubernetes=={{ csi_k8s_pip_version }}
-        --find-links {{ offline_pip_module_path }}/prometheus_client=={{ csi_prometheus_pip_version }}
-        --trusted-host {{ pulp_server_ip }}
-        -d {{ telemetry_deployments_dir }}/pip-packages
-        kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
+      ansible.builtin.command:
+        argv:
+          - pip3
+          - download
+          - --no-index
+          - --find-links
+          - "{{ offline_pip_module_path }}/kubernetes=={{ csi_k8s_pip_version }}"
+          - --find-links
+          - "{{ offline_pip_module_path }}/prometheus_client=={{ csi_prometheus_pip_version }}"
+          - --trusted-host
+          - "{{ pulp_server_ip }}"
+          - -d
+          - "{{ telemetry_deployments_dir }}/pip-packages"
+          - "kubernetes=={{ csi_k8s_pip_version }}"
+          - "prometheus_client=={{ csi_prometheus_pip_version }}"
       register: pip_download_offline
       changed_when: "'Saved' in pip_download_offline.stdout"
       failed_when: pip_download_offline.rc != 0

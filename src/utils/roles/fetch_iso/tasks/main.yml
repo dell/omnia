@@ -79,16 +79,8 @@
       failed_when: tool_verify_results.rc != 0
       when: missing_tools | length > 0
 
-- name: Ensure ISO target directory exists
-  ansible.builtin.file:
-    path: "{{ iso_target_directory }}"
-    state: directory
-    mode: "0755"
-
-
 - name: Log ISO validation success
   ansible.builtin.debug:
     msg: >-
       ISO validation passed. Source: {{ iso_source_path }}
       ({{ iso_source_stat.stat.size | human_readable }}).
-      Output directory: {{ iso_target_directory }}

@@ -4857,6 +4857,30 @@ def write_complete_repo_file(
     return True, "DNF repository file includes additional repositories"
 
 
+def drop_numeric_no_log_values(no_log_values):
+    """Stop Ansible from masking numbers in the module result.
+
+    Ansible replaces every numeric value of the result whose digits contain a
+    no_log string. The no_log parameters hold repository definitions with
+    short numeric strings (ports, versions), so a counter such as
+    ``packages_added`` became VALUE_SPECIFIED_IN_NO_LOG_PARAMETER whenever its
+    digits matched one of them. Numeric strings of up to 6 digits are the only
+    ones that can occur inside a package counter, and they are not secrets, so
+    they are removed from the masked set. Longer values are still masked.
+
+    Args:
+        no_log_values: Set of strings Ansible masks (``module.no_log_values``).
+            Modified in place.
+
+    Returns:
+        The same set, for convenience.
+    """
+    no_log_values.difference_update(
+        {v for v in no_log_values if v.isdigit() and len(v) <= 6}
+    )
+    return no_log_values
+
+
 def main():
     """
     The main function of the module.
@@ -4914,6 +4938,8 @@ def main():
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=False)
+
+    drop_numeric_no_log_values(module.no_log_values)
 
     # Get the local_config parameter from the module
     rpm_config = module.params["local_config"]
