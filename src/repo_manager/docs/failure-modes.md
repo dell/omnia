@@ -5,6 +5,13 @@ overridable by configuration. Recovery steps are in
 [troubleshooting.md](troubleshooting.md). Logging and redaction rules are in
 [security.md](security.md).
 
+## Security Boundaries
+
+Repo Manager (`omnia.repo_manager`) is an Ansible collection that the Omnia orchestrator (or another calling application) invokes to deploy Pulp, mirror RPM, container, and artifact content, and report status. Its playbooks run locally on the Omnia Infrastructure Manager (OIM) with root privileges, and it has no user interface, API endpoint, or user model of its own. Two security properties therefore depend on where the boundary lies: who is allowed to run Repo Manager, which is decided by the caller, and which third-party code Repo Manager runs, which is decided by its declared dependencies. The rules below state these boundaries, and the matching failure modes are listed in the table that follows.
+
+- **Default deny access (REQ-CH2-002):** Repo Manager does not implement access control. The calling application (e.g., the Omnia orchestrator) MUST authenticate and authorize callers and deny all access unless explicitly granted.
+- **Dependency trustworthiness (REQ-CH8-001):** Only dependencies listed in `requirements.txt`, `requirements.yml`, and the Pulp image in `vars/default.yml` are used. Each is sourced from its official registry (PyPI, Ansible Galaxy, Docker Hub) and evaluated before adoption or upgrade for vulnerability history (OSV, GitHub Advisory Database, NVD), maintainer activity, and license compatibility with Apache-2.0. Copyleft (GPL) dependencies are consumed only as separately installed, unmodified components.
+
 ## General Rules
 
 - Fail closed on malformed, template-bearing, or unknown configuration.
@@ -35,3 +42,6 @@ overridable by configuration. Recovery steps are in
 | Cleanup | Unsafe target path | Refuse |
 | Cleanup | Pulp delete not confirmed | Keep local state unchanged |
 | Status output | Pulp state incomplete after selective cleanup | Write `overall_status: failed`; status play fails |
+| Access control | Caller invokes Repo Manager without authorization | Not detected by Repo Manager; the caller MUST deny by default |
+| Dependencies | Pulp image cannot be pulled | Retry `pull_image_retries` times; then fail deployment |
+| Dependencies | Dependency not evaluated, or has an open applicable advisory | Do not adopt; evaluate first |
