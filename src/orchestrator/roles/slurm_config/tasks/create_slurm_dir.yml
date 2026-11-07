@@ -119,10 +119,10 @@
 - name: Create all common directories
   ansible.builtin.include_tasks: exist_dir.yml
   loop:
-    - "{{ (ctld_list + cmpt_list + login_list + compiler_login_list) | product(common_dir) }}"
+    - "{{ (ctld_list + cmpt_list + login_list + (compiler_login_list | default([]))) | product(common_dir) }}"
     - "{{ ctld_list | product(ctld_dir) }}"
     - "{{ dbd_list | product(db_dir) }}"
-    - "{{ (cmpt_list + login_list + compiler_login_list) | product(cmpt_dir) }}"
+    - "{{ (cmpt_list + login_list + (compiler_login_list | default([]))) | product(cmpt_dir) }}"
   loop_control:
     loop_var: product
 
@@ -207,7 +207,10 @@
 
 - name: Generate slurmd opts for Configless
   ansible.builtin.set_fact:
-    conf_server: "--conf-server {{ ctld_list | map('regex_replace', '$', ':' ~ (apply_config['slurm']['SlurmctldPort'] | string)) | join(',') }}"
+    conf_server: >-
+      --conf-server {{ (_ctld_ib_addrs | default(ctld_list))
+      | map('regex_replace', '$', ':' ~ (apply_config['slurm']['SlurmctldPort'] | string))
+      | join(',') }}
 
 - name: Create epilog.sh and slurmd.service
   ansible.builtin.template:

@@ -317,6 +317,7 @@ def _redfish_get(bmc_ip, path, username, password, timeout):
         return (False, str(exc))
 
 
+
 # ─── GPU detection ─────────────────────────────────────────────────────────
 
 def _detect_gpus_from_processors(proc_members):
@@ -735,8 +736,17 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
                     result["discovered_count"] += 1
             except Exception as exc:  # pylint: disable=broad-except
                 result["failed_nodes"].append(hostname)
+                # Still append default node_params so the node appears in slurm.conf
+                result["node_params"].append({
+                    "NodeName": hostname,
+                    "Sockets": defaults.get("sockets", 2),
+                    "CoresPerSocket": defaults.get("corespersocket", 72),
+                    "ThreadsPerCore": defaults.get("threadspercore", 1),
+                    "RealMemory": defaults.get("real_memory", 884736),
+                })
                 module.warn(
-                    f"iDRAC discovery exception for {hostname}: {exc}"
+                    f"iDRAC discovery exception for {hostname}: {exc} "
+                    f"— falling back to default values"
                 )
 
     if result["failed_nodes"]:
@@ -808,9 +818,19 @@ def _run_group_discovery(module, groups, bmc_ip_map, bmc_username,
                     )
             except Exception as exc:  # pylint: disable=broad-except
                 result["failed_groups"].append(group_name)
+                # Still append default node_params for all nodes in the group
+                for node_hostname in groups[group_name]:
+                    result["node_params"].append({
+                        "NodeName": node_hostname,
+                        "Sockets": defaults.get("sockets", 2),
+                        "CoresPerSocket": defaults.get("corespersocket", 72),
+                        "ThreadsPerCore": defaults.get("threadspercore", 1),
+                        "RealMemory": defaults.get("real_memory", 884736),
+                    })
                 module.warn(
                     f"Group discovery exception for '{group_name}': "
-                    f"{exc}"
+                    f"{exc} — falling back to default values for "
+                    f"{len(groups[group_name])} node(s)"
                 )
 
     if result["failed_groups"]:

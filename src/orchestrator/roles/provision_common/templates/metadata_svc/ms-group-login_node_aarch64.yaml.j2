@@ -290,8 +290,25 @@
           PXE_SUBNET="$NETWORK_IP/$NETMASK_BITS"
           echo "[INFO] Admin IP: $ADMIN_IP, Netmask: /$NETMASK_BITS, PXE Subnet: $PXE_SUBNET"
           firewall-cmd --zone=trusted --add-source="$PXE_SUBNET" --permanent
+{% for extra in hostvars['localhost']['admin_additional_subnets'] | default([]) %}
+          echo "[INFO] Adding additional admin subnet {{ extra.subnet }}/{{ extra.netmask_bits }} to trusted zone"
+          firewall-cmd --zone=trusted --add-source="{{ extra.subnet }}/{{ extra.netmask_bits }}" --permanent
+{% endfor %}
           '
-        
+
+        # Configure MPI OOB port range to match firewall-allowed SrunPortRange.
+        # Uses /etc/profile.d/ environment variables so the setting is picked up
+        # regardless of the OpenMPI installation prefix.
+        #   OMPI_MCA_  — read by OpenMPI 4.x (DOCA / HPC-X)
+        #   PRTE_MCA_  — read by PRRTE (OpenMPI 5.x runtime)
+        - |
+          cat > /etc/profile.d/omnia_mpi_oob.sh <<'MPIEOF'
+          # Restrict MPI OOB TCP to the Slurm SrunPortRange (firewall-allowed)
+          export OMPI_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
+          export PRTE_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
+          MPIEOF
+        - chmod 0644 /etc/profile.d/omnia_mpi_oob.sh
+
         - firewall-cmd --reload
         - systemctl enable sshd
         - systemctl start sshd

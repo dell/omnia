@@ -50,6 +50,26 @@
         - ansible_facts.services['slurmctld.service'] is defined
         - ansible_facts.services['slurmctld.service'].state == 'running'
 
+    - name: Restart slurmctld if it is not running (failed/stopped) after config update
+      ansible.builtin.systemd:
+        name: slurmctld
+        state: restarted
+        daemon_reload: true
+      delegate_to: "{{ ctld }}"
+      register: ctld_restart_result
+      when:
+        - service_facts is success
+        - ansible_facts.services['slurmctld.service'] is defined
+        - ansible_facts.services['slurmctld.service'].state != 'running'
+        - restart_slurm_services | default(true) | bool
+
+    - name: Update ctld_state after restart
+      ansible.builtin.set_fact:
+        ctld_state: "{{ ctld_state | combine({ctld: true}) }}"
+      when:
+        - ctld_restart_result is defined
+        - ctld_restart_result is changed
+
     - name: Check reachability of hosts in ip_name_map
       ansible.builtin.wait_for:
         host: "{{ host }}"
