@@ -34,7 +34,7 @@ import pytest
 from omnia_auto import (Colors, Symbols, TestLogger, get_setting, is_local_execution,
                         load_test_config, load_test_credentials)
 from omnia_auto.functions.process_security import descriptor_tuple, sshpass_pipe
-from omnia_auto.functions.runner_func import _wrap_ssh
+from omnia_auto.functions.runner_func import _ssh_argv
 
 from .config_func import installation_settings
 from .execute_probe_func import render_cmd, run_cmd
@@ -150,8 +150,8 @@ def _spawn(command: str) -> subprocess.Popen:
         return subprocess.Popen(["bash", "-c", command], **options)
     credentials = load_test_credentials()
     with sshpass_pipe(credentials.get("oim_password", "")) as auth_fd:
-        ssh_cmd = _wrap_ssh(command, load_test_config(), credentials, auth_fd=auth_fd)
-        return subprocess.Popen(["bash", "-c", ssh_cmd],
+        ssh_cmd = _ssh_argv(command, load_test_config(), credentials, auth_fd=auth_fd)
+        return subprocess.Popen(ssh_cmd, shell=False,
                                 pass_fds=descriptor_tuple(auth_fd), **options)
 
 
