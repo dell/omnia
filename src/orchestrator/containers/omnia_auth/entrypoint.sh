@@ -24,8 +24,8 @@ for f in /etc/openldap/slapd.conf /container-init/bootstrap.ldif; do
 done
 
 # --- Initialize data directory (needed when volume is mounted) ---
-mkdir -p /var/lib/openldap/openldap-data
-chown ldap:ldap /var/lib/openldap/openldap-data
+mkdir -p /var/lib/openldap/openldap-data /run/openldap
+chown ldap:ldap /var/lib/openldap/openldap-data /run/openldap
 
 # --- Bootstrap LDAP database on first run ---
 if [ ! -f /var/lib/openldap/openldap-data/__initialized ]; then
@@ -35,12 +35,45 @@ if [ ! -f /var/lib/openldap/openldap-data/__initialized ]; then
   touch /var/lib/openldap/openldap-data/__initialized
 fi
 
-# --- Install TLS certificate into trust store ---
-if [ -f /etc/openldap/certs/ldapserver.crt ]; then
-  cp /etc/openldap/certs/ldapserver.crt /usr/local/share/ca-certificates/ldapserver.crt
-  update-ca-certificates
+# --- Verify and install TLS certificate into trust store ---
+TLS_CERT=/etc/openldap/certs/ldapserver.crt
+TLS_KEY=/etc/openldap/certs/ldapserver.key
+TLS_CA_FILE="${LDAP_TLS_CA_FILE:-$TLS_CERT}"
+
+tls_fail() {
+  echo "FATAL: TLS certificate $TLS_CERT verification failed: $1" >&2
+  exit 1
+}
+
+if [ -f "$TLS_CERT" ]; then
+  command -v openssl >/dev/null 2>&1 || tls_fail "openssl is not available in the image"
+  openssl x509 -in "$TLS_CERT" -noout 2>/dev/null || tls_fail "not a valid PEM X.509 certificate"
+  openssl x509 -in "$TLS_CERT" -noout -checkend 0 >/dev/null || tls_fail "certificate has expired"
+  [ -f "$TLS_CA_FILE" ] || tls_fail "CA file $TLS_CA_FILE not found"
+  openssl verify -check_ss_sig -x509_strict -purpose sslserver -CAfile "$TLS_CA_FILE" "$TLS_CERT" >/dev/null \
+    || tls_fail "signature/chain validation against $TLS_CA_FILE failed"
+
+  if [ -f "$TLS_KEY" ]; then
+    cert_pub=$(openssl x509 -in "$TLS_CERT" -noout -pubkey) || tls_fail "unable to read certificate public key"
+    key_pub=$(openssl pkey -in "$TLS_KEY" -pubout) || tls_fail "unable to read private key $TLS_KEY"
+    [ "$cert_pub" = "$key_pub" ] || tls_fail "certificate does not match private key $TLS_KEY"
+  fi
+
+  if [ -n "${LDAP_TLS_CERT_SHA256:-}" ]; then
+    actual_fp=$(openssl x509 -in "$TLS_CERT" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr 'a-f' 'A-F')
+    expected_fp=$(printf '%s' "$LDAP_TLS_CERT_SHA256" | tr -d ': ' | tr 'a-f' 'A-F')
+    [ "$actual_fp" = "$expected_fp" ] || tls_fail "SHA-256 fingerprint does not match pinned LDAP_TLS_CERT_SHA256"
+  fi
+
+  mkdir -p /usr/local/share/ca-certificates
+  cp "$TLS_CERT" /usr/local/share/ca-certificates/ldapserver.crt
+  chmod 0644 /usr/local/share/ca-certificates/ldapserver.crt
+  if command -v update-ca-certificates >/dev/null 2>&1; then
+    update-ca-certificates
+  else
+    echo "WARNING: update-ca-certificates not available; certificate copied but trust store not rebuilt" >&2
+  fi
 fi
 
-# --- Start slapd, dropping privileges to ldap user ---
-exec /usr/sbin/slapd -f /etc/openldap/slapd.conf \
-  -u ldap -g ldap -h 'ldap:/// ldaps:///' -d 0
+# --- Start slapd ---
+exec /usr/sbin/slapd -f /etc/openldap/slapd.conf -h 'ldap:/// ldaps:///' -d 0

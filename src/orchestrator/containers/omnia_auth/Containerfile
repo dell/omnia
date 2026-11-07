@@ -19,7 +19,7 @@
 FROM cgr.dev/chainguard/wolfi-base@sha256:88a20e2d017bd20cdc0cb3910de603e7bea9512a6c351a8dd3c9df212ab03d73
 
 # Install OpenLDAP 2.7 server, backends (MDB + LDAP + Meta for proxy),
-# clients, and matching library
+# clients, matching library, and tools for certificate verification
 RUN apk update && apk add --no-cache \
     openldap \
     openldap-back-mdb \
@@ -27,7 +27,9 @@ RUN apk update && apk add --no-cache \
     openldap-back-meta \
     openldap-clients \
     libldap-2.7 \
-    ca-certificates-bundle
+    ca-certificates-bundle \
+    openssl \
+    ca-certificates
 
 # Create ldap user/group — Wolfi does NOT auto-create this
 # BusyBox syntax: addgroup/adduser (not groupadd/useradd)
@@ -44,13 +46,8 @@ EXPOSE 389 636
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD ldapwhoami -x -H ldap://localhost || exit 1
 
-CMD ["/bin/sh", "-c", "\
-  mkdir -p /var/lib/openldap/openldap-data /run/openldap && \
-  chown ldap:ldap /var/lib/openldap/openldap-data /run/openldap; \
-  if [ ! -f /var/lib/openldap/openldap-data/__initialized ]; then \
-    slapadd -f /etc/openldap/slapd.conf -l /container-init/bootstrap.ldif && \
-    chown -R ldap:ldap /var/lib/openldap && \
-    touch /var/lib/openldap/openldap-data/__initialized; \
-  fi; \
-  exec /usr/sbin/slapd -f /etc/openldap/slapd.conf -h 'ldap:/// ldaps:///' -d 0 \
-"]
+# Copy and set entrypoint.sh for certificate verification
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

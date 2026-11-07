@@ -20,7 +20,7 @@ authentication service on the OIM.
 | File | Description |
 |------|-------------|
 | `Containerfile` | Wolfi-based OpenLDAP runtime image |
-| `entrypoint.sh` | Validated OpenLDAP initialization helper retained in source; the current Containerfile defines its runtime command directly |
+| `entrypoint.sh` | Container entrypoint: initializes the directory, verifies the mounted TLS certificate (validity, signature/chain, key match, optional `LDAP_TLS_CERT_SHA256` pin and `LDAP_TLS_CA_FILE` CA), then starts `slapd` |
 
 Runtime `slapd.conf`, bootstrap LDIF, and TLS certificates are not embedded in
 the image. The `deploy_openldap` role renders and bind-mounts them through the
