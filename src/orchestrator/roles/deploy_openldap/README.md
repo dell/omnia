@@ -10,13 +10,24 @@ running container uses a different image, the role replaces it. Bump
 `omnia_auth_tag` whenever the image content changes, so that existing
 deployments pick the change up.
 
+Directory and `slapd.conf` ownership is enforced on every run, including when
+the container keeps running, so a later image update or restart (for example
+through `AutoUpdate=registry`) starts the unprivileged `slapd` with readable files.
+
+A deployed `slapd.conf` that proxies to another directory (`database meta` or
+`database ldap`) is kept: it is neither re-rendered nor reconciled, and only its
+ownership is enforced. Pass `-e openldap_force_reconcile=true` to replace it with
+the local configuration.
+
 ## What It Does
 
 1. Stops early when OpenLDAP support is disabled.
 2. Loads and validates project-scoped OpenLDAP credentials.
-3. Creates the `auth_ldap_group` group (gid `auth_ldap_gid`) and the persistent
-   configuration, certificate, data, and initialization directories.
-4. Generates TLS material, `slapd.conf`, and the bootstrap LDIF.
+3. Creates the `auth_ldap_group` group (gid `auth_ldap_gid`), the persistent
+   configuration, certificate, data, and initialization directories, and enforces
+   the ownership of an existing `slapd.conf`.
+4. Generates TLS material, `slapd.conf` (unless an external proxy configuration
+   is kept), and the bootstrap LDIF.
 5. Pulls the configured `omnia_auth` image and renders its Quadlet.
 6. Starts the systemd-managed service and waits for the container to run.
 

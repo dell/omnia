@@ -57,6 +57,60 @@
         system: true
         state: present
 
+    - name: Create OpenLDAP directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ auth_base_dir }}", mode: "0755" }
+        - { path: "{{ auth_config_dir }}", mode: "0700" }
+        - { path: "{{ auth_certs_dir }}", mode: "0750", group: "{{ auth_ldap_group }}" }
+        - { path: "{{ auth_data_dir }}", mode: "0700", owner: "{{ auth_ldap_uid }}", group: "{{ auth_ldap_gid }}" }
+        - { path: "{{ auth_init_dir }}", mode: "0700" }
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Check deployed slapd.conf
+      ansible.builtin.stat:
+        path: "{{ auth_config_dir }}/slapd.conf"
+      register: _slapd_conf_stat
+
+    - name: Detect an external LDAP proxy slapd.conf
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -Eq
+          - '^[[:space:]]*database[[:space:]]+(meta|ldap)([[:space:]]|$)'
+          - "{{ auth_config_dir }}/slapd.conf"
+      register: _slapd_proxy_check
+      changed_when: false
+      failed_when: _slapd_proxy_check.rc > 1
+      check_mode: false
+      when: _slapd_conf_stat.stat.exists
+
+    - name: Record whether slapd.conf is managed outside this role
+      ansible.builtin.set_fact:
+        omnia_auth_external_proxy: >-
+          {{ (not openldap_force_reconcile | bool)
+             and _slapd_conf_stat.stat.exists
+             and (_slapd_proxy_check.rc | default(1)) == 0 }}
+
+    - name: Report that the external LDAP proxy slapd.conf is kept
+      ansible.builtin.debug:
+        msg: "{{ slapd_conf_external_proxy_msg }}"
+      when: omnia_auth_external_proxy | bool
+
+    - name: Enforce slapd.conf ownership so the unprivileged slapd can read it
+      ansible.builtin.file:
+        path: "{{ auth_config_dir }}/slapd.conf"
+        owner: root
+        group: "{{ auth_ldap_group }}"
+        mode: "0640"
+      when: _slapd_conf_stat.stat.exists
+
     - name: Verify the configured LDAP TLS CA certificate
       when: ldap_tls_ca_file | length > 0
       block:
@@ -89,22 +143,6 @@
     - name: Deploy OpenLDAP when container is not running or runs a different image
       when: omnia_auth_needs_deploy | bool
       block:
-        - name: Create OpenLDAP directories
-          ansible.builtin.file:
-            path: "{{ item.path }}"
-            state: directory
-            owner: "{{ item.owner | default('root') }}"
-            group: "{{ item.group | default('root') }}"
-            mode: "{{ item.mode }}"
-          loop:
-            - { path: "{{ auth_base_dir }}", mode: "0755" }
-            - { path: "{{ auth_config_dir }}", mode: "0700" }
-            - { path: "{{ auth_certs_dir }}", mode: "0750", group: "{{ auth_ldap_group }}" }
-            - { path: "{{ auth_data_dir }}", mode: "0700", owner: "{{ auth_ldap_uid }}", group: "{{ auth_ldap_gid }}" }
-            - { path: "{{ auth_init_dir }}", mode: "0700" }
-          loop_control:
-            label: "{{ item.path }}"
-
         - name: Generate TLS certificates
           ansible.builtin.include_tasks: generate_tls_certs.yml
 
@@ -116,6 +154,7 @@
             group: "{{ auth_ldap_group }}"
             mode: "0640"
           no_log: true
+          when: not (omnia_auth_external_proxy | bool)
 
         - name: Template bootstrap.ldif
           ansible.builtin.template:
@@ -186,7 +225,9 @@
 
     - name: Reconcile slapd.conf when container is already running the desired image
       ansible.builtin.include_tasks: reconcile_slapd_conf.yml
-      when: not (omnia_auth_needs_deploy | bool)
+      when:
+        - not (omnia_auth_needs_deploy | bool)
+        - not (omnia_auth_external_proxy | bool)
 
   rescue:
     - name: OpenLDAP deployment failed

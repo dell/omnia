@@ -22,8 +22,11 @@ container whose image differs from the desired one.
 """
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 SRC = Path(__file__).resolve().parents[3] / "src" / "orchestrator"
@@ -155,15 +158,75 @@ def test_running_container_with_other_image_is_replaced():
 
     deploy = _task(main, "Deploy OpenLDAP when container is not running or runs a different image")
     assert deploy["when"] == "omnia_auth_needs_deploy | bool"
-    for name in (
-        "Verify TLS certificate when container is already running the desired image",
-        "Reconcile slapd.conf when container is already running the desired image",
-    ):
-        assert _task(main, name)["when"] == "not (omnia_auth_needs_deploy | bool)"
+    verify = "Verify TLS certificate when container is already running the desired image"
+    assert _task(main, verify)["when"] == "not (omnia_auth_needs_deploy | bool)"
+    reconcile = "Reconcile slapd.conf when container is already running the desired image"
+    assert "not (omnia_auth_needs_deploy | bool)" in _task(main, reconcile)["when"]
 
     stop = _task(main, "Stop omnia_auth service before replacing the container")
     names = [t.get("name") for t in _walk_tasks(main)]
     assert names.index(stop["name"]) < names.index("Stop existing omnia_auth container if present")
+
+
+DEPLOY_BLOCK = "Deploy OpenLDAP when container is not running or runs a different image"
+PROXY_CHECK = "Detect an external LDAP proxy slapd.conf"
+
+
+def test_permissions_are_enforced_when_container_keeps_running():
+    """Directory and slapd.conf ownership do not depend on a redeploy."""
+    main = _yaml("tasks/main.yml")
+    deploy = [t.get("name") for t in _walk_tasks(_task(main, DEPLOY_BLOCK)["block"])]
+    names = [t.get("name") for t in _walk_tasks(main)]
+    enforce = "Enforce slapd.conf ownership so the unprivileged slapd can read it"
+    for name in ("Create OpenLDAP directories", "Check deployed slapd.conf", enforce):
+        assert name not in deploy
+        assert "omnia_auth_needs_deploy" not in str(_task(main, name).get("when", ""))
+        assert names.index(name) < names.index(DEPLOY_BLOCK)
+
+    task = _task(main, enforce)
+    perms = task["ansible.builtin.file"]
+    assert (perms["owner"], perms["group"], perms["mode"]) == ("root", "{{ auth_ldap_group }}", "0640")
+    assert "state" not in perms
+    assert task["when"] == "_slapd_conf_stat.stat.exists"
+
+
+def test_external_proxy_slapd_conf_is_not_overwritten():
+    """A proxy slapd.conf is neither templated nor reconciled unless forced."""
+    main = _yaml("tasks/main.yml")
+    assert _yaml("vars/main.yml")["openldap_force_reconcile"] is False
+    fact = _task(main, "Record whether slapd.conf is managed outside this role")
+    expression = fact["ansible.builtin.set_fact"]["omnia_auth_external_proxy"]
+    assert "not openldap_force_reconcile | bool" in expression
+    assert "_slapd_conf_stat.stat.exists" in expression
+
+    check = _task(main, PROXY_CHECK)
+    assert check["check_mode"] is False
+    assert check["failed_when"] == "_slapd_proxy_check.rc > 1"
+
+    template = _task(main, "Template slapd.conf")
+    assert template["when"] == "not (omnia_auth_external_proxy | bool)"
+    reconcile = _task(main, "Reconcile slapd.conf when container is already running the desired image")
+    assert "not (omnia_auth_external_proxy | bool)" in reconcile["when"]
+
+
+@pytest.mark.skipif(shutil.which("grep") is None, reason="grep is required")
+@pytest.mark.parametrize(
+    ("content", "is_proxy"),
+    [
+        ("database meta\n", True),
+        ("  database\tldap\n", True),
+        ("database mdb\n", False),
+        ("# database meta\n", False),
+        ("database metadata\n", False),
+    ],
+)
+def test_external_proxy_detection_pattern(tmp_path, content, is_proxy):
+    """The detection pattern matches only active meta or ldap databases."""
+    pattern = _task(_yaml("tasks/main.yml"), PROXY_CHECK)["ansible.builtin.command"]["argv"][2]
+    conf = tmp_path / "slapd.conf"
+    conf.write_text("include /etc/openldap/schema/core.schema\n" + content, encoding="utf-8")
+    result = subprocess.run(["grep", "-Eq", pattern, str(conf)], check=False)
+    assert (result.returncode == 0) is is_proxy
 
 
 def test_tls_trust_inputs_are_wired_and_default_unset():

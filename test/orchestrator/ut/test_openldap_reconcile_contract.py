@@ -68,7 +68,10 @@ def test_credentials_load_before_running_and_fresh_paths():
     )
     assert reconcile["ansible.builtin.include_tasks"] == "reconcile_slapd_conf.yml"
     assert load < names.index(reconcile["name"])
-    assert reconcile["when"] == "not (omnia_auth_needs_deploy | bool)"
+    assert reconcile["when"] == [
+        "not (omnia_auth_needs_deploy | bool)",
+        "not (omnia_auth_external_proxy | bool)",
+    ]
 
 
 def test_candidate_is_private_and_compared_with_mounted_file():

@@ -32,6 +32,11 @@ auth_ldap_group: "ldap"
 ldap_tls_ca_file: ""
 ldap_tls_cert_sha256: ""
 
+# A deployed slapd.conf that proxies to another directory (database meta or ldap)
+# is kept as is. Pass -e openldap_force_reconcile=true to replace it with the
+# local configuration rendered by this role.
+openldap_force_reconcile: false
+
 # Directory paths
 auth_base_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/auth"
 auth_config_dir: "{{ auth_base_dir }}/config"
@@ -74,6 +79,10 @@ tls_cert_invalid_msg: >-
 slapd_conf_update_failed_msg: >-
   Updated slapd.conf could not be applied to the running omnia_auth container.
   The previous slapd.conf was kept or restored. Check slaptest output and journalctl -u omnia_auth.
+slapd_conf_external_proxy_msg: >-
+  The deployed slapd.conf proxies to another LDAP directory, so it was kept and
+  not replaced by the local configuration. Its ownership is still set to root:ldap 0640.
+  To replace it with the local configuration, rerun with -e openldap_force_reconcile=true.
 ldap_tls_ca_missing_msg: >-
   ldap_tls_ca_file is set but the CA certificate was not found in auth/tls_certs.
   Place the CA certificate there (file name must match ldap_tls_ca_file), or unset
