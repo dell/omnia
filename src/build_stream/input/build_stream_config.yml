@@ -19,8 +19,8 @@
 #
 # BuildStream Domain — Consolidated Configuration
 # Merged from: build_stream_config.yml + gitlab_config.yml
-# See also:    INPUT_CONTRACT.md  (full input specification)
-#              OUTPUT_CONTRACT.md (output artifacts specification)
+# See also:    docs/contracts/input-contract.md  (full input specification)
+#              docs/contracts/output-contract.md (output artifacts specification)
 # ***********************************************************************
 
 # ==========================================================================
