@@ -50,31 +50,13 @@ pxe_mapping_invalid_host_value_fail_msg: >-
 passwordless_ssh_hostname_regex: '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?\Z'
 passwordless_ssh_ipv4_regex: '^([0-9]{1,3}\.){3}[0-9]{1,3}\Z'
 
-# Actionable error messages surfaced by rescue blocks protecting no_log tasks.
-# Printed with no_log: false so operators get context instead of a generic
-# "skipped due to no_log" message.
+# Actionable error messages surfaced (no_log tasks). Printed with no_log: false.
 passwordless_ssh_read_csv_rescue_msg: |
-  Failed to read the PXE mapping file in role 'passwordless_ssh'
-  (tasks/build_host_lists.yml: "Read PXE mapping file").
-  Context:
-    - Mapping file (pxe_mapping_file_path): {{ pxe_mapping_file_path | default('<unset>') }}
-  Likely causes:
-    - The mapping file is missing, unreadable, or lacks a unique ADMIN_MAC column.
-    - The CSV is malformed (inconsistent columns or bad header).
-  Next steps:
-    1. Confirm the file exists and is readable: ls -l "{{ pxe_mapping_file_path | default('<unset>') }}"
-    2. Inspect the header and rows: head "{{ pxe_mapping_file_path | default('<unset>') }}"
-    3. Ensure the CSV contains an ADMIN_MAC column with unique values.
-    4. Re-run the passwordless_ssh stage once the mapping file is corrected.
+  The PXE mapping file could not be read for SSH setup.
+  What to fix: check the PXE mapping file is valid CSV with an ADMIN_MAC column.
+  Then re-run the stage.
 
 passwordless_ssh_invalid_rows_rescue_msg: |
-  Failed while scanning the PXE mapping for invalid HOSTNAME/ADMIN_IP values in
-  role 'passwordless_ssh' (tasks/build_host_lists.yml: "Find PXE mapping rows
-  with an invalid HOSTNAME or ADMIN_IP").
-  Likely causes:
-    - pxe_mapping_dict was not populated (the preceding CSV read failed).
-    - A row is missing expected HOSTNAME/ADMIN_IP keys.
-  Next steps:
-    1. Confirm the PXE mapping CSV read succeeded earlier in this run.
-    2. Verify every data row has HOSTNAME and ADMIN_IP columns.
-    3. Re-run the passwordless_ssh stage once the mapping file is corrected.
+  HOSTNAME or ADMIN_IP values in the PXE mapping could not be checked.
+  What to fix: check the PXE mapping file for missing or malformed values.
+  Then re-run the stage.
