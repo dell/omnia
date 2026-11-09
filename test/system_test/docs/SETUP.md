@@ -63,16 +63,24 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
   reached fails the cleanup with the reason, nothing deleted.
 - It then runs, in order:
   1. `fvt_build_stream cleanup test` (only when BuildStream is installed);
-  2. `fvt_orchestrator cleanup test`;
-  3. `fvt_image_build_manager cleanup test`;
-  4. `fvt_repo_manager cleanup test --marker destructive`;
-  5. with `cleanup.main.cleanup_all: true` (default): every
+  2. `fvt_telemetry cleanup test` (`telemetry.yml --tags cleanup`: pods, services, Kafka
+     topics, sink PVCs). The SVT theme does not deploy telemetry, but a previous
+     installation may have; the step runs only when telemetry holds deployed state (a
+     file under `<data>/telemetry/output` or `log`, the rule `omnia.sh --cleanup --all`
+     applies) and is skipped otherwise. It runs before the orchestrator, because
+     telemetry runs on the Kubernetes cluster the orchestrator deploys. With
+     `cleanup.telemetry.delete_sinks_volume: true` (default) the sink PVCs and the log,
+     input and output directories are removed too, which a complete reset needs;
+  3. `fvt_orchestrator cleanup test`;
+  4. `fvt_image_build_manager cleanup test`;
+  5. `fvt_repo_manager cleanup test --marker destructive`;
+  6. with `cleanup.main.cleanup_all: true` (default): every
      `src/<domain>/domain-init.sh --cleanup` (each domain's input and log
      artifacts). `omnia.sh --cleanup --all` runs the same helpers, but only
      after a preflight that refuses while `<data>/<domain>/log` holds a file;
      the validate playbooks write logs there and no domain cleanup tag removes
      them, so without this step `--all` stops and removes nothing;
-  6. `fvt_main cleanup test` from `test/main/.venv`: `omnia.sh --cleanup --all
+  7. `fvt_main cleanup test` from `test/main/.venv`: `omnia.sh --cleanup --all
      --skip-approval` (the whole `OMNIA_DATA_PATH`, credential stores
      included), or `omnia.sh --cleanup` with `cleanup_all: false`; then the
      verify cases MAIN_FVT_CLEANUP_V001-V005 check what was removed.

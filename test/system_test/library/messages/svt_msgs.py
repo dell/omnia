@@ -86,6 +86,8 @@ SETUP_MSGS = {
         "(configures and installs again)"
     ),
     # cleanup
+    "cleanup_not_deployed": "{label} skipped: {domain} holds no deployed state (no file under "
+                            "{root}/output or {root}/log)",
     "cleanup_disabled": "{label} skipped: cleanup.{domain}.enabled is false",
     "cleanup_nothing": "no cleanup step to run",
     "cleanup_plan": "these cleanup steps delete the previous installation of this OIM:",

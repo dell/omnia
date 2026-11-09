@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, List, Sequence, Tuple
 from . import nfs_func
 from .config_func import apply_cleanup_flags, apply_report_settings, cleanup_all, cleanup_enabled
 from .fvt_func import describe_step, domain_dir, run_fvt_step
-from .omnia_func import omnia_env
+from .omnia_func import domain_data_root, has_deployed_state, omnia_env
 from .process_func import stream_command, tee_command
 from .readiness_func import omnia_venv_path
 from .run_func import load_run
@@ -82,12 +82,16 @@ def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> 
     """Return the cleanup steps that apply on this OIM; record why the others are skipped."""
     steps = []
     requires = THEMES[config["theme"]].get("cleanup_requires") or {}
+    deployed_only = THEMES[config["theme"]].get("cleanup_when_deployed") or ()
     for step in THEMES[config["theme"]]["cleanup_steps"]:
         domain, label = step[0], describe_step(step)
         if not cleanup_enabled(config, domain):
             reason = SETUP_MSGS["cleanup_disabled"].format(label=label, domain=domain)
         elif step in requires and not os.path.exists(requires[step]):
             reason = STAGE_MSGS["not_installed"].format(path=requires[step], label=label)
+        elif domain in deployed_only and not has_deployed_state(omnia_env(), domain):
+            reason = SETUP_MSGS["cleanup_not_deployed"].format(
+                label=label, domain=domain, root=domain_data_root(omnia_env(), domain))
         elif domain not in OWN_VENV_DOMAINS and not venv:
             reason = STAGE_MSGS["no_omnia_venv"].format(label=label)
         else:

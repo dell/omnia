@@ -186,3 +186,7 @@ REPORT_STAGES = (LAST_STAGE,)
 OPENBAO_TIMEOUT_SECONDS = 30
 
 OPENBAO_MAX_BYTES = 1024 * 1024
+
+# Runtime folders of a domain whose files mean "deployed" (omnia.sh --cleanup --all refuses
+# while they hold a file).
+DOMAIN_RUNTIME_DIRS = ("output", "log")

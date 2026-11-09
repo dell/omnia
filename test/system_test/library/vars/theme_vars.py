@@ -32,6 +32,9 @@ FvtStep = Tuple[str, Tuple[str, ...]]
 # ./setup_env.sh writes them from the "cleanup" block of <theme>_test_config.yml).
 CLEANUP_STEPS: Tuple[FvtStep, ...] = (
     ("build_stream", ("cleanup", "test")),
+    # Telemetry runs on the Kubernetes cluster the orchestrator deploys, so it is removed
+    # before the orchestrator (the order of omnia.sh: telemetry first).
+    ("telemetry", ("cleanup", "test")),
     ("orchestrator", ("cleanup", "test")),
     ("image_build_manager", ("cleanup", "test")),
     ("repo_manager", ("cleanup", "test", "--marker", "destructive")),
@@ -43,6 +46,9 @@ CLEANUP_STEPS: Tuple[FvtStep, ...] = (
 # step on or off and is never written into the suite.
 CLEANUP_FLAGS: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     "build_stream": ("cleanup", ("postgres_backup", "cleanup_credentials")),
+    # delete_sinks_volume also removes the sink PVCs and the log, input and output
+    # directories, which omnia.sh --cleanup --all needs to find empty.
+    "telemetry": ("", ("delete_sinks_volume", "cleanup_credentials", "cleanup_logs")),
     "orchestrator": ("", ("cleanup_credentials", "cleanup_slurm", "cleanup_k8s",
                           "cleanup_benchmark_tools")),
     "image_build_manager": ("", ("cleanup_credentials",)),
@@ -61,7 +67,7 @@ MAIN_CLEANUP_ALL_KEY = "cleanup_all"
 # so all FVT results, the setup steps and the SVT cases go into one report.
 REPORT_KEYS = ("report_path", "report_name", "run_id")
 REPORT_SUITES = ("main", "repo_manager", "image_build_manager", "orchestrator",
-                 "build_stream")
+                 "telemetry", "build_stream")
 
 # Domain credential stores, written by test/<theme creds_suite>/setup_env.sh
 # --set-domain-creds at <domain data>/input/<project>/<file> (vault encrypted).
@@ -87,7 +93,7 @@ THEMES: Dict[str, Dict] = {
         # Suites whose requirements go into the Omnia venv, in --prepare-base
         # order (./setup_env.sh --install), then BuildStream.
         "fvt_domains": ("repo_manager", "image_build_manager", "orchestrator",
-                        "build_stream"),
+                        "telemetry", "build_stream"),
         # Domains whose input folder omnia.sh -s creates and whose credential
         # store the tests need (./setup_env.sh --set-domain-creds).
         "credential_domains": ("repo_manager", "image_build_manager", "orchestrator",
@@ -100,6 +106,10 @@ THEMES: Dict[str, Dict] = {
             ("build_stream", ("cleanup", "test")):
                 "/etc/containers/systemd/omnia_build_stream.container",
         },
+        # Cleanup steps of products this theme does not deploy but a previous installation may
+        # have: they run only when the domain holds deployed state (a file under its
+        # output/ or log/ in the data path, the rule omnia.sh --cleanup --all applies).
+        "cleanup_when_deployed": ("telemetry",),
         # ./run_validation.sh svt_build_stream <stage>, in this order (after
         # initialization, before summary).
         "stages": ("prepare_build_stream", "build_deploy", "cadence", "automatic_cleanup"),

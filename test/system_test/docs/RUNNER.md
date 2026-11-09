@@ -27,6 +27,7 @@ the suites' own values. A change here needs a new `--configure` (a new run).
 | Suite | Flags (booleans) |
 |---|---|
 | build_stream | `postgres_backup`, `cleanup_credentials` (its `cleanup:` section) |
+| telemetry | `delete_sinks_volume`, `cleanup_credentials`, `cleanup_logs` (runs only when telemetry holds deployed state) |
 | orchestrator | `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`, `cleanup_benchmark_tools` |
 | image_build_manager | `cleanup_credentials` |
 | repo_manager | `cleanup_credentials` |
@@ -74,7 +75,7 @@ Omnia venv cannot be activated, or the run guard refused.
 ## Safety model
 
 - **Destructive steps:** cleanup (`--cleanup`, `--force`) deletes the previous
-  installation: BuildStream and GitLab, orchestrator, image_build_manager,
+  installation: BuildStream and GitLab, telemetry (when deployed), orchestrator, image_build_manager,
   repo_manager, then the Omnia setup (venv, `/etc/omnia/omnia.env`) and, with
   `cleanup_all`, the whole `OMNIA_DATA_PATH`. It asks
   for `yes` unless `--yes`. install rewrites a different `/etc/omnia/omnia.env`, and with `--yes`

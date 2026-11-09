@@ -50,8 +50,8 @@ build_stream:
 #           unless --yes)
 # =============================================================================
 # Removes the previous installation with each suite's own cleanup FVT, in this
-# order: build_stream, orchestrator, image_build_manager, repo_manager, then
-# main (omnia.sh --cleanup). Every flag below is written into that suite's
+# order: build_stream, telemetry, orchestrator, image_build_manager, repo_manager,
+# then main (omnia.sh --cleanup). Every flag below is written into that suite's
 # test/<suite>/test_config.yml, so each cleanup FVT runs with the value set
 # here.
 #   enabled: true | false (default: true). false skips that suite's cleanup.
@@ -64,6 +64,19 @@ cleanup:
     postgres_backup: false
     # true: delete the BuildStream credential files and keys.
     cleanup_credentials: true
+  # Telemetry runs on the Kubernetes cluster the orchestrator deploys, so it is removed
+  # first. This theme does not deploy it, so the step runs only when telemetry holds
+  # deployed state (a file under <data>/telemetry/output or /log); otherwise it is
+  # skipped. omnia.sh --cleanup --all refuses while those folders hold files.
+  telemetry:
+    enabled: true
+    # true: also delete the sink PVCs (Kafka and VictoriaMetrics data) and the log,
+    # input and output directories; false: keep them. true for a complete reset.
+    delete_sinks_volume: true
+    # true: delete the telemetry credential files.
+    cleanup_credentials: true
+    # true: delete the telemetry log directory.
+    cleanup_logs: true
   orchestrator:
     enabled: true
     cleanup_credentials: true

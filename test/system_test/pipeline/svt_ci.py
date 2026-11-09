@@ -528,6 +528,44 @@ def _section_rows(report: Dict[str, Any]) -> str:
     return rows
 
 
+def _failures(statuses: Dict[str, str], report: Dict[str, Any]
+              ) -> Tuple[List[Tuple[str, str]], List[str], List[str]]:
+    """Return (failed jobs as (job, status), jobs that did not run, one line per failed SVT step).
+
+    A job that did not run has no status file: GitLab skips the jobs after a failed one.
+    """
+    order = [job for job in _env("SVT_JOB_ORDER").split(",") if job and job != "summary"]
+    failed = [(job, statuses[job]) for job in order if statuses.get(job) in ("failed", "canceled")]
+    not_run = [job for job in order if job not in statuses] if failed else []
+    details = []
+    for section in report.get("sections") or []:
+        for item in section.get("items") or []:
+            if item.get("status") == "Failed":
+                error = (item.get("error") or "").strip().splitlines()
+                details.append(f"{section.get('stage') or section.get('name', '')}: "
+                               f"{(item.get('id') or '').strip()} {item.get('name', '')}".rstrip()
+                               + (f" - {error[0][:200]}" if error else ""))
+    return failed, not_run, details
+
+
+def _failure_banner(failed: List[Tuple[str, str]], not_run: List[str], details: List[str],
+                    problems: List[str]) -> None:
+    """Print which stage failed, why, and what did not run, in a block of the job log."""
+    print("=" * 72, flush=True)
+    print("SVT FAILED", flush=True)
+    for job, status in failed:
+        print(f"  failed stage : {job} ({status})", flush=True)
+    for line in details:
+        print(f"    - {line}", flush=True)
+    for problem in problems:
+        if not problem.split(" ", 1)[0] in {job for job, _ in failed}:
+            print(f"  also         : {problem}", flush=True)
+    if not_run:
+        print(f"  did not run  : {', '.join(not_run)} (after the failure)", flush=True)
+    print("  the SVT report and logs are in the job artifacts (svt_report/)", flush=True)
+    print("=" * 72, flush=True)
+
+
 def _status_cell(status: str) -> str:
     color = {"success": "#28a745", "passed": "#28a745", "failed": "#dc3545",
              "running": "#007bff"}.get(status.lower(), "#6c757d")
@@ -546,7 +584,9 @@ def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) 
     label = _env("SVT_LABEL")
     message = MIMEMultipart()
     message["From"], message["To"] = sender, ", ".join(recipients)
-    message["Subject"] = f"Omnia SVT [{label}] {title} - {verdict}"
+    failed, not_run, details = _failures(statuses, report)
+    stages = f" ({', '.join(job for job, _ in failed)})" if failed else ""
+    message["Subject"] = f"Omnia SVT [{label}] {title} - {verdict}{stages}"
     jobs = "".join(f"<tr><td>{html.escape(job)}</td><td>{_status_cell(statuses.get(job, ''))}"
                    f"</td></tr>" for job in _env("SVT_JOB_ORDER").split(",") if job)
     commit = ""
@@ -557,6 +597,18 @@ def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) 
         pass
     style = "border-collapse:collapse;border:1px solid #ddd"
     url = html.escape(_env("CI_PIPELINE_URL"))
+    why = ""
+    if failed:
+        steps = "".join(f"<li>{html.escape(line)}</li>" for line in details)
+        why = (f"<h3 style='color:#dc3545'>Failed</h3><p><b>Failed stage(s):</b> "
+               f"{html.escape(', '.join(f'{job} ({state})' for job, state in failed))}"
+               + (f"<br><b>Did not run:</b> {html.escape(', '.join(not_run))}" if not_run else "")
+               + "</p>" + (f"<ul>{steps}</ul>" if steps else ""))
+    job_url = _env("CI_JOB_URL")
+    artifacts = (f"<p><b>Artifacts</b> (the SVT report, JUnit files and logs): "
+                 f"<a href='{html.escape(job_url)}/artifacts/browse/svt_report/'>browse the "
+                 f"svt_report/ directory</a> &nbsp; <a href='{html.escape(job_url)}"
+                 f"/artifacts/download'>download all</a></p>" if job_url else "")
     body = (f"<html><body style='font-family:Arial,sans-serif'>"
             f"<h2>Omnia System Verification - {html.escape(title)}</h2>"
             f"<p><b>Status:</b> {_status_cell(verdict)} &nbsp; <b>OIM:</b> {html.escape(label)}"
@@ -564,12 +616,14 @@ def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) 
             f"{html.escape(str(meta.get('run_id', '')))}</p>"
             f"<p><b>Branch:</b> {html.escape(_env('SVT_OMNIA_BRANCH'))} &nbsp; <b>Commit:</b> "
             f"{html.escape(commit)}</p><p><b>Pipeline:</b> <a href='{url}'>{url}</a></p>"
-            f"<h3>Pipeline Jobs</h3><table border='1' cellpadding='6' style='{style}'>"
+            f"{why}{artifacts}<h3>Pipeline Jobs</h3>"
+            f"<table border='1' cellpadding='6' style='{style}'>"
             f"<tr><th>Job</th><th>Status</th></tr>{jobs}</table>"
             f"<h3>SVT Sections</h3><table border='1' cellpadding='6' style='{style}'>"
             f"<tr><th>Section</th><th>Status</th><th>Steps</th><th>Passed</th><th>Failed</th>"
             f"<th>Skipped</th></tr>{_section_rows(report)}</table>"
-            f"<p>The SVT report is attached.</p></body></html>")
+            f"<p>Only the SVT report is attached; everything else is in the artifacts.</p>"
+            f"</body></html>")
     message.attach(MIMEText(body, "html"))
     for path in glob.glob(os.path.join(REPORT_DIR, "*.html")):
         with open(path, "rb") as stream:
@@ -613,9 +667,17 @@ def summary() -> int:
     if rc != 0:
         problems.append(f"SVT summary rc={rc}")
     report = _fetch_report()
+    failed, not_run, details = _failures(statuses, report)
+    listed = {job for job, _ in failed}
+    for section in report.get("sections") or []:
+        name = section.get("stage") or ""
+        if section.get("status") == "Failed" and name and name not in listed:
+            problems.append(f"{name} failed in the SVT report")
     verdict = "FAILED" if problems else "PASSED"
     statuses["summary"] = "failed" if problems else "success"
     _say(f"overall: {verdict}" + (f" ({'; '.join(problems)})" if problems else ""))
+    if problems:
+        _failure_banner(failed, not_run, details, problems)
     sent = _send_email(verdict, statuses, report)
     if not sent and _env("SVT_EMAIL_REQUIRED").lower() == "true":
         _say("SVT_EMAIL_REQUIRED=true: the summary job fails because the email was not sent")

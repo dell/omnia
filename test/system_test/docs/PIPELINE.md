@@ -199,8 +199,14 @@ Also: CI/CD > Schedules (nightly), or the API
 |---|---|
 | `summary` job > artifacts `svt_report/` | The SVT report (`.html`, `.json`), `logs/` (complete output of every step), `junit/` |
 | Pipeline > Tests tab | Every SVT test (from `junit/`) |
-| Email | Status, OIM, branch, commit, the job table, the SVT sections; the HTML report attached (gzip above 5 MB) |
+| Email | Subject with the status and the failed stage(s); the failed stage(s), the failed SVT steps with their error line and the jobs that did not run; status, OIM, branch, commit, the job table, the SVT sections; a link to the `svt_report/` artifacts directory; only the SVT HTML report attached (gzip above 5 MB) |
 | The OIM | `test/system_test/reports/<run_id>/` as for a run by hand |
+
+**When a stage fails:** the pipeline stops at it (the later stages do not run) and the
+`summary` job still runs and **fails**. Its log ends with a block that names the failed
+stage, the failed SVT steps with the first line of their error, and the stages that did not
+run; the email carries the same, so you know which stage to Retry. A Retry of the failed job
+continues the same run (see RUNNER.md); then run the `summary` job again.
 
 ## 8. Add a cluster or change the config
 
