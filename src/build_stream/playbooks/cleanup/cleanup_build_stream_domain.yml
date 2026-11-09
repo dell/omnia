@@ -20,7 +20,9 @@
 #   2. Stops and removes playbook-watcher service
 #   3. Removes automation framework (molecule/validate)
 #   4. Stops and removes omnia_postgres container & quadlet service
-#   5. Cleans up NFS directories (logs, queue, SSL, inventory, etc.)
+#   5. Cleans up NFS directories (logs, queue, SSL, inventory, etc.); under
+#      build_stream_root only the artifact files PostgreSQL references are kept
+#      with postgres_backup=true; all of it is deleted with postgres_backup=false
 #   6. Removes build_stream credential files (unless cleanup_credentials=false)
 #
 # It performs NO GitLab cleanup and NO warning/pause. The orchestration

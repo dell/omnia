@@ -41,7 +41,8 @@
 #   # GitLab first, then BuildStream (no pause) — the combined cleanup extension:
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
 #
-#   # Also delete postgres data (default: preserved):
+#   # Also delete postgres data AND the BuildStream job artifacts it references
+#   # (default: both preserved together):
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false
 #
 #   # Preserve build_stream credential files (default: removed):
@@ -124,6 +125,10 @@
             )
             + [
                 'PostgreSQL data:     ' ~ ('DELETED' if not (postgres_backup | default(true) | bool) else 'PRESERVED'),
+                'Job artifacts:       ' ~ ('PRESERVED with PostgreSQL'
+                                           if ('oim' in hostvars)
+                                              and (hostvars['oim'].build_stream_job_data_preserved | default(false) | bool)
+                                           else 'DELETED with PostgreSQL'),
                 'BuildStream creds:   ' ~ ('PRESERVED' if not (cleanup_credentials | default(true) | bool) else 'REMOVED'),
               ]
           }}

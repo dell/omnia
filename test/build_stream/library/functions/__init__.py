@@ -114,6 +114,7 @@ from library.functions.cleanup_func import (
     check_buildstream_runtime_caches_removed,
     check_buildstream_api_port_closed,
     check_credentials_per_flag,
+    check_job_data_per_backup,
     check_postgres_data_per_backup,
 )
 
@@ -338,6 +339,7 @@ __all__ = [
     "check_buildstream_runtime_caches_removed",
     "check_buildstream_api_port_closed",
     "check_credentials_per_flag",
+    "check_job_data_per_backup",
     "check_postgres_data_per_backup",
     "load_server_credentials",
     # Prepare base
