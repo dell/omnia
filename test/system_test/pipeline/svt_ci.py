@@ -63,6 +63,7 @@ import subprocess  # nosec B404  # fixed argument lists, no shell on the runner
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from email.mime.application import MIMEApplication
@@ -114,6 +115,15 @@ def _inputs_dir() -> str:
 
 def _fail(message: str) -> None:
     print(f"ERROR: {message}", flush=True)
+    job = re.sub(r"[^A-Za-z0-9_.-]", "_", os.environ.get("CI_JOB_NAME", ""))
+    if job:
+        try:
+            os.makedirs(os.path.join(STATE_DIR, "errors"), exist_ok=True)
+            with open(os.path.join(STATE_DIR, "errors", f"{job}.txt"), "w",
+                      encoding="utf-8") as stream:
+                stream.write(message)
+        except OSError:
+            pass
     sys.exit(1)
 
 
@@ -200,6 +210,66 @@ def remote(command: str, stdin: Optional[bytes] = None, capture: bool = False,
     return done.returncode, done.stdout or b""
 
 
+class LogFilter:
+    """Keep a job's log under the runner's size limit (GitLab Runner stops collecting a job log
+    at 4096 KB; the SVT streams whole playbook logs).
+
+    * a line that is only base64 (an Ansible task dumping a slurped file) is hidden, counted;
+    * a line longer than MAX_LINE characters is cut, with the number of characters left out;
+    * after the budget (SVT_LOG_LIMIT_KB, default 2500, shared by every log of the job; the
+      runner adds a timestamp to each line, about 30 % more) the rest is not printed: the
+      full log stays on the OIM, and the last lines are shown when the job ends.
+    """
+
+    remaining: Optional[int] = None
+
+    MAX_LINE = 600
+    BASE64 = re.compile(rb"^[\s\xe2\x94\x82]*[A-Za-z0-9+/=]{80,}\s*$")
+
+    def __init__(self, budgeted: bool = True) -> None:
+        if LogFilter.remaining is None:
+            LogFilter.remaining = max(256, int(_env("SVT_LOG_LIMIT_KB", "2500") or 2500)) * 1024
+        self.budgeted = budgeted
+        self.carry, self.hidden, self.clipped = b"", 0, 0
+        self.muted = budgeted and LogFilter.remaining <= 0
+
+    def _line(self, line: bytes) -> Optional[bytes]:
+        if self.BASE64.match(line):
+            self.hidden += 1
+            return None
+        if len(line) > self.MAX_LINE:
+            self.clipped += 1
+            return (line[:self.MAX_LINE]
+                    + f" ...[{len(line) - self.MAX_LINE} more characters]".encode())
+        return line
+
+    def feed(self, chunk: bytes, final: bool = False) -> bytes:
+        """Return what to print for ``chunk`` (a partial last line is kept for the next call)."""
+        lines = (self.carry + chunk).split(b"\n")
+        self.carry = b"" if final else lines.pop()
+        kept = [line for line in map(self._line, lines) if line is not None]
+        out = b"".join(line + b"\n" for line in kept)
+        if self.muted:
+            return b""
+        if not self.budgeted:
+            return out
+        if len(out) > LogFilter.remaining:
+            self.muted = True
+            cut, LogFilter.remaining = out[:LogFilter.remaining], 0
+            return cut + (
+                b"\n[svt-ci] log limit reached (SVT_LOG_LIMIT_KB): the rest is not printed here; "
+                b"the full log is on the OIM, the last lines follow when the job ends\n")
+        LogFilter.remaining -= len(out)
+        return out
+
+    def summary(self) -> str:
+        """Return what was left out ("" when nothing)."""
+        parts = [f"{self.hidden} base64 lines hidden" if self.hidden else "",
+                 f"{self.clipped} long lines cut" if self.clipped else "",
+                 "output after the log limit not printed" if self.muted else ""]
+        return ", ".join(part for part in parts if part)
+
+
 def run_detached(job: str, command: str) -> int:
     """Run ``command`` in test/system_test on the OIM in its own session; stream its log."""
     directory = _ci_dir()
@@ -215,6 +285,7 @@ def run_detached(job: str, command: str) -> int:
     if rc != 0:
         _fail(f"could not start {job} on the OIM (ssh rc={rc})")
     offset, failures, poll = 0, 0, max(5, int(_env("SVT_POLL_SECONDS", "30") or 30))
+    logfilter = LogFilter()
     probe = (f"tail -c +{{offset}} {shlex.quote(log)} 2>/dev/null; "
              f"printf '\\n{RC_MARK.decode()}%s\\n' \"$(cat {shlex.quote(rc_file)} 2>/dev/null)\"")
     while True:
@@ -228,11 +299,18 @@ def run_detached(job: str, command: str) -> int:
             continue
         failures = 0
         chunk = out[:index]
-        sys.stdout.buffer.write(chunk)
+        code = out[index + len(RC_MARK) + 1:].strip()
+        sys.stdout.buffer.write(logfilter.feed(chunk, final=bool(code)))
         sys.stdout.flush()
         offset += len(chunk)
-        code = out[index + len(RC_MARK) + 1:].strip()
         if code:
+            left_out = logfilter.summary()
+            if left_out:
+                _say(f"{job}: {left_out}; the full log is on the OIM: {log}")
+            if logfilter.muted:
+                _, tail = remote(f"tail -n 40 {shlex.quote(log)}", capture=True, timeout=120)
+                sys.stdout.buffer.write(LogFilter(budgeted=False).feed(tail, final=True))
+                sys.stdout.flush()
             return int(code) if code.isdigit() else 1
         time.sleep(poll)
 
@@ -364,7 +442,8 @@ def checkout() -> int:
              f"git clone -b {qbranch} {qrepo} {qpath}")
     script = {
         "clone": f"rm -rf -- {qpath} && {clone}",
-        "update": (f"if [ -d {qpath}/.git ]; then cd {qpath} && git remote set-url origin {qrepo} && git fetch origin {qbranch} && "
+        "update": (f"if [ -d {qpath}/.git ]; then cd {qpath} && "
+                   f"git remote set-url origin {qrepo} && git fetch origin {qbranch} && "
                    f"git checkout --force -B {qbranch} FETCH_HEAD; else {clone}; fi"),
         "keep": f"test -d {qpath}/.git",
     }[mode]
@@ -532,17 +611,18 @@ def _fetch_files(pattern: str, local_dir: str) -> None:
                 stream.write(content)
 
 
-def _section_rows(report: Dict[str, Any]) -> str:
+def _section_rows(report: Dict[str, Any], cell: str = "padding:6px") -> str:
     rows = ""
     for section in report.get("sections") or []:
         results = [r for item in section.get("items") or [] for r in item.get("results") or []]
         count = {s: sum(1 for r in results if r.get("status") == s)
                  for s in ("Passed", "Failed", "Skipped")}
-        rows += (f"<tr><td>{html.escape(section.get('name', ''))}</td>"
-                 f"<td>{_status_cell(section.get('status', ''))}</td>"
-                 f"<td>{len(section.get('items') or [])}</td><td style='color:green'>"
-                 f"{count['Passed']}</td><td style='color:red'>{count['Failed']}</td>"
-                 f"<td style='color:orange'>{count['Skipped']}</td></tr>")
+        rows += (f"<tr><td style='{cell}'>{html.escape(section.get('name', ''))}</td>"
+                 f"<td style='{cell}'>{_status_cell(section.get('status', ''))}</td>"
+                 f"<td style='{cell}'>{len(section.get('items') or [])}</td>"
+                 f"<td style='{cell};color:#198754'>{count['Passed']}</td>"
+                 f"<td style='{cell};color:#dc3545'>{count['Failed']}</td>"
+                 f"<td style='{cell};color:#fd7e14'>{count['Skipped']}</td></tr>")
     return rows
 
 
@@ -590,6 +670,74 @@ def _status_cell(status: str) -> str:
     return f"<b style='color:{color}'>{html.escape(status.upper() or 'NOT RUN')}</b>"
 
 
+def _web_base(clone_url: str) -> str:
+    """Return the https web address of a clone URL (https, ssh:// or git@host:path), or ""."""
+    clone_url = re.sub(r"^(https?://)[^/@]+@", r"\1", clone_url.strip())
+    match = (re.fullmatch(r"https?://([^/\s]+)/(.+?)(?:\.git)?/?", clone_url)
+             or re.fullmatch(r"(?:ssh://)?[\w.-]+@([^/:\s]+)[:/](.+?)(?:\.git)?/?", clone_url))
+    return f"https://{match.group(1)}/{match.group(2)}" if match else ""
+
+
+def _git_links(repo: str, branch: str, commit: str) -> Tuple[str, str, str]:
+    """Return the web links of the repository, the branch and the commit ("" when unknown)."""
+    base = _web_base(repo)
+    marker = "/-" if "gitlab" in base else ""
+    tree = f"{base}{marker}/tree/{urllib.parse.quote(branch, safe='/')}"
+    return (base, tree if base and branch else "",
+            f"{base}{marker}/commit/{commit}" if base and commit else "")
+
+
+def _anchor(url: str, text: str) -> str:
+    return (f"<a href='{html.escape(url, quote=True)}' style='color:#0b5ed7'>"
+            f"{html.escape(text)}</a>" if url else html.escape(text))
+
+
+def _button(url: str, text: str, color: str = "#0b5ed7") -> str:
+    return (f"<a href='{html.escape(url, quote=True)}' style='display:inline-block;"
+            f"padding:8px 14px;margin:0 8px 8px 0;background:{color};color:#fff;"
+            f"text-decoration:none;border-radius:4px;font-size:13px'>{html.escape(text)}</a>"
+            if url else "")
+
+
+def _job_reasons() -> Dict[str, str]:
+    """Return {job: the error its job recorded} (jobs that failed through _fail)."""
+    reasons = {}
+    for path in glob.glob(os.path.join(STATE_DIR, "errors", "*.txt")):
+        try:
+            with open(path, "r", encoding="utf-8") as stream:
+                reasons[os.path.basename(path)[:-4]] = stream.read().strip()
+        except OSError:
+            continue
+    return reasons
+
+
+def _job_links() -> Dict[str, str]:
+    """Return {job: its page in GitLab} for this pipeline (best effort: {} when the API call
+    is refused or fails; the email then links the pipeline only)."""
+    api, pipeline = _env("CI_API_V4_URL"), _env("CI_PIPELINE_ID")
+    token = os.environ.get("CI_JOB_TOKEN", "")
+    if not (api and token and pipeline and _env("CI_PROJECT_ID")):
+        return {}
+    cafile = _env("CI_SERVER_TLS_CA_FILE")
+    try:
+        context = ssl.create_default_context(cafile=cafile or None)
+        request = urllib.request.Request(  # nosec B310  # GitLab API of this project
+            f"{api}/projects/{_env('CI_PROJECT_ID')}/pipelines/{pipeline}/jobs?per_page=100",
+            headers={"JOB-TOKEN": token})
+        with urllib.request.urlopen(request, context=context, timeout=20) as response:  # nosec B310
+            return {job["name"]: job["web_url"] for job in json.load(response)}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
+def _read_commit() -> str:
+    try:
+        with open(os.path.join(STATE_DIR, "commit.txt"), "r", encoding="utf-8") as stream:
+            return stream.read().strip()
+    except OSError:
+        return ""
+
+
 def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) -> bool:
     """Send the summary email; return False only when it was configured and could not be sent."""
     recipients = [r.strip() for r in _env("EMAIL_RECIPIENTS").split(",") if r.strip()]
@@ -600,50 +748,103 @@ def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) 
     meta = report.get("meta") or {}
     title = meta.get("theme_title") or _theme()
     label = _env("SVT_LABEL")
-    message = MIMEMultipart()
+    message = MIMEMultipart("mixed")
     message["From"], message["To"] = sender, ", ".join(recipients)
     failed, not_run, details = _failures(statuses, report)
     stages = f" ({', '.join(job for job, _ in failed)})" if failed else ""
     message["Subject"] = f"Omnia SVT [{label}] {title} - {verdict}{stages}"
-    jobs = "".join(f"<tr><td>{html.escape(job)}</td><td>{_status_cell(statuses.get(job, ''))}"
-                   f"</td></tr>" for job in _env("SVT_JOB_ORDER").split(",") if job)
-    commit = ""
-    try:
-        with open(os.path.join(STATE_DIR, "commit.txt"), "r", encoding="utf-8") as stream:
-            commit = stream.read().strip()
-    except OSError:
-        pass
-    style = "border-collapse:collapse;border:1px solid #ddd"
-    url = html.escape(_env("CI_PIPELINE_URL"))
+    commit, branch, repo = _read_commit(), _env("SVT_OMNIA_BRANCH"), _env("SVT_OMNIA_REPO")
+    repo_url, branch_url, commit_url = _git_links(repo, branch, commit)
+    pipeline_url, job_url = _env("CI_PIPELINE_URL"), _env("CI_JOB_URL")
+    attachments = sorted(glob.glob(os.path.join(REPORT_DIR, "*.html")))
+    has_results = bool(report.get("sections"))
+    report_url = f"{job_url}/artifacts/browse/svt_report/" if job_url and attachments else ""
+    reasons, links = _job_reasons(), _job_links()
+    ok = verdict == "PASSED"
+    color = "#198754" if ok else "#dc3545"
+    cell = "padding:6px 10px;border:1px solid #dee2e6;font-size:13px"
+    head = f"{cell};background:#f1f3f5;text-align:left"
+    esc = html.escape
+    run_id = str(meta.get("run_id", ""))
+    not_started = "not started (the pipeline stopped before the SVT run)"
+    info = [("Run", esc(run_id) if run_id else not_started),
+            ("OIM", esc(label or "-")),
+            ("Theme", esc(f"{title} ({_theme()})")),
+            ("Repository", _anchor(repo_url, _web_base(repo) or repo or "-")),
+            ("Branch", _anchor(branch_url, branch or "-")),
+            ("Commit", _anchor(commit_url, commit[:12]) if commit else "not checked out"),
+            ("Pipeline", _anchor(pipeline_url, pipeline_url or "-"))]
+    info_rows = "".join(f"<tr><td style='{head};width:110px'><b>{name}</b></td>"
+                        f"<td style='{cell}'>{value}</td></tr>" for name, value in info)
     why = ""
     if failed:
-        steps = "".join(f"<li>{html.escape(line)}</li>" for line in details)
-        why = (f"<h3 style='color:#dc3545'>Failed</h3><p><b>Failed stage(s):</b> "
-               f"{html.escape(', '.join(f'{job} ({state})' for job, state in failed))}"
-               + (f"<br><b>Did not run:</b> {html.escape(', '.join(not_run))}" if not_run else "")
-               + "</p>" + (f"<ul>{steps}</ul>" if steps else ""))
-    job_url = _env("CI_JOB_URL")
-    artifacts = (f"<p><b>Artifacts</b> (the SVT report, JUnit files and logs): "
-                 f"<a href='{html.escape(job_url)}/artifacts/browse/svt_report/'>browse the "
-                 f"svt_report/ directory</a> &nbsp; <a href='{html.escape(job_url)}"
-                 f"/artifacts/download'>download all</a></p>" if job_url else "")
-    body = (f"<html><body style='font-family:Arial,sans-serif'>"
-            f"<h2>Omnia System Verification - {html.escape(title)}</h2>"
-            f"<p><b>Status:</b> {_status_cell(verdict)} &nbsp; <b>OIM:</b> {html.escape(label)}"
-            f" &nbsp; <b>Theme:</b> {html.escape(_theme())} &nbsp; <b>Run:</b> "
-            f"{html.escape(str(meta.get('run_id', '')))}</p>"
-            f"<p><b>Branch:</b> {html.escape(_env('SVT_OMNIA_BRANCH'))} &nbsp; <b>Commit:</b> "
-            f"{html.escape(commit)}</p><p><b>Pipeline:</b> <a href='{url}'>{url}</a></p>"
-            f"{why}{artifacts}<h3>Pipeline Jobs</h3>"
-            f"<table border='1' cellpadding='6' style='{style}'>"
-            f"<tr><th>Job</th><th>Status</th></tr>{jobs}</table>"
-            f"<h3>SVT Sections</h3><table border='1' cellpadding='6' style='{style}'>"
-            f"<tr><th>Section</th><th>Status</th><th>Steps</th><th>Passed</th><th>Failed</th>"
-            f"<th>Skipped</th></tr>{_section_rows(report)}</table>"
-            f"<p>Only the SVT report is attached; everything else is in the artifacts.</p>"
-            f"</body></html>")
-    message.attach(MIMEText(body, "html"))
-    for path in glob.glob(os.path.join(REPORT_DIR, "*.html")):
+        steps = "".join(f"<li style='margin-bottom:4px'>{esc(line)}</li>" for line in details)
+        failed_rows = "".join(
+            f"<li style='margin-bottom:4px'>{_anchor(links.get(job, ''), job)} ({esc(state)})"
+            + (f"<br><span style='color:#842029'>{esc(reasons[job])}</span>"
+               if reasons.get(job) else "") + "</li>" for job, state in failed)
+        why = (f"<div style='border-left:4px solid #dc3545;background:#fdf1f2;padding:10px 14px;"
+               f"margin:16px 0'><b>Failed:</b><ul style='margin:6px 0 0 18px;padding:0'>"
+               f"{failed_rows}</ul>"
+               + (f"<b>Did not run:</b> {esc(', '.join(not_run))}<br>" if not_run else "")
+               + (f"<b>Failed SVT steps:</b><ul style='margin:6px 0 0 18px;padding:0'>{steps}</ul>"
+                  if steps else "") + "</div>")
+    jobs = "".join(f"<tr><td style='{cell}'>{_anchor(links.get(job, ''), job)}</td>"
+                   f"<td style='{cell}'>{_status_cell(statuses.get(job, ''))}</td></tr>"
+                   for job in _env("SVT_JOB_ORDER").split(",") if job)
+    buttons = (_button(pipeline_url, "Open the pipeline") + _button(report_url, "Browse the report")
+               + _button(f"{job_url}/artifacts/download" if job_url else "",
+                         "Download all artifacts", "#6c757d"))
+    sections = (
+        f"<h3 style='margin:18px 0 6px;font-size:15px'>SVT sections</h3>"
+        f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
+        f"<tr><th style='{head}'>Section</th><th style='{head}'>Status</th>"
+        f"<th style='{head}'>Steps</th><th style='{head}'>Passed</th>"
+        f"<th style='{head}'>Failed</th><th style='{head}'>Skipped</th></tr>"
+        f"{_section_rows(report, cell)}</table>" if has_results else
+        "<p style='margin:18px 0 0'><b>No SVT results:</b> the pipeline stopped before any SVT "
+        "step ran, so there is no SVT report. The reason is in the failed job above.</p>")
+    footer = ("<p style='margin:16px 0 0;font-size:12px;color:#6c757d'>The SVT report is attached "
+              "(open it in a browser); logs and JUnit files are in the job artifacts.</p>"
+              if attachments else
+              "<p style='margin:16px 0 0;font-size:12px;color:#6c757d'>No SVT report is attached: "
+              "none was produced. The job logs are linked above.</p>")
+    body = (
+        "<html><body style='margin:0;padding:16px;background:#f8f9fa;"
+        "font-family:Arial,Helvetica,sans-serif;color:#212529'>"
+        "<table role='presentation' width='680' cellpadding='0' cellspacing='0' "
+        "style='max-width:680px;margin:0 auto;background:#fff;border:1px solid #dee2e6'>"
+        f"<tr><td style='background:{color};color:#fff;padding:16px 20px'>"
+        f"<div style='font-size:12px;opacity:.85'>Omnia System Verification</div>"
+        f"<div style='font-size:20px;font-weight:bold'>{html.escape(title)}: "
+        f"{html.escape(verdict)}</div></td></tr>"
+        "<tr><td style='padding:16px 20px'>"
+        f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
+        f"{info_rows}</table>{why}<p style='margin:16px 0 8px'>{buttons}</p>"
+        f"<h3 style='margin:18px 0 6px;font-size:15px'>Pipeline jobs</h3>"
+        f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
+        f"<tr><th style='{head}'>Job</th><th style='{head}'>Status</th></tr>{jobs}</table>"
+        f"{sections}{footer}</td></tr></table></body></html>")
+    text = "\n".join([
+        f"Omnia SVT [{label}] {title}: {verdict}", "",
+        f"Run:        {run_id or 'not started'}", f"Repository: {_web_base(repo) or repo or '-'}",
+        f"Branch:     {branch or '-'}  {branch_url}".rstrip(),
+        f"Commit:     {commit[:12] or 'not checked out'}  {commit_url}".rstrip(),
+        f"Pipeline:   {pipeline_url}",
+        *([f"Report:     {report_url}"] if report_url else []), "",
+        *(["Failed: " + ", ".join(f"{job} ({state})" for job, state in failed)]
+          + [f"  {job}: {reasons[job]}" for job, _ in failed if reasons.get(job)]
+          + [f"  - {line}" for line in details]
+          + ([f"Did not run: {', '.join(not_run)}"] if not_run else []) + [""] if failed else []),
+        *([] if has_results else
+          ["No SVT results: the pipeline stopped before any SVT step ran.", ""]),
+        "Pipeline jobs:", *(f"  {job:<24} {statuses.get(job, 'not run')}"
+                            for job in _env("SVT_JOB_ORDER").split(",") if job)])
+    alternative = MIMEMultipart("alternative")
+    alternative.attach(MIMEText(text, "plain", "utf-8"))
+    alternative.attach(MIMEText(body, "html", "utf-8"))
+    message.attach(alternative)
+    for path in attachments:
         with open(path, "rb") as stream:
             content = stream.read()
         name = os.path.basename(path)

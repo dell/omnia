@@ -87,6 +87,7 @@ GLOBAL_VARIABLES = {
     ("email", "smtp_port"): "SMTP_PORT",
     ("email", "required"): "SVT_EMAIL_REQUIRED",
     ("svt", "poll_seconds"): "SVT_POLL_SECONDS",
+    ("svt", "log_limit_kb"): "SVT_LOG_LIMIT_KB",
 }
 # Where OpenBao is: ONE place, the openbao block of user_inputs.yml (also what
 # ./setup_env.sh --domain-creds-from-openbao reads). Its keys -> CI/CD variable.

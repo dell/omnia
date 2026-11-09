@@ -32,6 +32,7 @@ flags are in `build_stream_test_config.yml` ([TEST_CONFIG.md](TEST_CONFIG.md)).
 |---|---|---|---|
 | `theme` | `build_stream` | The SVT theme (`THEMES` in `library/vars/theme_vars.py`). Its stages become the pipeline jobs, so a new theme or stage needs no change here | read at generation time |
 | `poll_seconds` | `30` | Seconds between two reads of a running stage's log on the OIM (minimum 5) | `SVT_POLL_SECONDS` |
+| `log_limit_kb` | `2500` (empty) | How much of the OIM logs one job prints into the GitLab job log, in KB. GitLab Runner stops collecting a job log at 4096 KB (`output_limit` in the runner's `config.toml`) and timestamps every line, so the job hides base64-only lines, cuts lines over 600 characters and stops printing at this budget (shared by all logs of the job). The full logs stay on the OIM under `reports/ci/<pipeline id>/`, and the last 40 lines are printed when the job ends | `SVT_LOG_LIMIT_KB` |
 | `timeouts_hours` | see below | Time limit of each job, in hours | rendered into `.gitlab-ci-svt.yml` (GitLab does not expand variables in `timeout:`); the project's CI timeout is raised to the longest |
 
 `timeouts_hours` keys are the job names: `preflight` (the checks and the checkout), `initialization`, then the
@@ -113,7 +114,7 @@ script, secrets are never printed):
 | Variable | From | Notes |
 |---|---|---|
 | `SVT_CLUSTERS` | the cluster names | Which clusters a pipeline runs (override per run) |
-| `SVT_POLL_SECONDS`, `SVT_EMAIL_REQUIRED` | `svt`, `email` | |
+| `SVT_POLL_SECONDS`, `SVT_LOG_LIMIT_KB`, `SVT_EMAIL_REQUIRED` | `svt`, `email` | |
 | `EMAIL_*`, `SMTP_SERVER`, `SMTP_PORT` | `email` | |
 | `BAO_AUTH_ROLE` | `openbao.auth_role` | |
 | `BAO_SERVER_URL`, `BAO_DATA_PATH`, `BAO_TLS_SKIP_VERIFY` | `user_inputs.yml` `openbao` block | |

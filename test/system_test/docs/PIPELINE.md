@@ -166,7 +166,7 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
 |---|---|
 | `summary` job > artifacts `svt_report/` | The SVT report (`.html`, `.json`), `logs/` (complete output of every step), `junit/` |
 | Pipeline > Tests tab | Every SVT test (from `junit/`) |
-| Email | Subject with the status and the failed stage(s); the failed stage(s), the failed SVT steps with their error line and the jobs that did not run; status, OIM, branch, commit, the job table, the SVT sections; a link to the `svt_report/` artifacts directory; only the SVT HTML report attached (gzip above 5 MB) |
+| Email | Subject with the status and the failed stage(s). A coloured status banner, then a table with the run, OIM, theme, **repository, branch and commit as links** (the branch and the commit open the page of the tested code on GitHub or GitLab), and the pipeline link; the failed job(s) as links to their GitLab page, each with the error its job recorded (for example the checkout error), the failed SVT steps with their error line and the jobs that did not run; buttons to open the pipeline, browse the report and download the artifacts; the job table and the SVT sections. A plain-text version is included for clients that do not show HTML. When the pipeline failed before any SVT step ran, the mail says so: there is no run, no commit, no SVT sections table, no report button and no attachment. Otherwise the SVT HTML report is attached (gzip above 5 MB) |
 | The OIM | `test/system_test/reports/<run_id>/` as for a run by hand |
 
 **When a stage fails:** the pipeline stops at it (the later stages do not run) and the `summary`
@@ -227,6 +227,7 @@ password, a host key, `BAO_CACERT`, or a variable you added yourself.
 |---|---|
 | `SVT_SSH_KNOWN_HOSTS ... is required` | `./setup_svt_project.py --update --scan-host-keys`, or add the File variable; `ssh_skip_host_key: "true"` accepts the risk |
 | `the checkout has no usable SVT` | The branch has no `test/system_test/setup_env.sh` (with `--configure` and `--domain-creds-stdin`) and `run_validation.sh`: use a branch that has the system test |
+| `Job's log exceeded limit of 4194304 bytes` | The job printed more than the runner keeps. The pipeline already hides base64 lines, cuts long lines and stops at `svt.log_limit_kb`; lower it, or raise `output_limit` (KB) in the runner's `config.toml` and restart it. The full logs are on the OIM under `reports/ci/<pipeline id>/` |
 | `the summary email was NOT sent` | `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USER`/`SMTP_PASSWORD`; the report is still in the job artifacts. `email.required: "true"` makes it fail the job |
 | `preflight`: SSH failed | `<CLUSTER>_SVT_TARGET_IP`, password/key, port 22 from the runner, `sshpass` on the runner |
 | A protected variable is empty in the job | The pipeline ran on a branch that is not protected: run it on `main` (Settings > Repository > Protected branches) |
