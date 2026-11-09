@@ -20,7 +20,7 @@ runs on the OIM over SSH, through the same scripts a user runs by hand. With
 SVT_CLUSTER (multi-cluster projects) every variable <PREFIX>_<NAME> of that
 cluster is used as <NAME> and the inputs come from clusters/<name>/svt/::
 
-    svt_ci.py preflight          SSH to the OIM, OpenBao reachable
+    svt_ci.py preflight          SSH to the OIM, OpenBao reachable, then the checkout below
     svt_ci.py checkout           clone / update / keep the Omnia checkout, copy svt/ inputs
     svt_ci.py initialization     ./setup_env.sh --configure, --install --yes [--force]
                                  (cleanup first), --domain-creds-stdin (OpenBao JSON on
@@ -302,6 +302,11 @@ def bao_credentials() -> bytes:
 
 # -------------------------------------------------------------------- jobs
 def preflight() -> int:
+    """The preflight job: the checks, then the Omnia checkout (one stage, one SSH session less)."""
+    return _checks() or checkout()
+
+
+def _checks() -> int:
     """Check the CI variables, SSH to the OIM and OpenBao."""
     missing = [name for name in ("SVT_TARGET_IP", "SVT_OMNIA_INSTALL_PATH")
                if not _env(name)]

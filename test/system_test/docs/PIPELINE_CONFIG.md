@@ -34,7 +34,7 @@ flags are in `build_stream_test_config.yml` ([TEST_CONFIG.md](TEST_CONFIG.md)).
 | `poll_seconds` | `30` | Seconds between two reads of a running stage's log on the OIM (minimum 5) | `SVT_POLL_SECONDS` |
 | `timeouts_hours` | see below | Time limit of each job, in hours | rendered into `.gitlab-ci-svt.yml` (GitLab does not expand variables in `timeout:`); the project's CI timeout is raised to the longest |
 
-`timeouts_hours` keys are the job names: `preflight`, `checkout`, `initialization`, then the
+`timeouts_hours` keys are the job names: `preflight` (the checks and the checkout), `initialization`, then the
 theme's stages (`prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cleanup`) and
 `summary`. A job without its own entry uses `default_hours` (6 when that is missing too). The
 shortest allowed limit is 10 minutes. The runner's own maximum timeout still applies, so raise

@@ -123,7 +123,7 @@ Edit, in the GitLab project (Repository > Files, or a clone of it):
   mapping, BuildStream and GitLab hosts ...), the same file as `test/system_test/user_inputs.yml`;
 - `clusters/<cluster>/svt/<theme>_test_config.yml`: catalogs, cleanup flags.
 
-The checkout job copies both into the OIM's `test/system_test/` before every run; configure then
+The preflight job copies both into the OIM's `test/system_test/` before every run; configure then
 writes them into the Omnia inputs. A commit does not start the pipeline. The files hold cluster
 values (IPs, names) but never credentials.
 
@@ -142,17 +142,16 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
 
 **Jobs of each cluster (child pipeline `svt_<cluster>`):**
 
-1. `preflight`: SSH to the OIM, `git` and `python3` there, OpenBao reachable.
-2. `checkout`: the Omnia checkout, a check that it has the SVT scripts, then the cluster's `svt/`
-   inputs.
-3. `initialization`: `./setup_env.sh --configure`, then `--install --yes --force` (cleanup first,
+1. `preflight`: SSH to the OIM, `git` and `python3` there, OpenBao reachable; then the Omnia
+   checkout, a check that it has the SVT scripts, and the cluster's `svt/` inputs.
+2. `initialization`: `./setup_env.sh --configure`, then `--install --yes --force` (cleanup first,
    including telemetry and the NFS shares), both detached on the OIM; then the credentials read
    from OpenBao go to `--domain-creds-stdin`; then `./run_validation.sh svt_<theme>
    initialization`.
-4. The theme stages (build_stream: `prepare_build_stream`, `build_deploy`, `cadence`,
+3. The theme stages (build_stream: `prepare_build_stream`, `build_deploy`, `cadence`,
    `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. A failed stage skips the ones
    after it.
-5. `summary`: always, last. `./run_validation.sh svt_<theme> summary`, the report collected, the
+4. `summary`: always, last. `./run_validation.sh svt_<theme> summary`, the report collected, the
    email sent, then it **fails when any job or stage failed**.
 
 - **Long stages:** they run detached on the OIM (`setsid`; log, pid and rc under

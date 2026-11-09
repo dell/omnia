@@ -20,7 +20,7 @@ blocks: `build_stream`, `cleanup`, `report`, and inside `cleanup` the SVT-only `
 - Only the keys listed here are accepted; an unknown key, a wrong type or an invalid catalog
   stops `--configure` and names the key.
 - In the GitLab pipeline each cluster has its own copy,
-  `clusters/<name>/svt/build_stream_test_config.yml` in the project; the checkout job copies it
+  `clusters/<name>/svt/build_stream_test_config.yml` in the project; the preflight job copies it
   into the OIM before every run (see [PIPELINE.md](PIPELINE.md)).
 
 ## `build_stream`

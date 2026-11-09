@@ -47,8 +47,7 @@ svt:
   # is raised to the longest one.
   timeouts_hours:
     default_hours: 6
-    preflight: 0.25
-    checkout: 0.5
+    preflight: 0.75
     initialization: 4
     prepare_build_stream: 6
     build_deploy: 8

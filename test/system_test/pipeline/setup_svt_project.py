@@ -179,8 +179,8 @@ def ci_variables(config: Dict[str, Any]) -> Dict[str, str]:
 
 
 def jobs_of(theme: str) -> List[str]:
-    """Return the pipeline jobs in order: preflight, checkout, the SVT stages, summary."""
-    return ["preflight", "checkout", FIRST_STAGE, *THEMES[theme]["stages"], LAST_STAGE]
+    """Return the pipeline jobs in order: preflight (checks and checkout), the SVT stages, summary."""
+    return ["preflight", FIRST_STAGE, *THEMES[theme]["stages"], LAST_STAGE]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
@@ -278,9 +278,9 @@ def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
     ]
     for job in jobs:
         timeout = _timeout(config, job)[0]
-        title, description = stage_info(theme, job) if job not in ("preflight", "checkout") \
-            else (job.title(), {"preflight": "SSH to the OIM, OpenBao reachable",
-                                "checkout": "Omnia checkout on the OIM, svt/ inputs copied"}[job])
+        title, description = stage_info(theme, job) if job != "preflight" \
+            else ("Preflight", "SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, "
+                              "svt/ inputs copied")
         lines += [f"# {title}: {description}", f"{job}:", f"  stage: {job}",
                   f"  timeout: {timeout}"]
         if job == FIRST_STAGE and bao:
