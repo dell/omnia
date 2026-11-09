@@ -19,14 +19,15 @@ validate_preamble_read_csv_rescue_msg: |
   Failed to read the PXE mapping CSV into memory in role 'validate_preamble'
   (tasks/main.yml: "Read PXE mapping CSV into temp var").
   Context:
-    - Temp mapping file: /tmp/omnia_validate_mapping.csv
     - Source mapping file (pxe_mapping_file_path): {{ pxe_mapping_file_path | default('<unset>') }}
+    - Temp working copy: {{ _secure_validate_mapping.path | default('<not created>') }}
+      (created with mode 0600 and removed automatically when this task block exits)
   Likely causes:
     - The source mapping file is missing, unreadable or was not copied.
     - The CSV is malformed or is missing the ADMIN_MAC key column.
   Next steps:
     1. Confirm the source file exists and is readable: ls -l "{{ pxe_mapping_file_path | default('<unset>') }}"
-    2. Inspect the generated temp file: cat /tmp/omnia_validate_mapping.csv
+    2. Inspect the source file header and rows: head "{{ pxe_mapping_file_path | default('<unset>') }}"
     3. Ensure the CSV header contains an ADMIN_MAC column with unique values.
     4. Re-run the validate stage once the mapping file is corrected.
 
@@ -35,10 +36,12 @@ validate_preamble_promote_csv_rescue_msg: |
   'validate_preamble' (tasks/main.yml: "Promote CSV result to read_mapping_file
   fact").
   Context:
-    - Source variable: _validate_csv_result (parsed from /tmp/omnia_validate_mapping.csv)
+    - Source variable: _validate_csv_result (parsed from the temp working copy
+      {{ _secure_validate_mapping.path | default('<not created>') }}, removed on exit)
+    - Source mapping file (pxe_mapping_file_path): {{ pxe_mapping_file_path | default('<unset>') }}
   Likely causes:
     - The preceding CSV read was skipped or produced an unexpected structure.
   Next steps:
-    1. Verify the temp mapping file parsed correctly: cat /tmp/omnia_validate_mapping.csv
+    1. Verify the source CSV parses: head "{{ pxe_mapping_file_path | default('<unset>') }}"
     2. Confirm pxe_mapping_file_path is set and points to a valid CSV.
     3. Re-run the validate stage once the mapping file is corrected.
