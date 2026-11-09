@@ -1,0 +1,161 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# BuildStream job data follows the PostgreSQL database (OMN-DEF #1380).
+#
+# artifact_metadata rows store the key (relative to build_stream_root/artifacts)
+# of every file the application reads back: catalog/<hash>/catalog-metadata.bin,
+# config-files/<hash>/<file>.bin and <job_id>/<hash>/node-results.bin /
+# failed-nodes.bin. Deleting those files while the database is retained leaves
+# rows that point to missing files. So, after the Postgres cleanup step:
+#   database retained  -> keep ONLY the files artifact_metadata references and
+#                         delete everything else under build_stream_root
+#                         (restart_state, raw playbook output, JWT keys, ...)
+#   database deleted   -> delete build_stream_root completely
+#   postgres_backup=true but no database on disk -> nothing references the
+#                         files; delete build_stream_root with a warning
+# The referenced keys are read from PostgreSQL before it is stopped
+# (cleanup_postgres.yml). If they could not be read, files in the artifact
+# store key format are kept instead, with a warning.
+
+- name: Check whether a PostgreSQL database is retained
+  ansible.builtin.stat:
+    path: "{{ postgres_database_marker }}"
+  register: postgres_database_marker_stat
+
+- name: Keep BuildStream job data only with a retained PostgreSQL database
+  ansible.builtin.set_fact:
+    build_stream_job_data_preserved: "{{ postgres_database_marker_stat.stat.exists | bool }}"
+    build_stream_artifact_keep_source: >-
+      {{ 'database' if build_stream_referenced_artifact_keys is defined else 'key_format' }}
+    build_stream_artifacts_kept: 0
+    build_stream_artifacts_referenced_missing: 0
+
+- name: Warn that BuildStream job data has no database
+  ansible.builtin.debug:
+    msg: "{{ build_stream_job_data_orphaned_msg }}"
+  when:
+    - postgres_backup | default(true) | bool
+    - not build_stream_job_data_preserved | bool
+
+- name: Check BuildStream root directory
+  ansible.builtin.stat:
+    path: "{{ build_stream_root_directory }}"
+  register: build_stream_root_stat
+
+- name: Remove BuildStream root runtime data
+  when: build_stream_root_stat.stat.exists
+  block:
+    - name: Remove build_stream_root together with its job data
+      ansible.builtin.file:
+        path: "{{ build_stream_root_directory }}"
+        state: absent
+        force: true
+      register: build_stream_root_deletion
+      until: build_stream_root_deletion is not failed
+      retries: "{{ max_retries }}"
+      when: not build_stream_job_data_preserved | bool
+
+    - name: Keep only the artifact files PostgreSQL references
+      when: build_stream_job_data_preserved | bool
+      block:
+        - name: Warn that the referenced artifact list could not be read
+          ansible.builtin.debug:
+            msg: "{{ build_stream_artifact_keys_unknown_msg }}"
+          when: build_stream_artifact_keep_source == 'key_format'
+
+        - name: Find every entry under build_stream_root
+          ansible.builtin.find:
+            paths: "{{ build_stream_root_directory }}"
+            file_type: any
+            hidden: true
+            recurse: true
+            follow: false
+          register: build_stream_root_entries
+
+        - name: Select the artifact files to keep
+          ansible.builtin.set_fact:
+            build_stream_root_files: >-
+              {{ build_stream_root_entries.files | rejectattr('isdir') | map(attribute='path') | list }}
+            build_stream_keep_paths: >-
+              {{
+                (build_stream_referenced_artifact_keys | default([])
+                 | select('match', build_stream_artifact_key_pattern)
+                 | map('regex_replace', '^', build_stream_artifacts_directory ~ '/')
+                 | list)
+                if build_stream_artifact_keep_source == 'database'
+                else
+                (build_stream_root_entries.files | rejectattr('isdir') | map(attribute='path')
+                 | map('regex_replace', '^' ~ (build_stream_artifacts_directory ~ '/') | regex_escape, '')
+                 | select('match', build_stream_artifact_key_pattern)
+                 | map('regex_replace', '^', build_stream_artifacts_directory ~ '/')
+                 | list)
+              }}
+
+        - name: Record what is kept and deleted
+          ansible.builtin.set_fact:
+            build_stream_delete_paths: >-
+              {{ build_stream_root_files | reject('in', build_stream_keep_paths) | list }}
+            build_stream_artifacts_kept: >-
+              {{ build_stream_keep_paths | select('in', build_stream_root_files) | list | length }}
+            build_stream_artifacts_referenced_missing: >-
+              {{ build_stream_keep_paths | reject('in', build_stream_root_files) | list | length }}
+            build_stream_artifact_keys_ignored: >-
+              {{ (build_stream_referenced_artifact_keys | default([])
+                  | reject('match', build_stream_artifact_key_pattern) | list | length)
+                 if build_stream_artifact_keep_source == 'database' else 0 }}
+
+        - name: Warn about referenced artifact files that are already missing
+          ansible.builtin.debug:
+            msg: "{{ build_stream_artifacts_missing_msg }}"
+          when: build_stream_artifacts_referenced_missing | int > 0
+
+        - name: Warn about referenced keys that are not valid artifact keys
+          ansible.builtin.debug:
+            msg: "{{ build_stream_artifact_keys_ignored_msg }}"
+          when: build_stream_artifact_keys_ignored | int > 0
+
+        - name: Remove build_stream_root files that PostgreSQL does not reference
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          register: build_stream_root_entry_deletion
+          until: build_stream_root_entry_deletion is not failed
+          retries: "{{ max_retries }}"
+          loop: "{{ build_stream_delete_paths }}"
+
+        - name: Remove directories left empty under build_stream_root
+          ansible.builtin.command:
+            argv:
+              - find
+              - "{{ build_stream_root_directory }}"
+              - -mindepth
+              - "1"
+              - -depth
+              - -type
+              - d
+              - -empty
+              - -delete
+          changed_when: build_stream_delete_paths | length > 0
+  rescue:
+    - name: Fail cleanup if build_stream_root cannot be cleaned
+      ansible.builtin.fail:
+        msg: "{{ build_stream_job_data_cleanup_failure_msg }}"
+
+- name: Display BuildStream job data cleanup result
+  ansible.builtin.debug:
+    msg: >-
+      {{ build_stream_job_data_preserved_msg
+         if build_stream_job_data_preserved | bool
+         else build_stream_job_data_deleted_msg }}

@@ -37,6 +37,7 @@ from library.functions import (
     check_buildstream_runtime_caches_removed,
     check_buildstream_services_stopped,
     check_credentials_per_flag,
+    check_job_data_per_backup,
     check_playbook_watcher_service_disabled,
     check_playbook_watcher_service_file_removed,
     check_playbook_watcher_service_stopped,
@@ -234,6 +235,20 @@ def test_postgres_data_per_backup_flag(host):
     report_check(tl, result)
     assert result["success"], ASSERT["cleanup_check_failed"].format(
         component="Postgres data", error=result["error"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(90216)
+def test_job_data_per_backup_flag(host):
+    """Verify build_stream_root job data follows cleanup.postgres_backup (OMN-DEF #1380)."""
+    tc = TC["job_data_per_backup_flag"]
+    tl = TestLogger(tc["title"], tc["id"])
+    flags = cleanup_settings(load_test_config())
+    result = check_job_data_per_backup(host, flags["postgres_backup"])
+    report_check(tl, result)
+    assert result["success"], ASSERT["cleanup_check_failed"].format(
+        component="BuildStream job data", error=result["error"],
     )
 
 

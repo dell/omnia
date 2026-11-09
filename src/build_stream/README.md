@@ -408,6 +408,39 @@ PostgreSQL data is preserved by default; pass `-e postgres_backup=false` when
 the database data must also be deleted. BuildStream credentials are removed by
 default; pass `-e cleanup_credentials=false` to preserve them.
 
+The artifact files that PostgreSQL references always follow the database, so a
+retained database never points to deleted files. These are exactly the files
+whose keys are stored in `artifact_metadata` under `build_stream_root/artifacts`:
+`catalog/<hash>/catalog-metadata.bin` (read when build-image registers images),
+`config-files/<hash>/<file>.bin` (uploaded catalog and configuration files), and
+`<job_id>/<hash>/node-results.bin` / `failed-nodes.bin` (restart results).
+
+| `postgres_backup` | PostgreSQL data | Artifact files referenced by PostgreSQL | Everything else under `build_stream_root` |
+|---|---|---|---|
+| `true` (default) | Preserved | Preserved | Removed (`restart_state`, raw playbook output, validate reports, JWT keys) |
+| `false` | Deleted | Deleted | Removed |
+
+The referenced keys are read from PostgreSQL before it is stopped. If they
+cannot be read (for example, the `omnia_postgres` container was not running),
+only files in the artifact store key format (`<namespace>/<hash>/<label>.bin`)
+are kept, with a warning. If `postgres_backup=true` but no PostgreSQL database
+exists on disk, nothing references the files and `build_stream_root` is
+deleted with a warning. Any value other than `true` or `false` stops the run
+before anything is removed.
+
+Each BuildStream cleanup run appends `STARTED` and then `COMPLETED` or `FAILED`
+JSON-lines records (mode, flags, what was preserved or deleted, active job
+count) to `/var/log/omnia/build_stream_cleanup_audit/cleanup_audit.jsonl` on
+the OIM. This file is outside every directory the cleanup removes. Cleanup also
+warns when jobs are still `CREATED` or `IN_PROGRESS`; those jobs cannot finish
+after cleanup and must be submitted again after redeploying.
+
+If a build-image result is processed while the job's catalog metadata is
+missing or unreadable, the build-image stage and the job fail with
+`CATALOG_METADATA_MISSING`, `CATALOG_METADATA_INVALID`, or
+`IMAGE_GROUP_REGISTRATION_FAILED` instead of reporting success without
+registered images. Submit a new job to rebuild and register the images.
+
 When GitLab cleanup is requested but its credentials are unavailable (for
 example after BuildStream cleanup already deleted them), it prints a prominent
 warning and skips the remote host so repeated cleanup stays idempotent. Pass

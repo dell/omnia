@@ -250,11 +250,23 @@ BUILDSTREAM_RUNTIME_DIRECTORIES = BUILDSTREAM_SHARED_DIRECTORIES + (
     "build_stream/playbook_queue/archive/results",
     f"{POSTGRES_DATA_DIR}/data",
 )
-# Cleanup removes the shared directories plus the extra log, output and legacy
+# With a retained PostgreSQL database, cleanup keeps only the files under
+# build_stream_root/artifacts that artifact_metadata rows reference (artifact
+# store keys: namespace/12-hex/label.bin) and removes everything else under
+# build_stream_root (cleanup_build_stream role: build_stream_artifact_key_pattern,
+# OMN-DEF #1380).
+BUILDSTREAM_ROOT_DIR = "build_stream/build_stream_root"
+BUILDSTREAM_KEPT_ARTIFACT_PATTERN = (
+    r"^artifacts/[A-Za-z0-9_][A-Za-z0-9._-]*/[0-9a-f]{12}/[A-Za-z0-9_][A-Za-z0-9._-]*\.(bin|zip)$"
+)
+# Cleanup removes the shared directories (build_stream_root is covered by the
+# postgres_backup-based job data check) plus the extra log, output and legacy
 # marker directories (cleanup_build_stream role: build_stream_cleanup_directory)
 # and the host log directory it removes last (build_stream_host_log_directory).
 # Postgres data is covered by its own flag-based check.
-BUILDSTREAM_CLEANUP_DIRECTORIES = BUILDSTREAM_SHARED_DIRECTORIES + (
+BUILDSTREAM_CLEANUP_DIRECTORIES = tuple(
+    name for name in BUILDSTREAM_SHARED_DIRECTORIES if name != BUILDSTREAM_ROOT_DIR
+) + (
     "build_stream/logs",
     "build_stream/output",
     "log/build_stream",
@@ -498,6 +510,7 @@ CMDS: Dict[str, str] = {
     "podman_volume_names": "podman volume ls --format '{{.Name}}' 2>/dev/null",
     # --- Files ---
     "path_exists": "test -e {path}",
+    "list_files_recursive": "find -P {path} -mindepth 1 ! -type d -printf '%P\\n' 2>/dev/null",
     "file_exists": "test -f {path} && echo exists",
     "dir_exists": "test -d {path} && echo exists",
     "cat_file": "cat {path} 2>/dev/null",

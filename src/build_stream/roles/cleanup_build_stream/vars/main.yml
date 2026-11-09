@@ -38,7 +38,6 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/output"
   - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
   - "{{ omnia_nfs_share }}/build_stream/ssl"
-  - "{{ omnia_nfs_share }}/build_stream/build_stream_root"
   - "{{ omnia_nfs_share }}/log/build_stream"
   - "{{ omnia_nfs_share }}/build_stream/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream/build_stream_enabled"
@@ -60,6 +59,29 @@ build_stream_python_cache_files:
 # ── Postgres cleanup ───────────────────────────────────────────────
 postgres_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/postgres"
+# Present only while an initialized PostgreSQL database is retained on disk.
+postgres_database_marker: "{{ omnia_nfs_share }}/build_stream/postgres/data/PG_VERSION"
+
+# ── BuildStream job data (build_stream_root) ───────────────────────
+# artifact_metadata rows store the key, relative to build_stream_root/artifacts,
+# of every file the application reads back (catalog-metadata, uploaded config
+# files, restart node results). With a retained database ONLY those files are
+# kept; everything else under build_stream_root (restart_state, raw playbook
+# output, validate reports, JWT keys) is removed. With the database deleted,
+# build_stream_root is removed completely (OMN-DEF #1380).
+build_stream_root_directory: "{{ omnia_nfs_share }}/build_stream/build_stream_root"
+build_stream_artifacts_directory: "{{ build_stream_root_directory }}/artifacts"
+# FileArtifactStore key format: {namespace}/{12-hex tag hash}/{label}.{bin|zip}
+build_stream_artifact_key_pattern: '^[A-Za-z0-9_][A-Za-z0-9._-]*/[0-9a-f]{12}/[A-Za-z0-9_][A-Za-z0-9._-]*\.(bin|zip)$'
+build_stream_active_job_states:
+  - CREATED
+  - IN_PROGRESS
+
+# ── Cleanup audit log ──────────────────────────────────────────────
+# Kept outside every directory this role deletes (including
+# /var/log/omnia/build_stream) so the history survives cleanup.
+build_stream_cleanup_audit_dir: "/var/log/omnia/build_stream_cleanup_audit"
+build_stream_cleanup_audit_file: "{{ build_stream_cleanup_audit_dir }}/cleanup_audit.jsonl"
 
 # ── Automation framework cleanup ───────────────────────────────────
 automation_base_dir: "{{ omnia_nfs_share }}/automation"
@@ -94,8 +116,60 @@ cleanup_credentials_invalid_msg: >-
   cleanup_credentials accepts only true or false. Use
   -e cleanup_credentials=false to preserve Build Stream credentials during cleanup.
 
+postgres_backup_invalid_msg: >-
+  postgres_backup accepts only true or false. Use -e postgres_backup=false to
+  delete the PostgreSQL database together with the BuildStream job artifacts,
+  or -e postgres_backup=true (default) to preserve both.
+
 postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
  if postgres_backup | default(true) | bool else 'DELETE data (postgres_backup=false)' }}"
+
+build_stream_active_jobs_msg:
+  - "WARNING: {{ build_stream_active_job_count }} BuildStream job(s) are still active
+    ({{ build_stream_active_job_states | join(' or ') }})."
+  - "Cleanup stops the BuildStream API, the playbook watcher and the playbook queue,
+    so these jobs will not finish."
+  - "{{ 'They remain in PostgreSQL with their artifacts (postgres_backup=true); submit new jobs after redeploying.'
+    if postgres_backup | default(true) | bool
+    else 'They are deleted together with PostgreSQL (postgres_backup=false).' }}"
+
+build_stream_job_data_preserved_msg: >-
+  PRESERVED: {{ build_stream_artifacts_kept }} artifact file(s) referenced by the
+  retained PostgreSQL database under {{ build_stream_artifacts_directory }}
+  (source: {{ build_stream_artifact_keep_source }}). All other build_stream_root
+  data (restart_state, raw playbook output, JWT keys) was removed.
+build_stream_artifact_keys_unknown_msg: >-
+  WARNING: The artifact files referenced by PostgreSQL could not be read (the
+  omnia_postgres container was not running or the query failed). Keeping only
+  files in the artifact store key format (namespace/hash/label.bin) under
+  {{ build_stream_artifacts_directory }}.
+build_stream_artifacts_missing_msg: >-
+  WARNING: {{ build_stream_artifacts_referenced_missing }} artifact file(s)
+  referenced by PostgreSQL were already missing under
+  {{ build_stream_artifacts_directory }}. Jobs that need them fail with
+  CATALOG_METADATA_MISSING and must be submitted again.
+build_stream_artifact_keys_ignored_msg: >-
+  WARNING: {{ build_stream_artifact_keys_ignored }} artifact key(s) in PostgreSQL
+  are not valid artifact store keys and were not used to keep files.
+build_stream_job_data_deleted_msg: >-
+  DELETED: {{ build_stream_root_directory }} (BuildStream job data is deleted
+  together with the PostgreSQL database).
+build_stream_job_data_orphaned_msg: >-
+  WARNING: postgres_backup=true, but no PostgreSQL database exists at
+  {{ postgres_database_marker | dirname }}. The BuildStream job data under
+  {{ build_stream_root_directory }} is not referenced by any database and is
+  deleted with it.
+build_stream_job_data_cleanup_failure_msg:
+  - "BuildStream job data cleanup failed under {{ build_stream_root_directory }}."
+  - "[Manual Intervention Required]"
+  - "Check for processes using the directory, for example:"
+  - "   - lsof +D {{ build_stream_root_directory }}"
+  - "Then retry the cleanup playbook with the same postgres_backup value."
+
+build_stream_cleanup_failed_msg: >-
+  BuildStream cleanup failed at task '{{ ansible_failed_task.name | default('unknown') }}':
+  {{ ansible_failed_result.msg | default('see the task output above') }}.
+  The failure is recorded in {{ build_stream_cleanup_audit_file }}.
 
 image_groups_cleaned_msg: >-
   BuildStream image_groups: All records updated to CLEANED status.
@@ -125,6 +199,9 @@ cleanup_summary_msg: |
     - build_stream NFS runtime directories
   Credentials: {{ 'REMOVED' if cleanup_credentials | default(true) | bool else 'PRESERVED (cleanup_credentials=false)' }}
   Postgres data: {{ 'PRESERVED (use -e postgres_backup=false to delete)' if postgres_backup | default(true) | bool else 'DELETED' }}
+  Job artifacts: {{ ('PRESERVED with PostgreSQL (' ~ (build_stream_artifacts_kept | default(0)) ~ ' referenced file(s))')
+    if build_stream_job_data_preserved | default(false) | bool else 'DELETED with PostgreSQL' }}
+  Audit log: {{ build_stream_cleanup_audit_file }}
   Before redeploying, reinitialize the BuildStream domain to recreate its
   runtime and log directories, then run the deployment:
     cd <omnia-repository>/src/main
