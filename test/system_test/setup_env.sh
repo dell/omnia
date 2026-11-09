@@ -27,7 +27,7 @@
 #                            src/main/omnia.env (dataset generator, profile of
 #                            the theme); the cleanup flags and the FVT
 #                            settings (catalog, cadence_catalog,
-#                            allow_pipeline_cancel) of <theme>_test_config.yml
+#                            allow_pipeline_cancel, debug_mode) of <theme>_test_config.yml
 #                            -> each test/<suite>/test_config.yml.
 #                            Every later step and ./run_validation.sh add to
 #                            this run; after a failed step or a theme change

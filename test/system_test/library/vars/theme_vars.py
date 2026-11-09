@@ -159,6 +159,7 @@ THEMES: Dict[str, Dict] = {
             "cadence_catalog": ("build_stream", "installation", "cadence_catalog", "catalog"),
             "allow_pipeline_cancel": ("build_stream", "pipeline", "allow_pipeline_cancel",
                                       "bool"),
+            "debug_mode": ("build_stream", "", "debug_mode", "bool"),
         },
     },
 }

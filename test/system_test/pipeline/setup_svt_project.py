@@ -247,7 +247,7 @@ def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
     """Return (.gitlab-ci-svt.yml text, longest job timeout in seconds)."""
     theme = config["svt"]["theme"]
     jobs = jobs_of(theme)
-    bao = bool((config.get("openbao") or {}).get("server_url"))
+    bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
         HEADER.rstrip("\n"),

@@ -44,6 +44,11 @@ build_stream:
   #          trigger are cancelled, and the test continues.
   #   false: nothing is cancelled; the test fails and lists them.
   allow_pipeline_cancel: true
+  # debug_mode: true | false (default: false).
+  #   true:  the stage, cadence and cleanup playbook logs are streamed live into
+  #          the test output.
+  #   false: only progress lines and a status line per poll are printed.
+  debug_mode: false
 
 # =============================================================================
 # CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'

@@ -49,6 +49,7 @@ SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD. No secret is printed,
 written to a file or passed as an argument.
 """
 
+import functools
 import glob
 import gzip
 import html
@@ -61,6 +62,7 @@ import ssl
 import subprocess  # nosec B404  # fixed argument lists, no shell on the runner
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from email.mime.application import MIMEApplication
@@ -236,17 +238,18 @@ def run_detached(job: str, command: str) -> int:
 
 
 # ----------------------------------------------------------------- openbao
+@functools.lru_cache(maxsize=None)
 def _bao_context() -> ssl.SSLContext:
-    """The TLS context for OpenBao, like test/pipeline (which uses curl -k): the certificate
-    is not checked unless BAO_CACERT (an optional File variable) names a CA file, or
-    BAO_TLS_SKIP_VERIFY=false asks for the system CA store."""
+    """The TLS context for OpenBao (built once): the certificate is checked with BAO_CACERT
+    (an optional File variable) or, when BAO_TLS_SKIP_VERIFY=false, with the system CA store;
+    otherwise it is not checked (a self-signed OpenBao), with one warning."""
     cafile = _env("BAO_CACERT")
     if cafile:
         return ssl.create_default_context(cafile=cafile)
     if _env("BAO_TLS_SKIP_VERIFY").lower() == "false":
         return ssl.create_default_context()
-    print("WARNING: the OpenBao certificate is not verified (as in test/pipeline); give the "
-          "File variable BAO_CACERT to verify it", flush=True)
+    print("WARNING: the OpenBao TLS certificate is not verified (BAO_TLS_SKIP_VERIFY is not "
+          "false); set the File variable BAO_CACERT to verify it", flush=True)
     # pylint: disable-next=protected-access
     return ssl._create_unverified_context()  # nosec B323  # explicit opt-out only
 
@@ -282,6 +285,14 @@ def bao_credentials() -> bytes:
             secret = data.get("data") if isinstance(data.get("data"), dict) else data
             payload[domain] = {key: str(value) for key, value in secret.items()
                                if key != "metadata"}
+    except urllib.error.HTTPError as exc:
+        try:
+            reason = "; ".join(json.load(exc).get("errors", []))
+        except (OSError, ValueError, AttributeError):
+            reason = ""
+        _fail(f"OpenBao: could not read the credentials: HTTP {exc.code} for "
+              f"{exc.url.replace(server, '')} ({reason or 'no detail'}); check "
+              "BAO_SERVER_URL, BAO_AUTH_ROLE, BAO_DATA_PATH and the JWT role")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         _fail(f"OpenBao: could not read the credentials ({type(exc).__name__}); check "
               "BAO_SERVER_URL, BAO_AUTH_ROLE, BAO_DATA_PATH and the JWT role")
@@ -322,11 +333,13 @@ def _check_svt_scripts(svt_dir: str) -> None:
     ./run_validation.sh; a branch without the SVT, or with an older setup script, would
     otherwise fail later with a less clear error.
     """
-    rc, out = remote(
+    rc, _ = remote(
         f"cd {svt_dir} && test -x setup_env.sh && test -x run_validation.sh && "
-        "./setup_env.sh --help 2>&1 | grep -c -e '--configure' -e '--domain-creds-stdin'",
+        "h=$(./setup_env.sh --help 2>&1) && "
+        "printf '%s' \"$h\" | grep -q -e '--configure' && "
+        "printf '%s' \"$h\" | grep -q -e '--domain-creds-stdin'",
         capture=True, timeout=120)
-    if rc != 0 or out.decode(errors="replace").strip() != "2":
+    if rc != 0:
         _fail("the checkout has no usable SVT: test/system_test/setup_env.sh (with "
               "--configure and --domain-creds-stdin) and run_validation.sh must exist and be "
               "executable. HOW TO FIX: use an Omnia branch that has the system test "
@@ -346,7 +359,7 @@ def checkout() -> int:
              f"git clone -b {qbranch} {qrepo} {qpath}")
     script = {
         "clone": f"rm -rf -- {qpath} && {clone}",
-        "update": (f"if [ -d {qpath}/.git ]; then cd {qpath} && git fetch origin {qbranch} && "
+        "update": (f"if [ -d {qpath}/.git ]; then cd {qpath} && git remote set-url origin {qrepo} && git fetch origin {qbranch} && "
                    f"git checkout --force -B {qbranch} FETCH_HEAD; else {clone}; fi"),
         "keep": f"test -d {qpath}/.git",
     }[mode]

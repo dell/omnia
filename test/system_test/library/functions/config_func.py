@@ -21,7 +21,7 @@ generator (the rest of the suite's file stays exactly as it was):
 
 * the ``cleanup`` block (whitelisted keys, booleans only);
 * the theme block (``build_stream:`` catalog, cadence_catalog,
-  allow_pipeline_cancel), mapped by THEMES[theme]["fvt_settings"];
+  allow_pipeline_cancel, debug_mode), mapped by THEMES[theme]["fvt_settings"];
 * the report settings of the run (the FVT results go to <run folder>/fvt/).
 """
 

@@ -41,7 +41,7 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
   `<report_path>/<run_id>/`. Every later step (cleanup, install, creds,
   `./run_validation.sh`) adds to this run; see [The run](RUNNER.md#the-run).
 - The `cleanup` flags and the `build_stream` block (catalog,
-  cadence_catalog, allow_pipeline_cancel) of `build_stream_test_config.yml`
+  cadence_catalog, allow_pipeline_cancel, debug_mode) of `build_stream_test_config.yml`
   are written into each `test/<suite>/test_config.yml`.
 - The FVT report settings of the run (`<run folder>/fvt`, `fvt_report`, the
   run id) are written into every suite's `test_config.yml` (main,

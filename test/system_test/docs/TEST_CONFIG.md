@@ -32,6 +32,7 @@ Written into `test/build_stream/test_config.yml`.
 | `catalog` | `29` | The catalog the `build_deploy` stage commits to GitLab as `catalog_rhel.json`. A number from `./omnia.sh --list-catalogs` (29 = `rhel/10.2/slurm_service_k8s_x86_64_no_vast.json`) or the absolute path of your own catalog on the OIM. `./setup_env.sh --configure` checks the number against `--list-catalogs` | `installation.catalog` |
 | `cadence_catalog` | `29` | The catalog the `cadence` stage uploads as `cadence_catalog_rhel.json`. Same format; `""` = the same as `catalog` | `installation.cadence_catalog` |
 | `allow_pipeline_cancel` | `true` | `true`: GitLab pipelines still running or pending before a commit or a trigger are cancelled and the test continues. `false`: nothing is cancelled; the test fails and lists them | `pipeline.allow_pipeline_cancel` |
+| `debug_mode` | `false` | `true`: the stage, cadence and cleanup playbook logs are streamed live into the test output. `false`: only progress lines and a status line per poll. The FVT suite itself defaults to `true`, so `--configure` sets it to `false` unless you change it here | `debug_mode` (top level) |
 
 ## `cleanup`
 

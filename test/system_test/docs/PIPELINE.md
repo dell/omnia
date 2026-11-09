@@ -231,7 +231,7 @@ password, a host key, `BAO_CACERT`, or a variable you added yourself.
 | `the summary email was NOT sent` | `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USER`/`SMTP_PASSWORD`; the report is still in the job artifacts. `email.required: "true"` makes it fail the job |
 | `preflight`: SSH failed | `<CLUSTER>_SVT_TARGET_IP`, password/key, port 22 from the runner, `sshpass` on the runner |
 | A protected variable is empty in the job | The pipeline ran on a branch that is not protected: run it on `main` (Settings > Repository > Protected branches) |
-| `OpenBao: could not read ...` with a certificate error | `BAO_TLS_SKIP_VERIFY=false` verifies with the system CA store; give `BAO_CACERT` for a private CA, or leave both unset (not verified, as in test/pipeline) |
+| `OpenBao: could not read ...` with a certificate error | `BAO_TLS_SKIP_VERIFY=false` verifies with the system CA store; give `BAO_CACERT` for a private CA, or leave both unset (not verified, with one warning) |
 | `OpenBao: could not read the credentials` | `BAO_SERVER_URL`, `BAO_AUTH_ROLE`, the role's `bound_audiences` (= the OpenBao URL) and `bound_claims` (does it allow this project?), the policy's path = `secret_path`, GitLab 15.7+. [OPENBAO.md section 4](OPENBAO.md#4-how-the-pipeline-gets-access-no-token-is-stored) |
 | `Unsupported fields` in initialization | A key in the OpenBao secret that the store does not have |
 | `another SVT step is running on this OIM` | A run by hand or an old pipeline holds `reports/svt.lock`; wait, or stop it |
