@@ -122,17 +122,18 @@ else
         set -o pipefail
         kubectl get secret isilon-creds -n isilon -o jsonpath='{.data.config}' | base64 -d > "$_pscale_tmpdir/decoded_config.yaml" 2>/dev/null || exit 1
         [ -s "$_pscale_tmpdir/decoded_config.yaml" ] || exit 1
-        awk -v user="$csi_username" -v pass="$csi_password" '
+        awk '
           /^[[:space:]]*#/ {print; next}
-          /^ *username:/ {sub(/:.*/, ": " user)}
-          /^ *password:/ {sub(/:.*/, ": " pass)}
+          /^ *username:/ {sub(/:.*/, ": " ENVIRON["csi_username"])}
+          /^ *password:/ {sub(/:.*/, ": " ENVIRON["csi_password"])}
           {print}
         ' "$_pscale_tmpdir/decoded_config.yaml" > "$_pscale_tmpdir/updated_config.yaml"
       ); then
         encoded_config=$(base64 -w 0 "$_pscale_tmpdir/updated_config.yaml")
-        kubectl patch secret isilon-creds -n isilon \
+        echo "{\"data\":{\"config\":\"${encoded_config}\"}}" | \
+          kubectl patch secret isilon-creds -n isilon \
           --type merge \
-          -p "{\"data\":{\"config\":\"${encoded_config}\"}}" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
+          --patch-file /dev/stdin >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
         echo "isilon-creds secret created and patched successfully."
       else
         echo "ERROR: Failed to decode isilon-creds secret"

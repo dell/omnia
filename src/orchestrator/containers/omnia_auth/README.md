@@ -12,7 +12,8 @@ authentication service on the OIM.
 - OpenLDAP 2.7 server and client tools
 - MDB, LDAP, and Meta backends
 - CA certificate bundle
-- Non-login `ldap` runtime user and group
+- Non-login `ldap` runtime user and group with fixed ids (`LDAP_UID` and
+  `LDAP_GID` build arguments, default 55)
 - Persistent OpenLDAP data directory
 
 ## Files
@@ -20,7 +21,7 @@ authentication service on the OIM.
 | File | Description |
 |------|-------------|
 | `Containerfile` | Wolfi-based OpenLDAP runtime image |
-| `entrypoint.sh` | Validated OpenLDAP initialization helper retained in source; the current Containerfile defines its runtime command directly |
+| `entrypoint.sh` | Container entrypoint: initializes the directory, verifies the mounted TLS certificate (validity, key match, self-signed or signed by the CA in `LDAP_TLS_CA_FILE`, optional `LDAP_TLS_CERT_SHA256` pin), then starts `slapd` as `ldap` |
 
 Runtime `slapd.conf`, bootstrap LDIF, and TLS certificates are not embedded in
 the image. The `deploy_openldap` role renders and bind-mounts them through the
@@ -55,7 +56,10 @@ The container:
 - exposes LDAP on port 389 and LDAPS on port 636;
 - persists directory data under `/var/lib/openldap/openldap-data`;
 - initializes the directory once from `/container-init/bootstrap.ldif`;
-- runs `slapd` as the container process; and
+- starts as root only to initialize the directory, verify the certificate, and
+  bind ports 389 and 636, then runs `slapd` as the `ldap` user (`-u ldap -g ldap`);
+- refuses to start when the certificate or private key is not readable by the
+  `ldap` group; and
 - uses `ldapwhoami` for its health check.
 
 The deployed image, tag, volumes, ports, and service lifecycle are controlled
