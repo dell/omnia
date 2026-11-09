@@ -1,6 +1,6 @@
 # SVT setup: `./setup_env.sh`, the inputs and the dataset generator
 
-How to prepare an OIM for the SVT of `test/system_test` (see its [README](README.md) for
+How to prepare an OIM for the SVT of `test/system_test` (see its [README](../README.md) for
 the stages, the run and the report): the setup script, `user_inputs.yml` and the dataset
 generator that turns it into the Omnia inputs.
 
@@ -39,14 +39,14 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
 - It starts a new SVT run, first of all: a new `run_id` (`svt-<UTC time>`,
   unless `report.run_id` is set), the theme and the run folder
   `<report_path>/<run_id>/`. Every later step (cleanup, install, creds,
-  `./run_validation.sh`) adds to this run; see [The run](#the-run).
+  `./run_validation.sh`) adds to this run; see [The run](RUNNER.md#the-run).
 - The `cleanup` flags and the `build_stream` block (catalog,
   cadence_catalog, allow_pipeline_cancel) of `build_stream_test_config.yml`
   are written into each `test/<suite>/test_config.yml`.
 - The FVT report settings of the run (`<run folder>/fvt`, `fvt_report`, the
   run id) are written into every suite's `test_config.yml` (main,
   repo_manager, image_build_manager, orchestrator, build_stream), so their
-  results can be shown in the [SVT report](#the-svt-report).
+  results can be shown in the [SVT report](RUNNER.md#the-svt-report).
 - It checks `main.catalog` against `./omnia.sh --list-catalogs`.
 - It stops on a YAML error, an unknown key, a credential-like key, an empty
   MANDATORY value or an unknown catalog.

@@ -447,7 +447,7 @@ build_stream:
 #   pipeline/setup_svt_project.py   -> CI/CD variables BAO_SERVER_URL, BAO_DATA_PATH,
 #                                      BAO_TLS_SKIP_VERIFY (the GitLab pipeline)
 # Secrets are read from <server_url>/v1/<secret_path>/<domain>. The token is never
-# written here: export BAO_TOKEN=<token> (or type it at the prompt). See OPENBAO.md.
+# written here: export BAO_TOKEN=<token> (or type it at the prompt). See docs/OPENBAO.md.
 openbao:
   # https://host:port of OpenBao ("" = OpenBao is not used)
   server_url: ""

@@ -16,12 +16,14 @@
 
 import re
 
+# Server of a "host:/export" source: an IPv4 address or an RFC 1123 host name.
 HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 
 HOST_RE = re.compile(rf"{HOST_LABEL}(?:\.{HOST_LABEL})*")
 
 IPV4_RE = re.compile(r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})")
 
+# Export path: absolute, plain characters only ("." and ".." parts are refused in code).
 EXPORT_RE = re.compile(r"/[A-Za-z0-9_.@+=:-]+(?:/[A-Za-z0-9_.@+=:-]+)*")
 
 # The deny list of omnia.sh safe_rm_dir: never emptied, whatever the share is called.
@@ -29,16 +31,22 @@ DENIED_EXPORTS = frozenset({"/", "/boot", "/dev", "/etc", "/home", "/media", "/m
                             "/proc", "/root", "/run", "/srv", "/sys", "/tmp",  # nosec B108
                             "/usr", "/var"})  # a deny list entry, never used as a path
 
+# Mount options: no setuid, devices or executables from the share; soft so that a hung
+# server fails the step instead of blocking it.
 MOUNT_OPTIONS = "nosuid,nodev,noexec,soft,timeo=100,retrans=3"
 
+# Fixed environment of mount and umount (no inherited PATH or locale).
 COMMAND_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"}
 
+# Seconds allowed for mount and umount.
 MOUNT_TIMEOUT = 180
 
 UNMOUNT_TIMEOUT = 120
 
+# Deepest directory tree emptied, and how many error messages are kept.
 MAX_DEPTH = 64
 
 MAX_ERRORS = 20
 
+# Folder (when present) under which the private mount point is created.
 MOUNT_ROOT = "/run"

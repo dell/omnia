@@ -16,16 +16,21 @@
 
 import re
 
+# Terminal colour codes removed from a step's output.
 ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
+# Status of a section or stage that has not finished.
 RUNNING = "Running"
 
+# "user:token@" of a clone URL, removed before the URL is shown.
 CREDENTIALS_RE = re.compile(r"^(https?://)[^/@]+@")
 
 # Characters of a step's screen output shown in the HTML (its tail); the JSON
 # keeps more (MAX_OUTPUT_CHARS) and the stage/setup logs keep everything.
 HTML_OUTPUT_CHARS = 200_000
 
+# A run of this many word characters is cut into lines before masking (omnia_auto's
+# redaction is quadratic on one long unbroken word).
 LONG_WORD = 200
 
 LONG_WORD_RE = re.compile(r"\w{%d,}" % (LONG_WORD + 1))
@@ -33,8 +38,10 @@ LONG_WORD_RE = re.compile(r"\w{%d,}" % (LONG_WORD + 1))
 # Sections shown inside the Initialization stage (./setup_env.sh steps).
 INITIALIZATION_PHASES = ("cleanup", "install")
 
+# Status -> CSS class.
 BADGE = {"Passed": "pass", "Failed": "fail", "Skipped": "skip", RUNNING: "run"}
 
+# Stylesheet and script of the self-contained HTML report.
 CSS = """
 :root{--bg:#f8fafc;--bg-card:#fff;--bg-panel:#f1f5f9;--text:#1e293b;--text-sec:#64748b;--text-muted:#94a3b8;
 --border:#e2e8f0;--border-strong:#cbd5e1;--shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);

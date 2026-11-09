@@ -59,7 +59,7 @@ bao kv get secret/omnia/build_stream          # check
   `openbao` block of `../user_inputs.yml` (also used by `./setup_env.sh
   --domain-creds-from-openbao`); `setup_svt_project.py` turns them into `BAO_SERVER_URL`,
   `BAO_DATA_PATH` and `BAO_TLS_SKIP_VERIFY`. `svt_pipeline_config.yml` only has
-  `openbao.auth_role`. Details: [../OPENBAO.md](../OPENBAO.md).
+  `openbao.auth_role`. Details: [OPENBAO.md](OPENBAO.md).
 - The pipeline reads the four secrets in the initialization job and pipes
   them as one JSON object to `./setup_env.sh --domain-creds-stdin` on the OIM.
   They are never written to disk, logged or passed as an argument.
