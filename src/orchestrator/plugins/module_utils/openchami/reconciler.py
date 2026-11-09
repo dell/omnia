@@ -15,6 +15,8 @@
 # pylint: disable=missing-function-docstring,too-many-branches,too-many-locals
 """Idempotent OpenCHAMI reconciliation operations used by Ansible."""
 
+import json
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -28,6 +30,19 @@ class OpenChamiReconciler:
 
     MANAGED_BY_LABEL = "omnia.dell.com/managed-by"
     PROJECT_LABEL = "omnia.dell.com/project"
+    # Group metaData keys that hold one entry per host. They grow with the node
+    # list, so a change that only adds or edits host entries concerns those
+    # hosts and must not make every other node of the cluster reprovision.
+    INVENTORY_METADATA_KEYS = ("host_mount_map",)
+    # The same for generated text: the host list a template writes into
+    # /etc/hosts sits between these comment lines, which are valid in a hosts
+    # file. A change that is confined to such a region concerns the hosts
+    # whose line was added or edited.
+    INVENTORY_REGION = re.compile(
+        r"^[ \t]*# omnia-inventory-begin[ \t]*\n(?P<body>.*?)"
+        r"^[ \t]*# omnia-inventory-end[ \t]*$",
+        re.DOTALL | re.MULTILINE,
+    )
     MANAGED_BY_VALUE = "omnia"
 
     def __init__(self, base_url, token, ca_cert=None, timeout=15, retries=3):
@@ -600,6 +615,7 @@ class OpenChamiReconciler:
         )
         created = []
         updated = []
+        inventory_updated = {}
         adopted = []
         unchanged = []
         seen = set()
@@ -628,16 +644,26 @@ class OpenChamiReconciler:
             if spec_changed or labels_changed:
                 if not check_mode:
                     self.metadata.update_group(uid, payload)
-                (updated if spec_changed else adopted).append(name)
+                if not spec_changed:
+                    adopted.append(name)
+                    continue
+                hosts = self._inventory_only_hosts(
+                    current.get("spec") or {}, desired_spec
+                )
+                if hosts is None:
+                    updated.append(name)
+                else:
+                    inventory_updated[name] = hosts
             else:
                 unchanged.append(name)
 
         if not check_mode:
             self._verify_metadata_groups(desired, ownership)
         return {
-            "changed": bool(created or updated or adopted),
+            "changed": bool(created or updated or inventory_updated or adopted),
             "created": created,
             "updated": updated,
+            "inventory_updated": inventory_updated,
             "adopted": adopted,
             "unchanged": unchanged,
         }
@@ -922,6 +948,73 @@ class OpenChamiReconciler:
             str(metadata.get("createdAt", "")),
             str(metadata.get("uid", "")),
         )
+
+    @classmethod
+    def _inventory_only_hosts(cls, current_spec, desired_spec):
+        """Return the hosts whose entries changed when only per-host data differs.
+
+        The per-host maps in INVENTORY_METADATA_KEYS hold one entry per host.
+        When the groups differ in nothing else, the result is the sorted list
+        of hosts whose entry was added or edited (empty when entries were only
+        removed); those are the only nodes the change concerns. Returns None
+        when anything else differs or a map cannot be read, which keeps the
+        group-wide handling.
+        """
+        current = cls._group_spec(current_spec)
+        desired = cls._group_spec(desired_spec)
+        hosts = set()
+        for key in cls.INVENTORY_METADATA_KEYS:
+            before = cls._host_entries(current["metaData"].pop(key, None))
+            after = cls._host_entries(desired["metaData"].pop(key, None))
+            if before is None or after is None:
+                return None
+            hosts.update(host for host, entry in after.items() if before.get(host) != entry)
+        current["template"], before_regions = cls._split_regions(current["template"])
+        desired["template"], after_regions = cls._split_regions(desired["template"])
+        if len(before_regions) != len(after_regions):
+            return None
+        for before_body, after_body in zip(before_regions, after_regions):
+            before_lines = cls._region_entries(before_body)
+            after_lines = cls._region_entries(after_body)
+            hosts.update(
+                name for name, line in after_lines.items() if before_lines.get(name) != line
+            )
+        if current != desired:
+            return None
+        return sorted(hosts)
+
+    @classmethod
+    def _split_regions(cls, text):
+        """Return the text with every inventory region masked, and the region bodies."""
+        bodies = []
+
+        def _mask(match):
+            bodies.append(match.group("body"))
+            return "# omnia-inventory-region"
+
+        return cls.INVENTORY_REGION.sub(_mask, str(text)), bodies
+
+    @staticmethod
+    def _region_entries(body):
+        """Return the host lines of a region as {host name: normalised line}."""
+        entries = {}
+        for raw in body.splitlines():
+            parts = raw.split()
+            if parts and not parts[0].startswith("#"):
+                entries[parts[1] if len(parts) > 1 else parts[0]] = " ".join(parts)
+        return entries
+
+    @staticmethod
+    def _host_entries(raw):
+        """Return a per-host metaData value as a dict (None when it is not one)."""
+        if raw in (None, ""):
+            return {}
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except ValueError:
+                return None
+        return raw if isinstance(raw, dict) else None
 
     @staticmethod
     def _group_spec(spec):
