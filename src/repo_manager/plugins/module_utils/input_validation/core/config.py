@@ -178,6 +178,7 @@ passwords_set = {
     "directory_manager_password",
     "kerberos_admin_password",
     "openldap_db_password",
+    "openldap_bind_password",
     "openldap_config_password",
     "openldap_monitor_password",
     "timescaledb_password",

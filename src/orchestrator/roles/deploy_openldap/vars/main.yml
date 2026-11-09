@@ -68,11 +68,30 @@ healthcheck_delay: 5
 
 # slapd.conf reconciliation for a running container
 slapd_reconcile_tmp_dir: "/dev/shm"
-slapd_candidate_container_path: "/run/openldap/slapd.conf.candidate"
+slapd_candidate_container_path: "/dev/shm/slapd.conf.candidate"
+
+# Read-only account that LDAP clients (sssd) bind with:
+# cn=<openldap_bind_username>,<bind_account_ou>,<search base>.
+# provision_common and the openldap role build the same DN.
+bind_account_ou: "ou=ServiceAccounts"
+# tmpfs inside the container, so the password files never reach its disk layer
+bind_secret_container_dir: "/dev/shm/.omnia_bind"
 
 # Error messages
 deploy_openldap_fail_msg: "Failed to deploy OpenLDAP container. Check the logs for details."
-credentials_missing_msg: "OpenLDAP credentials (openldap_db_username, openldap_db_password) are required. Run orchestrator.yml to be prompted for credentials."
+credentials_missing_msg: >-
+  OpenLDAP credentials (openldap_db_username, openldap_db_password,
+  openldap_bind_username, openldap_bind_password) are required, and the bind
+  password must differ from the admin password. Run orchestrator.yml to be
+  prompted for credentials.
+bind_account_external_proxy_msg: >-
+  slapd.conf proxies to another LDAP directory, so the read-only bind account
+  (cn=<openldap_bind_username>,ou=ServiceAccounts,<base>) was not created here.
+  Create it in that directory, or LDAP clients cannot look up users.
+bind_account_failed_msg: >-
+  The read-only LDAP bind account could not be created or updated in omnia_auth.
+  Check that omnia_auth is running and that the admin credentials in
+  orchestrator_credentials.yml match the directory.
 tls_cert_invalid_msg: >-
   The OpenLDAP TLS certificate under auth/tls_certs is unusable: it must parse, stay valid for at least
   24 hours, list the LDAP server IP in subjectAltName, and match ldapserver.key. Fix or replace the certificate and key, then rerun.

@@ -159,6 +159,11 @@ repo_config_not_available_msg: >-
   generate repo_status.yml, or set repo_manager_output_path in
   orchestrator_config.yml. Node configuration requires repository URLs and
   the Pulp certificate.
+openldap_bind_credentials_missing_msg: >-
+  OpenLDAP is enabled, but the read-only bind credentials
+  (openldap_bind_username, openldap_bind_password) are missing from
+  orchestrator_credentials.yml. LDAP client nodes bind with this account.
+  Run the orchestrator credentials step to be prompted for them.
 s3_config_not_available_msg: >-
   s3_configurations is not available for Boot Service template generation.
   Run image_build_manager before orchestrator to generate build_status.yml,

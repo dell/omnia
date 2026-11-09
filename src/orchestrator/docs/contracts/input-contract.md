@@ -313,6 +313,8 @@ credential-only cleanup.
 | `slurm_db_password` | string | Slurm enabled | Slurm database password |
 | `openldap_db_username` | string | OpenLDAP enabled | OpenLDAP admin username |
 | `openldap_db_password` | string | OpenLDAP enabled | OpenLDAP admin password |
+| `openldap_bind_username` | string | OpenLDAP enabled | Read-only OpenLDAP account that LDAP clients (`sssd`) bind with; created by Orchestrator as `cn=<username>,ou=ServiceAccounts,<base>` |
+| `openldap_bind_password` | string | OpenLDAP enabled | Password of the read-only account; must differ from `openldap_db_password`. Written to `sssd.conf` on LDAP client nodes |
 | `csi_username` | string | `enable_powerscale_csi: true` | PowerScale API username used by the CSI driver |
 | `csi_password` | string | `enable_powerscale_csi: true` | PowerScale API password used by the CSI driver |
 

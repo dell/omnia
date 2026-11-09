@@ -30,11 +30,40 @@ the local configuration.
    is kept), and the bootstrap LDIF.
 5. Pulls the configured `omnia_auth` image and renders its Quadlet.
 6. Starts the systemd-managed service and waits for the container to run.
+7. Ensures the read-only bind account (see below), unless an external proxy
+   configuration is kept.
+
+## Directory Access and the Read-only Bind Account
+
+Anonymous clients may only authenticate; they cannot read directory entries.
+The root DSE and schema stay readable so clients can discover the server before
+binding. Authenticated users read all entries except `userPassword`, and write
+only their own entry.
+
+LDAP clients (`sssd` on Slurm, login, and optionally Kubernetes nodes) bind as
+`cn=<openldap_bind_username>,ou=ServiceAccounts,<base>` in both TLS and SSL
+modes. On every run the role checks over verified StartTLS that this account
+accepts `openldap_bind_password`; if it does not, the role creates the entry and
+sets the password through the LDAP Password Modify operation, so the directory
+stores only a salted hash. Passwords are passed through `0600` files on tmpfs,
+never on a command line, and are removed afterwards.
+
+**Rotating the bind password:** update `openldap_bind_password` through the
+credentials step, run the `deploy` tag (the role resets the password in the
+directory), then re-provision the LDAP client nodes so their `sssd.conf` gets
+the new value. Until a node is re-provisioned, it cannot look up users.
+
+**Existing deployments:** the first run after upgrading prompts for the bind
+credentials and creates the account. Nodes in TLS mode keep working with their
+current admin binding until they are re-provisioned; nodes in SSL mode searched
+anonymously and cannot look up users until they are re-provisioned.
 
 ## Requirements
 
 - `openldap_support: true` resolved from the active cluster configuration.
-- Valid OpenLDAP username and password in the Orchestrator credential vault.
+- Valid OpenLDAP admin username and password, and the read-only bind username
+  and password (`openldap_bind_username`, `openldap_bind_password`, which must
+  differ from the admin password), in the Orchestrator credential vault.
 - Podman Quadlet and systemd on the OIM.
 - Resolved OIM address and domain name.
 
