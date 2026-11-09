@@ -43,6 +43,7 @@ Standard library only (mount, umount, mount.nfs of nfs-utils).
 """
 
 import os
+import re
 import socket
 import stat
 import subprocess  # nosec B404  # fixed argument lists, no shell
@@ -56,6 +57,9 @@ import yaml
 from ..messages.nfs_msgs import NFS_MSGS
 
 from ..vars.nfs_vars import (
+    EMPTY_PASSES,
+    EMPTY_PAUSE_SECONDS,
+    NFSD_CLIENTS_DIR,
     COMMAND_ENV,
     DENIED_EXPORTS,
     EXPORT_RE,
@@ -296,6 +300,44 @@ def check_share(name: str, flag: str, source: str, emit: Emit, protected: List[s
     return entries
 
 
+def connected_clients() -> List[str]:
+    """Return "name (ip)" of the NFS clients connected to this machine's NFS server ([] when
+    it serves nothing), without this host itself."""
+    found = []
+    try:
+        entries = sorted(os.listdir(NFSD_CLIENTS_DIR))
+    except OSError:
+        return found
+    for entry in entries:
+        try:
+            with open(os.path.join(NFSD_CLIENTS_DIR, entry, "info"), "r",
+                      encoding="utf-8") as stream:
+                text = stream.read()
+        except OSError:
+            continue
+        address = re.search(r'address: "([^":]+)', text)
+        client = re.search(r'name: "Linux NFSv4\.\d+ ([^"]+)"', text)
+        if client and client.group(1).split(".")[0] != socket.gethostname().split(".")[0]:
+            found.append(f"{client.group(1)} ({address.group(1) if address else '?'})")
+    return found
+
+
+def _empty_passes(mountpoint: str, name: str, emit: Emit) -> Dict[str, Any]:
+    """Empty ``mountpoint``; empty it again (a client may recreate entries) up to EMPTY_PASSES
+    times. Return the totals and the errors of the last pass."""
+    totals = {"files": 0, "dirs": 0, "bytes": 0}
+    for number in range(1, EMPTY_PASSES + 1):
+        stats = empty_directory(mountpoint)
+        for key in totals:
+            totals[key] += stats[key]
+        if not stats["errors"] or number == EMPTY_PASSES:
+            break
+        emit(NFS_MSGS["retry"].format(name=name, count=stats["errors"], number=number,
+                                      total=EMPTY_PASSES, pause=EMPTY_PAUSE_SECONDS))
+        time.sleep(EMPTY_PAUSE_SECONDS)
+    return {**stats, **totals}
+
+
 def wipe_share(name: str, flag: str, source: str, emit: Emit,
                protected: List[str]) -> Dict[str, Any]:
     """Empty the share completely and unmount it; return the counts.
@@ -305,8 +347,11 @@ def wipe_share(name: str, flag: str, source: str, emit: Emit,
             is unmounted in every case).
     """
     started = time.monotonic()
+    clients = connected_clients()
+    if clients:
+        emit(NFS_MSGS["clients"].format(clients=", ".join(clients)))
     with mounted((name, flag, source), False, emit, protected) as mountpoint:
-        stats = empty_directory(mountpoint)
+        stats = _empty_passes(mountpoint, name, emit)
     emit(NFS_MSGS["removed"].format(name=name, files=stats["files"], dirs=stats["dirs"],
                                     size=_size(stats["bytes"]), source=source))
     if stats["other_mounts"]:
@@ -314,6 +359,8 @@ def wipe_share(name: str, flag: str, source: str, emit: Emit,
     if stats["errors"]:
         first = stats["messages"][0] if stats["messages"] else "unknown error"
         hint = NFS_MSGS["squash_hint"] if "ermission" in first or "not permitted" in first else ""
+        if not hint and clients:
+            hint = NFS_MSGS["clients_hint"].format(clients=", ".join(clients))
         raise NfsError(NFS_MSGS["empty_failed"].format(
             name=name, count=stats["errors"], source=source, first=first, hint=hint))
     return {**stats, "seconds": time.monotonic() - started}

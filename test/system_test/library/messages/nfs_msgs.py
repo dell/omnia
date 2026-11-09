@@ -51,5 +51,12 @@ NFS_MSGS = {
     "squash_hint": ". The export probably squashes root: it needs no_root_squash for this OIM",
     "unmount_failed": "NFS share {name}: {mountpoint} is still mounted ({reason}). HOW TO FIX: "
                       "umount -l {mountpoint}; then remove the folder",
+    "retry": "  {name}: {count} entries changed or could not be removed (pass {number} of "
+             "{total}); emptying it again in {pause}s",
+    "clients": "WARNING: {clients} are connected to this NFS server; what they still write "
+               "to the share is deleted again, and can make the cleanup fail",
+    "clients_hint": ". Still written by a connected client ({clients}): stop what writes to "
+                    "the share (on a Kubernetes node, kubelet), then ./setup_env.sh --cleanup "
+                    "--retry",
     "too_deep": "directory tree deeper than {depth} levels",
 }

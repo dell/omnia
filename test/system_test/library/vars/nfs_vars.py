@@ -50,3 +50,12 @@ MAX_ERRORS = 20
 
 # Folder (when present) under which the private mount point is created.
 MOUNT_ROOT = "/run"
+
+# A live client (kubelet of a node) can recreate entries while the share is emptied: the
+# share is emptied again, up to this many passes, with this pause (seconds) between them.
+EMPTY_PASSES = 6
+
+EMPTY_PAUSE_SECONDS = 3
+
+# Where the NFS server lists its connected clients (when the share is served by this OIM).
+NFSD_CLIENTS_DIR = "/proc/fs/nfsd/clients"
