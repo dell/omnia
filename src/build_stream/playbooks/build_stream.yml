@@ -24,18 +24,23 @@
 #   ansible-playbook build_stream.yml --tags prepare         # Deploy Postgres + BSM + watcher only
 #   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
 #   ansible-playbook build_stream.yml --tags build           # prepare + execute
-#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup, including credentials
+#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup: GitLab THEN BuildStream (+ credentials)
+#   ansible-playbook build_stream.yml --tags cleanup_gitlab          # GitLab-only cleanup
+#   ansible-playbook build_stream.yml --tags cleanup_build_stream    # BuildStream-only cleanup (warns + 20s pause first)
 #   ansible-playbook build_stream.yml --tags cleanup -e cleanup_credentials=false  # Cleanup, preserve credentials
 #
 # Tags (mutually exclusive — pick ONE):
-#   (none)       — Default flow: setup + validate + credentials + prepare + execute
-#   precheck     — Environment precheck (containers + credentials present) — no credentials
-#   validate     — Validate build_stream_config.yml only (skips credentials)
-#   credentials  — Collect/update BS auth, postgres, GitLab credentials only (no prepare/execute)
-#   prepare      — Deploy Postgres + BSM container + watcher service (with credentials)
-#   execute      — Deploy GitLab CE + CI/CD configuration (with credentials)
-#   build        — Alias: runs prepare + execute (full deploy, with credentials)
-#   cleanup      — Full domain cleanup: GitLab + BSM + Postgres + credentials
+#   (none)               — Default flow: setup + validate + credentials + prepare + execute
+#   precheck             — Environment precheck (containers + credentials present) — no credentials
+#   validate             — Validate build_stream_config.yml only (skips credentials)
+#   credentials          — Collect/update BS auth, postgres, GitLab credentials only (no prepare/execute)
+#   prepare              — Deploy Postgres + BSM container + watcher service (with credentials)
+#   execute              — Deploy GitLab CE + CI/CD configuration (with credentials)
+#   build                — Alias: runs prepare + execute (full deploy, with credentials)
+#   cleanup              — Full domain cleanup: GitLab FIRST, then BSM + Postgres + credentials
+#   cleanup_gitlab       — GitLab-only cleanup (remote gitlab_server); does NOT touch BuildStream
+#   cleanup_build_stream — BuildStream-only cleanup (BSM + Postgres + credentials). Warns and pauses
+#                          20s first because it deletes credentials needed for later GitLab cleanup.
 #
 # Internal steps (always):
 #   Step 0: Setup — load project config, input/output dirs, OIM metadata
@@ -60,7 +65,8 @@
   ansible.builtin.import_playbook: validate/validate_build_stream_config.yml
   when: >-
     (hostvars['localhost']['provided_tags'] | default([])
-     | intersect(['precheck', 'cleanup']) | length) == 0
+     | intersect(['precheck', 'cleanup', 'cleanup_gitlab', 'cleanup_build_stream'])
+     | length) == 0
   tags:
     - always
     - validate
@@ -114,18 +120,29 @@
     - build
 
 # =========================================================================
-# FLOW: cleanup — Full domain cleanup (opt-in only)
-# Step 1: GitLab cleanup (credentials + remote gitlab_server)
-# Step 2: BSM + Postgres + NFS cleanup (local oim host)
+# FLOW: cleanup / cleanup_gitlab / cleanup_build_stream (all opt-in)
+#
+#   --tags cleanup              → GitLab cleanup FIRST, then BuildStream cleanup.
+#                                 GitLab must finish before BuildStream deletes the
+#                                 credentials GitLab cleanup depends on. No pause.
+#   --tags cleanup_gitlab       → GitLab-only cleanup (remote gitlab_server).
+#   --tags cleanup_build_stream → BuildStream-only cleanup. The wrapper shows a
+#                                 warning + 20s pause (GitLab will NOT be cleaned).
+#
+# Import order matters: GitLab is imported before BuildStream so the combined
+# 'cleanup' tag always runs GitLab first. The pause lives inside
+# cleanup_build_stream.yml and is suppressed when the 'cleanup' tag is active.
 # =========================================================================
 - name: Cleanup GitLab deployment
   ansible.builtin.import_playbook: cleanup/cleanup_gitlab.yml
   tags:
     - never
     - cleanup
+    - cleanup_gitlab
 
 - name: Cleanup BuildStream infrastructure
   ansible.builtin.import_playbook: cleanup/cleanup_build_stream.yml
   tags:
     - never
     - cleanup
+    - cleanup_build_stream

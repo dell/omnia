@@ -54,5 +54,6 @@
 
 - name: Resolve Build Stream cleanup context
   ansible.builtin.set_fact:
-    build_stream_cleanup_context: "{{ 'cleanup' in (provided_tags | default([])) }}"
+    build_stream_cleanup_context: >-
+      {{ (provided_tags | default([]) | intersect(cleanup_tags)) | length > 0 }}
     cacheable: true

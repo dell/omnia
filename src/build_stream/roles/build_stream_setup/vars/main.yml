@@ -30,10 +30,20 @@ supported_tags:
   - execute
   - build
   - cleanup
+  - cleanup_gitlab
+  - cleanup_build_stream
 skip_credential_tags:
   - precheck
   - cleanup
+  - cleanup_gitlab
+  - cleanup_build_stream
   - validate
+# Tags that represent a cleanup flow (credential collection + input
+# validation are skipped, and the cleanup context is active).
+cleanup_tags:
+  - cleanup
+  - cleanup_gitlab
+  - cleanup_build_stream
 invalid_tag_combinations:
   - [prepare, cleanup]
   - [execute, cleanup]
@@ -47,6 +57,21 @@ invalid_tag_combinations:
   - [credentials, build]
   - [credentials, cleanup]
   - [credentials, precheck]
+  # New cleanup component tags are mutually exclusive with deploy tags
+  # and with each other / the combined cleanup tag.
+  - [prepare, cleanup_gitlab]
+  - [execute, cleanup_gitlab]
+  - [build, cleanup_gitlab]
+  - [precheck, cleanup_gitlab]
+  - [credentials, cleanup_gitlab]
+  - [prepare, cleanup_build_stream]
+  - [execute, cleanup_build_stream]
+  - [build, cleanup_build_stream]
+  - [precheck, cleanup_build_stream]
+  - [credentials, cleanup_build_stream]
+  - [cleanup, cleanup_gitlab]
+  - [cleanup, cleanup_build_stream]
+  - [cleanup_gitlab, cleanup_build_stream]
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
   Invalid tag usage detected.
