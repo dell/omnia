@@ -57,3 +57,13 @@
     build_stream_cleanup_context: >-
       {{ (provided_tags | default([]) | intersect(cleanup_tags)) | length > 0 }}
     cacheable: true
+
+# Setup runs before every cleanup step (GitLab included), so an invalid flag
+# stops the run before anything is removed.
+- name: Validate cleanup flag values
+  ansible.builtin.assert:
+    that:
+      - postgres_backup is not defined or (postgres_backup | string | trim | lower) in ['true', 'false']
+      - cleanup_credentials is not defined or (cleanup_credentials | string | trim | lower) in ['true', 'false']
+    fail_msg: "{{ cleanup_flag_invalid_msg }}"
+    quiet: true
