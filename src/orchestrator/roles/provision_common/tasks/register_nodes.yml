@@ -381,17 +381,24 @@
         - smd_service_status is not success
 
     - name: Wait for SMD API to be ready
-      openchami_reconcile:
-        action: check_apis
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: >-
-          {{ ochami_env[cluster_env_key] }}
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-      register: smd_api_ready
-      retries: "{{ service_retries }}"
-      delay: "{{ service_retry_interval }}"
-      until: smd_api_ready is success
-      no_log: true
+      block:
+        - name: Wait for SMD API to be ready
+          openchami_reconcile:
+            action: check_apis
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: >-
+              {{ ochami_env[cluster_env_key] }}
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+          register: smd_api_ready
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: smd_api_ready is success
+          no_log: true
+      rescue:
+        - name: Report SMD API readiness failure
+          ansible.builtin.fail:
+            msg: "{{ register_nodes_smd_api_ready_rescue_msg }}"
+          no_log: false
 
     - name: Refresh access token before retry
       ansible.builtin.command: sudo bash -lc 'gen_access_token'
@@ -408,20 +415,27 @@
       when: retry_token_result.rc == 0
 
     - name: Retry SMD node discovery
-      openchami_reconcile:
-        action: discover_static
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: >-
-          {{ ochami_env[cluster_env_key] }}
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        nodes_file: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
-        token_env_key: "{{ cluster_env_key }}"
-        expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
-      register: openchami_orchestration
-      retries: 2
-      delay: "{{ service_retry_interval }}"
-      until: openchami_orchestration is success
-      no_log: true
+      block:
+        - name: Retry SMD node discovery
+          openchami_reconcile:
+            action: discover_static
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: >-
+              {{ ochami_env[cluster_env_key] }}
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            nodes_file: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+            token_env_key: "{{ cluster_env_key }}"
+            expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
+          register: openchami_orchestration
+          retries: 2
+          delay: "{{ service_retry_interval }}"
+          until: openchami_orchestration is success
+          no_log: true
+      rescue:
+        - name: Report SMD node discovery retry failure
+          ansible.builtin.fail:
+            msg: "{{ register_nodes_discover_retry_rescue_msg }}"
+          no_log: false
 
 - name: Wait until target nodes are registered in SMD
   block:

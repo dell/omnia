@@ -311,6 +311,34 @@ register_nodes_verify_components_rescue_msg: |
     2. Review smd/metadata-service logs for discovery errors.
     3. Re-run provisioning once SMD discovery completes.
 
+register_nodes_smd_api_ready_rescue_msg: |
+  SMD API did not become ready after {{ service_retries }} retries in role
+  'provision_common' (tasks/register_nodes.yml: "Wait for SMD API to be ready")
+  for category '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Cluster URI: {{ openchami_api_uri | default('<unset>') }}
+    - CA cert: {{ hostvars['localhost']['openchami_ca_cert_path'] | default('<unset>') }}
+  Likely causes:
+    - The smd service is down, or the access token expired.
+  Next steps:
+    1. Check smd: systemctl status smd
+    2. Verify the SMD API responds: /usr/bin/ochami smd service status
+    3. Re-run provisioning once SMD is ready.
+
+register_nodes_discover_retry_rescue_msg: |
+  SMD node discovery failed again after retries in role 'provision_common'
+  (tasks/register_nodes.yml: "Retry SMD node discovery") for category
+  '{{ target_category | default('<unknown>') }}'.
+  Context:
+    - Nodes file: {{ nodes_dir }}/nodes_{{ target_category }}.yaml
+    - Expected XNAMEs: {{ _category_nodes | default([]) | map(attribute='XNAME') | list }}
+  Likely causes:
+    - SMD rejected the node definitions, or the access token expired.
+  Next steps:
+    1. Inspect the nodes file for invalid entries.
+    2. Check smd logs: journalctl -u smd -n 100
+    3. Re-run provisioning once SMD accepts the node definitions.
+
 register_nodes_reconcile_instanceinfo_rescue_msg: |
   Failed to reconcile hostnames in the Metadata Service in role
   'provision_common' (tasks/register_nodes.yml: "Reconcile hostnames in Metadata
