@@ -70,3 +70,19 @@ pxe_boot_inventory_selection_msg: >-
 pxe_boot_inventory_no_hosts_msg: >-
   No BMC hosts found in {{ pxeboot_inventory_source }}. Ensure the BMC_IP column
   is populated.
+
+# Actionable error messages surfaced (no_log tasks). Printed with no_log: false.
+pxe_boot_inventory_read_csv_rescue_msg: |
+  The PXE inventory CSV could not be read.
+  What to fix: check the inventory file is valid CSV with all required columns.
+  Then re-run the pxeboot stage.
+
+pxe_boot_inventory_token_rescue_msg: |
+  An OpenCHAMI access token could not be generated after the configured retries.
+  What to fix: confirm the OpenCHAMI target is running and the token helper works on the OIM.
+  Then re-run the pxeboot stage.
+
+pxe_boot_inventory_resolve_identities_rescue_msg: |
+  PXE node identities could not be resolved from SMD.
+  What to fix: confirm SMD is running and reachable, and that the nodes were provisioned.
+  Then re-run the pxeboot stage.
