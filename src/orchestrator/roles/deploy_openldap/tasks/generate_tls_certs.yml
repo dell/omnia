@@ -35,16 +35,85 @@
           -addext "subjectAltName=IP:{{ ldap_server_ip }},DNS:{{ domain_name }}"
       changed_when: true
 
-    - name: Set certificate file permissions
-      ansible.builtin.file:
-        path: "{{ auth_certs_dir }}/{{ item.name }}"
-        owner: root
-        group: root
-        mode: "{{ item.mode }}"
-      loop:
-        - { name: "{{ tls_cert_file }}", mode: "0644" }
-        - { name: "{{ tls_key_file }}", mode: "0600" }
+- name: Set certificate file permissions
+  ansible.builtin.file:
+    path: "{{ auth_certs_dir }}/{{ item.name }}"
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { name: "{{ tls_cert_file }}", mode: "0644", group: root }
+    - { name: "{{ tls_key_file }}", mode: "0640", group: "{{ auth_ldap_group }}" }
+  loop_control:
+    label: "{{ item.name }}"
 
+- name: Check TLS certificate validity period
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkend
+      - "{{ tls_cert_min_validity_seconds | string }}"
+      - -noout
+      - -in
+      - "{{ auth_certs_dir }}/{{ tls_cert_file }}"
+  register: _tls_cert_validity
+  changed_when: false
+  failed_when: false
+
+- name: Check TLS certificate matches the LDAP server address
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkip
+      - "{{ ldap_server_ip }}"
+      - -noout
+      - -in
+      - "{{ auth_certs_dir }}/{{ tls_cert_file }}"
+  register: _tls_cert_identity
+  changed_when: false
+  failed_when: false
+
+- name: Read TLS certificate public key
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -pubkey
+      - -noout
+      - -in
+      - "{{ auth_certs_dir }}/{{ tls_cert_file }}"
+  register: _tls_cert_pubkey
+  changed_when: false
+  failed_when: false
+
+- name: Read TLS private key public component
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - pkey
+      - -pubout
+      - -in
+      - "{{ auth_certs_dir }}/{{ tls_key_file }}"
+  register: _tls_key_pubkey
+  changed_when: false
+  failed_when: false
+
+- name: Verify TLS certificate before use
+  ansible.builtin.assert:
+    that:
+      - _tls_cert_validity.rc == 0
+      - _tls_cert_identity.rc == 0
+      - _tls_cert_pubkey.rc == 0
+      - _tls_key_pubkey.rc == 0
+      - _tls_cert_pubkey.stdout == _tls_key_pubkey.stdout
+    fail_msg: "{{ tls_cert_invalid_msg }}"
+    quiet: true
+
+- name: Install generated TLS certificate in system trust store
+  when: not tls_cert_stat.stat.exists
+  block:
     - name: Copy TLS certificate to system trust store
       ansible.builtin.copy:
         src: "{{ auth_certs_dir }}/{{ tls_cert_file }}"

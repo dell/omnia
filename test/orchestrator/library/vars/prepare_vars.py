@@ -124,6 +124,12 @@ OPENLDAP_CONFIG_PATH_SUFFIX = "auth/config/slapd.conf"
 OPENLDAP_KEY_PATH_SUFFIX = "auth/tls_certs/ldapserver.key"
 OPENLDAP_CERT_PATH_SUFFIX = "auth/tls_certs/ldapserver.crt"
 OPENLDAP_QUADLET_PATH = "/etc/containers/systemd/omnia_auth.container"
+OPENLDAP_SERVICE_USER = "ldap"
+OPENLDAP_SERVICE_GROUP = "ldap"
+# slapd.conf and the TLS key stay root-owned; the unprivileged slapd reads them
+# through the service group.
+OPENLDAP_SECRET_MODES: tuple[tuple[str, int], ...] = (("ldap", 0o640),)
+OPENLDAP_PUBLIC_MODES: tuple[tuple[str, int], ...] = (("root", 0o644),)
 
 PREPARE_COMMANDS: dict[str, str] = {
     "container_state": ("podman inspect --format '{{.State.Status}}' %s 2>/dev/null"),
@@ -198,4 +204,5 @@ PREPARE_COMMANDS: dict[str, str] = {
     "ldap_listener": "ss -H -ltn 'sport = :%s' 2>/dev/null",
     "certificate_valid": "openssl x509 -checkend 86400 -noout -in %s",
     "slapd_validate": "podman exec %s slaptest -u -f /etc/openldap/slapd.conf",
+    "slapd_process_user": "podman exec %s ps -o user,args",
 }

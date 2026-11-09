@@ -363,13 +363,40 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 
 ## Cleanup
 
-Run the public `cleanup` tag before requesting an Omnia-wide reset. It removes
-the BuildStream and GitLab services, generated artifacts, and BuildStream-owned
-credential files and vault keys:
+Cleanup supports three mutually exclusive modes. **GitLab cleanup needs the
+BuildStream credentials, and BuildStream cleanup deletes those credentials** —
+so the combined mode always cleans GitLab first.
+
+| Mode | Command | What it does |
+|------|---------|--------------|
+| Complete (GitLab → BuildStream) | `--tags cleanup` | Cleans the remote GitLab host first, then BuildStream (BSM + Postgres + credentials). No pause. |
+| BuildStream only | `--tags cleanup_build_stream` | Cleans only BuildStream. Warns and **pauses 20s** first because it deletes credentials needed for later GitLab cleanup. |
+| GitLab only | `--tags cleanup_gitlab` | Cleans only the remote GitLab host. Leaves BuildStream, Postgres, watcher, and credentials untouched. |
 
 ```bash
 cd src/main
+# Complete cleanup (recommended): GitLab first, then BuildStream
 sudo ./omnia.sh --run build_stream --tags cleanup
+
+# BuildStream-only cleanup (warns + 20s pause; GitLab is NOT cleaned)
+sudo ./omnia.sh --run build_stream --tags cleanup_build_stream
+
+# GitLab-only cleanup
+sudo ./omnia.sh --run build_stream --tags cleanup_gitlab
+```
+
+Run **one** cleanup tag at a time (they cannot be combined with each other or
+with deploy tags).
+
+Standalone (from `src/build_stream`), the BuildStream cleanup playbook accepts
+`-e cleanup_gitlab=true` to run GitLab cleanup first (no pause); without it the
+20s warning/pause is shown:
+
+```bash
+# BuildStream only (warns + 20s pause):
+ansible-playbook playbooks/cleanup/cleanup_build_stream.yml
+# GitLab first, then BuildStream (the standalone combined extension, no pause):
+ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
 ```
 
 BuildStream cleanup removes its project output, validation and watcher logs,
@@ -378,7 +405,13 @@ logs under `/var/log/omnia/build_stream`, and generated Python bytecode caches.
 The initializer-owned application source and non-credential input files remain
 available for redeployment.
 PostgreSQL data is preserved by default; pass `-e postgres_backup=false` when
-the database data must also be deleted.
+the database data must also be deleted. BuildStream credentials are removed by
+default; pass `-e cleanup_credentials=false` to preserve them.
+
+When GitLab cleanup is requested but its credentials are unavailable (for
+example after BuildStream cleanup already deleted them), it prints a prominent
+warning and skips the remote host so repeated cleanup stays idempotent. Pass
+`-e gitlab_cleanup_strict=true` to fail fast instead of skipping.
 
 Because cleanup removes the initializer-managed runtime and host log
 directories, reinitialize the BuildStream domain before redeploying. Use the
