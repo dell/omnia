@@ -16,7 +16,7 @@
 
 """Unit tests: build-image success is completed only after image registration.
 
-OMN-DEF #1380: the result poller marked build-image COMPLETED before it
+The result poller used to mark build-image COMPLETED before it
 registered the ImageGroup and Images, and silently skipped the registration
 when the catalog metadata could not be loaded. These tests pin the corrected
 contract: register first, complete second, and fail the stage (and the job)

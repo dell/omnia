@@ -241,7 +241,7 @@ def test_postgres_data_per_backup_flag(host):
 @pytest.mark.sanity
 @pytest.mark.order(90216)
 def test_job_data_per_backup_flag(host):
-    """Verify build_stream_root job data follows cleanup.postgres_backup (OMN-DEF #1380)."""
+    """Verify build_stream_root job data follows cleanup.postgres_backup."""
     tc = TC["job_data_per_backup_flag"]
     tl = TestLogger(tc["title"], tc["id"])
     flags = cleanup_settings(load_test_config())

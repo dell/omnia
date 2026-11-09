@@ -253,8 +253,7 @@ BUILDSTREAM_RUNTIME_DIRECTORIES = BUILDSTREAM_SHARED_DIRECTORIES + (
 # With a retained PostgreSQL database, cleanup keeps only the files under
 # build_stream_root/artifacts that artifact_metadata rows reference (artifact
 # store keys: namespace/12-hex/label.bin) and removes everything else under
-# build_stream_root (cleanup_build_stream role: build_stream_artifact_key_pattern,
-# OMN-DEF #1380).
+# build_stream_root (cleanup_build_stream role: build_stream_artifact_key_pattern).
 BUILDSTREAM_ROOT_DIR = "build_stream/build_stream_root"
 BUILDSTREAM_KEPT_ARTIFACT_PATTERN = (
     r"^artifacts/[A-Za-z0-9_][A-Za-z0-9._-]*/[0-9a-f]{12}/[A-Za-z0-9_][A-Za-z0-9._-]*\.(bin|zip)$"
