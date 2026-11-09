@@ -1,4 +1,4 @@
-# Image Build Manager -- Architecture
+# Image Build Manager Architecture
 
 ## System Context
 

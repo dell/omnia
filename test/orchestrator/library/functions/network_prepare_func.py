@@ -24,7 +24,7 @@ from omnia_auto import run_on_host
 from ..vars.prepare_vars import (
     DEFAULT_DNS_FORWARDERS,
     FIREWALL_PORTS,
-    PODMAN_TRUSTED_INTERFACES,
+    PODMAN_INTERFACES,
     PREPARE_COMMANDS,
 )
 from ._prepare_helpers import prepare_result, read_yaml_mapping
@@ -32,7 +32,16 @@ from .project_func import resolve_target_input_project_path
 
 
 def check_prepare_firewall_network(host) -> dict[str, Any]:
-    """Verify firewall ports, trusted interfaces and masquerade policy."""
+    """Verify firewall ports, podman zone isolation and masquerade policy.
+
+    The firewall role (CWE-284 remediation) moves podman interfaces out of
+    the trusted zone into a dedicated podman zone.  This test verifies:
+      - Required ports are open in the default zone.
+      - Podman interfaces are NOT in the trusted zone.
+      - Podman interfaces ARE in the dedicated podman zone.
+      - Trusted-zone masquerading is disabled.
+      - Podman-zone masquerading is enabled (container outbound traffic).
+    """
     fields = []
     failures = []
 
@@ -49,27 +58,51 @@ def check_prepare_firewall_network(host) -> dict[str, Any]:
         if probe.rc != 0:
             failures.append(port)
 
-    for interface in PODMAN_TRUSTED_INTERFACES:
-        probe = run_on_host(host, PREPARE_COMMANDS["firewall_interface"], interface)
-        state = "trusted" if probe.rc == 0 else "not trusted"
-        fields.append((f"Interface {interface}", state))
-        if probe.rc != 0:
-            failures.append(interface)
+    for interface in PODMAN_INTERFACES:
+        in_trusted = run_on_host(
+            host, PREPARE_COMMANDS["firewall_interface_trusted"], interface
+        )
+        in_podman = run_on_host(
+            host, PREPARE_COMMANDS["firewall_interface_podman"], interface
+        )
+        if in_trusted.rc == 0:
+            failures.append(f"{interface} still in trusted zone")
+            fields.append((f"Interface {interface}", "FAIL: in trusted zone"))
+        elif in_podman.rc == 0:
+            fields.append((f"Interface {interface}", "podman zone"))
+        else:
+            failures.append(f"{interface} not in podman zone")
+            fields.append((f"Interface {interface}", "FAIL: not in podman zone"))
 
-    masquerade = run_on_host(host, PREPARE_COMMANDS["firewall_masquerade"])
-    masquerade_disabled = masquerade.stdout.strip().lower() == "no"
+    masquerade_trusted = run_on_host(
+        host, PREPARE_COMMANDS["firewall_masquerade_trusted"]
+    )
+    trusted_masq_disabled = masquerade_trusted.stdout.strip().lower() == "no"
     fields.append(
         (
             "Trusted-zone masquerading",
-            "disabled" if masquerade_disabled else "enabled",
+            "disabled" if trusted_masq_disabled else "enabled",
         )
     )
-    if not masquerade_disabled:
-        failures.append("trusted-zone masquerading")
+    if not trusted_masq_disabled:
+        failures.append("trusted-zone masquerading should be disabled")
+
+    masquerade_podman = run_on_host(
+        host, PREPARE_COMMANDS["firewall_masquerade_podman"]
+    )
+    podman_masq_enabled = masquerade_podman.stdout.strip().lower() == "yes"
+    fields.append(
+        (
+            "Podman-zone masquerading",
+            "enabled" if podman_masq_enabled else "disabled",
+        )
+    )
+    if not podman_masq_enabled:
+        failures.append("podman-zone masquerading should be enabled")
 
     return prepare_result(
         not failures,
-        "Orchestrator firewall and Podman trust policy checked",
+        "Orchestrator firewall and Podman zone policy checked",
         fields,
         "Invalid network policy: " + ", ".join(failures) if failures else "",
     )
