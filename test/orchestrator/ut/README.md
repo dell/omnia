@@ -16,6 +16,7 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_hpc_platform_scripts.py` | Per-node RHEL HPC storage and Pulp paths, OS-dependent Slurm scripts, and offline benchmark downloads |
 | `test_orchestrator_status_reconcile.py` | Lifecycle status reconciliation for external and platform-managed PXE boot results |
 | `test_input_validation_fail_closed.py` | Vault-encrypted inputs are decrypted and validated with masked values, or reported unvalidated when no key exists (`ORCH_UT_102`–`104`) |
+| `test_openldap_readonly_bind_contract.py` | OpenLDAP ACL denies anonymous reads, the read-only bind account is prompted, validated, created over verified StartTLS without exposing passwords, and used by `sssd` in both TLS and SSL modes |
 | `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
 
 Parameterized cases count as separate pytest results. Function names and

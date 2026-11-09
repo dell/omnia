@@ -67,7 +67,8 @@
           ansible.builtin.debug:
             msg: >-
               Credential file not found at {{ input_project_dir }}/orchestrator_credentials.yml.
-              OpenLDAP credentials (openldap_db_username, openldap_db_password) will be
+              OpenLDAP credentials (openldap_db_username, openldap_db_password,
+              openldap_bind_username, openldap_bind_password) will be
               prompted during the prepare phase.
           when: not _cred_file_check.stat.exists
 

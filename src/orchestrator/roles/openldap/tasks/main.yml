@@ -29,14 +29,14 @@
       ansible.builtin.set_fact:
         connection_type: "{{ (hostvars['localhost']['ldap_connection_type']) | lower }}"
 
-    - name: Set the password required by LDAP
+    - name: Set the read-only bind password used by LDAP clients
       ansible.builtin.set_fact:
-        password: "{{ hostvars['localhost']['openldap_db_password'] }}"
+        password: "{{ hostvars['localhost']['openldap_bind_password'] }}"
       no_log: true
 
-    - name: Set the ldap_connection_type required by LDAP
+    - name: Set the read-only bind DN used by LDAP clients
       ansible.builtin.set_fact:
-        ldap_default_bind_dn: "cn={{ hostvars['localhost']['openldap_db_username'] }},{{ ldap_search_base }}"
+        ldap_default_bind_dn: "cn={{ hostvars['localhost']['openldap_bind_username'] }},ou=ServiceAccounts,{{ ldap_search_base }}"
 
   rescue:
     - name: Warn missing vars files

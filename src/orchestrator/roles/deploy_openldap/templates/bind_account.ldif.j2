@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Read-only account that LDAP clients bind with; its password is set separately
+# with the LDAP Password Modify operation, so slapd stores only a salted hash.
+
+dn: {{ bind_account_ou }},{{ ldap_search_base }}
+objectClass: organizationalUnit
+ou: {{ bind_account_ou | regex_replace('^ou=', '') }}
+
+dn: cn={{ openldap_bind_username }},{{ bind_account_ou }},{{ ldap_search_base }}
+objectClass: organizationalRole
+objectClass: simpleSecurityObject
+cn: {{ openldap_bind_username }}
+description: Read-only account for LDAP client lookups (managed by Omnia)
+userPassword: {CRYPT}*
