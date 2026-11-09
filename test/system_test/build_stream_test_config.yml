@@ -95,6 +95,24 @@ cleanup:
     #          the next install asks before overwriting the inputs (--yes
     #          answers it).
     cleanup_all: true
+  # NFS shares of storage_config.yml (user_inputs.yml orchestrator.storage_config.mounts).
+  # SVT only: not written into any suite. Slurm and Kubernetes data left on the shares
+  # survives a reinstall, so the cleanup empties them (default true):
+  #   1. before anything is deleted, each share is mounted read-only and unmounted
+  #      again: a share that cannot be reached fails the cleanup with the reason;
+  #   2. after the other steps, each share is mounted read-write on a private
+  #      temporary folder on this OIM, EVERYTHING inside it is deleted (the export
+  #      itself stays) and it is unmounted.
+  # The shares are the mounts "nfs_slurm" (slurm_share) and "nfs_k8s" (k8s_share) whose
+  # source is host:/export. A mount that is absent, or is not NFS, is skipped; system
+  # directories (/, /etc, /home ...) and an export on this OIM that holds the checkout
+  # or OMNIA_DATA_PATH are refused. Needs root and nfs-utils on the OIM, and the
+  # exports must not squash root (no_root_squash). The confirmation lists the shares.
+  nfs:
+    # true: empty the Slurm share (storage_config.yml mount nfs_slurm).
+    slurm_share: true
+    # true: empty the Kubernetes share (storage_config.yml mount nfs_k8s).
+    k8s_share: true
 
 # =============================================================================
 # REPORT  (one folder and one SVT report per run)

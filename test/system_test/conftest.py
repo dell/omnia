@@ -84,6 +84,8 @@ def pytest_sessionfinish(session):
     replaces its earlier result, and the cases keep the order of TEST_CASES.
     """
     del session
+    if not _RESULTS:
+        return
     path = os.path.join(run_dir(_run_id()), "svt_results.json")
     current = {item["id"]: item for item in _RESULTS}
     merged = {item.get("id"): item for item in _stored_results(path)}

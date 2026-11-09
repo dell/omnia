@@ -70,6 +70,7 @@ the suites' own values. A change here needs a new `--configure` (a new run).
 | `cleanup.<suite>.enabled` | `true` | `false` skips that suite's cleanup step |
 | `cleanup.<suite>.<flag>` | as shipped | Written into `test/<suite>/test_config.yml` before its cleanup runs |
 | `cleanup.main.cleanup_all` | `true` | Complete reset: every `domain-init.sh --cleanup`, then `omnia.sh --cleanup --all`; `false`: `omnia.sh --cleanup` (data kept) |
+| `cleanup.nfs.slurm_share`, `cleanup.nfs.k8s_share` | `true` | The cleanup empties the `nfs_slurm` / `nfs_k8s` NFS shares of `storage_config.yml` (SVT only, written into no suite; see [SETUP.md](SETUP.md)) |
 | `report.report_path` | `""` = `test/system_test/reports` | Parent of the run folders (`<report_path>/<run_id>/`); keep it outside `OMNIA_DATA_PATH` |
 | `report.report_name` | `""` = `svt_build_stream_report` | SVT report file name (`.json`, `.html`) in the run folder |
 | `report.run_id` | `""` = new `svt-<UTC time>` per configure | The run id; a fixed value reuses that run folder (same theme only) |
@@ -102,7 +103,7 @@ fails, the later tests of the stage are skipped (they need what it set up).
 | `initialization` | the readiness checks of `--status` (one report entry each) | the run manifest is written |
 | `prepare_build_stream` | `004` prepare_base exec, `005` prepare_base verify, `006` precheck exec, `007` precheck verify, `008` prepare exec, `009` prepare verify, `010` execute exec, `011`-`013` execute verify `gitlab_server`, `gitlab_runner`, `gitlab_project` | the base domains and BuildStream run; GitLab server, runner and project are up |
 | `build_deploy` | `014` execute verify `--marker automatic_execution` (build_automatic and deploy_automatic in one process: the deploy uses the image the build made) | an image built and deployed |
-| `cadence` | `015` execute verify `--suite cadence` (a new build, one cadence cycle, the cadence pipeline) | the cadence image is handed to the automatic cleanup |
+| `cadence` | `015` execute verify `--suite cadence --marker sanity` (a new build, one cadence cycle, the cadence pipeline; the suite's disable / re-enable and artifact checks are not run) | the cadence image is handed to the automatic cleanup |
 | `automatic_cleanup` | `016` execute verify `--suite auto_cleanup` (marks the cadence image FAILED, one cleanup_cron pass, checks S3, registry, NFS) | |
 | `summary` | prints the run and renders the report; fails when anything in the run failed | |
 
@@ -323,6 +324,7 @@ The run folder is `<report_path>/<run_id>/` (default `reports/<run_id>/`).
 test/system_test/
 ├── README.md                    this file
 ├── SETUP.md                     setup_env.sh, user_inputs.yml and the dataset generator
+├── OPENBAO.md                   passwords from OpenBao: one place for its settings, two ways to read
 ├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
 ├── run_validation.sh, _run.py   SVT runner: svt_<theme> list | <stage> | all
 ├── requirements.txt             SVT .venv: pytest, pytest-order, PyYAML, ruamel.yaml, omnia_auto
@@ -333,7 +335,8 @@ test/system_test/
 │   │                            stages, FVT settings, cleanup flags, credential stores),
 │   │                            domain_vars, test_case_vars (each SVT test: stage, FVT step)
 │   ├── messages/svt_msgs.py     stage, setup and config text with HOW TO FIX
-│   └── functions/               readiness_func (setup record, readiness checks),
+│   └── functions/               nfs_func (empty the NFS shares on cleanup), openbao_func (read
+│                                OpenBao), readiness_func (setup record, readiness checks),
 │                                svt_report_func (the SVT report data), svt_report_html (its
 │                                page), config_func (<theme>_test_config.yml), run_func (the
 │                                run), state_func and lock_func (run state, one step at a
@@ -341,6 +344,7 @@ test/system_test/
 │                                manifest), fvt_func (FVT bridge), test_func (one SVT test),
 │                                process_func (no-shell runner)
 ├── svt/test_svt.py              every SVT test, generated from test_case_vars.py
+├── ut/test_nfs_func.py          unit tests of nfs_func (run: .venv/bin/python -m pytest ut --noconftest -c /dev/null)
 └── reports/                     setup and run files (gitignored)
 ```
 

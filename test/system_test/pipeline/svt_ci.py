@@ -42,7 +42,8 @@ SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
 SVT_THEME, SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
 SVT_CREDENTIAL_DOMAINS, SVT_LABEL, BAO_SERVER_URL, BAO_AUTH_ROLE,
-BAO_DATA_PATH, BAO_CACERT (file variable, required with OpenBao),
+BAO_DATA_PATH, BAO_CACERT (optional file variable: verify OpenBao with this CA;
+BAO_TLS_SKIP_VERIFY=false: verify with the system CA store),
 BAO_TLS_SKIP_VERIFY, VAULT_ID_TOKEN, EMAIL_RECIPIENTS, EMAIL_SENDER,
 SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD. No secret is printed,
 written to a file or passed as an argument.
@@ -236,15 +237,16 @@ def run_detached(job: str, command: str) -> int:
 
 # ----------------------------------------------------------------- openbao
 def _bao_context() -> ssl.SSLContext:
-    """Verify OpenBao with BAO_CACERT; unverified only with BAO_TLS_SKIP_VERIFY=true."""
+    """The TLS context for OpenBao, like test/pipeline (which uses curl -k): the certificate
+    is not checked unless BAO_CACERT (an optional File variable) names a CA file, or
+    BAO_TLS_SKIP_VERIFY=false asks for the system CA store."""
     cafile = _env("BAO_CACERT")
     if cafile:
         return ssl.create_default_context(cafile=cafile)
-    if _env("BAO_TLS_SKIP_VERIFY").lower() != "true":
-        _fail("BAO_CACERT (file variable with the OpenBao CA certificate) is required; "
-              "BAO_TLS_SKIP_VERIFY=true skips the check (not recommended)")
-    print("WARNING: BAO_TLS_SKIP_VERIFY=true: the OpenBao certificate is not verified",
-          flush=True)
+    if _env("BAO_TLS_SKIP_VERIFY").lower() == "false":
+        return ssl.create_default_context()
+    print("WARNING: the OpenBao certificate is not verified (as in test/pipeline); give the "
+          "File variable BAO_CACERT to verify it", flush=True)
     # pylint: disable-next=protected-access
     return ssl._create_unverified_context()  # nosec B323  # explicit opt-out only
 

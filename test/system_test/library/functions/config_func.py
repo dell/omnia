@@ -39,7 +39,10 @@ from ..vars.common_vars import (
     DEFAULT_SVT_REPORT_NAME,
     DEFAULT_SVT_REPORT_PATH,
     FVT_TEST_CONFIG,
+    INPUTS_FILE,
     MODULE_ROOT,
+    OPENBAO_PATH_RE,
+    OPENBAO_URL_RE,
     REPORT_NAME_RE,
     REPORT_PATH_RE,
     RUN_ID_RE,
@@ -63,6 +66,8 @@ class ConfigError(ValueError):
 
 # Top-level keys of <theme>_test_config.yml besides the theme block.
 CONFIG_KEYS = ("cleanup", "report")
+NFS_CLEANUP_KEY = "nfs"
+OPENBAO_KEYS = ("server_url", "secret_path", "tls_skip_verify", "ca_cert")
 
 
 def _require_bool(value: Any, where: str, path: str) -> bool:
@@ -82,7 +87,7 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: theme, path, cleanup ({suite: {flag:
         bool}}, every suite of CLEANUP_FLAGS, "enabled" included), report,
-        fvt_settings ({key: value} of the theme block).
+        nfs ({flag: bool} of cleanup.nfs, default true), fvt_settings ({key: value} of the theme block).
 
     Raises:
         ConfigError: When the theme is unknown, or the file cannot be read or
@@ -108,10 +113,12 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
     cleanup_block = data.get("cleanup") or {}
     if not isinstance(cleanup_block, dict):
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="cleanup"))
-    unknown = sorted(set(cleanup_block) - set(CLEANUP_FLAGS))
+    nfs_block = cleanup_block.get(NFS_CLEANUP_KEY) or {}
+    unknown = sorted(set(cleanup_block) - set(CLEANUP_FLAGS) - {NFS_CLEANUP_KEY})
     if unknown:
         raise ConfigError(CONFIG_MSGS["unknown_suite"].format(
-            path=path, names=", ".join(unknown), known=", ".join(CLEANUP_FLAGS)))
+            path=path, names=", ".join(unknown),
+            known=", ".join((*CLEANUP_FLAGS, NFS_CLEANUP_KEY))))
     cleanup: Dict[str, Dict[str, bool]] = {}
     for suite, (_, allowed) in CLEANUP_FLAGS.items():
         block = cleanup_block.get(suite) or {}
@@ -127,6 +134,7 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
                           for key, value in block.items()}
         cleanup[suite].setdefault(CLEANUP_ENABLED_KEY, True)
     return {"theme": theme, "path": path, "cleanup": cleanup,
+            "nfs": _load_nfs_block(theme, nfs_block, path),
             "report": _load_report_block(data.get("report") or {}, path),
             "fvt_settings": _load_theme_block(theme, data.get(theme) or {}, path)}
 
@@ -175,6 +183,66 @@ def _load_report_block(block: Any, path: str) -> Dict[str, str]:
                 path=path, key=key, value=text))
         report[key] = text
     return report
+
+
+def _load_nfs_block(theme: str, block: Any, path: str) -> Dict[str, bool]:
+    """Return the checked cleanup.nfs flags (one per NFS share of the theme, default true)."""
+    flags = tuple(THEMES[theme].get("nfs_shares") or ())
+    if not isinstance(block, dict):
+        raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="cleanup.nfs"))
+    bad = sorted(set(block) - set(flags))
+    if bad:
+        raise ConfigError(CONFIG_MSGS["unknown_flag"].format(
+            path=path, suite=NFS_CLEANUP_KEY, names=", ".join(bad), known=", ".join(flags)))
+    return {flag: _require_bool(block.get(flag, True), f"cleanup.nfs.{flag}", path)
+            for flag in flags}
+
+
+def _load_openbao_block(block: Any, path: str) -> Dict[str, Any]:
+    """Return the checked openbao block (where --domain-creds-from-openbao reads).
+
+    Empty values mean "not set"; the loader says what is missing when it is used.
+    The token is never a setting: it comes from BAO_TOKEN or a prompt.
+    """
+    block = block or {}
+    if not isinstance(block, dict):
+        raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="openbao"))
+    unknown = sorted(set(block) - set(OPENBAO_KEYS))
+    if unknown:
+        raise ConfigError(CONFIG_MSGS["unknown_openbao_key"].format(
+            path=path, names=", ".join(unknown), known=", ".join(OPENBAO_KEYS)))
+    server = "" if block.get("server_url") is None else str(block["server_url"]).strip().rstrip("/")
+    secret = "" if block.get("secret_path") is None else str(block["secret_path"]).strip("/ ")
+    ca_cert = "" if block.get("ca_cert") is None else str(block["ca_cert"]).strip()
+    checks = (("server_url", server, not server or OPENBAO_URL_RE.fullmatch(server),
+               "use https://host:port"),
+              ("secret_path", secret, not secret or OPENBAO_PATH_RE.fullmatch(secret),
+               "letters, digits, _ - and / only (KV v2: secret/data/<path>)"),
+              ("ca_cert", ca_cert, not ca_cert or os.path.isabs(ca_cert),
+               "an absolute file path"))
+    for key, value, valid, why in checks:
+        if not valid:
+            raise ConfigError(CONFIG_MSGS["invalid_openbao_value"].format(
+                path=path, key=key, value=value, why=why))
+    return {"server_url": server, "secret_path": secret, "ca_cert": ca_cert,
+            "tls_skip_verify": _require_bool(block.get("tls_skip_verify", False),
+                                             "openbao.tls_skip_verify", path)}
+
+
+def load_openbao_settings(path: str = INPUTS_FILE) -> Dict[str, Any]:
+    """Return the checked ``openbao`` block of user_inputs.yml (the one place OpenBao is set).
+
+    Raises:
+        ConfigError: user_inputs.yml cannot be read or the block holds an invalid value.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            data = yaml.safe_load(stream) or {}
+    except OSError as exc:
+        raise ConfigError(CONFIG_MSGS["unreadable"].format(path=path, error=exc.strerror)) from exc
+    except yaml.YAMLError as exc:
+        raise ConfigError(CONFIG_MSGS["invalid_yaml"].format(path=path, error=exc)) from exc
+    return _load_openbao_block(data.get("openbao") if isinstance(data, dict) else None, path)
 
 
 def cleanup_all(config: Dict[str, Any]) -> bool:

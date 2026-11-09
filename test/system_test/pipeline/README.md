@@ -50,13 +50,16 @@ bao kv get secret/omnia/build_stream          # check
 - **Different credentials per cluster:** store them at another path, e.g.
   `secret/omnia/cluster2/<domain>`, and set `clusters.cluster2.secret_path:
   "secret/data/omnia/cluster2"`.
-- **CA certificate (required):** after the project exists, add the CI/CD
-  variable `BAO_CACERT`, type **File**, with the OpenBao CA certificate
-  (e.g. `/opt/openbao/tls/tls.crt` of a self-signed OpenBao), or let the tool
-  do it: `./setup_svt_project.py --update --gitlab-url ... --bao-cacert
-  /opt/openbao/tls/tls.crt`.
-  `openbao.tls_skip_verify: "true"` skips the check instead (not
-  recommended).
+- **Certificate (optional):** like `test/pipeline`, which calls OpenBao with `curl -k`
+  and has no CA setting, the pipeline does not check the OpenBao certificate by default
+  (a warning is printed). To check it, add the CI/CD variable `BAO_CACERT`, type
+  **File**, with the CA certificate (`--bao-cacert FILE` stores it), or set
+  `BAO_TLS_SKIP_VERIFY=false` to use the system CA store.
+- **One place for OpenBao:** the address, secret path and TLS setting are only in the
+  `openbao` block of `../user_inputs.yml` (also used by `./setup_env.sh
+  --domain-creds-from-openbao`); `setup_svt_project.py` turns them into `BAO_SERVER_URL`,
+  `BAO_DATA_PATH` and `BAO_TLS_SKIP_VERIFY`. `svt_pipeline_config.yml` only has
+  `openbao.auth_role`. Details: [../OPENBAO.md](../OPENBAO.md).
 - The pipeline reads the four secrets in the initialization job and pipes
   them as one JSON object to `./setup_env.sh --domain-creds-stdin` on the OIM.
   They are never written to disk, logged or passed as an argument.
@@ -68,8 +71,7 @@ gitlab: {project_name: "omnia-svt", namespace: "root", branch: "main"}
 svt:
   theme: "build_stream"
   timeouts_hours: {default_hours: 6, initialization: 4, build_deploy: 8, cadence: 8}
-openbao: {server_url: "https://10.0.0.50:8200", auth_role: "gitlab-role",
-          secret_path: "secret/data/omnia", tls_skip_verify: "false"}
+openbao: {auth_role: "gitlab-role"}   # address, path and TLS: the openbao block of ../user_inputs.yml
 email: {recipients: "you@example.com", sender: "svt@example.com",
         smtp_server: "smtp.example.com", smtp_port: "25", required: "false"}
 clusters:
@@ -132,7 +134,7 @@ Then, in GitLab (Settings > CI/CD > Variables), when needed:
 
 | Variable | Type | When |
 |---|---|---|
-| `BAO_CACERT` | File | With OpenBao (required; `--bao-cacert` sets it) |
+| `BAO_CACERT` | File | With OpenBao, optional: verify the certificate with this CA (`--bao-cacert` sets it) |
 | `<CLUSTER>_SVT_SSH_KEY` | File | SSH key instead of the password |
 | `<CLUSTER>_SVT_SSH_KNOWN_HOSTS` | File | The OIM host key (its `known_hosts` line); **required** unless `ssh_skip_host_key` is `true` (`--scan-host-keys` sets it) |
 | `<CLUSTER>_SVT_SSH_SKIP_HOST_KEY` | Variable | `true`: do not check the OIM host key (not recommended; set from `target.ssh_skip_host_key`) |
@@ -216,7 +218,7 @@ Also: CI/CD > Schedules (nightly), or the API
 | `the checkout has no usable SVT` | The branch has no `test/system_test/setup_env.sh` (with `--configure` and `--domain-creds-stdin`) and `run_validation.sh`: use a branch that has the system test |
 | `the summary email was NOT sent` | `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USER`/`SMTP_PASSWORD`; the report is still in the job artifacts. `email.required: "true"` makes it fail the job |
 | `preflight`: SSH failed | `<CLUSTER>_SVT_TARGET_IP`, password/key, port 22 from the runner, `sshpass` on the runner |
-| `BAO_CACERT ... is required` | Add the File variable `BAO_CACERT`, or `BAO_TLS_SKIP_VERIFY=true` |
+| `OpenBao: could not read ...` with a certificate error | `BAO_TLS_SKIP_VERIFY=false` verifies with the system CA store; give `BAO_CACERT` for a private CA, or leave both unset (not verified, as in test/pipeline) |
 | `OpenBao: could not read the credentials` | `BAO_SERVER_URL`, `BAO_AUTH_ROLE`, the role's `bound_audiences` (= the OpenBao URL), the secret path |
 | `Unsupported fields` in initialization | A key in the OpenBao secret that the store does not have |
 | `another SVT step is running on this OIM` | A run by hand or an old pipeline holds `reports/svt.lock`; wait, or stop it |

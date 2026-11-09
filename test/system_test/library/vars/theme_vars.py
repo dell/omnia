@@ -81,6 +81,9 @@ THEMES: Dict[str, Dict] = {
         # dataset_generator/profiles/<profile>.yml: user_inputs.yml -> src inputs.
         "profile": "build_stream",
         "cleanup_steps": CLEANUP_STEPS,
+        # cleanup.nfs flag -> name of the storage_config.yml mount whose NFS share the
+        # cleanup empties (nfs_func.py).
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
         # Suites whose requirements go into the Omnia venv, in --prepare-base
         # order (./setup_env.sh --install), then BuildStream.
         "fvt_domains": ("repo_manager", "image_build_manager", "orchestrator",

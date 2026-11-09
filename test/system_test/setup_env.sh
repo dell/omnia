@@ -48,6 +48,13 @@
 #   --set-domain-creds       prompt every domain credential store (repo_manager,
 #                            image_build_manager, orchestrator, build_stream)
 #   --update-domain-creds    update existing stores
+#   --domain-creds-from-openbao
+#                            read the stores from OpenBao (every domain, or
+#                            --domain <d>): <openbao.server_url>/v1/<openbao.
+#                            secret_path>/<domain> from the openbao block of
+#                            user_inputs.yml, token in BAO_TOKEN (or a hidden
+#                            prompt); the values go to the stores in memory,
+#                            only field names are shown
 #   credential-json-provider | ./setup_env.sh --domain-creds-stdin
 #                            JSON keyed by domain, e.g. {"repo_manager": {...}}
 #   --status                 the steps and the readiness checks, in a box
@@ -58,6 +65,8 @@
 #                            overwrite); for pipelines. Without a terminal the
 #                            missing credentials are read as JSON from stdin
 #   --force                  with no action or --install: cleanup + full install
+#   --openbao                with no action: the missing credential stores are
+#                            read from OpenBao instead of prompted
 #   --retry                  run again the step the run failed at (or was
 #                            interrupted at, e.g. Ctrl-C) in the SAME run, no
 #                            new run id. With no action: resume at the failed
@@ -105,6 +114,7 @@ DRIVER_ARGS=()
 DOMAIN=""
 THEME=""
 FORCE=false
+FROM_OPENBAO=false
 YES=false
 DRY_RUN=false
 RETRY=false
@@ -120,7 +130,7 @@ while [ $# -gt 0 ]; do
         --cleanup)             set_action cleanup; shift ;;
         --install)             set_action install; shift ;;
         --status)              set_action status; shift ;;
-        --set-domain-creds|--update-domain-creds|--domain-creds-stdin)
+        --set-domain-creds|--update-domain-creds|--domain-creds-stdin|--domain-creds-from-openbao)
             set_action creds; DRIVER_ARGS+=("--flag=$1"); shift ;;
         --domain)
             [ $# -ge 2 ] || fail "--domain needs a domain name"
@@ -132,6 +142,7 @@ while [ $# -gt 0 ]; do
         --theme=*)             THEME="${1#--theme=}"; shift ;;
         --yes|-y)              YES=true; shift ;;
         --force)               FORCE=true; shift ;;
+        --openbao)             FROM_OPENBAO=true; shift ;;
         --dry-run)             DRY_RUN=true; shift ;;
         --retry)               RETRY=true; shift ;;
         --recreate-venv)       RECREATE_VENV=true; shift ;;
@@ -168,6 +179,10 @@ if [ "$DRY_RUN" = true ]; then
     [ "$ACTION" = cleanup ] || fail "--dry-run is only valid with --cleanup"
     [ "$YES" = false ] || fail "--dry-run changes nothing: drop --yes"
     DRIVER_ARGS+=(--dry-run)
+fi
+if [ "$FROM_OPENBAO" = true ]; then
+    [ "$ACTION" = all ] || fail "--openbao is only valid with no action (every step); use --domain-creds-from-openbao alone"
+    DRIVER_ARGS+=(--from-openbao)
 fi
 if [ "$YES" = true ]; then
     case "$ACTION" in

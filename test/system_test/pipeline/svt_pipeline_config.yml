@@ -1,11 +1,47 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# =============================================================================
+# SVT pipeline settings: the GitLab project that runs the SVT on one or more OIMs
+# =============================================================================
+# Fill this file, then (test/system_test/pipeline):
+#
+#   ./setup_svt_project.py --render                                   # look at the CI files
+#   GITLAB_TOKEN=<token> ./setup_svt_project.py --create --gitlab-url https://<gitlab-host>
+#   GITLAB_TOKEN=<token> ./setup_svt_project.py --update --gitlab-url https://<gitlab-host>
+#
+# Passwords and tokens are never kept here: the GitLab token comes from GITLAB_TOKEN
+# or a prompt, each OIM password from <CLUSTER>_SVT_TARGET_PASS or a prompt, the
+# OpenBao credentials from OpenBao. Where OpenBao is (address, secret path, TLS) is
+# set once, in the "openbao" block of ../user_inputs.yml.
+# =============================================================================
+
 gitlab:
+  # Name and namespace (user or group) of the GitLab project.
   project_name: "omnia-system-test"
   namespace: "root"
+  # Branch that holds the CI files; pipelines are started from it.
   branch: "main"
 
 svt:
+  # The SVT theme (a key of THEMES in ../library/vars/theme_vars.py). Its stages become
+  # the pipeline jobs, so a new theme or stage needs no change here.
   theme: "build_stream"
+  # Seconds between two reads of a running stage's log.
   poll_seconds: "30"
+  # Time limit of each job in hours (GitLab does not take variables in timeout:).
+  # default_hours is used for a job without its own entry; the project's CI timeout
+  # is raised to the longest one.
   timeouts_hours:
     default_hours: 6
     preflight: 0.25
@@ -18,30 +54,51 @@ svt:
     summary: 1
 
 openbao:
-  server_url: ""
+  # JWT role of the GitLab login (the same role test/pipeline uses).
+  # The address, secret path and TLS setting are NOT set here: they live in the
+  # "openbao" block of ../user_inputs.yml, which becomes the CI/CD variables
+  # BAO_SERVER_URL, BAO_DATA_PATH and BAO_TLS_SKIP_VERIFY.
   auth_role: "gitlab-role"
-  secret_path: "secret/data/omnia"
-  tls_skip_verify: "false"
 
 email:
-  recipients: ""
+  # The summary job mails the result and the HTML report. Leave recipients (or sender
+  # or smtp_server) empty to send no email.
+  recipients: ""          # comma separated addresses
   sender: ""
   smtp_server: ""
   smtp_port: "25"
-  required: "false"   # "true": the summary job fails when the email cannot be sent
+  # "true": the summary job fails when the email cannot be sent. "false" (default):
+  # a failed email is reported as an error but does not change the result.
+  required: "false"
 
+# One block per cluster (one OIM each). The name becomes the variable prefix
+# (oim1 -> OIM1_SVT_TARGET_IP) and the resource group svt-<name>: two pipelines
+# for the same OIM never run together. Copy a block and rename it to add a cluster.
 clusters:
   oim1:
     target:
+      # IP or name of the OIM, and the user the jobs log in as (the password is asked
+      # by --create / --set-password and stored as a masked, protected variable).
       ip: ""
       user: "root"
-      ssh_skip_host_key: "false"   # "true" accepts an unchecked OIM host key (not recommended)
+      # "true": do not check the OIM host key (not recommended; the jobs warn). Default
+      # "false": <CLUSTER>_SVT_SSH_KNOWN_HOSTS is required (--scan-host-keys sets it).
+      ssh_skip_host_key: "false"
     omnia:
+      # The Omnia checkout the SVT runs from (it must contain test/system_test).
       repo: "https://github.com/dell/omnia.git"
       branch: "staging"
+      # Absolute path on the OIM. update: reset it to the branch (local changes of
+      # tracked files are discarded, so use a folder of its own); clone: delete and
+      # clone again; keep: use it as it is.
       install_path: "/root/omnia"
       checkout_mode: "update"
     svt:
+      # "true": the initialization job does a clean reinstall (./setup_env.sh --force:
+      # cleanup including the NFS shares, then install). "false": no cleanup.
       clean_reinstall: "true"
+      # Theme stages to leave out, comma separated, e.g. "cadence,automatic_cleanup".
       skip_stages: ""
+    # OpenBao path of this cluster's credentials, when it differs from the openbao
+    # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1".
     secret_path: ""

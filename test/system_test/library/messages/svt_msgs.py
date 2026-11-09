@@ -153,6 +153,9 @@ SETUP_MSGS = {
     "unknown_domain": "unknown domain {domain!r}; use one of: {known}",
     "creds_run": "test/{suite}/setup_env.sh {command} in the Omnia venv (prompts are not logged)",
     "creds_state": "  {domain:<20} {state}",
+    "creds_openbao": "reading {domains} from OpenBao {server} ({path}/<domain>); only the field "
+                     "names are shown",
+    "creds_openbao_failed": "OpenBao: {error}",
     "creds_next": "credentials stored. The 'Next steps' (./run_validation.sh fvt_...) and the "
                   "'No SSH credentials' lines above are printed by test/{suite}/setup_env.sh "
                   "for the FVT and do not apply to the SVT. Next: "
@@ -253,4 +256,6 @@ CONFIG_MSGS = {
     "report_current": "  every suite already writes into this report and run",
     "unknown_report_key": "{path}: report has unknown key(s) {names} (known: {known})",
     "invalid_report_value": "{path}: report.{key} has an invalid value {value!r}",
+    "unknown_openbao_key": "{path}: openbao has unknown key(s) {names} (known: {known})",
+    "invalid_openbao_value": "{path}: openbao.{key} has an invalid value {value!r}: {why}",
 }
