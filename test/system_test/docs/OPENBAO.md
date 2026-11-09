@@ -89,7 +89,65 @@ What happens, step by step:
 `--openbao` with no action replaces the credential prompts of the every-step run: only the
 stores still missing are read from OpenBao. Stores that exist are left alone.
 
-## 4. TLS
+## 4. How the pipeline gets access (no token is stored)
+
+`test/pipeline` keeps no OpenBao token in GitLab, and neither does the SVT pipeline. GitLab
+gives every job its own short-lived signed token (a JWT), OpenBao verifies it and answers with
+a short-lived OpenBao token, and the job reads the secrets with that. Only three non-secret
+variables are in GitLab: `BAO_SERVER_URL`, `BAO_AUTH_ROLE` and `BAO_DATA_PATH` (and optionally
+`BAO_CACERT`).
+
+```text
+ initialization job (GitLab runner)                      OpenBao
+ 1. GitLab creates VAULT_ID_TOKEN for this job
+    (id_tokens, audience = BAO_SERVER_URL, ~minutes)
+ 2. POST /v1/auth/jwt/login {jwt, role=BAO_AUTH_ROLE} --> checks the signature against GitLab's
+                                                         keys (oidc_discovery_url), the audience
+                                                         and the role's bound claims
+ 3.                                                  <-- short-lived OpenBao token, limited to
+                                                         the role's policy (read secret path)
+ 4. GET /v1/<BAO_DATA_PATH>/<domain> x4, with that token (kept in the job's memory only)
+ 5. the four secrets -> one JSON on stdin of ssh -> ./setup_env.sh --domain-creds-stdin on the OIM
+```
+
+The token of step 3 is never written to a file, logged, stored as a variable or passed as an
+argument, and expires by itself (`token_explicit_max_ttl` of the role, 3600 s in
+`test/pipeline`'s setup). Nothing needs rotating in GitLab when the OpenBao token policy
+changes: it is decided at login.
+
+**What the OpenBao administrator does once** (the same as `test/pipeline`; an OpenBao already
+set up for it only needs the policy to cover the SVT's path, see below). Full commands:
+`test/pipeline/docs/OPENBAO_SETUP.md`, phase 3.
+
+```bash
+bao auth enable jwt
+bao write auth/jwt/config oidc_discovery_url="https://<GITLAB>" bound_issuer="https://<GITLAB>" \
+    oidc_discovery_ca_pem=@/tmp/gitlab.crt            # the CA of a self-signed GitLab
+cat > gitlab-policy.hcl <<'HCL'
+path "secret/data/<path>/*"     { capabilities = ["read", "list"] }
+path "secret/metadata/<path>/*" { capabilities = ["read", "list"] }
+path "auth/token/lookup-self"   { capabilities = ["read"] }
+HCL
+bao policy write gitlab-policy gitlab-policy.hcl
+bao write auth/jwt/role/gitlab-role role_type=jwt policies=gitlab-policy \
+    token_explicit_max_ttl=3600 user_claim=user_email \
+    bound_audiences="https://<OPENBAO>:8200"
+```
+
+- **The policy path must be the SVT's `secret_path`** (without `/data`): the `openbao` block of
+  `user_inputs.yml` says `secret_path: "secret/data/omnia"` → policy
+  `secret/data/omnia/*`. A role whose policy covers another path gets "permission denied".
+- **A new project must be allowed by the role.** `test/pipeline`'s role has no `bound_claims`,
+  so any job of that GitLab can log in. To limit it to the SVT project, add
+  `bound_claims='{"project_path":"root/omnia-system-test"}'` (or `project_id`) to the role; check
+  with `bao read auth/jwt/role/gitlab-role`.
+- **Audience:** `bound_audiences` is the OpenBao URL, and the job's token is requested for
+  exactly `BAO_SERVER_URL`: both must be the same URL, port included.
+- **GitLab 15.7 or later** (the `id_tokens` keyword).
+- **Manual runs are different:** there is no GitLab job, so `./setup_env.sh
+  --domain-creds-from-openbao` uses an OpenBao token you provide in `BAO_TOKEN` (section 3b).
+
+## 5. TLS
 
 `test/pipeline` has no CA setting: it calls OpenBao with `curl -k`. The SVT does the same by
 default (`tls_skip_verify: true`, a warning is printed). To verify the certificate set
@@ -97,7 +155,7 @@ default (`tls_skip_verify: true`, a warning is printed). To verify the certifica
 the optional File variable `BAO_CACERT` (or `BAO_TLS_SKIP_VERIFY=false` for the system CA
 store).
 
-## 5. Troubleshooting
+## 6. Troubleshooting
 
 | Message | Cause |
 |---|---|

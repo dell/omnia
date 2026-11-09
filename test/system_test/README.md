@@ -88,16 +88,19 @@ The tests are data in [`library/vars/test_case_vars.py`](library/vars/test_case_
 | Doc | Contents |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, status), `user_inputs.yml`, the dataset generator |
-| [docs/RUNNER.md](docs/RUNNER.md) | `build_stream_test_config.yml` settings, `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
+| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, NFS shares ...), the report |
+| [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |
-| [docs/PIPELINE.md](docs/PIPELINE.md) | Running the SVT from GitLab on one or more OIMs |
+| [docs/PIPELINE.md](docs/PIPELINE.md) | Run the SVT from GitLab: how it works, where each secret goes, setup, **updating an existing pipeline**, troubleshooting |
+| [docs/PIPELINE_CONFIG.md](docs/PIPELINE_CONFIG.md) | Every setting of `pipeline/svt_pipeline_config.yml` and the CI/CD variable it becomes |
 
 ## Directory structure
 
 ```text
 test/system_test/
 ├── README.md                    this file: the stages and test cases
-├── docs/                        SETUP.md, RUNNER.md, OPENBAO.md, PIPELINE.md
+├── docs/                        SETUP.md, TEST_CONFIG.md, RUNNER.md, OPENBAO.md, PIPELINE.md,
+│                                PIPELINE_CONFIG.md
 ├── pipeline/                    setup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab)
 ├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
 ├── run_validation.sh, _run.py   SVT runner: svt_<theme> list | <stage> | all

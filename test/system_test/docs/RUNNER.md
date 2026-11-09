@@ -1,45 +1,15 @@
 # SVT runner: settings, stages, the run and the report
 
-Details behind the [README](../README.md): the theme settings, `./run_validation.sh`, the safety
+Details behind the [README](../README.md): `./run_validation.sh`, the safety
 model, the run, the SVT report, and how to add a theme, a stage or a test. Setup is in
-[SETUP.md](SETUP.md), passwords in [OPENBAO.md](OPENBAO.md), the GitLab pipeline in
-[PIPELINE.md](PIPELINE.md).
+[SETUP.md](SETUP.md), the theme settings in [TEST_CONFIG.md](TEST_CONFIG.md), passwords in
+[OPENBAO.md](OPENBAO.md), the GitLab pipeline in [PIPELINE.md](PIPELINE.md) and
+[PIPELINE_CONFIG.md](PIPELINE_CONFIG.md).
 
 ## `build_stream_test_config.yml` (the theme's settings)
 
-`./setup_env.sh --configure` writes the `build_stream` block and the cleanup
-flags into the FVT suites' `test/<suite>/test_config.yml`, so they override
-the suites' own values. A change here needs a new `--configure` (a new run).
-
-| Key | Default | Effect |
-|---|---|---|
-| `build_stream.catalog` | `29` | Catalog the build_deploy stage commits as `catalog_rhel.json` (FVT `installation.catalog`): a number of `./omnia.sh --list-catalogs` or an absolute path |
-| `build_stream.cadence_catalog` | `29` | Catalog the cadence stage uploads (FVT `installation.cadence_catalog`); `""` = the same as catalog |
-| `build_stream.allow_pipeline_cancel` | `true` | Cancel GitLab pipelines still running before a commit or trigger (FVT `pipeline.allow_pipeline_cancel`); `false`: the test fails and lists them |
-| `cleanup.<suite>.enabled` | `true` | `false` skips that suite's cleanup step |
-| `cleanup.<suite>.<flag>` | as shipped | Written into `test/<suite>/test_config.yml` before its cleanup runs |
-| `cleanup.main.cleanup_all` | `true` | Complete reset: every `domain-init.sh --cleanup`, then `omnia.sh --cleanup --all`; `false`: `omnia.sh --cleanup` (data kept) |
-| `cleanup.nfs.slurm_share`, `cleanup.nfs.k8s_share` | `true` | The cleanup empties the `nfs_slurm` / `nfs_k8s` NFS shares of `storage_config.yml` (SVT only, written into no suite; see [SETUP.md](SETUP.md)) |
-| `report.report_path` | `""` = `test/system_test/reports` | Parent of the run folders (`<report_path>/<run_id>/`); keep it outside `OMNIA_DATA_PATH` |
-| `report.report_name` | `""` = `svt_build_stream_report` | SVT report file name (`.json`, `.html`) in the run folder |
-| `report.run_id` | `""` = new `svt-<UTC time>` per configure | The run id; a fixed value reuses that run folder (same theme only) |
-
-| Suite | Flags (booleans) |
-|---|---|
-| build_stream | `postgres_backup`, `cleanup_credentials` (its `cleanup:` section) |
-| telemetry | `delete_sinks_volume`, `cleanup_credentials`, `cleanup_logs` (runs only when telemetry holds deployed state) |
-| orchestrator | `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`, `cleanup_benchmark_tools` |
-| image_build_manager | `cleanup_credentials` |
-| repo_manager | `cleanup_credentials` |
-| main | `cleanup_all` |
-
-- **Accepted keys:** only these keys are accepted.
-- **What is rewritten:** only a value that differs is rewritten; the comments
-  and layout of the suite's file stay as they were. This edits the tracked
-  `test/<suite>/test_config.yml` files of the checkout.
-- **Keeping credentials:** with `cleanup_credentials: false` the stores
-  survive a cleanup, so the next `./setup_env.sh` has none to ask for. A
-  `cleanup_all` reset deletes them anyway (the cleanup warns).
+Every key (catalogs, the cleanup flags per suite, the NFS shares, the report) is described in
+[TEST_CONFIG.md](TEST_CONFIG.md). A change needs `./setup_env.sh --configure` (a new run).
 
 ## `./run_validation.sh`
 

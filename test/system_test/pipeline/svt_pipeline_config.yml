@@ -14,6 +14,9 @@
 # =============================================================================
 # SVT pipeline settings: the GitLab project that runs the SVT on one or more OIMs
 # =============================================================================
+# Every key is described in docs/PIPELINE_CONFIG.md; how to set up and update the
+# project is in docs/PIPELINE.md.
+#
 # Fill this file, then (test/system_test/pipeline):
 #
 #   ./setup_svt_project.py --render                                   # look at the CI files
