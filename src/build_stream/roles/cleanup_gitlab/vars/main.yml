@@ -138,9 +138,22 @@ cleanup_credentials_invalid_msg: >-
   -e cleanup_credentials=false to preserve Build Stream credentials during cleanup.
 
 gitlab_cleanup_credentials_unavailable_msg: >-
-  GitLab cleanup is already complete, or its host configuration or SSH
-  credentials are unavailable; skipping remote GitLab cleanup and continuing
-  with local BuildStream cleanup.
+  WARNING: GitLab cleanup was requested but its host configuration or SSH
+  credentials are unavailable (they may already have been removed by a prior
+  BuildStream cleanup). The remote GitLab host was NOT contacted and GitLab
+  CE / Runner / /etc/gitlab / /var/opt/gitlab / /var/log/gitlab may REMAIN
+  installed. Restore build_stream_credentials.yml and its vault key and re-run
+  GitLab cleanup, or pass -e gitlab_cleanup_strict=true to fail instead of
+  skipping. Continuing without remote GitLab cleanup.
+
+gitlab_cleanup_credentials_required_fail_msg: >-
+  GitLab cleanup was explicitly requested, but GitLab host credentials are
+  unavailable. Remote GitLab cleanup could not be verified or performed, and
+  no local resources have been deleted yet. Restore
+  build_stream_credentials.yml and its vault key (or re-provide gitlab_host and
+  gitlab_ssh_password), or run BuildStream-only cleanup explicitly with
+  --tags cleanup_build_stream. (This strict failure was requested via
+  -e gitlab_cleanup_strict=true.)
 
 gitlab_cleanup_credentials_unusable_msg: >-
   BuildStream credentials are incomplete or cannot be decrypted; skipping
