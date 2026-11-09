@@ -160,3 +160,29 @@ STAGE_STATUS = "{stage}.status"
 RUN_MANIFEST = "run.json"
 PROGRESS_INTERVAL_SECONDS = 60
 FAILURE_TAIL_LINES = 150
+
+
+# ---- moved from the function modules (one place for every constant)
+# Top-level keys of <theme>_test_config.yml besides the theme block.
+CONFIG_KEYS = ("cleanup", "report")
+
+NFS_CLEANUP_KEY = "nfs"
+
+OPENBAO_KEYS = ("server_url", "secret_path", "tls_skip_verify", "ca_cert")
+
+SETTING_KEYS = ("report_path", "report_name", "run_id")
+
+# Output kept in memory per command for its report row (the tail; the step log
+# and the module log keep everything).
+MAX_CAPTURE_CHARS = 1_000_000
+
+MARKS = {True: "[ OK ]", False: "[FAIL]"}
+
+STEP_MARKS = {"passed": "[ OK ]", "skipped": "[SKIP]", "failed": "[FAIL]"}
+
+# The summary only reads and reports: it runs on a failed run, without the Omnia venv.
+REPORT_STAGES = (LAST_STAGE,)
+
+OPENBAO_TIMEOUT_SECONDS = 30
+
+OPENBAO_MAX_BYTES = 1024 * 1024

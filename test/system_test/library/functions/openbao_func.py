@@ -33,11 +33,9 @@ import urllib.error
 import urllib.request
 from typing import Any, Callable, Dict, List
 
-from ..vars.common_vars import OPENBAO_TOKEN_ENV
+from ..vars.common_vars import OPENBAO_MAX_BYTES, OPENBAO_TIMEOUT_SECONDS, OPENBAO_TOKEN_ENV
 
 Emit = Callable[[str], None]
-TIMEOUT_SECONDS = 30
-MAX_BYTES = 1024 * 1024
 
 
 class OpenBaoError(RuntimeError):
@@ -81,9 +79,10 @@ def _get(url: str, bao_token: str, context: ssl.SSLContext) -> Dict[str, Any]:
     """GET ``url`` with the token; return the JSON body. Errors never include the body."""
     request = urllib.request.Request(url, headers={"X-Vault-Token": bao_token})
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS,  # nosec B310  # https URL from the checked config
-                                    context=context) as response:
-            body = response.read(MAX_BYTES + 1)
+        # nosec B310: the URL comes from the checked openbao block (http or https only)
+        with urllib.request.urlopen(  # nosec B310
+                request, timeout=OPENBAO_TIMEOUT_SECONDS, context=context) as response:
+            body = response.read(OPENBAO_MAX_BYTES + 1)
     except urllib.error.HTTPError as exc:
         why = {403: "permission denied (the token may not read this path)",
                404: "not found (check openbao.secret_path and the domain name)"}.get(
@@ -92,7 +91,7 @@ def _get(url: str, bao_token: str, context: ssl.SSLContext) -> Dict[str, Any]:
     except (urllib.error.URLError, OSError, ssl.SSLError) as exc:
         reason = getattr(exc, "reason", exc)
         raise OpenBaoError(f"cannot reach OpenBao: {type(reason).__name__}: {reason}") from exc
-    if len(body) > MAX_BYTES:
+    if len(body) > OPENBAO_MAX_BYTES:
         raise OpenBaoError("the OpenBao answer is too large")
     try:
         data = json.loads(body)

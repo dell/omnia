@@ -36,11 +36,14 @@ from .fvt_func import domain_dir
 from .svt_report_func import fvt_report_settings
 from ..messages.svt_msgs import CONFIG_MSGS
 from ..vars.common_vars import (
+    CONFIG_KEYS,
     DEFAULT_SVT_REPORT_NAME,
     DEFAULT_SVT_REPORT_PATH,
     FVT_TEST_CONFIG,
     INPUTS_FILE,
     MODULE_ROOT,
+    NFS_CLEANUP_KEY,
+    OPENBAO_KEYS,
     OPENBAO_PATH_RE,
     OPENBAO_URL_RE,
     REPORT_NAME_RE,
@@ -64,12 +67,6 @@ class ConfigError(ValueError):
     """The theme's test_config is missing or invalid; the message says what to fix."""
 
 
-# Top-level keys of <theme>_test_config.yml besides the theme block.
-CONFIG_KEYS = ("cleanup", "report")
-NFS_CLEANUP_KEY = "nfs"
-OPENBAO_KEYS = ("server_url", "secret_path", "tls_skip_verify", "ca_cert")
-
-
 def _require_bool(value: Any, where: str, path: str) -> bool:
     if not isinstance(value, bool):
         raise ConfigError(CONFIG_MSGS["not_bool"].format(path=path, where=where, value=value))
@@ -87,7 +84,8 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
     Returns:
         Dict with keys: theme, path, cleanup ({suite: {flag:
         bool}}, every suite of CLEANUP_FLAGS, "enabled" included), report,
-        nfs ({flag: bool} of cleanup.nfs, default true), fvt_settings ({key: value} of the theme block).
+        nfs ({flag: bool} of cleanup.nfs, default true), fvt_settings
+        ({key: value} of the theme block).
 
     Raises:
         ConfigError: When the theme is unknown, or the file cannot be read or

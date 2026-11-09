@@ -331,8 +331,9 @@ test/system_test/
 ├── conftest.py, pytest.ini      markers (theme and stage), results for summary
 ├── dataset_generator/           dataset_edit.py: the comment-preserving YAML edit of config_func
 ├── library/
-│   ├── vars/                    common_vars (every path and file name), theme_vars (themes,
-│   │                            stages, FVT settings, cleanup flags, credential stores),
+│   ├── vars/                    every constant: common_vars (paths, file names, settings keys),
+│   │                            nfs_vars (NFS cleanup), report_vars (the SVT report), theme_vars
+│   │                            (themes, stages, FVT settings, cleanup flags, credential stores),
 │   │                            domain_vars, test_case_vars (each SVT test: stage, FVT step)
 │   ├── messages/svt_msgs.py     stage, setup and config text with HOW TO FIX
 │   └── functions/               nfs_func (empty the NFS shares on cleanup), openbao_func (read
@@ -344,7 +345,6 @@ test/system_test/
 │                                manifest), fvt_func (FVT bridge), test_func (one SVT test),
 │                                process_func (no-shell runner)
 ├── svt/test_svt.py              every SVT test, generated from test_case_vars.py
-├── ut/test_nfs_func.py          unit tests of nfs_func (run: .venv/bin/python -m pytest ut --noconftest -c /dev/null)
 └── reports/                     setup and run files (gitignored)
 ```
 

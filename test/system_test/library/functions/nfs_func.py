@@ -43,7 +43,6 @@ Standard library only (mount, umount, mount.nfs of nfs-utils).
 """
 
 import os
-import re
 import socket
 import stat
 import subprocess  # nosec B404  # fixed argument lists, no shell
@@ -56,23 +55,21 @@ import yaml
 
 from ..messages.nfs_msgs import NFS_MSGS
 
+from ..vars.nfs_vars import (
+    COMMAND_ENV,
+    DENIED_EXPORTS,
+    EXPORT_RE,
+    HOST_RE,
+    IPV4_RE,
+    MAX_DEPTH,
+    MAX_ERRORS,
+    MOUNT_OPTIONS,
+    MOUNT_ROOT,
+    MOUNT_TIMEOUT,
+    UNMOUNT_TIMEOUT,
+)
 Emit = Callable[[str], None]
 
-HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
-HOST_RE = re.compile(rf"{HOST_LABEL}(?:\.{HOST_LABEL})*")
-IPV4_RE = re.compile(r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})")
-EXPORT_RE = re.compile(r"/[A-Za-z0-9_.@+=:-]+(?:/[A-Za-z0-9_.@+=:-]+)*")
-# The deny list of omnia.sh safe_rm_dir: never emptied, whatever the share is called.
-DENIED_EXPORTS = frozenset({"/", "/boot", "/dev", "/etc", "/home", "/media", "/mnt", "/opt",
-                            "/proc", "/root", "/run", "/srv", "/sys", "/tmp",  # nosec B108
-                            "/usr", "/var"})  # a deny list entry, never used as a path
-MOUNT_OPTIONS = "nosuid,nodev,noexec,soft,timeo=100,retrans=3"
-COMMAND_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"}
-MOUNT_TIMEOUT = 180
-UNMOUNT_TIMEOUT = 120
-MAX_DEPTH = 64
-MAX_ERRORS = 20
-MOUNT_ROOT = "/run"
 
 
 class NfsError(RuntimeError):

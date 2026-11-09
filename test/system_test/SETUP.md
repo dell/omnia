@@ -97,8 +97,8 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
     squash root (`no_root_squash`), else removal fails with that hint.
   - **Switch off:** `cleanup.nfs.slurm_share: false` / `k8s_share: false` in
     `build_stream_test_config.yml`.
-  - Code: `library/functions/nfs_func.py`; unit tests: `ut/` (`.venv/bin/python -m
-    pytest ut --noconftest -c /dev/null`).
+  - Code: `library/functions/nfs_func.py`; its constants are in
+    `library/vars/nfs_vars.py`.
 - **Complete reset:** after `cleanup_all` nothing of the previous installation
   is left, so the next install asks no "overwrite existing files?" question.
   omnia.sh refuses, and deletes nothing, while a domain still holds deployed
@@ -292,10 +292,9 @@ test/system_test/
 ├── setup_env.sh, _setup.py      prepare the OIM: configure, cleanup, install, credentials, status
 ├── user_inputs.yml              the cluster values (and the openbao block)
 ├── dataset_generator/           user_inputs.yml -> src inputs (profiles/<theme>.yml)
-├── library/functions/           setup_func (setup steps), cleanup_func (cleanup),
-│                                nfs_func (empty NFS shares), openbao_func (read OpenBao),
-│                                status_func (status box)
-└── ut/                          unit tests of nfs_func
+└── library/functions/           setup_func (setup steps), cleanup_func (cleanup),
+                                 nfs_func (empty NFS shares), openbao_func (read OpenBao),
+                                 status_func (status box)
 ```
 
 ## Local checks
