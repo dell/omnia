@@ -68,7 +68,7 @@ postgres_database_marker: "{{ omnia_nfs_share }}/build_stream/postgres/data/PG_V
 # files, restart node results). With a retained database ONLY those files are
 # kept; everything else under build_stream_root (restart_state, raw playbook
 # output, validate reports, JWT keys) is removed. With the database deleted,
-# build_stream_root is removed completely (OMN-DEF #1380).
+# build_stream_root is removed completely.
 build_stream_root_directory: "{{ omnia_nfs_share }}/build_stream/build_stream_root"
 build_stream_artifacts_directory: "{{ build_stream_root_directory }}/artifacts"
 # FileArtifactStore key format: {namespace}/{12-hex tag hash}/{label}.{bin|zip}

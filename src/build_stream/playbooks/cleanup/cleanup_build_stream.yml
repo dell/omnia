@@ -42,7 +42,7 @@
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
 #
 #   # Also delete postgres data AND the BuildStream job artifacts it references
-#   # (default: both preserved together — see OMN-DEF #1380):
+#   # (default: both preserved together):
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false
 #
 #   # Preserve build_stream credential files (default: removed):

@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# BuildStream job data follows the PostgreSQL database (OMN-DEF #1380).
+# BuildStream job data follows the PostgreSQL database.
 #
 # artifact_metadata rows store the key (relative to build_stream_root/artifacts)
 # of every file the application reads back: catalog/<hash>/catalog-metadata.bin,
