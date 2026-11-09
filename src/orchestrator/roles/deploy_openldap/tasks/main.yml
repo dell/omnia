@@ -164,6 +164,20 @@
             group: root
             mode: "0600"
 
+        - name: Read bootstrap.ldif checksum
+          ansible.builtin.stat:
+            path: "{{ auth_init_dir }}/bootstrap.ldif"
+            checksum_algorithm: sha256
+          register: _bootstrap_ldif_stat
+
+        - name: Generate bootstrap.ldif integrity checksum
+          ansible.builtin.copy:
+            content: "{{ _bootstrap_ldif_stat.stat.checksum }}  {{ auth_init_dir }}/bootstrap.ldif\n"
+            dest: "{{ auth_init_dir }}/bootstrap.ldif.sha256"
+            owner: root
+            group: root
+            mode: "0600"
+
         - name: Pull omnia_auth container image
           ansible.builtin.command:
             cmd: "podman pull {{ omnia_auth_image }}:{{ omnia_auth_tag }}"
