@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, List, Sequence, Tuple
 from . import nfs_func
 from .config_func import apply_cleanup_flags, apply_report_settings, cleanup_all, cleanup_enabled
 from .fvt_func import describe_step, domain_dir, run_fvt_step
-from .omnia_func import domain_data_root, has_deployed_state, omnia_env
+from .omnia_func import domain_data_root, domain_input_dir, has_deployed_state, omnia_env
 from .process_func import stream_command, tee_command
 from .readiness_func import omnia_venv_path
 from .run_func import load_run
@@ -78,6 +78,17 @@ def _own_venv_env(domain: str) -> Dict[str, str]:
     return {VIRTUAL_ENV_KEY: venv, "PATH": f"{venv}/bin:{os.environ.get('PATH', '')}"}
 
 
+def _marker_paths(domain: str, markers: Tuple[str, ...]) -> List[str]:
+    """Return the paths a cleanup step looks for ({domain_data} is the domain's data root)."""
+    root = domain_data_root(omnia_env(), domain)
+    return [marker.format(domain_data=root) for marker in markers]
+
+
+def _installed_markers(domain: str, markers: Tuple[str, ...]) -> List[str]:
+    """Return the marker paths that exist (a product that is half installed still has some)."""
+    return [path for path in _marker_paths(domain, markers) if os.path.lexists(path)]
+
+
 def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> List[tuple]:
     """Return the cleanup steps that apply on this OIM; record why the others are skipped."""
     steps = []
@@ -87,8 +98,9 @@ def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> 
         domain, label = step[0], describe_step(step)
         if not cleanup_enabled(config, domain):
             reason = SETUP_MSGS["cleanup_disabled"].format(label=label, domain=domain)
-        elif step in requires and not os.path.exists(requires[step]):
-            reason = STAGE_MSGS["not_installed"].format(path=requires[step], label=label)
+        elif step in requires and not _installed_markers(domain, requires[step]):
+            reason = STAGE_MSGS["not_installed"].format(
+                path=", ".join(_marker_paths(domain, requires[step])), label=label)
         elif domain in deployed_only and not has_deployed_state(omnia_env(), domain):
             reason = SETUP_MSGS["cleanup_not_deployed"].format(
                 label=label, domain=domain, root=domain_data_root(omnia_env(), domain))
@@ -276,10 +288,35 @@ def _kept_credentials(config: Dict[str, Any]) -> List[str]:
             and flags.get("cleanup_credentials") is False]
 
 
+def _restore_input(domain: str, emit: Emit, rows: Rows) -> str:
+    """Stage the domain's input again when it is missing; return an error or "".
+
+    The cleanup tests read the installed input (build_stream_config.yml, ...). A run that
+    failed after its domain-init.sh --cleanup left no input behind, so the next cleanup
+    would fail on a missing file, not on the product. domain-init.sh (what omnia.sh -i runs)
+    copies the shipped input back; the cleanup then removes it again.
+    """
+    env = omnia_env()
+    path = domain_input_dir(env, domain)
+    script = os.path.join(REPO_ROOT, "src", domain, "domain-init.sh")
+    if not env.get(OMNIA_DATA_KEY) or os.path.isdir(path) or not os.path.isfile(script):
+        return ""
+    emit(STAGE_MSGS["input_restore"].format(domain=domain, path=path))
+    result = tee_command(["bash", script], cwd=os.path.dirname(script), env=env, no_input=True)
+    rows.append(result_row(f"{domain}/domain-init.sh (input restored for the cleanup)", result,
+                           details=f"{path} was missing"))
+    return "" if result["success"] else STAGE_MSGS["step_failed"].format(
+        label=f"{domain}/domain-init.sh", rc=result["rc"])
+
+
 def _run_steps(steps: List[tuple], full: bool, venv: str, emit: Emit, rows: Rows) -> str:
     """Run the cleanup FVT steps in order; return the first error or ""."""
     for step in steps:
         own = step[0] in OWN_VENV_DOMAINS
+        if not own:
+            error = _restore_input(step[0], emit, rows)
+            if error:
+                return error
         if own and full:
             error = _initializer_cleanup(emit, rows)
             if error:

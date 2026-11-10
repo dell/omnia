@@ -19,7 +19,7 @@ import pytest
 from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import (
     is_running_from_omnia_venv,
-    run_omnia_cmd,
+    run_omnia_cmd_streamed,
 )
 from library.messages import TEST_ASSERT_MSGS as ASSERT
 from library.messages import TEST_LOG_MSGS as LOG
@@ -47,7 +47,7 @@ def test_deploy_cleanup(host):
         tl.failed(LOG["exec_cleanup_invalid_flag"].format(value=cleanup_all))
         pytest.fail(LOG["exec_cleanup_invalid_flag"].format(value=cleanup_all))
     option = "--cleanup --all" if cleanup_all else "--cleanup"
-    result = run_omnia_cmd(
+    result = run_omnia_cmd_streamed(
         host,
         "omnia_sh_cleanup_all_skip_approval" if cleanup_all else "omnia_sh_cleanup_yes",
     )

@@ -429,19 +429,53 @@ def _check_svt_scripts(svt_dir: str) -> None:
               "(clusters.<name>.omnia.branch), or checkout_mode: update")
 
 
+CHECKOUT_MODES = ("update", "recreate", "keep")
+# Folders a checkout is never deleted from (recreate), nor anything below them.
+PROTECTED_PATHS = ("/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/lib64", "/media",
+                   "/mnt", "/opt", "/opt/omnia", "/proc", "/root", "/run", "/sbin", "/srv",
+                   "/sys",
+                   "/tmp",  # nosec B108  # a deny list of folders never deleted, not a temp file
+                   "/usr", "/var")
+PROTECTED_TREES = ("/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/opt/omnia", "/proc",
+                   "/run", "/sbin", "/sys", "/usr", "/var")
+
+# recreate, on the OIM: stop what still runs from the folder (a step of an earlier run keeps
+# writing into it and makes the delete fail with "Directory not empty"), delete it (a few
+# tries), and show what is left when it cannot be deleted. $1 is the folder.
+RECREATE_DELETE = r"""d="$1"
+holders() { for p in /proc/[0-9]*; do pid=${p#/proc/}; [ "$pid" = "$$" ] && continue
+  cwd=$(readlink "$p/cwd" 2>/dev/null); case "$cwd" in "$d"|"$d"/*) echo "$pid";; esac; done; }
+pids=$(holders)
+if [ -n "$pids" ]; then echo "stopping what still runs in $d: $(echo $pids)"
+  kill -TERM $pids 2>/dev/null; sleep 3; kill -KILL $(holders) 2>/dev/null; sleep 1; fi
+for try in 1 2 3 4 5; do rm -rf -- "$d" 2>/dev/null; [ -e "$d" ] || exit 0; sleep 2; done
+echo "ERROR: $d could not be deleted. Still running there: $(echo $(holders))"
+grep -F " $d" /proc/mounts && echo "(a mount inside the folder: unmount it)"
+find "$d" -maxdepth 3 2>/dev/null | head -20; exit 1"""
+
+
+def _deletable(path: str) -> bool:
+    """Return whether ``path`` may be deleted by checkout_mode recreate."""
+    return path not in PROTECTED_PATHS and not any(
+        path == tree or path.startswith(tree + "/") for tree in PROTECTED_TREES)
+
+
 def checkout() -> int:
-    """Clone, update or keep the Omnia checkout; copy the svt/ inputs into it."""
+    """Update, recreate or keep the Omnia checkout; copy the svt/ inputs into it."""
     path, mode = _install_path(), _env("SVT_CHECKOUT_MODE", "update")
     repo, branch = _env("SVT_OMNIA_REPO"), _env("SVT_OMNIA_BRANCH")
-    if mode not in ("update", "clone", "keep"):
-        _fail(f"SVT_CHECKOUT_MODE must be update, clone or keep, got {mode!r}")
+    if mode not in CHECKOUT_MODES:
+        _fail(f"SVT_CHECKOUT_MODE must be {', '.join(CHECKOUT_MODES)}, got {mode!r}")
+    if mode == "recreate" and not _deletable(path):
+        _fail(f"checkout_mode recreate deletes the folder: {path} is a system folder, use a "
+              "folder of its own (clusters.<name>.omnia.install_path)")
     if mode != "keep" and (not repo or not SAFE_BRANCH.fullmatch(branch)):
         _fail("SVT_OMNIA_REPO and a valid SVT_OMNIA_BRANCH are required")
     qpath, qrepo, qbranch = shlex.quote(path), shlex.quote(repo), shlex.quote(branch)
     clone = (f"mkdir -p {shlex.quote(os.path.dirname(path))} && "
              f"git clone -b {qbranch} {qrepo} {qpath}")
     script = {
-        "clone": f"rm -rf -- {qpath} && {clone}",
+        "recreate": f"bash -c {shlex.quote(RECREATE_DELETE)} _ {qpath} && {clone}",
         "update": (f"if [ -d {qpath}/.git ]; then cd {qpath} && "
                    f"git remote set-url origin {qrepo} && git fetch origin {qbranch} && "
                    f"git checkout --force -B {qbranch} FETCH_HEAD; else {clone}; fi"),
@@ -555,7 +589,56 @@ def after_job() -> int:
                f"kill -TERM -- -\"$(cat \"$pid\")\" 2>/dev/null && "
                f"echo \"stopped $(basename \"${{pid%.pid}}\") on the OIM\"; done; true",
                timeout=120)
+    rerun_summary()
     return 0
+
+
+UNFINISHED = ("created", "pending", "running", "waiting_for_resource", "preparing", "scheduled")
+
+
+def _api(method: str, path: str, token: str, header: str) -> Any:
+    """Call the GitLab API of this project with ``token`` (header JOB-TOKEN or PRIVATE-TOKEN)."""
+    context = ssl.create_default_context(cafile=_env("CI_SERVER_TLS_CA_FILE") or None)
+    request = urllib.request.Request(  # nosec B310  # GitLab API of this project
+        f"{_env('CI_API_V4_URL')}{path}", method=method, headers={header: token})
+    with urllib.request.urlopen(request, context=context, timeout=20) as response:  # nosec B310
+        return json.load(response)
+
+
+def rerun_summary() -> None:
+    """Run the summary job again when a retried job was the last one to finish.
+
+    GitLab does not run a job again that already ran: retry a failed stage after the pipeline
+    ended and its summary (report and email) still shows the old failure. The last job to end
+    asks GitLab to retry the summary; nothing happens while another job of the pipeline is
+    unfinished or before the summary ran. The token is the optional masked, protected CI/CD
+    variable SVT_API_TOKEN (a project access token with the api scope), else the job token.
+    Best effort: a refusal is printed with the way to do it by hand, the job is never failed.
+    """
+    if _env("CI_JOB_NAME") in ("summary", "preflight") or not _env("CI_API_V4_URL"):
+        return
+    key = os.environ.get("SVT_API_TOKEN", "")
+    token, header = (key, "PRIVATE-TOKEN") if key else (os.environ.get("CI_JOB_TOKEN", ""),
+                                                        "JOB-TOKEN")
+    base = f"/projects/{_env('CI_PROJECT_ID')}"
+    try:
+        jobs = _api("GET", f"{base}/pipelines/{_env('CI_PIPELINE_ID')}/jobs?per_page=100",
+                    token, header)
+        done = next((job for job in jobs if job["name"] == "summary"), None)
+        if not done or done["status"] in UNFINISHED:
+            return
+        if any(job["status"] in UNFINISHED for job in jobs
+               if job["name"] != "summary" and str(job["id"]) != _env("CI_JOB_ID")):
+            return
+        _api("POST", f"{base}/jobs/{done['id']}/retry", token, header)
+        _say(f"{_env('CI_JOB_NAME')} was the last job to end after the summary ran: the "
+             "summary job was started again")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        reason = (f"HTTP {exc.code}" if isinstance(exc, urllib.error.HTTPError)
+                  else type(exc).__name__)
+        _say(f"the summary job could not be started again ({reason}): retry it by hand, or give "
+             "the project access token (api scope) as the masked, protected CI/CD variable "
+             "SVT_API_TOKEN")
 
 
 # ----------------------------------------------------------------- summary

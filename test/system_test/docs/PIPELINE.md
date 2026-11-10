@@ -9,6 +9,7 @@ each).
 |---|---|
 | `pipeline/svt_pipeline_config.yml` | Your settings: GitLab project, theme, job timeouts, email, the clusters. Every key: [PIPELINE_CONFIG.md](PIPELINE_CONFIG.md) |
 | `pipeline/setup_svt_project.py` | Creates or updates the project (GitLab client of `test/pipeline/setup_gitlab_project.py`) |
+| `pipeline/cleanup_svt_project.py` | Checks, empties (pipelines, logs, artifacts) or deletes the project, then verifies it: see [pipeline/README.md](../pipeline/README.md) |
 | `pipeline/svt_ci.py` | What every pipeline job runs on the GitLab runner (standard library only) |
 | `build_stream_test_config.yml`, `user_inputs.yml` | What is tested and the cluster values; each cluster gets a copy in the project. Every key: [TEST_CONFIG.md](TEST_CONFIG.md), [SETUP.md](SETUP.md) |
 
@@ -149,8 +150,10 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
    from OpenBao go to `--domain-creds-stdin`; then `./run_validation.sh svt_<theme>
    initialization`.
 3. The theme stages (build_stream: `prepare_build_stream`, `build_deploy`, `cadence`,
-   `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. A failed stage skips the ones
-   after it.
+   `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. `prepare_build_stream` is a
+   hard stage: when it fails, the stages after it do not run. `build_deploy`, `cadence` and
+   `automatic_cleanup` are soft stages (`soft_stages` of the theme, `allow_failure: true` in the
+   generated job): when one fails, the next one still runs.
 4. `summary`: always, last. `./run_validation.sh svt_<theme> summary`, the report collected, the
    email sent, then it **fails when any job or stage failed**.
 
@@ -169,8 +172,18 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
 | Email | Subject with the status and the failed stage(s). A coloured status banner, then a table with the run, OIM, theme, **repository, branch and commit as links** (the branch and the commit open the page of the tested code on GitHub or GitLab), and the pipeline link; the failed job(s) as links to their GitLab page, each with the error its job recorded (for example the checkout error), the failed SVT steps with their error line and the jobs that did not run; buttons to open the pipeline, browse the report and download the artifacts; the job table and the SVT sections. A plain-text version is included for clients that do not show HTML. When the pipeline failed before any SVT step ran, the mail says so: there is no run, no commit, no SVT sections table, no report button and no attachment. Otherwise the SVT HTML report is attached (gzip above 5 MB) |
 | The OIM | `test/system_test/reports/<run_id>/` as for a run by hand |
 
-**When a stage fails:** the pipeline stops at it (the later stages do not run) and the `summary`
-job still runs and **fails**. Its log ends with a block that names the failed stage, the failed
+**Retry and the summary:** GitLab does not run a job again that already ran, so after you retry
+a failed stage the old `summary` (and its email) would stay failed. The last job to end after the
+summary ran therefore asks GitLab to run `summary` again (it does nothing while another job of the
+pipeline is unfinished, and never before the summary ran). It uses the job token; if this GitLab
+refuses it (the log says `the summary job could not be started again (HTTP ...)`), give a project
+access token with the `api` scope as the masked, protected CI/CD variable `SVT_API_TOKEN`, or
+retry `summary` by hand once the stages have ended.
+
+**When a stage fails:** if it is a hard stage (`preflight`, `initialization`,
+`prepare_build_stream`) the pipeline stops at it (the later stages do not run); if it is a soft
+stage (`build_deploy`, `cadence`, `automatic_cleanup`) the next stages still run. In both cases the
+`summary` job runs and **fails**. Its log ends with a block that names the failed stage(s), the failed
 SVT steps with the first line of their error, and the stages that did not run; the email carries
 the same, so you know which stage to Retry. A **Retry** of the failed job continues the same run
 (`--retry`) and its new attempt replaces the failed one in the report; then run the `summary` job
@@ -220,6 +233,24 @@ password, a host key, `BAO_CACERT`, or a variable you added yourself.
 - **Keep your config in Git, not the passwords:** `svt_pipeline_config.yml` has no secrets, so
   you can commit your copy; the OIM passwords and tokens are only in your environment and in
   GitLab variables.
+
+## Clean or delete the project
+
+`pipeline/cleanup_svt_project.py` resets the GitLab side (details and troubleshooting in
+[pipeline/README.md](../pipeline/README.md)):
+
+```bash
+cd test/system_test/pipeline
+./cleanup_svt_project.py --status      --gitlab-url https://<gitlab-host>   # what the project holds
+./cleanup_svt_project.py --clean       --gitlab-url https://<gitlab-host>   # every pipeline, log and artifact
+./cleanup_svt_project.py --delete      --gitlab-url https://<gitlab-host>   # the whole project
+./cleanup_svt_project.py --verify-gone --gitlab-url https://<gitlab-host>   # exit 0 when it is gone
+```
+
+`--clean` keeps the project, its files and variables; `--delete` removes everything (create it
+again with `setup_svt_project.py --create`). Both ask you to type the project path (`--yes` skips
+it, `--dry-run` only lists) and verify the result. The OIM is cleaned there, with
+`./setup_env.sh --cleanup`.
 
 ## When it fails
 

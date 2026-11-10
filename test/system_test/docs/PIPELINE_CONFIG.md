@@ -91,7 +91,7 @@ waits. All clusters of the file run at the same time, each on its own OIM.
 | `repo` | none | Git URL of the Omnia repository the OIM clones | `<PREFIX>_SVT_OMNIA_REPO` |
 | `branch` | none | Branch to test. It must contain `test/system_test` | `<PREFIX>_SVT_OMNIA_BRANCH` |
 | `install_path` | none | Absolute folder on the OIM for the checkout. Dedicate it to the pipeline | `<PREFIX>_SVT_OMNIA_INSTALL_PATH` |
-| `checkout_mode` | `update` | `update`: clone when missing, else fetch the branch and reset to it (local changes of tracked files are discarded); `clone`: delete the folder and clone again; `keep`: use it as it is | `<PREFIX>_SVT_CHECKOUT_MODE` |
+| `checkout_mode` | `update` | `update`: clone when missing, else fetch the branch and reset to it (local changes of tracked files are discarded); `recreate`: delete the folder and clone it again, a fresh checkout every run (anything still running from the folder is stopped first; system folders such as `/root`, `/opt` or `/opt/omnia` are refused); `keep`: use it as it is | `<PREFIX>_SVT_CHECKOUT_MODE` |
 
 ### `clusters.<name>.svt`
 

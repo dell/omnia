@@ -101,7 +101,7 @@ test/system_test/
 ├── README.md                    this file: the stages and test cases
 ├── docs/                        SETUP.md, TEST_CONFIG.md, RUNNER.md, OPENBAO.md, PIPELINE.md,
 │                                PIPELINE_CONFIG.md
-├── pipeline/                    setup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab)
+├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
 ├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
 ├── run_validation.sh, _run.py   SVT runner: svt_<theme> list | <stage> | all
 ├── requirements.txt             SVT .venv: pytest, pytest-order, PyYAML, ruamel.yaml, omnia_auto
