@@ -35,7 +35,7 @@ Source of truth for the deployed contract (2.3):
 
 from typing import Any
 
-from ..vars.pxeboot_vars import POWERVAULT_DEFAULT_ISCSI_PORT
+from ..vars.pxeboot_vars import POWERVAULT_DEFAULT_ISCSI_PORT, PXEBOOT_COMMANDS
 from ._powervault_helpers import (
     SLURM_MANDATORY_BIND_TARGETS,
     _run_on_node,

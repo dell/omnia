@@ -75,6 +75,15 @@ enabled. The selected disk is classified from `lsblk`: `TRAN=nvme` is NVMe,
 `ROTA=1` is HDD, and `ROTA=0` is SSD. Any other value fails before the check
 runs.
 
+## IPoIB input validation
+
+The `precheck ipoib_inputs` suite auto-detects the InfiniBand NIC name from
+the active PXE mapping file. When the mapping has no IB data, it falls back to
+`InfiniBand.Slot.1-1`. The suite never edits the active project input; each
+case runs `orchestrator.yml --tags validate` against a temporary
+`omnia_fvt_ipoib_<random>` project that is removed afterwards. Generated
+invalid files are saved under `<report_path>/ipoib_inputs/<case>/`.
+
 ## NFT performance thresholds
 
 `nft_performance_threshold_seconds` is a required mapping when NFT executes.

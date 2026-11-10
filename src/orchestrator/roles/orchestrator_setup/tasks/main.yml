@@ -302,6 +302,18 @@
       {{ _orch_config.enable_pxe_boot | default(true) | bool }}
     cacheable: true
 
+# Step 6b: Harden PXE mapping file permissions
+#   The file may have been copied from discovery output with default 0644
+#   permissions.  Strip group-write and all "other" access so the L2
+#   validator (INSECURE_MODE_BITS) does not reject it.
+- name: Harden PXE mapping file permissions (0640)
+  ansible.builtin.file:
+    path: "{{ pxe_mapping_file_path }}"
+    mode: "0640"
+  when:
+    - pxe_mapping_file_path | default('') | length > 0
+    - pxe_mapping_file_path is file
+
 # Step 7: Load repo_manager output (repo_status.yml)
 - name: Determine whether repo_status.yml is required for this flow
   ansible.builtin.set_fact:

@@ -39,6 +39,26 @@
 
 - Compatibility notes
 
+### Security Review
+
+<!-- Required: tick every item that applies; write "N/A" after items that do not. The "Secure Code Review" bot comment on this PR lists automated findings (SEC-01..SEC-22). It is advisory and does not block merge, but explain any failed check under Security Notes. -->
+
+- [ ] **Input Validation**: External input (CSV, YAML, CLI, API) validated with strict allowlists?
+- [ ] **Secret Management**: No hardcoded secrets, Vault/tmpfs decrypt, credential files mode 0600? (SEC-01, SEC-08)
+- [ ] **Path Security**: File paths validated, symlinks rejected, containment enforced? (SEC-15)
+- [ ] **Command Injection**: No shell string interpolation, argv or `| quote` used? (SEC-04, SEC-05, SEC-09)
+- [ ] **Template Injection**: No `include_vars` on operator-edited files, no unsafe Jinja lookups? (SEC-06)
+- [ ] **Network / TLS**: TLS verification and SSH host-key checking enabled, no 0.0.0.0 without docs? (SEC-02, SEC-03, SEC-20)
+- [ ] **Container / K8s**: SecurityContext set, no privileged/hostNetwork, images pinned by digest? (SEC-17, SEC-19)
+- [ ] **Logging**: Secrets masked, `no_log` on credential tasks, exceptions logged not swallowed? (SEC-10, SEC-11, SEC-12)
+- [ ] **Crypto / Tokens**: Approved algorithms, `secrets` for randomness, token TTL set? (SEC-21)
+- [ ] **Dependencies**: Python packages pinned to exact versions? (SEC-18)
+- [ ] **Permissions / Temp files**: No world-writable modes, secure temp files? (SEC-13, SEC-14)
+- [ ] **Testing**: Security tests and negative/edge cases included?
+
+**Security Notes:**
+<!-- Document security considerations, mitigations, or exceptions (e.g. justified `# nosec`). Write "None" if not applicable. -->
+
 ### Suggested Reviewers
 
 <!-- Required: identify reviewer names, teams, or roles and explain the relevant review area. -->

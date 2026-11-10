@@ -227,6 +227,16 @@
     - nodes_missing_hostnames is defined
     - nodes_missing_hostnames | length > 0
 
+# Per-host entries of the common metadata (host_mount_map) concern only the
+# hosts whose entry changed, so adding a node must not mark the other nodes.
+- name: Map hosts with changed per-host metadata to XNAMEs
+  ansible.builtin.set_fact:
+    metadata_changed_hostname_xnames: >-
+      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
+         | map(attribute='value')
+         | selectattr('HOSTNAME', 'in', omnia_metadata_changed_hostnames | default([]))
+         | map(attribute='XNAME') | list }}
+
 - name: Calculate persistent metadata application state
   ansible.builtin.set_fact:
     identity_changed_nodes: >-
@@ -236,7 +246,8 @@
       {{ expected_nodes
          if omnia_metadata_global_changed | default(false) | bool
          else expected_nodes
-              | intersect(omnia_metadata_changed_xnames | default([])) }}
+              | intersect((omnia_metadata_changed_xnames | default([]))
+                          + metadata_changed_hostname_xnames) }}
     previous_reprovision_required_nodes: >-
       {{ previous_orchestrator_status.nodes | default([])
          | selectattr('reprovision_required', 'defined')

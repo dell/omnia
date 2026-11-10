@@ -267,7 +267,7 @@ class TestDiscoverSingleNodeUnreachable:
     def test_unreachable_node_returns_defaults_and_error(self):
         """Test that unreachable iDRAC returns default node_params and an error."""
         defaults = {
-            "real_memory": 864,
+            "real_memory": 884736,
             "corespersocket": 72,
             "threadspercore": 1,
             "sockets": 2,
@@ -283,7 +283,7 @@ class TestDiscoverSingleNodeUnreachable:
         assert node_params["Sockets"] == 2
         assert node_params["CoresPerSocket"] == 72
         assert node_params["ThreadsPerCore"] == 1
-        assert node_params["RealMemory"] == 864
+        assert node_params["RealMemory"] == 884736
         assert gpus == []
 
     def test_unreachable_node_params_not_empty(self):
