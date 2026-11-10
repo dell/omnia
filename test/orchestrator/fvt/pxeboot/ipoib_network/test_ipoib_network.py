@@ -31,6 +31,7 @@ from library.vars import TEST_CASES as TC
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42501)
@@ -41,6 +42,7 @@ def test_ipoib_mode_address_assignment(host):
     verify_pxeboot(test_log, tc, host, check_ipoib_mode_address_assignment)
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42502)
@@ -51,6 +53,7 @@ def test_ipoib_address_state(host):
     verify_pxeboot(test_log, tc, host, check_ipoib_address_state)
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42503)
@@ -61,6 +64,7 @@ def test_ipoib_nm_profile(host):
     verify_pxeboot(test_log, tc, host, check_ipoib_nm_profile)
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42504)
@@ -71,6 +75,7 @@ def test_ipoib_routes(host):
     verify_pxeboot(test_log, tc, host, check_ipoib_routes)
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42505)
@@ -81,6 +86,7 @@ def test_ipoib_peer_mesh(host):
     verify_pxeboot(test_log, tc, host, check_ipoib_peer_mesh)
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -92,6 +98,7 @@ def test_ipoib_slurm_nodeaddr(host):
     verify_pxeboot(test_log, tc, host, check_ipoib_slurm_nodeaddr)
 
 
+@pytest.mark.buildstream
 @pytest.mark.ipoib
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
