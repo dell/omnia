@@ -60,7 +60,7 @@
 #     Best for: Mixed hardware environments with different node configurations
 #   - homogeneous: Groups nodes by hardware type for optimized discovery
 #     Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
-#   Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
+#     Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
 #   Default value is heterogeneous
 
 # node_hardware_defaults

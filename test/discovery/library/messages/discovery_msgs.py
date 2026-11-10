@@ -90,7 +90,7 @@ TEST_NAMES: Dict[str, str] = {
         "Verify all functional groups follow Omnia 2.3 pattern"
     ),
     "ip_correlation": (
-        "Verify ADMIN_IP/IB_IP correlation with BMC_IP"
+        "Verify ADMIN_IP/IB_IPV4 correlation with BMC_IP"
     ),
     "parent_service_tag": (
         "Verify PARENT_SERVICE_TAG references (optional - validate if present)"

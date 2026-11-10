@@ -102,7 +102,7 @@ mapping/report artifacts for an operator-mediated handoff to Orchestrator.
    ├── Query OME API for server inventory
    ├── Extract NIC information (BMC, Ethernet, InfiniBand)
    ├── Map servers to functional groups based on OME static groups
-   ├── Calculate ADMIN_IP and IB_IP from network_spec
+   ├── Calculate ADMIN_IP, IB_IPV4, and IB_IPV6 from network_spec
    ├── Generate hostnames (nid001, nid002, ...)
    ├── Write bmc_pxe_mapping_file_<timestamp>.csv
    ├── Write bmc_discovery_report_<timestamp>.csv
@@ -159,7 +159,8 @@ All functional groups **MUST** follow this pattern:
 | `ADMIN_MAC` | First active non-iDRAC NIC MAC |
 | `ADMIN_IP` | Calculated from admin subnet + BMC IP |
 | `BMC_IP` | iDRAC IP address |
-| `IB_IP` | Calculated InfiniBand IP (optional) |
+| `IB_IPV4` | Calculated InfiniBand IPv4 (optional) |
+| `IB_IPV6` | Calculated InfiniBand IPv6 from ipv6_subnet + BMC IP (optional) |
 | `IB_NIC_NAME` | First active InfiniBand NIC name (optional) |
 | `GROUP_NAME` | Slurm partition name (optional) |
 | `PARENT_SERVICE_TAG` | Chassis service tag for blades (optional) |

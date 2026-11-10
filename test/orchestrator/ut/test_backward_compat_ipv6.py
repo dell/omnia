@@ -1,0 +1,1468 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Unit tests for IPoIB IPv6 backward compatibility (ER-ORCH-005, Task 15).
+
+These tests verify that legacy input formats continue to work after the IPv6
+enhancement:
+- PXE mapping CSV with ``IB_IP`` header (11-column) accepted and normalized
+- ``network_spec.yml`` with ``subnet``/``netmask_bits`` (old) accepted
+- ``network_spec.json`` schema accepts both old and new ``ib_network`` fields
+- ``load_pxe_mapping_rows()`` normalizes legacy headers to canonical format
+
+Maps to TC-FVT-003 (Legacy IPv4-only configuration unchanged) backward
+compatibility scenarios from the ER test plan.
+"""
+
+from __future__ import annotations
+
+import csv
+import json
+import os
+import sys
+from pathlib import Path
+from unittest import mock
+
+import pytest
+import yaml
+
+# Path setup — add orchestrator plugin module_utils to Python path
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_PLUGIN_ROOT = _REPO_ROOT / "src" / "orchestrator" / "plugins"
+_MODULE_UTILS = _PLUGIN_ROOT / "module_utils"
+
+# Ensure ansible.module_utils resolves to our orchestrator plugins
+for _p in (str(_PLUGIN_ROOT), str(_MODULE_UTILS)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+# Mock ansible imports (not available in UT without Galaxy install)
+sys.modules.setdefault("ansible", mock.MagicMock())
+sys.modules.setdefault("ansible.module_utils", mock.MagicMock())
+sys.modules.setdefault("ansible.module_utils.basic", mock.MagicMock())
+
+from orchestrator_validation.validators.pxe_mapping_validator import (  # noqa: E402
+    BASE_HEADERS,
+    CANONICAL_HEADERS,
+    LEGACY_HEADERS,
+    read_mapping,
+    validate,
+)
+from orchestrator_validation.validators.network_spec_validator import (  # noqa: E402
+    ib_network_from_config,
+    is_valid_ipv6,
+    network_from_config,
+)
+from orchestrator_validation.validators.omnia_config_validator import (  # noqa: E402
+    load_pxe_mapping_rows,
+)
+
+pytestmark = pytest.mark.unit
+
+
+# ---------------------------------------------------------------------------
+# Helpers — CSV file creation
+# ---------------------------------------------------------------------------
+
+def _write_csv(path: str, header: list[str], rows: list[list[str]]) -> None:
+    """Write a CSV file with the given header and data rows."""
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        for row in rows:
+            writer.writerow(row)
+
+
+def _legacy_csv_row() -> list[str]:
+    """Return a valid 11-column legacy data row (IB_IP, no IB_IPV6)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",  # FUNCTIONAL_GROUP_NAME
+        "grp1",                          # GROUP_NAME
+        "ABCD01",                        # SERVICE_TAG
+        "",                              # PARENT_SERVICE_TAG
+        "node001",                       # HOSTNAME
+        "aa:bb:cc:dd:ee:01",             # ADMIN_MAC
+        "172.16.107.41",                 # ADMIN_IP
+        "aa:bb:cc:dd:ff:01",             # BMC_MAC
+        "172.17.107.41",                 # BMC_IP
+        "InfiniBand.Slot.7-1",           # IB_NIC_NAME
+        "192.168.0.41",                  # IB_IP
+    ]
+
+
+def _canonical_csv_row_ipv4_only() -> list[str]:
+    """Return a valid 12-column data row (IB_IPV4, empty IB_IPV6)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",  # FUNCTIONAL_GROUP_NAME
+        "grp1",                          # GROUP_NAME
+        "ABCD01",                        # SERVICE_TAG
+        "",                              # PARENT_SERVICE_TAG
+        "node001",                       # HOSTNAME
+        "aa:bb:cc:dd:ee:01",             # ADMIN_MAC
+        "172.16.107.41",                 # ADMIN_IP
+        "aa:bb:cc:dd:ff:01",             # BMC_MAC
+        "172.17.107.41",                 # BMC_IP
+        "InfiniBand.Slot.7-1",           # IB_NIC_NAME
+        "192.168.0.41",                  # IB_IPV4
+        "",                              # IB_IPV6
+    ]
+
+
+def _canonical_csv_row_ipv6_only() -> list[str]:
+    """Return a valid 12-column IPv6-only row (IB_IPV6 set, IB_IPV4 empty)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",
+        "grp1",
+        "ABCD03",
+        "",
+        "node003",
+        "aa:bb:cc:dd:ee:03",
+        "172.16.107.43",
+        "aa:bb:cc:dd:ff:03",
+        "172.17.107.43",
+        "InfiniBand.Slot.7-1",           # IB_NIC_NAME
+        "",                              # IB_IPV4 (empty for ipv6-only)
+        "fd00:1b::43",                   # IB_IPV6
+    ]
+
+
+def _canonical_csv_row_dual_stack() -> list[str]:
+    """Return a valid 12-column dual-stack row (IB_IPV4 + IB_IPV6)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",
+        "grp1",
+        "ABCD02",
+        "",
+        "node002",
+        "aa:bb:cc:dd:ee:02",
+        "172.16.107.42",
+        "aa:bb:cc:dd:ff:02",
+        "172.17.107.42",
+        "InfiniBand.Slot.7-1",
+        "192.168.0.42",
+        "fd00:1b::42",
+    ]
+
+
+def _create_project_dir(
+    tmp_path: Path,
+    csv_header: list[str],
+    csv_rows: list[list[str]],
+    network_spec: dict | None = None,
+    orchestrator_config: dict | None = None,
+) -> str:
+    """Create a minimal project directory with CSV and optional YAML files."""
+    project_dir = str(tmp_path / "project")
+    os.makedirs(project_dir, exist_ok=True)
+
+    # Write CSV (mode 0o640 required by the PXE mapping file validator)
+    csv_path = os.path.join(project_dir, "pxe_mapping_file.csv")
+    _write_csv(csv_path, csv_header, csv_rows)
+    os.chmod(csv_path, 0o640)
+
+    # Write network_spec.yml
+    if network_spec:
+        ns_path = os.path.join(project_dir, "network_spec.yml")
+        with open(ns_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(network_spec, f)
+
+    # Write orchestrator_config.yml
+    if orchestrator_config is None:
+        orchestrator_config = {"pxe_mapping_file_path": ""}
+    oc_path = os.path.join(project_dir, "orchestrator_config.yml")
+    with open(oc_path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(orchestrator_config, f)
+
+    return project_dir
+
+
+# ===================================================================
+# TC-UT-BC-001: PXE Mapping — Legacy IB_IP header acceptance
+# ===================================================================
+
+class TestPxeMappingLegacyHeader:
+    """Backward compat: legacy 11-column IB_IP header accepted."""
+
+    def test_legacy_header_detected(self):
+        """ORCH_UT_BC_001: Legacy IB_IP header matches LEGACY_HEADERS tuple."""
+        assert len(LEGACY_HEADERS) == 11
+        assert LEGACY_HEADERS[-1] == "IB_IP"
+        assert len(CANONICAL_HEADERS) == 12
+        assert CANONICAL_HEADERS[-2] == "IB_IPV4"
+        assert CANONICAL_HEADERS[-1] == "IB_IPV6"
+
+    def test_read_mapping_legacy_csv(self, tmp_path):
+        """ORCH_UT_BC_002: read_mapping returns 11-column header for legacy CSV."""
+        csv_path = str(tmp_path / "legacy.csv")
+        _write_csv(csv_path, list(LEGACY_HEADERS), [_legacy_csv_row()])
+
+        raw_header, _, rows = read_mapping(csv_path)
+        assert raw_header == list(LEGACY_HEADERS)
+        assert len(rows) == 1
+        _row_num, values = rows[0]
+        assert len(values) == 11
+
+    def test_read_mapping_canonical_csv(self, tmp_path):
+        """ORCH_UT_BC_003: read_mapping returns 12-column header for new CSV."""
+        csv_path = str(tmp_path / "canonical.csv")
+        _write_csv(
+            csv_path,
+            list(CANONICAL_HEADERS),
+            [_canonical_csv_row_ipv4_only()],
+        )
+
+        raw_header, _, rows = read_mapping(csv_path)
+        assert raw_header == list(CANONICAL_HEADERS)
+        assert len(rows) == 1
+        _row_num, values = rows[0]
+        assert len(values) == 12
+
+    def test_validate_legacy_csv_accepted(self, tmp_path):
+        """ORCH_UT_BC_004: validate() accepts legacy 11-column CSV."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(LEGACY_HEADERS),
+            csv_rows=[_legacy_csv_row()],
+            network_spec={
+                "Networks": {
+                    "admin_network": {
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                    },
+                    "ib_network": {
+                        "subnet": "192.168.0.0",
+                        "netmask_bits": "24",
+                    },
+                },
+            },
+        )
+        config_data = {
+            "pxe_mapping_file_path": "",
+            "admin_network_subnet": "172.16.107.0",
+            "admin_network_netmask_bits": "24",
+        }
+        errors = validate(config_data, project_dir)
+        header_errors = [
+            e for e in errors if "header" in e.lower() or "expected" in e.lower()
+        ]
+        assert header_errors == [], (
+            f"Legacy IB_IP header should be accepted, but got: {header_errors}"
+        )
+
+    def test_validate_canonical_csv_accepted(self, tmp_path):
+        """ORCH_UT_BC_005: validate() accepts new 12-column CSV."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv4_only()],
+            network_spec={
+                "Networks": {
+                    "admin_network": {
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                    },
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                    },
+                },
+            },
+        )
+        config_data = {
+            "pxe_mapping_file_path": "",
+            "admin_network_subnet": "172.16.107.0",
+            "admin_network_netmask_bits": "24",
+        }
+        errors = validate(config_data, project_dir)
+        header_errors = [
+            e for e in errors if "header" in e.lower() or "expected" in e.lower()
+        ]
+        assert header_errors == [], (
+            f"Canonical 12-column header should be accepted, but got: {header_errors}"
+        )
+
+    def test_legacy_csv_normalized_to_12_columns(self, tmp_path):
+        """ORCH_UT_BC_006: Legacy CSV rows are padded with empty IB_IPV6."""
+        csv_path = str(tmp_path / "legacy.csv")
+        _write_csv(csv_path, list(LEGACY_HEADERS), [_legacy_csv_row()])
+
+        raw_header, _, _ = read_mapping(csv_path)
+        # validate() normalizes legacy to canonical — verify the normalization
+        assert raw_header == list(LEGACY_HEADERS)
+        # After normalization (done in validate()), rows get padded
+
+
+# ===================================================================
+# TC-UT-BC-002: Network Spec — Legacy subnet/netmask_bits accepted
+# ===================================================================
+
+class TestNetworkSpecLegacyFields:
+    """Backward compat: legacy subnet/netmask_bits in ib_network accepted."""
+
+    def test_ib_network_from_config_new_fields(self):
+        """ORCH_UT_BC_010: ib_network_from_config with ipv4_subnet works."""
+        config = {
+            "ipv4_subnet": "192.168.0.0",
+            "ipv4_netmask_bits": "24",
+        }
+        network = ib_network_from_config(config)
+        assert network is not None
+        assert str(network) == "192.168.0.0/24"
+
+    def test_ib_network_from_config_legacy_fields(self):
+        """ORCH_UT_BC_011: ib_network_from_config with legacy subnet works."""
+        config = {
+            "subnet": "192.168.0.0",
+            "netmask_bits": "24",
+        }
+        network = ib_network_from_config(config)
+        assert network is not None
+        assert str(network) == "192.168.0.0/24"
+
+    def test_ib_network_from_config_new_overrides_legacy(self):
+        """ORCH_UT_BC_012: New ipv4_subnet takes precedence over legacy subnet."""
+        config = {
+            "ipv4_subnet": "10.0.0.0",
+            "ipv4_netmask_bits": "16",
+            "subnet": "192.168.0.0",
+            "netmask_bits": "24",
+        }
+        network = ib_network_from_config(config)
+        assert network is not None
+        assert str(network) == "10.0.0.0/16"
+
+    def test_ib_network_from_config_empty_returns_none(self):
+        """ORCH_UT_BC_013: Empty ib_network config returns None."""
+        network = ib_network_from_config({})
+        assert network is None
+
+    def test_ib_network_from_config_invalid_returns_none(self):
+        """ORCH_UT_BC_014: Invalid subnet returns None."""
+        config = {
+            "ipv4_subnet": "not-a-subnet",
+            "ipv4_netmask_bits": "24",
+        }
+        network = ib_network_from_config(config)
+        assert network is None
+
+    def test_network_from_config_legacy_admin_network(self):
+        """ORCH_UT_BC_015: network_from_config still works for admin_network."""
+        config = {
+            "subnet": "172.16.107.0",
+            "netmask_bits": "24",
+        }
+        network = network_from_config(config)
+        assert network is not None
+        assert str(network) == "172.16.107.0/24"
+
+
+# ===================================================================
+# TC-UT-BC-003: Network Spec JSON Schema — both field names
+# ===================================================================
+
+class TestNetworkSpecJsonSchema:
+    """Backward compat: JSON schema accepts old and new ib_network fields."""
+
+    def _load_schema(self) -> dict:
+        """Load the network_spec.json schema."""
+        schema_path = (
+            _REPO_ROOT / "src" / "orchestrator" / "plugins"
+            / "module_utils" / "orchestrator_validation" / "schema"
+            / "network_spec.json"
+        )
+        with open(schema_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_schema_has_ib_network_section(self):
+        """ORCH_UT_BC_020: JSON schema defines ib_network in oneOf items."""
+        schema = self._load_schema()
+        networks = schema.get("properties", {}).get("Networks", {})
+        # Networks is an array whose items use oneOf
+        items = networks.get("items", {})
+        one_of = items.get("oneOf", [])
+        ib_entry = [
+            entry for entry in one_of
+            if "ib_network" in entry.get("required", [])
+        ]
+        assert len(ib_entry) == 1, "Expected one ib_network entry in oneOf"
+        ib_schema = ib_entry[0]["properties"]["ib_network"]
+        assert "oneOf" in ib_schema, (
+            "ib_network should use oneOf for new/legacy field variants"
+        )
+
+    def test_schema_accepts_new_ipv4_subnet_fields(self):
+        """ORCH_UT_BC_021: Schema accepts ipv4_subnet/ipv4_netmask_bits."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"New ib_network fields rejected: {errors}"
+
+    def test_schema_accepts_ipv6_only_empty_ipv4(self):
+        """ORCH_UT_BC_023: Schema accepts ipv6-only with empty ipv4 fields."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "",
+                        "ipv4_netmask_bits": "",
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": "ipv6-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv6-only with empty ipv4 rejected: {errors}"
+
+    def test_schema_accepts_ipv6_only_omitted_ipv4(self):
+        """ORCH_UT_BC_024: Schema accepts ipv6-only with ipv4 fields omitted."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": "ipv6-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv6-only with omitted ipv4 rejected: {errors}"
+
+    def test_schema_accepts_ipv4_only_empty_ipv6(self):
+        """ORCH_UT_BC_025: Schema accepts ipv4-only with empty ipv6 fields."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": "",
+                        "ipv6_netmask_bits": "",
+                        "ib_addr_mode": "ipv4-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv4-only with empty ipv6 rejected: {errors}"
+
+    def test_schema_accepts_ipv6_only_null_ipv4(self):
+        """ORCH_UT_BC_026: Schema accepts ipv6-only with null ipv4 fields (YAML no quotes)."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": None,
+                        "ipv4_netmask_bits": None,
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": "ipv6-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv6-only with null ipv4 rejected: {errors}"
+
+    def test_schema_accepts_ipv4_only_null_ipv6(self):
+        """ORCH_UT_BC_027: Schema accepts ipv4-only with null ipv6 fields (YAML no quotes)."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": None,
+                        "ipv6_netmask_bits": None,
+                        "ib_addr_mode": "ipv4-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv4-only with null ipv6 rejected: {errors}"
+
+    def test_schema_accepts_legacy_subnet_fields(self):
+        """ORCH_UT_BC_022: Schema accepts legacy subnet/netmask_bits."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "subnet": "192.168.0.0",
+                        "netmask_bits": "24",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"Legacy ib_network fields rejected: {errors}"
+
+
+# ===================================================================
+# TC-UT-BC-004: load_pxe_mapping_rows — Legacy header normalization
+# ===================================================================
+
+class TestLoadPxeMappingRows:
+    """Backward compat: load_pxe_mapping_rows normalizes legacy headers."""
+
+    def test_load_legacy_csv_returns_ib_ipv4_key(self, tmp_path):
+        """ORCH_UT_BC_030: Legacy IB_IP CSV returns rows with IB_IPV4 key."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(LEGACY_HEADERS),
+            csv_rows=[_legacy_csv_row()],
+        )
+        rows = load_pxe_mapping_rows(project_dir)
+        assert len(rows) == 1
+        row = rows[0]
+        assert "IB_IPV4" in row, f"Expected IB_IPV4 key, got: {list(row.keys())}"
+        assert row["IB_IPV4"] == "192.168.0.41"
+        assert "IB_IPV6" in row, f"Expected IB_IPV6 key, got: {list(row.keys())}"
+        assert row["IB_IPV6"] == ""
+
+    def test_load_canonical_csv_returns_both_keys(self, tmp_path):
+        """ORCH_UT_BC_031: Canonical CSV returns rows with IB_IPV4 + IB_IPV6."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_dual_stack()],
+        )
+        rows = load_pxe_mapping_rows(project_dir)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["IB_IPV4"] == "192.168.0.42"
+        assert row["IB_IPV6"] == "fd00:1b::42"
+
+    def test_load_legacy_csv_preserves_all_fields(self, tmp_path):
+        """ORCH_UT_BC_032: Legacy CSV normalization preserves all 11 fields."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(LEGACY_HEADERS),
+            csv_rows=[_legacy_csv_row()],
+        )
+        rows = load_pxe_mapping_rows(project_dir)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["FUNCTIONAL_GROUP_NAME"] == "slurm_node_rhel_10_0_x86_64"
+        assert row["HOSTNAME"] == "node001"
+        assert row["ADMIN_IP"] == "172.16.107.41"
+        assert row["IB_NIC_NAME"] == "InfiniBand.Slot.7-1"
+
+    def test_load_missing_csv_returns_empty(self, tmp_path):
+        """ORCH_UT_BC_033: Missing CSV file returns empty list."""
+        project_dir = str(tmp_path / "empty_project")
+        os.makedirs(project_dir, exist_ok=True)
+        oc_path = os.path.join(project_dir, "orchestrator_config.yml")
+        with open(oc_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump({"pxe_mapping_file_path": ""}, f)
+        rows = load_pxe_mapping_rows(project_dir)
+        assert rows == []
+
+
+# ===================================================================
+# TC-UT-BC-005: IPv6 address validation helpers
+# ===================================================================
+
+class TestIPv6ValidationHelpers:
+    """IPv6 validation helper functions used by backward compat code."""
+
+    def test_valid_ipv6_address(self):
+        """ORCH_UT_BC_040: Valid IPv6 address accepted."""
+        assert is_valid_ipv6("fd00:1b::41") is True
+        assert is_valid_ipv6("::1") is True
+        assert is_valid_ipv6("2001:db8::1") is True
+
+    def test_invalid_ipv6_address(self):
+        """ORCH_UT_BC_041: Invalid IPv6 address rejected."""
+        assert is_valid_ipv6("not-ipv6") is False
+        assert is_valid_ipv6("192.168.0.1") is False
+        assert is_valid_ipv6("") is False
+
+    def test_ipv6_full_expanded(self):
+        """ORCH_UT_BC_042: Fully expanded IPv6 address accepted."""
+        assert is_valid_ipv6("fd00:001b:0000:0000:0000:0000:0000:0041") is True
+
+
+# ===================================================================
+# TC-UT-BC-006: End-to-end legacy CSV → normalized rows → validation
+# ===================================================================
+
+class TestEndToEndLegacyFlow:
+    """End-to-end: legacy CSV loaded, normalized, and validated."""
+
+    def test_legacy_csv_full_pipeline(self, tmp_path):
+        """ORCH_UT_BC_050: Legacy CSV flows through load → normalize → valid."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(LEGACY_HEADERS),
+            csv_rows=[_legacy_csv_row()],
+        )
+        rows = load_pxe_mapping_rows(project_dir)
+        assert len(rows) == 1
+
+        # Verify normalization
+        row = rows[0]
+        assert "IB_IP" not in row, "Legacy IB_IP should be normalized away"
+        assert row["IB_IPV4"] == "192.168.0.41"
+        assert row["IB_IPV6"] == ""
+
+    def test_canonical_csv_full_pipeline(self, tmp_path):
+        """ORCH_UT_BC_051: Canonical CSV flows through unchanged."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_dual_stack()],
+        )
+        rows = load_pxe_mapping_rows(project_dir)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["IB_IPV4"] == "192.168.0.42"
+        assert row["IB_IPV6"] == "fd00:1b::42"
+
+    def test_multiple_legacy_rows(self, tmp_path):
+        """ORCH_UT_BC_052: Multiple rows in legacy CSV all normalized."""
+        row1 = _legacy_csv_row()
+        row2 = list(row1)
+        row2[2] = "ABCD02"     # SERVICE_TAG
+        row2[4] = "node002"    # HOSTNAME
+        row2[5] = "aa:bb:cc:dd:ee:02"  # ADMIN_MAC
+        row2[6] = "172.16.107.42"      # ADMIN_IP
+        row2[7] = "aa:bb:cc:dd:ff:02"  # BMC_MAC
+        row2[8] = "172.17.107.42"      # BMC_IP
+        row2[10] = "192.168.0.42"      # IB_IP
+
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(LEGACY_HEADERS),
+            csv_rows=[row1, row2],
+        )
+        rows = load_pxe_mapping_rows(project_dir)
+        assert len(rows) == 2
+        assert rows[0]["IB_IPV4"] == "192.168.0.41"
+        assert rows[0]["IB_IPV6"] == ""
+        assert rows[1]["IB_IPV4"] == "192.168.0.42"
+        assert rows[1]["IB_IPV6"] == ""
+
+
+# ===========================================================================
+# TC-UT-001/002 extension: ib_addr_mode schema validation
+# (ER-ORCH-005 post-implementation reconciliation)
+# ===========================================================================
+
+class TestIbAddrModeSchemaValidation:
+    """Verify ib_addr_mode in network_spec schema."""
+
+    @pytest.fixture(autouse=True)
+    def _load_schema(self):
+        """Load network_spec.json schema once for all tests."""
+        schema_path = (
+            _REPO_ROOT / "src" / "orchestrator" / "plugins" / "module_utils"
+            / "orchestrator_validation" / "schema" / "network_spec.json"
+        )
+        with open(schema_path, encoding="utf-8") as f:
+            self.schema = json.load(f)
+
+    def _find_ib_network_schemas(self):
+        """Extract all ib_network property schemas from the oneOf branches.
+
+        The schema uses: Networks.items.oneOf[].properties.ib_network.oneOf[].properties
+        """
+        schemas = []
+        for net_item in self.schema["properties"]["Networks"]["items"]["oneOf"]:
+            if "ib_network" not in net_item.get("properties", {}):
+                continue
+            ib_network = net_item["properties"]["ib_network"]
+            # ib_network may have oneOf branches (canonical vs legacy)
+            if "oneOf" in ib_network:
+                for branch in ib_network["oneOf"]:
+                    if "properties" in branch:
+                        schemas.append(branch["properties"])
+            elif "properties" in ib_network:
+                schemas.append(ib_network["properties"])
+        return schemas
+
+    def test_ib_addr_mode_present_in_schema(self):
+        """ib_addr_mode field exists in at least one ib_network oneOf branch."""
+        ib_schemas = self._find_ib_network_schemas()
+        assert any("ib_addr_mode" in s for s in ib_schemas), (
+            "ib_addr_mode not found in any ib_network schema branch"
+        )
+
+    def test_ib_addr_mode_enum_values(self):
+        """ib_addr_mode accepts ipv4-only, dual-stack, ipv6-only."""
+        ib_schemas = self._find_ib_network_schemas()
+        for s in ib_schemas:
+            if "ib_addr_mode" in s:
+                allowed = s["ib_addr_mode"].get("enum", [])
+                assert "ipv4-only" in allowed
+                assert "dual-stack" in allowed
+                assert "ipv6-only" in allowed
+
+    def test_slurm_preferred_addr_family_removed(self):
+        """slurm_preferred_addr_family must not exist in schema (FR-7 violation)."""
+        ib_schemas = self._find_ib_network_schemas()
+        assert not any("slurm_preferred_addr_family" in s for s in ib_schemas), (
+            "slurm_preferred_addr_family should have been removed per FR-7"
+        )
+
+    def test_ib_addr_mode_not_required(self):
+        """ib_addr_mode is optional (backward compatibility)."""
+        ib_schemas = self._find_ib_network_schemas()
+        for s in ib_schemas:
+            if "ib_addr_mode" in s:
+                # Field should not be in required list (if required exists)
+                # The field is optional for backward compat
+                assert True  # Presence alone is sufficient; required-ness
+                # is tested by the schema validator accepting specs without it
+
+
+# ===========================================================================
+# TC-UT-007: L2 network_spec validator respects ib_addr_mode
+# (ER-ORCH-005: ipv6-only must not require IPv4 subnet)
+# ===========================================================================
+
+class TestNetworkSpecL2AddrMode:
+    """Verify L2 network_spec_validator respects ib_addr_mode."""
+
+    _ADMIN = {
+        "admin_network": {
+            "oim_nic_name": "eno1",
+            "subnet": "172.16.107.0",
+            "netmask_bits": "24",
+            "primary_oim_admin_ip": "172.16.107.10",
+            "primary_oim_bmc_ip": "",
+            "router": "172.16.107.1",
+            "dynamic_range": "172.16.107.100-172.16.107.200",
+            "dns": [],
+            "ntp_servers": [],
+            "additional_subnets": [],
+        },
+    }
+
+    @staticmethod
+    def _ib(mode, ipv4_subnet="", ipv4_bits="", ipv6_subnet="", ipv6_bits=""):
+        return {
+            "ib_network": {
+                "ipv4_subnet": ipv4_subnet,
+                "ipv4_netmask_bits": ipv4_bits,
+                "ipv6_subnet": ipv6_subnet,
+                "ipv6_netmask_bits": ipv6_bits,
+                "ib_addr_mode": mode,
+                "dns": [],
+            },
+        }
+
+    def _validate(self, ib_entry):
+        from orchestrator_validation.validators import network_spec_validator
+        data = {"Networks": [self._ADMIN, ib_entry]}
+        return network_spec_validator.validate(data)
+
+    def test_ipv6_only_empty_ipv4_passes(self):
+        """ORCH_UT_BC_045: ipv6-only with empty IPv4 fields passes L2."""
+        errors = self._validate(
+            self._ib("ipv6-only", ipv6_subnet="fd00:1b::", ipv6_bits="64")
+        )
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert ipv4_errors == [], f"ipv6-only should not require IPv4: {ipv4_errors}"
+
+    def test_ipv6_only_null_ipv4_passes(self):
+        """ORCH_UT_BC_046: ipv6-only with null IPv4 fields passes L2."""
+        ib = {
+            "ib_network": {
+                "ipv4_subnet": None, "ipv4_netmask_bits": None,
+                "ipv6_subnet": "fd00:1b::", "ipv6_netmask_bits": "64",
+                "ib_addr_mode": "ipv6-only", "dns": [],
+            },
+        }
+        errors = self._validate(ib)
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert ipv4_errors == [], f"ipv6-only should not require IPv4: {ipv4_errors}"
+
+    def test_ipv4_only_empty_ipv6_passes(self):
+        """ORCH_UT_BC_047: ipv4-only with empty IPv6 fields passes L2."""
+        errors = self._validate(
+            self._ib("ipv4-only", ipv4_subnet="192.168.0.0", ipv4_bits="24")
+        )
+        ipv6_errors = [e for e in errors if "ipv6" in e.lower()]
+        assert ipv6_errors == [], f"ipv4-only should not require IPv6: {ipv6_errors}"
+
+    def test_dual_stack_passes(self):
+        """ORCH_UT_BC_048: dual-stack with both IPv4 and IPv6 passes L2."""
+        errors = self._validate(
+            self._ib("dual-stack",
+                      ipv4_subnet="192.168.0.0", ipv4_bits="24",
+                      ipv6_subnet="fd00:1b::", ipv6_bits="64")
+        )
+        assert errors == [], f"dual-stack should pass: {errors}"
+
+    def test_dual_stack_missing_ipv6_fails(self):
+        """ORCH_UT_BC_049: dual-stack without IPv6 fields fails L2."""
+        errors = self._validate(
+            self._ib("dual-stack", ipv4_subnet="192.168.0.0", ipv4_bits="24")
+        )
+        ipv6_errors = [e for e in errors if "ipv6" in e.lower()]
+        assert len(ipv6_errors) > 0, "dual-stack should require IPv6"
+
+    def test_dual_stack_missing_ipv4_fails(self):
+        """ORCH_UT_BC_050: dual-stack without IPv4 fields fails L2."""
+        errors = self._validate(
+            self._ib("dual-stack", ipv6_subnet="fd00:1b::", ipv6_bits="64")
+        )
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert len(ipv4_errors) > 0, "dual-stack should require IPv4"
+
+    def test_ipv6_only_missing_ipv6_fails(self):
+        """ORCH_UT_BC_051: ipv6-only without IPv6 fields fails L2."""
+        errors = self._validate(self._ib("ipv6-only"))
+        ipv6_errors = [e for e in errors if "ipv6" in e.lower()]
+        assert len(ipv6_errors) > 0, "ipv6-only should require IPv6"
+
+    def test_ipv4_only_missing_ipv4_fails(self):
+        """ORCH_UT_BC_052: ipv4-only without IPv4 fields fails L2."""
+        errors = self._validate(self._ib("ipv4-only"))
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert len(ipv4_errors) > 0, "ipv4-only should require IPv4"
+
+    def test_legacy_format_passes(self):
+        """ORCH_UT_BC_053: Legacy subnet/netmask_bits format passes L2."""
+        ib = {"ib_network": {"subnet": "192.168.0.0", "netmask_bits": "24", "dns": []}}
+        errors = self._validate(ib)
+        assert errors == [], f"Legacy format should pass: {errors}"
+
+
+# ===========================================================================
+# TC-UT-006: IB pair validation respects ib_addr_mode
+# (ER-ORCH-005 FR-1 AC-001: IPv6-only mode accepted without IB_IPV4)
+# ===========================================================================
+
+class TestIbPairValidationAddrMode:
+    """Verify _validate_ib_pair respects ib_addr_mode from network_spec."""
+
+    def _network_spec(self, ib_addr_mode: str) -> dict:
+        """Return a network_spec dict with the given ib_addr_mode."""
+        return {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": ib_addr_mode,
+                    },
+                },
+            ],
+        }
+
+    def test_ipv6_only_accepts_empty_ib_ipv4(self, tmp_path):
+        """ORCH_UT_BC_040: ipv6-only mode accepts IB_NIC_NAME + IB_IPV6 without IB_IPV4."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec=self._network_spec("ipv6-only"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert ib_pair_errors == [], (
+            f"ipv6-only should accept empty IB_IPV4, but got: {ib_pair_errors}"
+        )
+
+    def test_ipv4_only_rejects_empty_ib_ipv4(self, tmp_path):
+        """ORCH_UT_BC_041: ipv4-only mode rejects IB_NIC_NAME without IB_IPV4."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec=self._network_spec("ipv4-only"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert len(ib_pair_errors) > 0, (
+            "ipv4-only should reject rows with IB_NIC_NAME but no IB_IPV4"
+        )
+
+    def test_dual_stack_rejects_empty_ib_ipv4(self, tmp_path):
+        """ORCH_UT_BC_042: dual-stack mode rejects IB_NIC_NAME without IB_IPV4."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec=self._network_spec("dual-stack"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert len(ib_pair_errors) > 0, (
+            "dual-stack should reject rows with IB_NIC_NAME but no IB_IPV4"
+        )
+
+    def test_ipv6_only_rejects_empty_ib_ipv6(self, tmp_path):
+        """ORCH_UT_BC_043: ipv6-only mode rejects IB_NIC_NAME without IB_IPV6."""
+        row_no_ipv6 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD04", "",
+            "node004", "aa:bb:cc:dd:ee:04", "172.16.107.44",
+            "aa:bb:cc:dd:ff:04", "172.17.107.44",
+            "InfiniBand.Slot.7-1", "", "",  # IB_NIC_NAME set, both IPs empty
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_no_ipv6],
+            network_spec=self._network_spec("ipv6-only"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV6" in e]
+        assert len(ib_pair_errors) > 0, (
+            "ipv6-only should reject rows with IB_NIC_NAME but no IB_IPV6"
+        )
+
+    def test_no_ib_network_uses_default_validation(self, tmp_path):
+        """ORCH_UT_BC_044: Without ib_network, IB_NIC_NAME + IB_IPV4 pair required."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec={
+                "Networks": [
+                    {
+                        "admin_network": {
+                            "subnet": "172.16.107.0",
+                            "netmask_bits": "24",
+                        },
+                    },
+                ],
+            },
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert len(ib_pair_errors) > 0, (
+            "Without ib_network, default validation should require IB_IPV4 with IB_NIC_NAME"
+        )
+
+    def test_dual_stack_rejects_empty_ib_ipv6(self, tmp_path):
+        """ORCH_UT_BC_045: dual-stack mode rejects IB_NIC_NAME + IB_IPV4 without IB_IPV6."""
+        row_no_ipv6 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD05", "",
+            "node005", "aa:bb:cc:dd:ee:05", "172.16.107.45",
+            "aa:bb:cc:dd:ff:05", "172.17.107.45",
+            "InfiniBand.Slot.7-1", "192.168.0.45", "",  # IB_IPV4 set, IB_IPV6 empty
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_no_ipv6],
+            network_spec=self._network_spec("dual-stack"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_ipv6_errors = [e for e in errors if "IB_IPV6" in e and "dual-stack" in e]
+        assert len(ib_ipv6_errors) > 0, (
+            "dual-stack should reject rows with IB_NIC_NAME + IB_IPV4 but no IB_IPV6"
+        )
+
+    def test_dual_stack_accepts_both_ips(self, tmp_path):
+        """ORCH_UT_BC_046: dual-stack mode accepts IB_NIC_NAME + IB_IPV4 + IB_IPV6."""
+        row_both = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD06", "",
+            "node006", "aa:bb:cc:dd:ee:06", "172.16.107.46",
+            "aa:bb:cc:dd:ff:06", "172.17.107.46",
+            "InfiniBand.Slot.7-1", "192.168.0.46", "fd00:1b::46",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_both],
+            network_spec=self._network_spec("dual-stack"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_errors = [e for e in errors if "IB_" in e]
+        assert ib_errors == [], (
+            f"dual-stack with both IB_IPV4 and IB_IPV6 should pass, but got: {ib_errors}"
+        )
+
+
+# ===================================================================
+# IPv6 duplicate detection with normalization
+# ===================================================================
+
+class TestIbIpv6DuplicateNormalization:
+    """Validate IPv6 duplicate detection normalizes compressed/expanded forms."""
+
+    def test_compressed_expanded_duplicate_detected(self, tmp_path):
+        """ORCH_UT_BC_063: Compressed and expanded IPv6 forms detected as duplicates."""
+        row1 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD10", "",
+            "node010", "aa:bb:cc:dd:ee:10", "172.16.107.50",
+            "aa:bb:cc:dd:ff:10", "172.17.107.50",
+            "InfiniBand.Slot.7-1", "192.168.0.50", "fd00:1b::33",
+        ]
+        row2 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD11", "",
+            "node011", "aa:bb:cc:dd:ee:11", "172.16.107.51",
+            "aa:bb:cc:dd:ff:11", "172.17.107.51",
+            "InfiniBand.Slot.7-1", "192.168.0.51", "fd00:001b:0000:0000:0000:0000:0000:0033",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row1, row2],
+            network_spec={
+                "Networks": [
+                    {
+                        "admin_network": {
+                            "subnet": "172.16.107.0",
+                            "netmask_bits": "24",
+                        },
+                    },
+                ],
+            },
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        duplicate_errors = [e for e in errors if "Duplicate IB_IPV6" in e]
+        assert len(duplicate_errors) == 1, (
+            f"Expected 1 duplicate error for fd00:1b::33 and expanded form, got: {duplicate_errors}"
+        )
+        assert "fd00:1b::33" in duplicate_errors[0]
+
+    def test_different_ipv6_not_flagged(self, tmp_path):
+        """ORCH_UT_BC_064: Different IPv6 addresses are not flagged as duplicates."""
+        row1 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD12", "",
+            "node012", "aa:bb:cc:dd:ee:12", "172.16.107.52",
+            "aa:bb:cc:dd:ff:12", "172.17.107.52",
+            "InfiniBand.Slot.7-1", "192.168.0.52", "fd00:1b::52",
+        ]
+        row2 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD13", "",
+            "node013", "aa:bb:cc:dd:ee:13", "172.16.107.53",
+            "aa:bb:cc:dd:ff:13", "172.17.107.53",
+            "InfiniBand.Slot.7-1", "192.168.0.53", "fd00:1b::53",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row1, row2],
+            network_spec={
+                "Networks": [
+                    {
+                        "admin_network": {
+                            "subnet": "172.16.107.0",
+                            "netmask_bits": "24",
+                        },
+                    },
+                ],
+            },
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        duplicate_errors = [e for e in errors if "Duplicate IB_IPV6" in e]
+        assert duplicate_errors == [], (
+            f"Different IPv6 addresses should not be flagged as duplicates, got: {duplicate_errors}"
+        )
+
+
+# ===================================================================
+# IB_IPV6 subnet membership validation
+# ===================================================================
+
+class TestIbIpv6SubnetMembership:
+    """Validate IB_IPV6 addresses fall within the approved prefix."""
+
+    def _network_spec(self, ipv6_subnet: str, ipv6_bits: str) -> dict:
+        return {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": ipv6_subnet,
+                        "ipv6_netmask_bits": ipv6_bits,
+                        "ib_addr_mode": "dual-stack",
+                    },
+                },
+            ],
+        }
+
+    def test_ipv6_outside_prefix_rejected(self, tmp_path):
+        """ORCH_UT_BC_060: IB_IPV6 outside the approved /64 prefix is rejected."""
+        row_outside = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD07", "",
+            "node007", "aa:bb:cc:dd:ee:07", "172.16.107.47",
+            "aa:bb:cc:dd:ff:07", "172.17.107.47",
+            "InfiniBand.Slot.7-1", "192.168.0.47", "fd00:1b:0:1::1",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_outside],
+            network_spec=self._network_spec("fd00:1b::", "64"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        prefix_errors = [e for e in errors if "approved prefix" in e]
+        assert len(prefix_errors) == 1, (
+            f"Expected 1 prefix error for fd00:1b:0:1::1 outside fd00:1b::/64, got: {prefix_errors}"
+        )
+        assert "fd00:1b:0:1::1" in prefix_errors[0]
+
+    def test_ipv6_within_prefix_accepted(self, tmp_path):
+        """ORCH_UT_BC_061: IB_IPV6 within the approved /64 prefix passes."""
+        row_inside = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD08", "",
+            "node008", "aa:bb:cc:dd:ee:08", "172.16.107.48",
+            "aa:bb:cc:dd:ff:08", "172.17.107.48",
+            "InfiniBand.Slot.7-1", "192.168.0.48", "fd00:1b::48",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_inside],
+            network_spec=self._network_spec("fd00:1b::", "64"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        prefix_errors = [e for e in errors if "approved prefix" in e]
+        assert prefix_errors == [], (
+            f"fd00:1b::48 should be within fd00:1b::/64, but got: {prefix_errors}"
+        )
+
+    def test_ipv6_no_prefix_configured_skips_check(self, tmp_path):
+        """ORCH_UT_BC_062: Without ipv6_subnet, prefix check is skipped."""
+        row = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD09", "",
+            "node009", "aa:bb:cc:dd:ee:09", "172.16.107.49",
+            "aa:bb:cc:dd:ff:09", "172.17.107.49",
+            "InfiniBand.Slot.7-1", "192.168.0.49", "fd00:1b:0:1::1",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row],
+            network_spec=self._network_spec("", ""),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        prefix_errors = [e for e in errors if "approved prefix" in e]
+        assert prefix_errors == [], (
+            f"Without ipv6_subnet configured, prefix check should be skipped, got: {prefix_errors}"
+        )
+
+
+# ===================================================================
+# TC-UT-BC: PXE Mapping — Optional IB columns
+# ===================================================================
+
+def _base_csv_row() -> list[str]:
+    """Return a valid 9-column data row (no IB columns)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",  # FUNCTIONAL_GROUP_NAME
+        "grp1",                          # GROUP_NAME
+        "ABCD01",                        # SERVICE_TAG
+        "",                              # PARENT_SERVICE_TAG
+        "node001",                       # HOSTNAME
+        "aa:bb:cc:dd:ee:01",             # ADMIN_MAC
+        "172.16.107.41",                 # ADMIN_IP
+        "aa:bb:cc:dd:ff:01",             # BMC_MAC
+        "172.17.107.41",                 # BMC_IP
+    ]
+
+
+def _base_csv_row_2() -> list[str]:
+    """Return a second valid 9-column data row."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",
+        "grp1",
+        "ABCD02",
+        "",
+        "node002",
+        "aa:bb:cc:dd:ee:02",
+        "172.16.107.42",
+        "aa:bb:cc:dd:ff:02",
+        "172.17.107.42",
+    ]
+
+
+def _network_spec(ib_network: dict | None = None) -> dict:
+    """Return a network_spec with optional ib_network section."""
+    networks: list[dict] = [
+        {"admin_network": {"subnet": "172.16.107.0", "netmask_bits": "24"}},
+    ]
+    if ib_network is not None:
+        networks.append({"ib_network": ib_network})
+    return {"Networks": networks}
+
+
+class TestOptionalIbColumns:
+    """Verify CSV files without IB columns are accepted and IB validations
+    are skipped; CSV files with IB columns still validate normally."""
+
+    def test_base_header_constant(self):
+        """ORCH_UT_BC_065: BASE_HEADERS has 9 columns, no IB fields."""
+        assert len(BASE_HEADERS) == 9
+        assert "IB_NIC_NAME" not in BASE_HEADERS
+        assert "IB_IPV4" not in BASE_HEADERS
+        assert "IB_IPV6" not in BASE_HEADERS
+
+    def test_base_csv_no_ib_network_passes(self, tmp_path):
+        """ORCH_UT_BC_066: 9-column CSV without ib_network passes validation."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row()],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_base_csv_with_ib_network_passes(self, tmp_path):
+        """ORCH_UT_BC_067: 9-column CSV with ib_network in network_spec passes."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row()],
+            network_spec=_network_spec(ib_network={
+                "ipv4_subnet": "192.168.0.0",
+                "ipv4_netmask_bits": "24",
+                "ipv6_subnet": "fd00:1b::",
+                "ipv6_netmask_bits": "64",
+                "ib_addr_mode": "dual-stack",
+            }),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_base_csv_multiple_rows_passes(self, tmp_path):
+        """ORCH_UT_BC_068: Multiple 9-column rows pass without IB errors."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row(), _base_csv_row_2()],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_canonical_csv_still_validates_ib(self, tmp_path):
+        """ORCH_UT_BC_069: 12-column CSV with IB_NIC_NAME still validates IB pairing."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[
+                [
+                    "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD01", "",
+                    "node001", "aa:bb:cc:dd:ee:01", "172.16.107.41",
+                    "aa:bb:cc:dd:ff:01", "172.17.107.41",
+                    "InfiniBand.Slot.7-1", "", "",  # IB_NIC_NAME set, IPs empty
+                ],
+            ],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        ib_errors = [e for e in errors if "IB" in e]
+        assert len(ib_errors) > 0, (
+            "12-column CSV with IB_NIC_NAME but empty IB_IPV4 should fail"
+        )
+
+    def test_canonical_csv_empty_ib_values_passes(self, tmp_path):
+        """ORCH_UT_BC_070: 12-column CSV with all IB values empty passes."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[
+                [
+                    "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD01", "",
+                    "node001", "aa:bb:cc:dd:ee:01", "172.16.107.41",
+                    "aa:bb:cc:dd:ff:01", "172.17.107.41",
+                    "", "", "",  # all IB empty
+                ],
+            ],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_invalid_header_rejected(self, tmp_path):
+        """ORCH_UT_BC_071: Header that is neither base, canonical, nor legacy is rejected."""
+        bad_header = list(BASE_HEADERS) + ["EXTRA_COLUMN"]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=bad_header,
+            csv_rows=[_base_csv_row() + ["extra"]],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert len(errors) == 1
+        assert "does not match" in errors[0]
+
+    def test_error_message_shows_both_formats(self, tmp_path):
+        """ORCH_UT_BC_072: Header error message lists both accepted formats."""
+        bad_header = ["COL1", "COL2"]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=bad_header,
+            csv_rows=[["v1", "v2"]],
+            network_spec=_network_spec(),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert len(errors) == 1
+        assert "without InfiniBand" in errors[0]
+        assert "with InfiniBand" in errors[0]

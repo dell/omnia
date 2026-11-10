@@ -17,8 +17,9 @@ All workflows run on pull requests targeting `main`, `staging`, `release_*`, `is
 | 9 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
 | 10 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
 | 11 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
+| 12 | **Secure Code Review** | `secure-code-review.yml` | 1 | Advisory | Scans added lines against secure-coding rules from past security fixes; posts a pass/fail checklist PR comment, never blocks |
 
-**Total: 11 workflows, 13 jobs**
+**Total: 12 workflows, 14 jobs**
 
 > **Note:** YAML linting is handled by `ansible-lint` (production profile). A separate `yamllint` workflow is not required.
 

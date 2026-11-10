@@ -255,7 +255,7 @@ The orchestrator deploys the following on OIM and compute nodes:
 
 ### 6.1 OpenCHAMI (on OIM)
 
-OpenCHAMI 0.2.0 uses the Fabrica-managed units below. It does not deploy
+OpenCHAMI 0.2.1 uses the Fabrica-managed units below. It does not deploy
 standalone BSS, cloud-init-server, Hydra, or OPAAL services; Boot Service and
 Metadata Service provide the corresponding boot and node-metadata functions.
 
@@ -267,7 +267,7 @@ Metadata Service provide the corresponding boot and node-metadata functions.
 | `boot-service.service` | PXE boot configurations |
 | `metadata-service.service` | Node metadata and cloud-init rendering |
 | `tokensmith.service` | OpenCHAMI access-token service |
-| `step-ca.service`, `acme-register.service`, `acme-deploy.service`, `openchami-cert-trust.service`, and `openchami-cert-renewal.timer` | Local CA and certificate lifecycle installed by the OpenCHAMI 0.2.0 package; Omnia enables the packaged daily renewal timer and immediately replaces missing, mismatched, expired, or near-expiry HAProxy certificates |
+| `step-ca.service`, `acme-register.service`, `acme-deploy.service`, `openchami-cert-trust.service`, and `openchami-cert-renewal.timer` | Local CA and certificate lifecycle installed by the OpenCHAMI 0.2.1 package; Omnia enables the packaged daily renewal timer and immediately replaces missing, mismatched, expired, or near-expiry HAProxy certificates |
 | `coresmd-coredhcp.service` | DHCP service backed by SMD data |
 | `coresmd-coredns.service` | DNS service backed by SMD data |
 | `haproxy.service` | TLS termination and API routing |
