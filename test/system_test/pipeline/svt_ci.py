@@ -587,7 +587,56 @@ def after_job() -> int:
                f"kill -TERM -- -\"$(cat \"$pid\")\" 2>/dev/null && "
                f"echo \"stopped $(basename \"${{pid%.pid}}\") on the OIM\"; done; true",
                timeout=120)
+    rerun_summary()
     return 0
+
+
+UNFINISHED = ("created", "pending", "running", "waiting_for_resource", "preparing", "scheduled")
+
+
+def _api(method: str, path: str, token: str, header: str) -> Any:
+    """Call the GitLab API of this project with ``token`` (header JOB-TOKEN or PRIVATE-TOKEN)."""
+    context = ssl.create_default_context(cafile=_env("CI_SERVER_TLS_CA_FILE") or None)
+    request = urllib.request.Request(  # nosec B310  # GitLab API of this project
+        f"{_env('CI_API_V4_URL')}{path}", method=method, headers={header: token})
+    with urllib.request.urlopen(request, context=context, timeout=20) as response:  # nosec B310
+        return json.load(response)
+
+
+def rerun_summary() -> None:
+    """Run the summary job again when a retried job was the last one to finish.
+
+    GitLab does not run a job again that already ran: retry a failed stage after the pipeline
+    ended and its summary (report and email) still shows the old failure. The last job to end
+    asks GitLab to retry the summary; nothing happens while another job of the pipeline is
+    unfinished or before the summary ran. The token is the optional masked, protected CI/CD
+    variable SVT_API_TOKEN (a project access token with the api scope), else the job token.
+    Best effort: a refusal is printed with the way to do it by hand, the job is never failed.
+    """
+    if _env("CI_JOB_NAME") in ("summary", "preflight") or not _env("CI_API_V4_URL"):
+        return
+    key = os.environ.get("SVT_API_TOKEN", "")
+    token, header = (key, "PRIVATE-TOKEN") if key else (os.environ.get("CI_JOB_TOKEN", ""),
+                                                        "JOB-TOKEN")
+    base = f"/projects/{_env('CI_PROJECT_ID')}"
+    try:
+        jobs = _api("GET", f"{base}/pipelines/{_env('CI_PIPELINE_ID')}/jobs?per_page=100",
+                    token, header)
+        done = next((job for job in jobs if job["name"] == "summary"), None)
+        if not done or done["status"] in UNFINISHED:
+            return
+        if any(job["status"] in UNFINISHED for job in jobs
+               if job["name"] != "summary" and str(job["id"]) != _env("CI_JOB_ID")):
+            return
+        _api("POST", f"{base}/jobs/{done['id']}/retry", token, header)
+        _say(f"{_env('CI_JOB_NAME')} was the last job to end after the summary ran: the "
+             "summary job was started again")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        reason = (f"HTTP {exc.code}" if isinstance(exc, urllib.error.HTTPError)
+                  else type(exc).__name__)
+        _say(f"the summary job could not be started again ({reason}): retry it by hand, or give "
+             "the project access token (api scope) as the masked, protected CI/CD variable "
+             "SVT_API_TOKEN")
 
 
 # ----------------------------------------------------------------- summary
