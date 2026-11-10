@@ -697,5 +697,10 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify build_stream credentials deleted (cleanup_credentials: true) or "
                  "kept (false)",
     },
+    "job_data_per_backup_flag": {
+        "id": "BSM_FVT_CLEANUP_V030",
+        "title": "Verify build_stream_root deleted with Postgres (postgres_backup: false) or "
+                 "only the artifact files PostgreSQL references kept (true)",
+    },
 
 }

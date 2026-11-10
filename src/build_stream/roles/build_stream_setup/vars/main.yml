@@ -85,3 +85,10 @@ tag_combination_fail_msg: |
   - {{ combo | join(' + ') }}
   {% endfor %}
   Please run with only ONE tag at a time (or no tags for default flow).
+cleanup_flag_invalid_msg: >-
+  postgres_backup and cleanup_credentials accept only true or false
+  (got postgres_backup='{{ postgres_backup | default('true') }}',
+  cleanup_credentials='{{ cleanup_credentials | default('true') }}').
+  postgres_backup=false deletes the PostgreSQL database together with the
+  BuildStream job artifacts; postgres_backup=true (default) preserves both.
+  cleanup_credentials=false preserves the BuildStream credential files.

@@ -74,6 +74,9 @@ MARKERS: list[str] = [
     "idempotency",
     "security",
     "lifecycle",
+    "ipoib",
+    "fault_injection",
+    "reprovision",
 ]
 
 # =====================================================================
@@ -87,6 +90,7 @@ SUITES: dict[str, list[str]] = {
         "storage",
         "dependencies",
         "inputs",
+        "ipoib_inputs",
     ],
     "prepare": [
         "openchami",
@@ -121,6 +125,8 @@ SUITES: dict[str, list[str]] = {
         "kubernetes_recovery",
         "slurm_recovery",
         "slurm_lifecycle",
+        "ipoib_network",
+        "ipoib_resilience",
     ],
     "cleanup": [
         "openchami",

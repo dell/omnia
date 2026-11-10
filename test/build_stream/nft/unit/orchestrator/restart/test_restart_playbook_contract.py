@@ -50,6 +50,19 @@ def test_orchestrator_pxe_has_no_buildstream_processing():
     assert "defer_pxe_failure" in reporting
 
 
+def test_pxe_reporting_hard_fails_by_default():
+    """A node that failed PXE boot or cloud-init fails the playbook by default.
+
+    Only an explicit ``defer_pxe_failure`` (the BuildStream restart sets it)
+    turns the failure into a deferred one.
+    """
+    reporting = _read(_PXE_REPORTING)
+
+    assert "not (defer_pxe_failure | default(false) | bool)" in reporting
+    assert "defer_pxe_failure | default(true)" not in reporting
+    assert "Provisioning will continue" not in reporting
+
+
 def test_pre_pxe_uses_restart_state_retry_inventory():
     """Pre-PXE delegates retry filtering to the BuildStream role."""
     restart = _read(_RESTART_DIR / "restart.yml")

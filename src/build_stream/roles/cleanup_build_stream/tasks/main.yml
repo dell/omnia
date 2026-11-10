@@ -23,27 +23,68 @@
     fail_msg: "{{ cleanup_credentials_invalid_msg }}"
     quiet: true
 
-- name: Cleanup omnia_build_stream container and playbook watcher
-  ansible.builtin.import_tasks: cleanup_build_stream_container.yml
-  tags: build_stream
+- name: Validate PostgreSQL backup selection
+  ansible.builtin.assert:
+    that:
+      - postgres_backup is not defined or (postgres_backup | string | trim | lower) in ['true', 'false']
+    fail_msg: "{{ postgres_backup_invalid_msg }}"
+    quiet: true
 
-- name: Cleanup omnia_postgres container
-  ansible.builtin.import_tasks: cleanup_postgres.yml
-  tags: postgres
+# The audit records carry the role's sub-tags (not 'always') so they are
+# written whenever any BuildStream cleanup step runs, and never for a
+# GitLab-only run (--tags cleanup_gitlab).
+- name: Record BuildStream cleanup start
+  ansible.builtin.import_tasks: cleanup_audit.yml
+  vars:
+    build_stream_cleanup_audit_status: STARTED
+  tags: [build_stream, postgres, credentials]
 
-- name: Cleanup build_stream credentials
-  ansible.builtin.import_tasks: cleanup_credentials.yml
-  when: cleanup_credentials | default(true) | bool
-  tags: credentials
+- name: Clean up BuildStream
+  block:
+    - name: Cleanup omnia_build_stream container and playbook watcher
+      ansible.builtin.import_tasks: cleanup_build_stream_container.yml
+      tags: build_stream
 
-- name: Remove BuildStream host playbook logs after successful cleanup
-  ansible.builtin.file:
-    path: "{{ build_stream_host_log_directory }}"
-    state: absent
-    force: true
-  register: build_stream_host_log_deletion
-  until: build_stream_host_log_deletion is not failed
-  retries: "{{ max_retries }}"
+    - name: Cleanup omnia_postgres container
+      ansible.builtin.import_tasks: cleanup_postgres.yml
+      tags: postgres
+
+    # Runs after the Postgres step: job data is kept only while the
+    # PostgreSQL database that references it is retained.
+    - name: Cleanup BuildStream job data together with PostgreSQL
+      ansible.builtin.import_tasks: cleanup_job_data.yml
+      tags: build_stream
+
+    - name: Cleanup build_stream credentials
+      ansible.builtin.import_tasks: cleanup_credentials.yml
+      when: cleanup_credentials | default(true) | bool
+      tags: credentials
+
+    - name: Remove BuildStream host playbook logs after successful cleanup
+      ansible.builtin.file:
+        path: "{{ build_stream_host_log_directory }}"
+        state: absent
+        force: true
+      register: build_stream_host_log_deletion
+      until: build_stream_host_log_deletion is not failed
+      retries: "{{ max_retries }}"
+  rescue:
+    - name: Record BuildStream cleanup failure
+      ansible.builtin.import_tasks: cleanup_audit.yml
+      vars:
+        build_stream_cleanup_audit_status: FAILED
+      tags: [build_stream, postgres, credentials]
+
+    - name: Fail BuildStream cleanup
+      ansible.builtin.fail:
+        msg: "{{ build_stream_cleanup_failed_msg }}"
+      tags: [build_stream, postgres, credentials]
+
+- name: Record BuildStream cleanup completion
+  ansible.builtin.import_tasks: cleanup_audit.yml
+  vars:
+    build_stream_cleanup_audit_status: COMPLETED
+  tags: [build_stream, postgres, credentials]
 
 - name: Display cleanup summary
   ansible.builtin.debug:

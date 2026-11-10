@@ -171,6 +171,7 @@
       real_memory: "{{ default_real_memory }}"
       corespersocket: "{{ default_corespersocket }}"
       threadspercore: "{{ default_threadspercore }}"
+      sockets: "{{ default_sockets }}"
   register: bulk_discovery
   when: discovery_mode == 'heterogeneous'
 
@@ -230,6 +231,12 @@
     msg:
       - "Total node_params entries: {{ node_params | length }}"
       - "node_params: {{ node_params }}"
+
+- name: Inject IB NodeAddr into node_params (if IPoIB allocation or PXE mapping exists)
+  ansible.builtin.include_tasks: inject_ib_nodeaddr.yml
+  when:
+    - node_params | length > 0
+    - "'slurm' in conf_files"
 
 - name: Build slurm.conf
   ansible.builtin.include_tasks: build_slurm_conf.yml
@@ -313,9 +320,11 @@
          | combine({
              'slurm': [{
                'ClusterName': slurm_cluster_name,
-               'AccountingStorageHost': dbd_list[0],
-               'SlurmctldHost': ctld_list
-             }] + conf_merge_dict['slurm']
+               'SlurmctldHost': _ctld_ib_list | default(ctld_list)
+             } | combine(
+               {'AccountingStorageHost': dbd_list[0]}
+               if dbd_list | length > 0 else {}
+             )] + conf_merge_dict['slurm']
            }) }}
   when: "'slurm' in conf_merge_dict"
   no_log: "{{ _no_log }}"
@@ -354,7 +363,7 @@
      | product(['/var/spool/slurmctld',
       '/var/log/slurm',
       '/var/run']) }}"
-    - "{{ (cmpt_list + login_list + compiler_login_list)
+    - "{{ (cmpt_list + login_list + (compiler_login_list | default([])))
      | product(['/var/spool/slurmd',
       '/var/log/slurm',
       '/var/run']) }}"
@@ -363,7 +372,10 @@
 
 - name: Generate slurmd opts for Configless # TODO: Move to $SLURMD_OPTIONS /etc/default/slurmd
   ansible.builtin.set_fact:
-    conf_server: "--conf-server {{ ctld_list | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string)) | join(',') }}"
+    conf_server: >-
+      --conf-server {{ (_ctld_ib_addrs | default(ctld_list))
+      | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string))
+      | join(',') }}
   when: slurm_conf_dict is defined
 
 - name: Backup Slurm configuration files before writing new config
