@@ -81,7 +81,7 @@ show_help() {
 BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
-AUTH_TAG="1.2"
+AUTH_TAG="1.3"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
