@@ -22,7 +22,8 @@ merge serves every YAML file:
 * list of mappings -> match each item by ``name``, ``cluster_name``, ``address``
   (ntp_servers) or ``subnet`` (additional_subnets) or, for ``- admin_network:``
   style items, by their single key; a new item is appended;
-* scalar or list of scalars -> written when given, typed like the file value.
+* scalar or list of scalars -> written when given, typed like the file value; an empty
+  value removes a key of REMOVE_WHEN_EMPTY (ib_addr_mode) instead of writing "".
 
 An empty value ("" / []) clears the text or plain list in the file, so a value
 removed from user_inputs.yml is removed there too; it never changes a boolean,
@@ -57,6 +58,11 @@ from .dataset_edit import (
 )
 
 IDENTITY_KEYS = ("name", "cluster_name", "address", "subnet")
+# Keys the product reads as "feature on" when they exist, whatever their value, and whose
+# schema rejects an empty value: an empty value in user_inputs.yml removes them from the file.
+# ib_addr_mode: with it the orchestrator runs the IPoIB pipeline, which needs IB columns on a
+# PXE row; without it the pipeline is skipped (a cluster without InfiniBand).
+REMOVE_WHEN_EMPTY = ("ib_addr_mode",)
 VAST_MOUNT = "vast_storage"
 VAST_PREFIX = "# [vast off] "
 VAST_NOTE = (f"{VAST_PREFIX.rstrip()} VAST is off: user_inputs.yml gives no vast_storage source; "
@@ -111,6 +117,9 @@ def merge_yaml(node: Any, wanted: Dict[str, Any], changes: List[Change], label: 
             if not isinstance(current, list):
                 raise EditError(f"{label}: '{here}' is not a list in this file")
             merge_list(current, value, changes, label, here)
+        elif key in REMOVE_WHEN_EMPTY and not has_value(value):
+            del node[file_key]
+            changes.append((label, here, str(current), "(removed)"))
         else:
             set_value(node, file_key, typed(value, current), changes, label, where)
 

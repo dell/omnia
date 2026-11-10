@@ -327,6 +327,10 @@ orchestrator:
   # |       "dual-stack"  IPv4 and IPv6 on IPoIB (needs ipv6_subnet)           |
   # |       "ipv6-only"   IPv6 only (needs ipv6_subnet)                        |
   # |       "ipv4-only"   IPv4 only, IPv6 is ignored                           |
+  # |       ""            no InfiniBand: the key is removed and the IPoIB      |
+  # |                     pipeline is skipped                                  |
+  # |     With a mode set, at least one PXE row must have IB_NIC_NAME and its  |
+  # |     IB address(es), or the deploy fails ("No IB allocation rows found"). |
   # |     The ib_network subnets must not overlap the admin subnet. The Slurm  |
   # |     NodeAddr follows the mode (IPv6 in dual-stack and ipv6-only).        |
   # +--------------------------------------------------------------------------+
