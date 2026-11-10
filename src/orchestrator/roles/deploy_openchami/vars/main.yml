@@ -92,10 +92,15 @@ ochami_cli_log_level: warning
 ochami_cli_log_format: rfc3339
 ochami_base_url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
 
-# OpenCHAMI RPM — downloaded from GitHub releases at install time
+# OpenCHAMI RPM — downloaded from GitHub releases at install time. The release is
+# pinned, so the asset is fetched from its direct download URL: the GitHub REST API
+# is not called (anonymous requests are limited to 60 per hour per IP address and
+# fail the installation with HTTP 403 once the limit is used).
 openchami_release_repo: OpenCHAMI/release
-openchami_release_api_url: "https://api.github.com/repos/{{ openchami_release_repo }}/releases/tags/v0.2.1"
-openchami_rpm_name: openchami-0.2.1.rpm
+openchami_version: "0.2.1"
+openchami_rpm_name: "openchami-{{ openchami_version }}.rpm"
+openchami_rpm_url: >-
+  https://github.com/{{ openchami_release_repo }}/releases/download/v{{ openchami_version }}/{{ openchami_rpm_name }}
 ochami_client_rpm_url: https://github.com/OpenCHAMI/ochami/releases/download/v0.11.0/ochami_0.11.0_linux_amd64.rpm
 ochami_client_rpm_name: ochami_0.11.0_linux_amd64.rpm
 
