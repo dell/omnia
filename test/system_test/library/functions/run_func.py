@@ -41,9 +41,8 @@ from typing import Any, Dict, List
 from . import svt_report_func
 from .config_func import report_settings
 from ..messages.svt_msgs import RUN_MSGS
-from ..vars.common_vars import RUN_ID_FORMAT, RUN_MARKER, RUN_STATE
+from ..vars.common_vars import RUN_ID_FORMAT, RUN_MARKER, RUN_STATE, SETTING_KEYS
 
-SETTING_KEYS = ("report_path", "report_name", "run_id")
 
 
 class RunError(ValueError):

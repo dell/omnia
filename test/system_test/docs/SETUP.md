@@ -1,6 +1,6 @@
 # SVT setup: `./setup_env.sh`, the inputs and the dataset generator
 
-How to prepare an OIM for the SVT of `test/system_test` (see its [README](README.md) for
+How to prepare an OIM for the SVT of `test/system_test` (see its [README](../README.md) for
 the stages, the run and the report): the setup script, `user_inputs.yml` and the dataset
 generator that turns it into the Omnia inputs.
 
@@ -18,9 +18,12 @@ Running it again is quick: steps with nothing to do are skipped.
 | `./setup_env.sh --configure` | configure |
 | `./setup_env.sh --install` | install |
 | `./setup_env.sh --install --force` | cleanup → full install |
-| `./setup_env.sh --cleanup` | cleanup |
+| `./setup_env.sh --cleanup` | cleanup (asks for `yes`; also empties the NFS shares, see below) |
+| `./setup_env.sh --cleanup --dry-run` | show what the cleanup would run and remove; change nothing, mount nothing |
 | `./setup_env.sh --set-domain-creds` / `--update-domain-creds` [`--domain <d>`] | prompt every store (or one) |
 | `provider \| ./setup_env.sh --domain-creds-stdin` | write the stores from JSON keyed by domain |
+| `BAO_TOKEN=... ./setup_env.sh --domain-creds-from-openbao [--domain <d>]` | read the stores from OpenBao ([OPENBAO.md](OPENBAO.md)) |
+| `BAO_TOKEN=... ./setup_env.sh --openbao` | every step; the missing stores come from OpenBao instead of prompts |
 | `./setup_env.sh --status` | show the status box (read-only) |
 
 Options: `--theme <theme>` (default `build_stream`; its settings are
@@ -36,14 +39,14 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
 - It starts a new SVT run, first of all: a new `run_id` (`svt-<UTC time>`,
   unless `report.run_id` is set), the theme and the run folder
   `<report_path>/<run_id>/`. Every later step (cleanup, install, creds,
-  `./run_validation.sh`) adds to this run; see [The run](#the-run).
+  `./run_validation.sh`) adds to this run; see [The run](RUNNER.md#the-run).
 - The `cleanup` flags and the `build_stream` block (catalog,
-  cadence_catalog, allow_pipeline_cancel) of `build_stream_test_config.yml`
+  cadence_catalog, allow_pipeline_cancel, debug_mode) of `build_stream_test_config.yml`
   are written into each `test/<suite>/test_config.yml`.
 - The FVT report settings of the run (`<run folder>/fvt`, `fvt_report`, the
   run id) are written into every suite's `test_config.yml` (main,
   repo_manager, image_build_manager, orchestrator, build_stream), so their
-  results can be shown in the [SVT report](#the-svt-report).
+  results can be shown in the [SVT report](RUNNER.md#the-svt-report).
 - It checks `main.catalog` against `./omnia.sh --list-catalogs`.
 - It stops on a YAML error, an unknown key, a credential-like key, an empty
   MANDATORY value or an unknown catalog.
@@ -53,23 +56,57 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
   would run, the domains whose `domain-init.sh --cleanup` would run, the data
   path a full reset removes, and whether the cleanup would refuse. It changes
   nothing, asks nothing, takes no lock and needs no run.
-- It writes the cleanup flags again, lists the steps and asks for `yes`; `--yes`
-  confirms without asking.
+- It writes the cleanup flags again, lists the steps (and the NFS shares it will
+  empty) and asks for `yes`; `--yes` confirms without asking.
+- **NFS shares first checked:** with `cleanup.nfs` (default true) each share is
+  mounted read-only and unmounted before anything is deleted; one that cannot be
+  reached fails the cleanup with the reason, nothing deleted.
 - It then runs, in order:
   1. `fvt_build_stream cleanup test` (only when BuildStream is installed);
-  2. `fvt_orchestrator cleanup test`;
-  3. `fvt_image_build_manager cleanup test`;
-  4. `fvt_repo_manager cleanup test --marker destructive`;
-  5. with `cleanup.main.cleanup_all: true` (default): every
+  2. `fvt_telemetry cleanup test` (`telemetry.yml --tags cleanup`: pods, services, Kafka
+     topics, sink PVCs). The SVT theme does not deploy telemetry, but a previous
+     installation may have; the step runs only when telemetry holds deployed state (a
+     file under `<data>/telemetry/output` or `log`, the rule `omnia.sh --cleanup --all`
+     applies) and is skipped otherwise. It runs before the orchestrator, because
+     telemetry runs on the Kubernetes cluster the orchestrator deploys. With
+     `cleanup.telemetry.delete_sinks_volume: true` (default) the sink PVCs and the log,
+     input and output directories are removed too, which a complete reset needs;
+  3. `fvt_orchestrator cleanup test`;
+  4. `fvt_image_build_manager cleanup test`;
+  5. `fvt_repo_manager cleanup test --marker destructive`;
+  6. with `cleanup.main.cleanup_all: true` (default): every
      `src/<domain>/domain-init.sh --cleanup` (each domain's input and log
      artifacts). `omnia.sh --cleanup --all` runs the same helpers, but only
      after a preflight that refuses while `<data>/<domain>/log` holds a file;
      the validate playbooks write logs there and no domain cleanup tag removes
      them, so without this step `--all` stops and removes nothing;
-  6. `fvt_main cleanup test` from `test/main/.venv`: `omnia.sh --cleanup --all
+  7. `fvt_main cleanup test` from `test/main/.venv`: `omnia.sh --cleanup --all
      --skip-approval` (the whole `OMNIA_DATA_PATH`, credential stores
      included), or `omnia.sh --cleanup` with `cleanup_all: false`; then the
      verify cases MAIN_FVT_CLEANUP_V001-V005 check what was removed.
+- **NFS share cleanup** (`cleanup.nfs.slurm_share`, `cleanup.nfs.k8s_share`, default
+  true), the last step: data left on the Slurm and Kubernetes shares survives a
+  reinstall, so `--cleanup` (and the clean reinstall `--force` that the pipeline's
+  initialization job runs) empties them. The shares are the `storage_config.yml`
+  mounts `nfs_slurm` and `nfs_k8s` (generated from `user_inputs.yml`
+  `orchestrator.storage_config.mounts`) whose source is `server:/export`; a mount that
+  is absent or not NFS is skipped. Each share is mounted on a private temporary
+  folder of the OIM, everything inside is deleted (the export stays) and it is
+  unmounted. It also runs on an OIM with no previous installation; one report item
+  per share.
+  - **Safety:** no shell; `host:/export` validated (IPv4 or host name; an absolute path
+    of plain characters without `.`/`..`); system directories (`/`, `/etc`, `/home`,
+    `/opt`, `/root`, `/var` ...) and an export on this OIM that contains the checkout
+    or `OMNIA_DATA_PATH` are refused; the mount is checked in `/proc/self/mountinfo`
+    to be an NFS mount of exactly that source before deleting; deletion never follows
+    a symbolic link (the link is removed), does not enter another mount and has a depth
+    limit; the share is always unmounted (lazily as a last resort).
+  - **Needs:** root, `nfs-utils` (`mount.nfs`) on the OIM, and an export that does not
+    squash root (`no_root_squash`), else removal fails with that hint.
+  - **Switch off:** `cleanup.nfs.slurm_share: false` / `k8s_share: false` in
+    `build_stream_test_config.yml`.
+  - Code: `library/functions/nfs_func.py`; its constants are in
+    `library/vars/nfs_vars.py`.
 - **Complete reset:** after `cleanup_all` nothing of the previous installation
   is left, so the next install asks no "overwrite existing files?" question.
   omnia.sh refuses, and deletes nothing, while a domain still holds deployed
@@ -126,6 +163,16 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
   SVT, where `./run_validation.sh` accepts only `svt_<theme>`. After the
   stores are written, the SVT prints that and its own next step
   (`./run_validation.sh svt_<theme> all`).
+
+**`--domain-creds-from-openbao` / `--openbao`** (load the passwords from OpenBao)
+- It reads `<openbao.server_url>/v1/<openbao.secret_path>/<domain>` for
+  repo_manager, image_build_manager, orchestrator and build_stream (or one
+  `--domain`): the layout the GitLab pipelines use. The settings are the `openbao`
+  block of `user_inputs.yml`; the token is never a setting: `export BAO_TOKEN=<token>`
+  or type it at the hidden prompt. The fields go to the suite's `--domain-creds-stdin`
+  in memory; only field **names** are printed, never a value.
+- `--openbao` (no action) does the same only for the stores still missing during the
+  every-step run (`--force --openbao` cleans first). Full guide: [OPENBAO.md](OPENBAO.md).
 
 **`--set-domain-creds` / `--update-domain-creds` / `--domain-creds-stdin`**
 - These run the same `test/build_stream/setup_env.sh` flag for every store (or
@@ -215,6 +262,10 @@ in the matching file.
   of `omnia.env` (and keeps a backup of the previous one).
 - **PXE mapping:** the CSV keeps its header line; all its rows are replaced by
   `row1`, `row2`, ...
+- **OpenBao:** the top-level `openbao` block (`server_url`, `secret_path`,
+  `tls_skip_verify`, `ca_cert`) is not an Omnia input and is written into no file. It is
+  the one place OpenBao is set, for `./setup_env.sh --domain-creds-from-openbao` and for
+  the GitLab pipeline variables (see [OPENBAO.md](OPENBAO.md)).
 - **DNS:** `orchestrator.orchestrator_config.dns_enabled` (`true` | `false`)
   goes into `src/orchestrator/input/orchestrator_config.yml`. The product's
   default is `true`, and then every HOSTNAME of the PXE mapping must be
@@ -245,10 +296,12 @@ input file into it; an existing file that would change is moved to
 ```text
 test/system_test/
 ├── SETUP.md                     this file
+├── OPENBAO.md                   passwords from OpenBao (one place for its settings)
 ├── setup_env.sh, _setup.py      prepare the OIM: configure, cleanup, install, credentials, status
-├── user_inputs.yml              the cluster values
+├── user_inputs.yml              the cluster values (and the openbao block)
 ├── dataset_generator/           user_inputs.yml -> src inputs (profiles/<theme>.yml)
 └── library/functions/           setup_func (setup steps), cleanup_func (cleanup),
+                                 nfs_func (empty NFS shares), openbao_func (read OpenBao),
                                  status_func (status box)
 ```
 

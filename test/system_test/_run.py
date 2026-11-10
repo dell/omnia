@@ -72,6 +72,7 @@ from library.vars.common_vars import (
     FIRST_STAGE,
     LAST_STAGE,
     MODULE_ROOT,
+    REPORT_STAGES,
     RUN_ID_RE,
     STAGE_LOG,
     STAGE_PROGRESS,
@@ -81,8 +82,6 @@ from library.vars.domain_vars import RUNNER_PREFIX, THEME_NAMES, THEME_STAGES
 from library.vars.test_case_vars import TEST_CASES
 from library.vars.theme_vars import THEMES, theme_title
 
-# The summary only reads and reports: it runs on a failed run, without the Omnia venv.
-REPORT_STAGES = (LAST_STAGE,)
 
 
 def stages_of(theme: str) -> List[str]:

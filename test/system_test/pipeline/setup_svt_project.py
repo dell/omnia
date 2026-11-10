@@ -70,6 +70,7 @@ from setup_gitlab_project import (  # noqa: E402  # test/pipeline, the shared Gi
     _validate_token,
     _validate_url,
 )
+from library.vars.common_vars import INPUTS_FILE  # noqa: E402
 from library.vars.theme_vars import THEMES, stage_info, theme_title  # noqa: E402
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
@@ -79,16 +80,21 @@ PASSWORD_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 # Global keys: config section.key -> CI/CD variable.
 GLOBAL_VARIABLES = {
-    ("openbao", "server_url"): "BAO_SERVER_URL",
     ("openbao", "auth_role"): "BAO_AUTH_ROLE",
-    ("openbao", "secret_path"): "BAO_DATA_PATH",
-    ("openbao", "tls_skip_verify"): "BAO_TLS_SKIP_VERIFY",
     ("email", "recipients"): "EMAIL_RECIPIENTS",
     ("email", "sender"): "EMAIL_SENDER",
     ("email", "smtp_server"): "SMTP_SERVER",
     ("email", "smtp_port"): "SMTP_PORT",
     ("email", "required"): "SVT_EMAIL_REQUIRED",
     ("svt", "poll_seconds"): "SVT_POLL_SECONDS",
+    ("svt", "log_limit_kb"): "SVT_LOG_LIMIT_KB",
+}
+# Where OpenBao is: ONE place, the openbao block of user_inputs.yml (also what
+# ./setup_env.sh --domain-creds-from-openbao reads). Its keys -> CI/CD variable.
+THEME_OPENBAO_VARIABLES = {
+    "server_url": "BAO_SERVER_URL",
+    "secret_path": "BAO_DATA_PATH",
+    "tls_skip_verify": "BAO_TLS_SKIP_VERIFY",
 }
 # Cluster keys: section.key of clusters.<name> -> variable <PREFIX>_<name>.
 CLUSTER_VARIABLES = {
@@ -109,6 +115,21 @@ CLUSTER_VARIABLES = {
 def prefix(cluster: str) -> str:
     """Return the CI/CD variable prefix of a cluster (cluster-1 -> CLUSTER_1)."""
     return re.sub(r"[^A-Z0-9]", "_", cluster.upper())
+
+
+def openbao_variables() -> Dict[str, str]:
+    """Return the OpenBao settings of user_inputs.yml (block ``openbao``) as CI/CD values."""
+    try:
+        with open(INPUTS_FILE, "r", encoding="utf-8") as stream:
+            block = (yaml.safe_load(stream) or {}).get("openbao") or {}
+    except (OSError, yaml.YAMLError) as exc:
+        raise SystemExit(f"cannot read {INPUTS_FILE}: {exc}") from exc
+    values = {}
+    for key, name in THEME_OPENBAO_VARIABLES.items():
+        value = block.get(key)
+        text = "" if value is None else str(value).strip()
+        values[name] = text.lower() if isinstance(value, bool) else text.strip("/")
+    return values
 
 
 def load_config(path: Path) -> Dict[str, Any]:
@@ -146,6 +167,7 @@ def ci_variables(config: Dict[str, Any]) -> Dict[str, str]:
     variables = {name: "" if _value(config, section, key) is None
                  else str(_value(config, section, key))
                  for (section, key), name in GLOBAL_VARIABLES.items()}
+    variables.update(openbao_variables())
     variables["SVT_CLUSTERS"] = ",".join(config["clusters"])
     for cluster, block in config["clusters"].items():
         for (section, key), name in CLUSTER_VARIABLES.items():
@@ -158,8 +180,8 @@ def ci_variables(config: Dict[str, Any]) -> Dict[str, str]:
 
 
 def jobs_of(theme: str) -> List[str]:
-    """Return the pipeline jobs in order: preflight, checkout, the SVT stages, summary."""
-    return ["preflight", "checkout", FIRST_STAGE, *THEMES[theme]["stages"], LAST_STAGE]
+    """Return the pipeline jobs in order: preflight (checks and checkout), the SVT stages, summary."""
+    return ["preflight", FIRST_STAGE, *THEMES[theme]["stages"], LAST_STAGE]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
@@ -226,7 +248,7 @@ def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
     """Return (.gitlab-ci-svt.yml text, longest job timeout in seconds)."""
     theme = config["svt"]["theme"]
     jobs = jobs_of(theme)
-    bao = bool((config.get("openbao") or {}).get("server_url"))
+    bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
         HEADER.rstrip("\n"),
@@ -257,9 +279,9 @@ def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
     ]
     for job in jobs:
         timeout = _timeout(config, job)[0]
-        title, description = stage_info(theme, job) if job not in ("preflight", "checkout") \
-            else (job.title(), {"preflight": "SSH to the OIM, OpenBao reachable",
-                                "checkout": "Omnia checkout on the OIM, svt/ inputs copied"}[job])
+        title, description = stage_info(theme, job) if job != "preflight" \
+            else ("Preflight", "SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, "
+                              "svt/ inputs copied")
         lines += [f"# {title}: {description}", f"{job}:", f"  stage: {job}",
                   f"  timeout: {timeout}"]
         if job == FIRST_STAGE and bao:

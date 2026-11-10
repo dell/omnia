@@ -225,3 +225,6 @@ image_pull_fail_msg: "Failed to pull OpenCHAMI image: {{ item.item }}. Error: {{
 # The OIM serves as the NTP server (cluster_boot_ip) for all cluster nodes.
 # chrony_conf_path is the chrony configuration file on the OIM host.
 chrony_conf_path: /etc/chrony.conf
+chrony_no_sources_msg: >-
+  No chrony sources are reachable. Please give a valid NTP server
+  configuration in network_spec.yml and re-run the orchestrator playbook.

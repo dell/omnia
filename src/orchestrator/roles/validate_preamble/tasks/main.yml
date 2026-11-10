@@ -118,15 +118,34 @@
         normalized_pxe_mapping_path: "{{ _secure_validate_mapping.path }}"
 
     - name: Read PXE mapping CSV into temp var
-      community.general.read_csv:
-        path: "{{ _secure_validate_mapping.path }}"
-        key: ADMIN_MAC
-      register: _validate_csv_result
+      block:
+        - name: Read PXE mapping CSV into temp var
+          community.general.read_csv:
+            path: "{{ _secure_validate_mapping.path }}"
+            key: ADMIN_MAC
+          register: _validate_csv_result
+          no_log: true
+      rescue:
+        - name: Report PXE mapping CSV read failure
+          ansible.builtin.fail:
+            msg: "{{ validate_preamble_read_csv_rescue_msg }}"
+          no_log: false
 
     - name: Promote CSV result to read_mapping_file fact
-      ansible.builtin.set_fact:
-        read_mapping_file: "{{ _validate_csv_result }}"
-      when: _validate_csv_result is defined and _validate_csv_result is not skipped
+      block:
+        - name: Promote CSV result to read_mapping_file fact
+          ansible.builtin.set_fact:
+            read_mapping_file: "{{ _validate_csv_result }}"
+          when:
+            - read_mapping_file is not defined
+            - _validate_csv_result is defined
+            - _validate_csv_result is not skipped
+          no_log: true
+      rescue:
+        - name: Report read_mapping_file promotion failure
+          ansible.builtin.fail:
+            msg: "{{ validate_preamble_promote_csv_rescue_msg }}"
+          no_log: false
   always:
     - name: Clean up temp mapping file
       ansible.builtin.file:

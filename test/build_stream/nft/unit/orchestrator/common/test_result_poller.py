@@ -463,8 +463,8 @@ class TestBuildImageSuccess:
             assert len(paths) == 2
             assert all(p.startswith("s3://") for p in paths)
 
-    def test_skips_image_group_when_artifact_repos_missing(self):
-        """Without artifact repos, ImageGroup creation is skipped (the original bug)."""
+    def test_fails_stage_when_artifact_repos_missing(self):
+        """Without artifact repos the images cannot be registered: stage FAILS."""
         job_id = JobId(str(uuid.uuid4()))
 
         stage_repo = MockStageRepo()
@@ -504,13 +504,14 @@ class TestBuildImageSuccess:
 
         poller._on_result_received(result)
 
-        # Stage should still be COMPLETED
+        # Stage must not report success without registered images
         saved = stage_repo.find_by_job_and_name(
             str(job_id), StageName("build-image")
         )
-        assert saved.stage_state == StageState.COMPLETED
+        assert saved.stage_state == StageState.FAILED
+        assert saved.error_code == "IMAGE_GROUP_REGISTRATION_FAILED"
 
-        # But ImageGroup should NOT have been created
+        # And ImageGroup should NOT have been created
         ig = ig_repo.find_by_job_id(job_id)
         assert ig is None, "ImageGroup should not be created without artifact repos"
 
