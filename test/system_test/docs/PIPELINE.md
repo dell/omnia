@@ -9,6 +9,7 @@ each).
 |---|---|
 | `pipeline/svt_pipeline_config.yml` | Your settings: GitLab project, theme, job timeouts, email, the clusters. Every key: [PIPELINE_CONFIG.md](PIPELINE_CONFIG.md) |
 | `pipeline/setup_svt_project.py` | Creates or updates the project (GitLab client of `test/pipeline/setup_gitlab_project.py`) |
+| `pipeline/cleanup_svt_project.py` | Checks, empties (pipelines, logs, artifacts) or deletes the project, then verifies it: see [pipeline/README.md](../pipeline/README.md) |
 | `pipeline/svt_ci.py` | What every pipeline job runs on the GitLab runner (standard library only) |
 | `build_stream_test_config.yml`, `user_inputs.yml` | What is tested and the cluster values; each cluster gets a copy in the project. Every key: [TEST_CONFIG.md](TEST_CONFIG.md), [SETUP.md](SETUP.md) |
 
@@ -224,6 +225,24 @@ password, a host key, `BAO_CACERT`, or a variable you added yourself.
 - **Keep your config in Git, not the passwords:** `svt_pipeline_config.yml` has no secrets, so
   you can commit your copy; the OIM passwords and tokens are only in your environment and in
   GitLab variables.
+
+## Clean or delete the project
+
+`pipeline/cleanup_svt_project.py` resets the GitLab side (details and troubleshooting in
+[pipeline/README.md](../pipeline/README.md)):
+
+```bash
+cd test/system_test/pipeline
+./cleanup_svt_project.py --status      --gitlab-url https://<gitlab-host>   # what the project holds
+./cleanup_svt_project.py --clean       --gitlab-url https://<gitlab-host>   # every pipeline, log and artifact
+./cleanup_svt_project.py --delete      --gitlab-url https://<gitlab-host>   # the whole project
+./cleanup_svt_project.py --verify-gone --gitlab-url https://<gitlab-host>   # exit 0 when it is gone
+```
+
+`--clean` keeps the project, its files and variables; `--delete` removes everything (create it
+again with `setup_svt_project.py --create`). Both ask you to type the project path (`--yes` skips
+it, `--dry-run` only lists) and verify the result. The OIM is cleaned there, with
+`./setup_env.sh --cleanup`.
 
 ## When it fails
 
