@@ -151,7 +151,7 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
 3. The theme stages (build_stream: `prepare_build_stream`, `build_deploy`, `cadence`,
    `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. `prepare_build_stream` is a
    hard stage: when it fails, the stages after it do not run. `build_deploy`, `cadence` and
-   `automatic_cleanup` are soft stages (`soft_stages` of the theme, `allow_failed: true` in the
+   `automatic_cleanup` are soft stages (`soft_stages` of the theme, `allow_failure: true` in the
    generated job): when one fails, the next one still runs.
 4. `summary`: always, last. `./run_validation.sh svt_<theme> summary`, the report collected, the
    email sent, then it **fails when any job or stage failed**.

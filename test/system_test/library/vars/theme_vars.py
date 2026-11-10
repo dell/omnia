@@ -114,7 +114,7 @@ THEMES: Dict[str, Dict] = {
         # initialization, before summary).
         "stages": ("prepare_build_stream", "build_deploy", "cadence", "automatic_cleanup"),
         # Stages that do not stop the ones after them when they fail: the later stage
-        # still runs (in the pipeline, allow_failed) and the summary still fails. A
+        # still runs (in the pipeline, allow_failure) and the summary still fails. A
         # stage not listed here is a hard stage: when it fails, the stages after it do
         # not run. initialization and prepare_build_stream are hard: everything after
         # them needs the installed BuildStream.

@@ -286,7 +286,7 @@ def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
                   f"  timeout: {timeout}"]
         if job in soft_stages(theme):
             lines += ["  # A failure here does not stop the stages after it; the summary still fails.",
-                      "  allow_failed: true"]
+                      "  allow_failure: true"]
         if job == FIRST_STAGE and bao:
             lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
         if job in THEMES[theme]["stages"]:
