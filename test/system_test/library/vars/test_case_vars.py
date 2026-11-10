@@ -86,12 +86,14 @@ TEST_CASES = {
         "step": (_BS, ("execute", "verify", "--marker", "automatic_execution")),
     },
     # ----------------------------------------------------------- stage cadence
-    # The cadence suite builds a new image first, then runs one cadence cycle
-    # and the cadence pipeline; the image is handed to the automatic cleanup.
+    # The sanity set of the cadence suite: a new build first, then one cadence cycle
+    # and the cadence pipeline (trigger, the seven stages, the records); the image is
+    # handed to the automatic cleanup. The suite's other cases (disable / re-enable the
+    # cadence live, the artifact checks) are not sanity and are not part of the SVT.
     "build_stream_cadence_verify": {
         "id": "SVT_BUILD_STREAM_015", "order": 1040, "stage": "cadence",
         "title": "Cadence: new build, cadence cycle and cadence pipeline",
-        "step": (_BS, ("execute", "verify", "--suite", "cadence")),
+        "step": (_BS, ("execute", "verify", "--suite", "cadence", "--marker", "sanity")),
     },
     # ------------------------------------------------- stage automatic_cleanup
     "build_stream_automatic_cleanup_verify": {

@@ -45,8 +45,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
 
-from . import run_func
-from .config_func import apply_cleanup_flags, apply_fvt_settings, apply_report_settings
+from . import openbao_func, run_func
+from .config_func import (
+    ConfigError,
+    apply_cleanup_flags,
+    apply_fvt_settings,
+    apply_report_settings,
+    load_openbao_settings,
+)
 from .fvt_func import domain_dir
 from .omnia_func import (
     domain_input_dir,
@@ -76,6 +82,7 @@ from ..vars.common_vars import (
     INPUTS_CATALOG_KEY,
     INPUTS_FILE,
     MAX_CREDS_STDIN_BYTES,
+    OPENBAO_CREDS_FLAG,
     OMNIA_ENV_FILE,
     OMNIA_FORCE_DEPS_ARG,
     OMNIA_FORCE_ENV_ARG,
@@ -488,8 +495,36 @@ def _creds_next(theme: str, emit: Emit) -> None:
     emit(SETUP_MSGS["creds_next"].format(suite=THEMES[theme]["creds_suite"], theme=theme))
 
 
+def _creds_openbao(config: Dict[str, Any], venv: str, domains: List[str],
+                   emit: Emit) -> Dict[str, Any]:
+    """Read ``domains`` from OpenBao and give them to the suite's --domain-creds-stdin.
+
+    The values stay in memory (the JSON goes to the suite's stdin); only field names are
+    printed.
+    """
+    theme = config["theme"]
+    try:
+        settings = load_openbao_settings()
+    except ConfigError as exc:
+        return _failed(str(exc))
+    emit(SETUP_MSGS["creds_openbao"].format(domains=", ".join(domains),
+                                            server=settings["server_url"] or "(not set)",
+                                            path=settings["secret_path"] or "(not set)"))
+    try:
+        found = openbao_func.read_domains(settings, domains, openbao_func.token(), emit)
+    except openbao_func.OpenBaoError as exc:
+        return _failed(SETUP_MSGS["creds_openbao_failed"].format(error=exc))
+    result = _run_creds_suite(theme, [CREDS_STDIN_FLAG], venv, emit,
+                              payload=json.dumps(found).encode("utf-8"))
+    if not result["success"]:
+        return _failed(SETUP_MSGS["creds_failed"].format(rc=result["rc"]),
+                       domains=_creds_report(theme, emit))
+    return _passed()
+
+
 def creds(config: Dict[str, Any], flag: str, domain: Optional[str], emit: Emit) -> Dict[str, Any]:
-    """Write the domain credential stores (--set/--update-domain-creds, --domain-creds-stdin)."""
+    """Write the domain credential stores (--set/--update-domain-creds, --domain-creds-stdin,
+    --domain-creds-from-openbao)."""
     theme = config["theme"]
     venv, error = _creds_ready(theme)
     if error:
@@ -497,6 +532,12 @@ def creds(config: Dict[str, Any], flag: str, domain: Optional[str], emit: Emit) 
     domains = THEMES[theme]["credential_domains"]
     if domain and domain not in domains:
         return _failed(SETUP_MSGS["unknown_domain"].format(domain=domain, known=", ".join(domains)))
+    if flag == OPENBAO_CREDS_FLAG:
+        written = _creds_openbao(config, venv, [domain] if domain else list(domains), emit)
+        if written["status"] == "failed":
+            return written
+        _creds_next(theme, emit)
+        return _passed(domains=_creds_report(theme, emit))
     result = _run_creds_suite(theme, [flag, *(["--domain", domain] if domain else [])], venv, emit)
     stored = _creds_report(theme, emit)
     if not result["success"]:
@@ -529,8 +570,10 @@ def _creds_stdin(theme: str, venv: str, missing: List[str], emit: Emit) -> Dict[
     return _passed()
 
 
-def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool) -> Dict[str, Any]:
-    """Write only the missing stores: prompts on a terminal, else JSON read from stdin."""
+def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool,
+               from_openbao: bool = False) -> Dict[str, Any]:
+    """Write only the missing stores: from OpenBao (``from_openbao``), else prompts on a
+    terminal, else JSON read from stdin."""
     theme = config["theme"]
     venv, error = _creds_ready(theme)
     if error:
@@ -540,8 +583,11 @@ def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool) -> Dict[str
         _creds_report(theme, emit)
         return _skipped(SETUP_MSGS["creds_all_set"],
                         domains=list(THEMES[theme]["credential_domains"]))
-    writer = _creds_stdin if unattended(assume_yes) else _creds_prompts
-    written = writer(theme, venv, missing, emit)
+    if from_openbao:
+        written = _creds_openbao(config, venv, missing, emit)
+    else:
+        writer = _creds_stdin if unattended(assume_yes) else _creds_prompts
+        written = writer(theme, venv, missing, emit)
     if written["status"] == "failed":
         return written
     stored = _creds_report(theme, emit)

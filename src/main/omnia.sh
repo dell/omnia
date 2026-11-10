@@ -2079,7 +2079,7 @@ RECOMMENDED EXECUTION ORDER:
            The CLI will warn you if prerequisite outputs are missing.
 
   Public tags by domain (use --tags <tag> to select a stage):
-    build_stream:        precheck validate credentials prepare execute build cleanup
+    build_stream:        precheck validate credentials prepare execute build cleanup cleanup_gitlab cleanup_build_stream
     discovery:           precheck validate credentials prepare execute cleanup cleanup_credentials
     image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images
     orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials

@@ -1,47 +1,160 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# =============================================================================
+# =============================================================================
+# SVT pipeline settings: the GitLab project that runs the SVT on one or more OIMs
+# =============================================================================
+# How it works: setup_svt_project.py reads this file and creates (or updates) one GitLab
+# project. The project holds the CI files it generates (.gitlab-ci.yml and
+# .gitlab-ci-svt.yml), svt_ci.py, and the CI/CD variables below. Every pipeline job runs
+# on the GitLab runner and drives the OIM over SSH:
+#
+#   preflight -> initialization -> <theme stages> -> summary
+#   (checks + checkout of the Omnia branch, clean reinstall + credentials, the SVT
+#    stages, the report + email)
+#
+# Every key is described in docs/PIPELINE_CONFIG.md; how to set up and update the
+# project is in docs/PIPELINE.md.
+#
+# Fill this file, then (test/system_test/pipeline):
+#
+#   ./setup_svt_project.py --render                                   # look at the CI files
+#   GITLAB_TOKEN=<token> ./setup_svt_project.py --create --gitlab-url https://<gitlab-host>
+#   GITLAB_TOKEN=<token> ./setup_svt_project.py --update --gitlab-url https://<gitlab-host>
+#
+# Passwords and tokens are never kept here: the GitLab token comes from GITLAB_TOKEN
+# or a prompt, each OIM password from <CLUSTER>_SVT_TARGET_PASS or a prompt, the
+# OpenBao credentials from OpenBao. Where OpenBao is (address, secret path, TLS) is
+# set once, in the "openbao" block of ../user_inputs.yml.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# GitLab project
+# -----------------------------------------------------------------------------
 gitlab:
+  # Name of the GitLab project that is created and updated.
   project_name: "omnia-system-test"
+  # User or group that owns the project (the part before the project name in its URL).
   namespace: "root"
+  # Branch that holds the CI files. Pipelines run from it; keep it the default,
+  # protected branch, because the OIM password and host key variables are protected
+  # and are only given to pipelines on a protected branch.
   branch: "main"
 
+# -----------------------------------------------------------------------------
+# What the pipeline runs
+# -----------------------------------------------------------------------------
 svt:
+  # The SVT theme (a key of THEMES in ../library/vars/theme_vars.py). Its stages become
+  # the pipeline jobs, so a new theme or stage needs no change here.
   theme: "build_stream"
+  # Seconds between two reads of a running stage's log on the OIM (minimum 5). A short
+  # value shows the log sooner; a long one makes fewer SSH calls.
   poll_seconds: "30"
+  # How much of the OIM logs one job prints into the GitLab job log, in KB (empty =
+  # 2500). GitLab Runner stops collecting a job log at 4096 KB (the runner's
+  # output_limit) and adds a timestamp to every line, so the pipeline hides base64
+  # lines, cuts very long lines and stops printing at this budget. The full logs stay
+  # on the OIM (test/system_test/reports/ci/<pipeline id>/) and the last lines are
+  # printed when the job ends.
+  log_limit_kb: "2500"
+  # Time limit of each job, in hours (GitLab does not accept variables in timeout:).
+  # A job without its own entry uses default_hours. The project's CI timeout is raised
+  # to the longest one. The runner's own maximum timeout still applies.
   timeouts_hours:
+    # Used for every job that has no entry below.
     default_hours: 6
-    preflight: 0.25
-    checkout: 0.5
+    # SSH and OpenBao checks, then the Omnia checkout.
+    preflight: 0.75
+    # Cleanup, install and credentials of the OIM, then the readiness checks.
     initialization: 4
     prepare_build_stream: 6
     build_deploy: 8
     cadence: 8
     automatic_cleanup: 4
+    # Report and email.
     summary: 1
 
+# -----------------------------------------------------------------------------
+# OpenBao (where the domain credentials are read from)
+# -----------------------------------------------------------------------------
 openbao:
-  server_url: ""
+  # JWT role the initialization job logs in with. The job gets a short-lived token from
+  # GitLab (id_tokens: VAULT_ID_TOKEN) and exchanges it for an OpenBao token, so no
+  # OpenBao token is stored. The role must allow this project (bound_claims
+  # project_id). The address, secret path and TLS setting are NOT set here: they live
+  # in the "openbao" block of ../user_inputs.yml, which becomes the CI/CD variables
+  # BAO_SERVER_URL, BAO_DATA_PATH and BAO_TLS_SKIP_VERIFY.
   auth_role: "gitlab-role"
-  secret_path: "secret/data/omnia"
-  tls_skip_verify: "false"
 
+# -----------------------------------------------------------------------------
+# Email (sent by the summary job, which always runs last)
+# -----------------------------------------------------------------------------
 email:
+  # Who gets the result mail (the status, links to the repository, branch, commit,
+  # pipeline and report, and the SVT report attached). Comma separated addresses.
+  # Leave recipients, sender or smtp_server empty to send no email.
   recipients: ""
+  # Address the mail is sent from.
   sender: ""
+  # SMTP relay the runner can reach (host name or IP).
   smtp_server: ""
+  # SMTP port: 25 (plain relay), 465 (TLS) or 587 (STARTTLS). A login is used only when
+  # the CI/CD variables SMTP_USER and SMTP_PASSWORD are set in the project.
   smtp_port: "25"
-  required: "false"   # "true": the summary job fails when the email cannot be sent
+  # "true": the summary job fails when the email cannot be sent. "false" (default):
+  # a failed email is reported as an error but does not change the result.
+  required: "false"
 
+# -----------------------------------------------------------------------------
+# Clusters
+# -----------------------------------------------------------------------------
+# One block per cluster (one OIM each). The name becomes the variable prefix
+# (oim1 -> OIM1_SVT_TARGET_IP) and the resource group svt-<name>: two pipelines
+# for the same OIM never run together, and different clusters run at the same time.
+# Copy a block and rename it to add a cluster.
 clusters:
   oim1:
     target:
+      # IP or name of the OIM. The runner must reach it on port 22.
       ip: ""
+      # User the jobs log in as (root). The password is asked by --create / --set-password
+      # and stored as the masked, protected variable <CLUSTER>_SVT_TARGET_PASS.
       user: "root"
-      ssh_skip_host_key: "false"   # "true" accepts an unchecked OIM host key (not recommended)
+      # "true": do not check the OIM host key (not recommended; the jobs warn). Default
+      # "false": <CLUSTER>_SVT_SSH_KNOWN_HOSTS is required (--scan-host-keys sets it).
+      ssh_skip_host_key: "false"
     omnia:
+      # Git repository the OIM clones the SVT from. It must contain test/system_test and
+      # be readable from the OIM without a password (a public https URL).
       repo: "https://github.com/dell/omnia.git"
+      # Branch to test. The checkout resets the folder below to this branch.
       branch: "staging"
+      # Absolute folder on the OIM that holds the checkout. Dedicate it to the pipeline.
+      # update: clone when missing, else fetch the branch and reset to it (local changes
+      # of tracked files are discarded, so use a folder of its own); clone: delete and
+      # clone again; keep: use it as it is.
       install_path: "/root/omnia"
       checkout_mode: "update"
     svt:
+      # "true": the initialization job does a clean reinstall (./setup_env.sh --force:
+      # cleanup including the NFS shares, then install). "false": no cleanup.
       clean_reinstall: "true"
+      # Theme stages to leave out, comma separated, e.g. "cadence,automatic_cleanup".
+      # Can also be set for one run with the SVT_SKIP_STAGES pipeline variable.
       skip_stages: ""
+    # OpenBao path of this cluster's credentials, when it differs from the openbao
+    # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
+    # path.
     secret_path: ""

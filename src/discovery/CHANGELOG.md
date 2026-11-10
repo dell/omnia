@@ -15,14 +15,8 @@ All notable changes to the `omnia.discovery` collection will be documented in th
   `/var/log/omnia/discovery` by default, and supports `cleanup_logs=false`
   when log retention is required.
 
-## [3.0.0] - 2026-07-30
-
-### Added
-- Galaxy collection structure for discovery domain.
-- Self-contained roles: `ome_discovery`, `discovery_setup`, `discovery_common`, `discovery_credentials`, `validate_discovery_input`.
-- Plugins: `generate_discovery_report`, `generate_pxe_mapping`, `ome_server_inventory`, `validate_credentials`, `validate_discovery_config`.
-- Input validation with JSON schemas for `discovery_config.yml` and `credential_rules.json`.
-- L2 semantic validation flow for OME IP reachability checks.
-- Domain-level documentation: `DISCOVERY_DESIGN.md`, `INPUT_CONTRACT.md`, `OUTPUT_CONTRACT.md`.
-- All module references use FQCN (`ansible.builtin.*`).
-- Zero `../common/` cross-domain imports.
+### Fixed
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/index.html) instead of GitHub source tree
+- Moved `docs/design/discovery-architecture.md` to `docs/architecture.md` and renamed `docs/DISCOVERY_DESIGN.md` to `docs/design/discovery-design.md`.
+- README restructured to the common domain layout (same sections in the same order across all domains); Architecture lists every role, module, and plugin; commands and links validated.
+- Removed unreleased 3.0.0 changelog entry to avoid version history confusion (DOC-RC1-018)

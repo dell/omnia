@@ -49,3 +49,14 @@ pxe_mapping_invalid_host_value_fail_msg: >-
 # \Z (not $) so a trailing newline is not accepted.
 passwordless_ssh_hostname_regex: '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?\Z'
 passwordless_ssh_ipv4_regex: '^([0-9]{1,3}\.){3}[0-9]{1,3}\Z'
+
+# Actionable error messages surfaced (no_log tasks). Printed with no_log: false.
+passwordless_ssh_read_csv_rescue_msg: |
+  The PXE mapping file could not be read for SSH setup.
+  What to fix: check the PXE mapping file is valid CSV with an ADMIN_MAC column.
+  Then re-run the stage.
+
+passwordless_ssh_invalid_rows_rescue_msg: |
+  HOSTNAME or ADMIN_IP values in the PXE mapping could not be checked.
+  What to fix: check the PXE mapping file for missing or malformed values.
+  Then re-run the stage.

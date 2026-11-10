@@ -406,9 +406,13 @@ class TestResultPollerBuildImageCompletion:
             assert len(paths) == 2
             assert all(p.startswith("s3://") for p in paths)
 
-    def test_on_build_image_success_no_metadata_skips(self):
-        """Build-image success without catalog metadata should skip."""
-        from orchestrator.common.result_poller import ResultPoller
+    def test_on_build_image_success_no_metadata_raises(self):
+        """Build-image success without catalog metadata is a hard failure."""
+        from orchestrator.common.result_poller import (
+            CATALOG_METADATA_MISSING,
+            ImageRegistrationError,
+            ResultPoller,
+        )
 
         ig_repo = InMemoryImageGroupRepository()
         poller = ResultPoller(
@@ -426,7 +430,9 @@ class TestResultPollerBuildImageCompletion:
         mock_result = MagicMock()
         mock_result.job_id = JobId(VALID_JOB_ID)
 
-        poller._on_build_image_success(mock_result)
+        with pytest.raises(ImageRegistrationError) as exc_info:
+            poller._on_build_image_success(mock_result)
+        assert exc_info.value.error_code == CATALOG_METADATA_MISSING
 
         # No ImageGroup should have been created
         ig = ig_repo.find_by_id(ImageGroupId("test-cluster"))

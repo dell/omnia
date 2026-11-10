@@ -85,6 +85,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true",
                         help="all/install: clean up first, then install everything again")
     parser.add_argument("--yes", action="store_true", help="answer every confirmation")
+    parser.add_argument("--from-openbao", action="store_true",
+                        help="all: read the missing credential stores from OpenBao (the openbao "
+                             "block of user_inputs.yml; token in BAO_TOKEN) instead of "
+                             "prompting")
     parser.add_argument("--dry-run", action="store_true",
                         help="cleanup: show what would be run and removed; change nothing")
     parser.add_argument("--retry", action="store_true",
@@ -175,7 +179,8 @@ def _steps(args: argparse.Namespace, config: Dict[str, Any]) -> List[tuple]:
     install = ("install", lambda: setup_func.install(config, _emit, args.force, args.yes))
     if args.action == "all":
         return [configure, *([cleanup] if args.force else []), install,
-                ("creds", lambda: setup_func.auto_creds(config, _emit, args.yes))]
+                ("creds", lambda: setup_func.auto_creds(
+                    config, _emit, args.yes, args.from_openbao))]
     if args.action == "install":
         return [*([cleanup] if args.force else []), install]
     if args.action == "creds":

@@ -20,10 +20,8 @@ from typing import List
 from .lock_func import describe_lock
 from .run_func import describe, load_run
 from .readiness_func import load_setup_record, readiness_checks
-from ..vars.common_vars import SETUP_STEPS, STATUS_WIDTH
+from ..vars.common_vars import MARKS, SETUP_STEPS, STATUS_WIDTH, STEP_MARKS
 
-MARKS = {True: "[ OK ]", False: "[FAIL]"}
-STEP_MARKS = {"passed": "[ OK ]", "skipped": "[SKIP]", "failed": "[FAIL]"}
 
 
 def _row(text: str, width: int) -> str:

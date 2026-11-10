@@ -44,14 +44,19 @@ build_stream:
   #          trigger are cancelled, and the test continues.
   #   false: nothing is cancelled; the test fails and lists them.
   allow_pipeline_cancel: true
+  # debug_mode: true | false (default: false).
+  #   true:  the stage, cadence and cleanup playbook logs are streamed live into
+  #          the test output.
+  #   false: only progress lines and a status line per poll are printed.
+  debug_mode: false
 
 # =============================================================================
 # CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'
 #           unless --yes)
 # =============================================================================
 # Removes the previous installation with each suite's own cleanup FVT, in this
-# order: build_stream, orchestrator, image_build_manager, repo_manager, then
-# main (omnia.sh --cleanup). Every flag below is written into that suite's
+# order: build_stream, telemetry, orchestrator, image_build_manager, repo_manager,
+# then main (omnia.sh --cleanup). Every flag below is written into that suite's
 # test/<suite>/test_config.yml, so each cleanup FVT runs with the value set
 # here.
 #   enabled: true | false (default: true). false skips that suite's cleanup.
@@ -64,6 +69,19 @@ cleanup:
     postgres_backup: false
     # true: delete the BuildStream credential files and keys.
     cleanup_credentials: true
+  # Telemetry runs on the Kubernetes cluster the orchestrator deploys, so it is removed
+  # first. This theme does not deploy it, so the step runs only when telemetry holds
+  # deployed state (a file under <data>/telemetry/output or /log); otherwise it is
+  # skipped. omnia.sh --cleanup --all refuses while those folders hold files.
+  telemetry:
+    enabled: true
+    # true: also delete the sink PVCs (Kafka and VictoriaMetrics data) and the log,
+    # input and output directories; false: keep them. true for a complete reset.
+    delete_sinks_volume: true
+    # true: delete the telemetry credential files.
+    cleanup_credentials: true
+    # true: delete the telemetry log directory.
+    cleanup_logs: true
   orchestrator:
     enabled: true
     cleanup_credentials: true
@@ -95,6 +113,24 @@ cleanup:
     #          the next install asks before overwriting the inputs (--yes
     #          answers it).
     cleanup_all: true
+  # NFS shares of storage_config.yml (user_inputs.yml orchestrator.storage_config.mounts).
+  # SVT only: not written into any suite. Slurm and Kubernetes data left on the shares
+  # survives a reinstall, so the cleanup empties them (default true):
+  #   1. before anything is deleted, each share is mounted read-only and unmounted
+  #      again: a share that cannot be reached fails the cleanup with the reason;
+  #   2. after the other steps, each share is mounted read-write on a private
+  #      temporary folder on this OIM, EVERYTHING inside it is deleted (the export
+  #      itself stays) and it is unmounted.
+  # The shares are the mounts "nfs_slurm" (slurm_share) and "nfs_k8s" (k8s_share) whose
+  # source is host:/export. A mount that is absent, or is not NFS, is skipped; system
+  # directories (/, /etc, /home ...) and an export on this OIM that holds the checkout
+  # or OMNIA_DATA_PATH are refused. Needs root and nfs-utils on the OIM, and the
+  # exports must not squash root (no_root_squash). The confirmation lists the shares.
+  nfs:
+    # true: empty the Slurm share (storage_config.yml mount nfs_slurm).
+    slurm_share: true
+    # true: empty the Kubernetes share (storage_config.yml mount nfs_k8s).
+    k8s_share: true
 
 # =============================================================================
 # REPORT  (one folder and one SVT report per run)
