@@ -149,8 +149,10 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
    from OpenBao go to `--domain-creds-stdin`; then `./run_validation.sh svt_<theme>
    initialization`.
 3. The theme stages (build_stream: `prepare_build_stream`, `build_deploy`, `cadence`,
-   `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. A failed stage skips the ones
-   after it.
+   `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. `prepare_build_stream` is a
+   hard stage: when it fails, the stages after it do not run. `build_deploy`, `cadence` and
+   `automatic_cleanup` are soft stages (`soft_stages` of the theme, `allow_failed: true` in the
+   generated job): when one fails, the next one still runs.
 4. `summary`: always, last. `./run_validation.sh svt_<theme> summary`, the report collected, the
    email sent, then it **fails when any job or stage failed**.
 
@@ -169,8 +171,10 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
 | Email | Subject with the status and the failed stage(s). A coloured status banner, then a table with the run, OIM, theme, **repository, branch and commit as links** (the branch and the commit open the page of the tested code on GitHub or GitLab), and the pipeline link; the failed job(s) as links to their GitLab page, each with the error its job recorded (for example the checkout error), the failed SVT steps with their error line and the jobs that did not run; buttons to open the pipeline, browse the report and download the artifacts; the job table and the SVT sections. A plain-text version is included for clients that do not show HTML. When the pipeline failed before any SVT step ran, the mail says so: there is no run, no commit, no SVT sections table, no report button and no attachment. Otherwise the SVT HTML report is attached (gzip above 5 MB) |
 | The OIM | `test/system_test/reports/<run_id>/` as for a run by hand |
 
-**When a stage fails:** the pipeline stops at it (the later stages do not run) and the `summary`
-job still runs and **fails**. Its log ends with a block that names the failed stage, the failed
+**When a stage fails:** if it is a hard stage (`preflight`, `initialization`,
+`prepare_build_stream`) the pipeline stops at it (the later stages do not run); if it is a soft
+stage (`build_deploy`, `cadence`, `automatic_cleanup`) the next stages still run. In both cases the
+`summary` job runs and **fails**. Its log ends with a block that names the failed stage(s), the failed
 SVT steps with the first line of their error, and the stages that did not run; the email carries
 the same, so you know which stage to Retry. A **Retry** of the failed job continues the same run
 (`--retry`) and its new attempt replaces the failed one in the report; then run the `summary` job

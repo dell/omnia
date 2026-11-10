@@ -71,7 +71,7 @@ from setup_gitlab_project import (  # noqa: E402  # test/pipeline, the shared Gi
     _validate_url,
 )
 from library.vars.common_vars import INPUTS_FILE  # noqa: E402
-from library.vars.theme_vars import THEMES, stage_info, theme_title  # noqa: E402
+from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title  # noqa: E402
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
 PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
@@ -284,6 +284,9 @@ def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
                               "svt/ inputs copied")
         lines += [f"# {title}: {description}", f"{job}:", f"  stage: {job}",
                   f"  timeout: {timeout}"]
+        if job in soft_stages(theme):
+            lines += ["  # A failure here does not stop the stages after it; the summary still fails.",
+                      "  allow_failed: true"]
         if job == FIRST_STAGE and bao:
             lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
         if job in THEMES[theme]["stages"]:

@@ -68,6 +68,7 @@ from library.functions.lock_func import LockError, StepLock
 from library.functions.omnia_func import venv_problem
 from library.functions.process_func import Tee, format_duration
 from library.messages.svt_msgs import LOCK_MSGS, RUN_MSGS, STAGE_MSGS
+from library.vars.theme_vars import soft_stages
 from library.vars.common_vars import (
     FIRST_STAGE,
     LAST_STAGE,
@@ -239,7 +240,7 @@ def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any]) -> bool
     outcome["duration"] = duration
     if stage != LAST_STAGE:
         stage_func.record_stage(ctx["run_id"], label, outcome)
-        if key == "failed":
+        if key == "failed" and stage not in soft_stages(ctx["theme"]):
             print(run_func.mark_failed(f"stage {label}", outcome["error"]), flush=True)
     with open(status_path, "w", encoding="utf-8") as stream:
         stream.write("failed 1\n" if key == "failed" else f"{key}\n")
@@ -293,9 +294,10 @@ def _locked_stages(args: argparse.Namespace, theme: str) -> int:
         return 0 if run_stage(args.stage, args, ctx) else 1
     ok = True
     for stage in _selected(args, theme)[:-1]:
-        ok = run_stage(stage, args, ctx)
-        if not ok:
-            break
+        if not run_stage(stage, args, ctx):
+            ok = False
+            if stage not in soft_stages(theme):
+                break
     summary_ok = run_stage(LAST_STAGE, args, ctx)
     return 0 if ok and summary_ok else 1
 

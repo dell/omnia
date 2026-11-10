@@ -42,6 +42,7 @@ from . import svt_report_func
 from .config_func import report_settings
 from ..messages.svt_msgs import RUN_MSGS
 from ..vars.common_vars import RUN_ID_FORMAT, RUN_MARKER, RUN_STATE, SETTING_KEYS
+from ..vars.theme_vars import soft_stages
 
 
 
@@ -133,7 +134,7 @@ def active_run(config: Dict[str, Any], allow_failed: bool = False) -> Dict[str, 
     if failed.get("step"):
         raise RunError(RUN_MSGS["failed"].format(run_id=run["run_id"], step=failed["step"],
                                                  error=failed.get("error") or "see its log"))
-    failed_parts = svt_report_func.failed_parts(settings)
+    failed_parts = svt_report_func.failed_parts(settings, soft_stages(config["theme"]))
     if failed_parts:
         raise RunError(RUN_MSGS["fvt_failed"].format(run_id=run["run_id"],
                                                      modules=", ".join(failed_parts)))

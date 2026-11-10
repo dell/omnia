@@ -81,8 +81,11 @@ step (if any) and the previous run.
   - the run is of another theme (`--theme`, `svt_<theme>`), or the theme's
     test_config changed `report_*`;
   - a step or stage of the run failed or was interrupted, or a section of the
-    run's SVT report failed. Results other processes write into the FVT report
-    (a suite run by hand, the BuildStream validate stage) do not count;
+    run's SVT report failed. A failed **soft stage** (`soft_stages` of the theme:
+    `build_deploy`, `cadence`, `automatic_cleanup`) does not count: the next stage
+    still runs, `all` goes on after it, and the summary still fails. Results other
+    processes write into the FVT report (a suite run by hand, the BuildStream
+    validate stage) do not count;
   - another SVT step holds the lock (see below).
 - **One step at a time (`reports/svt.flock`, `reports/svt.lock`):** every
   `./setup_env.sh` action and `./run_validation.sh` stage takes a kernel lock
