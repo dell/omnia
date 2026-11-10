@@ -24,6 +24,11 @@ tls_fail() {
   exit 1
 }
 
+ldif_fail() {
+  echo "FATAL: bootstrap.ldif validation failed: $*" >&2
+  exit 1
+}
+
 # --- Validate required bind-mounted files ---
 for f in /etc/openldap/slapd.conf /container-init/bootstrap.ldif; do
   if [ ! -f "$f" ]; then
@@ -42,6 +47,43 @@ chown -R ldap:ldap /var/lib/openldap /run/openldap
 # --- Bootstrap LDAP database on first run ---
 if [ ! -f /var/lib/openldap/openldap-data/__initialized ]; then
   echo "Bootstrapping LDAP database..."
+
+  # --- Verify bootstrap.ldif integrity (checksum) ---
+  LDIF_CHECKSUM_FILE=/container-init/bootstrap.ldif.sha256
+  if [ ! -f "$LDIF_CHECKSUM_FILE" ]; then
+    ldif_fail "checksum file bootstrap.ldif.sha256 not found; cannot verify integrity"
+  fi
+  command -v sha256sum >/dev/null 2>&1 \
+    || ldif_fail "sha256sum not available in image"
+  expected_sum=$(awk 'NR==1{print $1}' "$LDIF_CHECKSUM_FILE")
+  printf '%s' "$expected_sum" | grep -Eq '^[0-9a-f]{64}$' \
+    || ldif_fail "checksum file is empty or malformed"
+  actual_sum=$(sha256sum /container-init/bootstrap.ldif | awk '{print $1}')
+  [ -n "$actual_sum" ] \
+    || ldif_fail "unable to compute checksum of bootstrap.ldif"
+  [ "$expected_sum" = "$actual_sum" ] \
+    || ldif_fail "SHA-256 mismatch (expected $expected_sum, got $actual_sum)"
+  echo "bootstrap.ldif checksum verified."
+
+  # --- Validate bootstrap.ldif content (line-level allowlist) ---
+  # Accept only the exact grammar the bootstrap template produces:
+  #   comments, blank lines, dn lines, the five organizational objectClasses,
+  #   and the four organizational attributes (o, dc, cn, ou).
+  # Everything else — including base64 (::), attribute options (;),
+  # continuation lines, user-account classes, and credential attributes —
+  # is rejected.
+  [ -s /container-init/bootstrap.ldif ] \
+    || ldif_fail "bootstrap.ldif is empty"
+  rc=0
+  grep -vE '^(#|$|dn: [^:]+$|objectClass: (top|dcObject|organization|organizationalRole|organizationalUnit)$|(o|dc|cn|ou): )' \
+      /container-init/bootstrap.ldif >/dev/null || rc=$?
+  case "$rc" in
+    0) ldif_fail "bootstrap.ldif contains entries outside the expected organizational allowlist" ;;
+    1) : ;; # all lines allowed
+    *) ldif_fail "unable to validate bootstrap.ldif (grep exit $rc)" ;;
+  esac
+  echo "bootstrap.ldif content validated."
+
   slapadd -f /etc/openldap/slapd.conf -l /container-init/bootstrap.ldif
   chown -R ldap:ldap /var/lib/openldap
   touch /var/lib/openldap/openldap-data/__initialized
