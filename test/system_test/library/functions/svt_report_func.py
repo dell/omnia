@@ -38,7 +38,7 @@ import os
 import socket
 import tempfile
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from omnia_auto import build_report_name
 
@@ -269,8 +269,8 @@ def report_theme(settings: Dict[str, str]) -> str:
     return str((_load(settings).get("meta") or {}).get("theme") or "")
 
 
-def failed_parts(settings: Dict[str, str]) -> List[str]:
-    """Return the SVT sections of the run that failed.
+def failed_parts(settings: Dict[str, str], ignore: Tuple[str, ...] = ()) -> List[str]:
+    """Return the SVT sections of the run that failed, except the ones named in ``ignore``.
 
     Only the SVT's own sections count: each SVT step holds exactly the FVT
     results it produced, so an FVT suite run by hand or the BuildStream
@@ -278,7 +278,8 @@ def failed_parts(settings: Dict[str, str]) -> List[str]:
     """
     return list(dict.fromkeys(section["name"] for section in _load(settings)["sections"]
                               if section.get("status") == "Failed"
-                              and not section.get("superseded")))
+                              and not section.get("superseded")
+                              and section["name"] not in ignore))
 
 
 def repo_meta() -> Dict[str, str]:

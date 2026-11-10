@@ -101,10 +101,17 @@ THEMES: Dict[str, Dict] = {
         # The FVT suite whose setup_env.sh writes the credential stores.
         "creds_suite": "build_stream",
         # Cleanup steps that only run when the product they remove is installed:
-        # step -> file that exists when it is.
+        # step -> the files and folders it leaves; the step runs when ANY of them exists
+        # ({domain_data} is the data folder of the step's domain). A half installed
+        # product (BuildStream: Postgres up, API quadlet gone) still has to be cleaned,
+        # or omnia.sh --cleanup --all refuses to start.
         "cleanup_requires": {
-            ("build_stream", ("cleanup", "test")):
+            ("build_stream", ("cleanup", "test")): (
                 "/etc/containers/systemd/omnia_build_stream.container",
+                "/etc/containers/systemd/omnia_postgres.container",
+                "{domain_data}/postgres",
+                "{domain_data}/build_stream_root",
+            ),
         },
         # Cleanup steps of products this theme does not deploy but a previous installation may
         # have: they run only when the domain holds deployed state (a file under its
@@ -113,6 +120,12 @@ THEMES: Dict[str, Dict] = {
         # ./run_validation.sh svt_build_stream <stage>, in this order (after
         # initialization, before summary).
         "stages": ("prepare_build_stream", "build_deploy", "cadence", "automatic_cleanup"),
+        # Stages that do not stop the ones after them when they fail: the later stage
+        # still runs (in the pipeline, allow_failure) and the summary still fails. A
+        # stage not listed here is a hard stage: when it fails, the stages after it do
+        # not run. initialization and prepare_build_stream are hard: everything after
+        # them needs the installed BuildStream.
+        "soft_stages": ("build_deploy", "cadence", "automatic_cleanup"),
         # Title and one-line description of each theme stage (report, pipeline).
         "stage_info": {
             "prepare_build_stream": (
@@ -193,6 +206,11 @@ def stage_info(theme: str, name: str) -> Tuple[str, str]:
     """Return (title, description) of a section of ``theme`` (common or theme stage)."""
     info = {**COMMON_STAGE_INFO, **(THEMES.get(theme, {}).get("stage_info") or {})}
     return info.get(name, (name.replace("_", " ").title(), ""))
+
+
+def soft_stages(theme: str) -> Tuple[str, ...]:
+    """Return the stages of ``theme`` whose failure does not stop the following stages."""
+    return tuple(THEMES.get(theme, {}).get("soft_stages") or ())
 
 
 def theme_title(theme: str) -> str:

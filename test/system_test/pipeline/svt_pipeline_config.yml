@@ -141,11 +141,15 @@ clusters:
       repo: "https://github.com/dell/omnia.git"
       # Branch to test. The checkout resets the folder below to this branch.
       branch: "staging"
-      # Absolute folder on the OIM that holds the checkout. Dedicate it to the pipeline.
-      # update: clone when missing, else fetch the branch and reset to it (local changes
-      # of tracked files are discarded, so use a folder of its own); clone: delete and
-      # clone again; keep: use it as it is.
+      # Absolute folder on the OIM that holds the checkout. Dedicate it to the pipeline:
+      # recreate deletes it. System folders (/, /root, /opt, /opt/omnia, /etc ...) are refused.
       install_path: "/root/omnia"
+      # How the checkout job prepares that folder:
+      #   update    clone when missing, else fetch the branch and reset to it (local
+      #             changes of tracked files are discarded). The fastest.
+      #   recreate  delete the folder and clone it again: a fresh checkout every run. Anything
+      #             still running from the folder (a step of an earlier run) is stopped first.
+      #   keep      use the folder as it is, no git command.
       checkout_mode: "update"
     svt:
       # "true": the initialization job does a clean reinstall (./setup_env.sh --force:

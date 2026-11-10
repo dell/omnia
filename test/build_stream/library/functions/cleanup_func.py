@@ -413,10 +413,37 @@ def check_credentials_per_flag(host, files, cleanup_credentials: bool) -> Dict[s
     return summarize_probes("credentials", probes)
 
 
+SHIPPED_BUILD_STREAM_CONFIG = "src/build_stream/input/build_stream_config.yml"
+
+
+def _api_port_source(host):
+    """Return (port, config path, errors): the installed build_stream_config.yml first, then
+    the one shipped in the checkout.
+
+    Cleanup keeps the installed file, but the input folder is already gone when an earlier
+    run removed it (omnia.sh --cleanup --all, domain-init.sh --cleanup); the port is then the
+    one the checkout ships.
+    """
+    # pylint: disable-next=import-outside-toplevel  # command_func imports this module's helpers
+    from library.functions.command_func import repository_path
+    installed = f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
+    errors = []
+    for path in (installed, repository_path(SHIPPED_BUILD_STREAM_CONFIG)):
+        try:
+            port = (read_remote_yaml(host, path) or {}).get(BSM_PORT_KEY)
+        except (OSError, RuntimeError, ValueError) as exc:
+            errors.append(str(exc))
+            continue
+        if port:
+            return port, path, errors
+    return None, installed, errors
+
+
 def check_buildstream_api_port_closed(host) -> Dict[str, Any]:
     """Verify nothing listens on the BuildStream API port after cleanup.
 
-    The port is read from build_stream_config.yml, which cleanup keeps.
+    The port comes from the installed build_stream_config.yml, or from the one shipped in
+    the checkout when the input folder no longer exists.
 
     Args:
         host: Testinfra host connection.
@@ -424,14 +451,10 @@ def check_buildstream_api_port_closed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: name, success, fields, failures, error.
     """
-    config_path = f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
-    try:
-        port = (read_remote_yaml(host, config_path) or {}).get(BSM_PORT_KEY)
-    except (OSError, RuntimeError, ValueError) as exc:
-        return summarize_probes("api_port", [(BSM_PORT_KEY, f"UNREADABLE ({exc})", False)])
+    port, config_path, errors = _api_port_source(host)
     if not port:
-        return summarize_probes(
-            "api_port", [(f"{BSM_PORT_KEY} in {config_path}", "NOT SET", False)])
+        found = f"UNREADABLE ({'; '.join(errors)})" if errors else "NOT SET"
+        return summarize_probes("api_port", [(f"{BSM_PORT_KEY} in {config_path}", found, False)])
     return summarize_probes("api_port", [
         (f"{BSM_PORT_KEY} in {config_path}", str(port), True),
         port_closed(host, int(port)),
