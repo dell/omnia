@@ -35,7 +35,6 @@ IPs are masked in the HTML with omnia_auto's redaction.
 
 import json
 import os
-import re
 import socket
 import tempfile
 from datetime import datetime, timezone
@@ -54,10 +53,11 @@ from ..vars.common_vars import (
 )
 from ..vars.theme_vars import THEMES, theme_title
 
-ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-STATUSES = ("Passed", "Failed", "Skipped")
-RUNNING = "Running"
-CREDENTIALS_RE = re.compile(r"^(https?://)[^/@]+@")
+from ..vars.report_vars import (
+    ANSI_RE,
+    CREDENTIALS_RE,
+    RUNNING,
+)
 
 
 # ------------------------------------------------------------------- files

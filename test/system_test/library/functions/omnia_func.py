@@ -27,6 +27,7 @@ from ..messages.svt_msgs import SETUP_MSGS
 from ..vars.common_vars import (
     DOMAIN_DATA_KEY,
     DOMAIN_INPUT_DIR,
+    DOMAIN_RUNTIME_DIRS,
     OMNIA_ACTIVATE_SCRIPT,
     OMNIA_DATA_KEY,
     OMNIA_ENV_FILE,
@@ -49,14 +50,29 @@ def activate_hint(env: Dict[str, str]) -> str:
     return f"source {os.path.join(data, OMNIA_ACTIVATE_SCRIPT)}"
 
 
-def domain_input_dir(env: Dict[str, str], domain: str) -> str:
-    """Return <domain data>/input/<project>.
-
-    The domain data root is <DOMAIN>_DATA_PATH, else <OMNIA_DATA_PATH>/<domain>.
-    """
-    root = (env.get(DOMAIN_DATA_KEY.format(domain=domain.upper()))
+def domain_data_root(env: Dict[str, str], domain: str) -> str:
+    """Return the domain data root: <DOMAIN>_DATA_PATH, else <OMNIA_DATA_PATH>/<domain>."""
+    return (env.get(DOMAIN_DATA_KEY.format(domain=domain.upper()))
             or os.path.join(env.get(OMNIA_DATA_KEY, ""), domain))
-    return os.path.join(root, DOMAIN_INPUT_DIR.format(project=env.get(OMNIA_PROJECT_KEY, "")))
+
+
+def domain_input_dir(env: Dict[str, str], domain: str) -> str:
+    """Return <domain data>/input/<project>."""
+    return os.path.join(domain_data_root(env, domain),
+                        DOMAIN_INPUT_DIR.format(project=env.get(OMNIA_PROJECT_KEY, "")))
+
+
+def has_deployed_state(env: Dict[str, str], domain: str) -> bool:
+    """Return whether the domain holds deployed state: a file (or link) under its output/ or
+    log/ folder. Links are never followed."""
+    root = domain_data_root(env, domain)
+    if not env.get(OMNIA_DATA_KEY) or not root:
+        return False
+    for folder in DOMAIN_RUNTIME_DIRS:
+        for top, dirs, files in os.walk(os.path.join(root, folder), followlinks=False):
+            if files or any(os.path.islink(os.path.join(top, name)) for name in dirs):
+                return True
+    return False
 
 
 def setup_problems(theme: str) -> List[str]:

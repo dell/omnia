@@ -48,10 +48,17 @@
       when: not _mapping_file_stat.stat.exists
 
     - name: Read inventory CSV by column name
-      community.general.read_csv:
-        path: "{{ pxeboot_inventory_source }}"
-      register: _pxeboot_csv
-      no_log: true
+      block:
+        - name: Read inventory CSV by column name
+          community.general.read_csv:
+            path: "{{ pxeboot_inventory_source }}"
+          register: _pxeboot_csv
+          no_log: true
+      rescue:
+        - name: Report PXE inventory CSV read failure
+          ansible.builtin.fail:
+            msg: "{{ pxe_boot_inventory_read_csv_rescue_msg }}"
+          no_log: false
 
     - name: Validate inventory contains node records
       ansible.builtin.assert:
@@ -107,27 +114,41 @@
         quiet: true
 
     - name: Generate access token for SMD identity lookup
-      ansible.builtin.command: sudo bash -lc 'gen_access_token'
-      register: _pxeboot_identity_token
-      changed_when: false
-      retries: "{{ pxe_boot_inventory_token_retries }}"
-      delay: "{{ pxe_boot_inventory_token_delay }}"
-      until: >-
-        _pxeboot_identity_token.rc == 0
-        and _pxeboot_identity_token.stdout not in ['', 'null']
-      no_log: true
+      block:
+        - name: Generate access token for SMD identity lookup
+          ansible.builtin.command: sudo bash -lc 'gen_access_token'
+          register: _pxeboot_identity_token
+          changed_when: false
+          retries: "{{ pxe_boot_inventory_token_retries }}"
+          delay: "{{ pxe_boot_inventory_token_delay }}"
+          until: >-
+            _pxeboot_identity_token.rc == 0
+            and _pxeboot_identity_token.stdout not in ['', 'null']
+          no_log: true
+      rescue:
+        - name: Report SMD identity token generation failure
+          ansible.builtin.fail:
+            msg: "{{ pxe_boot_inventory_token_rescue_msg }}"
+          no_log: false
 
     - name: Resolve PXE identities from SMD Hardware Inventory
-      openchami_reconcile:
-        action: resolve_identities
-        cluster_uri: >-
-          https://{{ oim_node_name }}.{{ domain_name }}:8443
-        access_token: "{{ _pxeboot_identity_token.stdout }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        nodes: "{{ _pxeboot_csv.list }}"
-      check_mode: true
-      register: _pxeboot_identity_result
-      no_log: true
+      block:
+        - name: Resolve PXE identities from SMD Hardware Inventory
+          openchami_reconcile:
+            action: resolve_identities
+            cluster_uri: >-
+              https://{{ oim_node_name }}.{{ domain_name }}:8443
+            access_token: "{{ _pxeboot_identity_token.stdout }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            nodes: "{{ _pxeboot_csv.list }}"
+          check_mode: true
+          register: _pxeboot_identity_result
+          no_log: true
+      rescue:
+        - name: Report SMD identity resolution failure
+          ansible.builtin.fail:
+            msg: "{{ pxe_boot_inventory_resolve_identities_rescue_msg }}"
+          no_log: false
 
     - name: Require provisioned SMD Service Tag identities for PXE boot
       ansible.builtin.assert:

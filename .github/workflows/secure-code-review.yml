@@ -1,0 +1,94 @@
+---
+# Secure Code Review (advisory)
+#
+# Scans the lines added by a PR against secure-coding rules derived from past
+# security fixes and posts/updates a single PR comment with a pass/fail
+# checklist. It never fails the job, so it cannot block a PR.
+name: Secure Code Review
+
+'on':
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - staging
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: secure-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  secure-code-review:
+    name: Secure Code Review
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Run secure code review
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          python .github/scripts/secure_code_review.py "origin/${BASE_REF}" secure-code-review.md
+          cat secure-code-review.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Credential no_log guard (telemetry)
+        if: hashFiles('.github/scripts/check_credential_no_log.py') != ''
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -q '^src/telemetry/'; then
+            if python .github/scripts/check_credential_no_log.py src/telemetry > guard.log 2>&1; then
+              R="- [x] PASS **Credential no_log Guard** (src/telemetry)"
+            else
+              R="- [ ] FAIL **Credential no_log Guard** (src/telemetry) - see the 'Credential no_log Guard' workflow log"
+            fi
+            python - "$R" <<'PY'
+          import sys
+          p = "secure-code-review.md"
+          t = open(p, encoding="utf-8").read()
+          t = t.replace("### Checklist\n", "### Checklist\n" + sys.argv[1] + "\n", 1)
+          open(p, "w", encoding="utf-8").write(t)
+          PY
+          fi
+          cat secure-code-review.md > "$GITHUB_STEP_SUMMARY"
+
+      - name: Post or update PR comment
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('secure-code-review.md', 'utf8');
+            const marker = '<!-- secure-code-review -->';
+            const {owner, repo} = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments,
+              {owner, repo, issue_number, per_page: 100});
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: existing.id, body});
+            } else {
+              await github.rest.issues.createComment({owner, repo, issue_number, body});
+            }

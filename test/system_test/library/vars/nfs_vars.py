@@ -1,0 +1,61 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Constants of the NFS share cleanup (library/functions/nfs_func.py)."""
+
+import re
+
+# Server of a "host:/export" source: an IPv4 address or an RFC 1123 host name.
+HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+
+HOST_RE = re.compile(rf"{HOST_LABEL}(?:\.{HOST_LABEL})*")
+
+IPV4_RE = re.compile(r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})")
+
+# Export path: absolute, plain characters only ("." and ".." parts are refused in code).
+EXPORT_RE = re.compile(r"/[A-Za-z0-9_.@+=:-]+(?:/[A-Za-z0-9_.@+=:-]+)*")
+
+# The deny list of omnia.sh safe_rm_dir: never emptied, whatever the share is called.
+DENIED_EXPORTS = frozenset({"/", "/boot", "/dev", "/etc", "/home", "/media", "/mnt", "/opt",
+                            "/proc", "/root", "/run", "/srv", "/sys", "/tmp",  # nosec B108
+                            "/usr", "/var"})  # a deny list entry, never used as a path
+
+# Mount options: no setuid, devices or executables from the share; soft so that a hung
+# server fails the step instead of blocking it.
+MOUNT_OPTIONS = "nosuid,nodev,noexec,soft,timeo=100,retrans=3"
+
+# Fixed environment of mount and umount (no inherited PATH or locale).
+COMMAND_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"}
+
+# Seconds allowed for mount and umount.
+MOUNT_TIMEOUT = 180
+
+UNMOUNT_TIMEOUT = 120
+
+# Deepest directory tree emptied, and how many error messages are kept.
+MAX_DEPTH = 64
+
+MAX_ERRORS = 20
+
+# Folder (when present) under which the private mount point is created.
+MOUNT_ROOT = "/run"
+
+# A live client (kubelet of a node) can recreate entries while the share is emptied: the
+# share is emptied again, up to this many passes, with this pause (seconds) between them.
+EMPTY_PASSES = 6
+
+EMPTY_PAUSE_SECONDS = 3
+
+# Where the NFS server lists its connected clients (when the share is served by this OIM).
+NFSD_CLIENTS_DIR = "/proc/fs/nfsd/clients"

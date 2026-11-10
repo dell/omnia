@@ -23,8 +23,29 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - Provision report shows wrong `missing_nodes` by comparing GROUP_NAMEs against xnames (#458).
 - Missing `configs_vars.yaml` pre-check causes unclear error during provision (#450).
 - OS-versioned FG names (e.g. `slurm_control_node_rhel_10_0_x86_64`) fail metadata-service template lookup — normalize template path.
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/index.html) instead of GitHub source tree
+- README restructured to the common domain layout (same sections in the same order across all domains); Architecture lists every role, module, and plugin; commands and links validated.
+- Removed unreleased 3.0.0 changelog entry to avoid version history confusion (DOC-RC1-018)
 
 ### Added
+- **IPoIB IPv6 dual-stack support** (ER-ORCH-005): InfiniBand interfaces can
+  now be configured with both IPv4 and IPv6 addresses. Three modes are
+  supported: dual-stack, IPv4-only (legacy), and IPv6-only.
+  - PXE mapping CSV extended to 12 columns: `IB_IPV4` (renamed from `IB_IP`)
+    and `IB_IPV6` (new). Legacy 11-column CSVs with `IB_IP` are accepted
+    without migration.
+  - `network_spec.yml` gains `ipv6_subnet` and `ipv6_netmask_bits` under
+    `ib_network`. Legacy `subnet` / `netmask_bits` field names are accepted.
+  - Cloud-init `configure-ib-network.sh` configures dual-stack via
+    NetworkManager (`nmcli`) or `iproute2` fallback. IPv6 privacy extensions
+    are disabled for deterministic IPoIB addressing.
+  - Validation: IPv6 address format, uniqueness, and subnet consistency checks.
+  - New documentation: [IPoIB IPv6 Configuration Guide](docs/ipv6-infiniband-configuration.md),
+    [IPv6 Upgrade Guide](docs/ipv6-upgrade-guide.md), and troubleshooting
+    entries for DEGRADED_IPV6, DAD failures, and device selection errors.
+- Supported hardware: Mellanox ConnectX-6 (HDR) and ConnectX-7 (NDR)
+  InfiniBand adapters. Ethernet-only adapters (ConnectX-6 Dx) are automatically
+  filtered.
 - Added ownership-aware Metadata Service reconciliation and persistent
   per-node metadata application status in `orchestrator_status.yml`.
 - Added persistent Service Tag-to-XNAME identity resolution through native SMD
@@ -50,17 +71,3 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
   `node_registration_retries`, and `node_registration_delay` controls.
 - Node completion is verified directly through SSH, boot freshness, and
   cloud-init status.
-
-## [3.0.0] - 2026-07-31
-
-### Added
-- Galaxy collection structure for orchestrator domain.
-- Self-contained roles and playbooks with zero `../common/` cross-domain references.
-- Decomposed `orchestrator.yml` into 9 focused sub-playbooks with `import_playbook`.
-- New roles: `orchestrator_setup`, `orchestrator_functional_groups`, `orchestrator_credentials`, `validate_orchestrator_input`, `provision_common`, `generate_inventories`, `validate_openchami`, `validate_provisioning`.
-- New playbooks: `prepare_orchestrator.yml`, `validate_orchestrator.yml`, `orchestrator_credentials.yml`, `deploy_openchami.yml`, `provision_preamble.yml`, `provision_kubernetes.yml`, `provision_slurm.yml`, `provision_os.yml`, `provision_custom.yml`, `upgrade_orchestrator.yml`, `rollback_orchestrator.yml`, `cleanup_orchestrator.yml`.
-- Pattern-based functional group matching in `slurm_config`, `k8s_config`, `mount_config`, `passwordless_ssh`.
-- Data-driven functional group classification via `vars/functional_group_classification.yml`.
-- Centralized consumption of `repo_status.yml` from `repo_manager` domain.
-- Input validation with JSON schemas and L2 semantic validators.
-- Domain-level architecture and input/output contract documentation.

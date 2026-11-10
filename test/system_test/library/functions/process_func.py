@@ -25,9 +25,7 @@ import sys
 import time
 from typing import Dict, List, Mapping, Optional, TextIO
 
-# Output kept in memory per command for its report row (the tail; the step log
-# and the module log keep everything).
-MAX_CAPTURE_CHARS = 1_000_000
+from ..vars.common_vars import MAX_CAPTURE_CHARS
 
 
 class Tee:

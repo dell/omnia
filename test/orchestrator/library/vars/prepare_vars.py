@@ -107,7 +107,7 @@ FIREWALL_PORTS: tuple[str, ...] = (
     "8443/tcp",
 )
 
-PODMAN_TRUSTED_INTERFACES: tuple[str, ...] = (
+PODMAN_INTERFACES: tuple[str, ...] = (
     "podman0",
     "podman1",
     "podman2",
@@ -124,6 +124,12 @@ OPENLDAP_CONFIG_PATH_SUFFIX = "auth/config/slapd.conf"
 OPENLDAP_KEY_PATH_SUFFIX = "auth/tls_certs/ldapserver.key"
 OPENLDAP_CERT_PATH_SUFFIX = "auth/tls_certs/ldapserver.crt"
 OPENLDAP_QUADLET_PATH = "/etc/containers/systemd/omnia_auth.container"
+OPENLDAP_SERVICE_USER = "ldap"
+OPENLDAP_SERVICE_GROUP = "ldap"
+# slapd.conf and the TLS key stay root-owned; the unprivileged slapd reads them
+# through the service group.
+OPENLDAP_SECRET_MODES: tuple[tuple[str, int], ...] = (("ldap", 0o640),)
+OPENLDAP_PUBLIC_MODES: tuple[tuple[str, int], ...] = (("root", 0o644),)
 
 PREPARE_COMMANDS: dict[str, str] = {
     "container_state": ("podman inspect --format '{{.State.Status}}' %s 2>/dev/null"),
@@ -181,15 +187,22 @@ PREPARE_COMMANDS: dict[str, str] = {
     ),
     "postgres_readiness": "podman exec postgres sh -c %s",
     "firewall_port": "firewall-cmd --query-port=%s 2>/dev/null",
-    "firewall_interface": (
+    "firewall_interface_trusted": (
         "firewall-cmd --zone=trusted --query-interface=%s 2>/dev/null"
     ),
-    "firewall_masquerade": (
+    "firewall_interface_podman": (
+        "firewall-cmd --zone=podman --query-interface=%s 2>/dev/null"
+    ),
+    "firewall_masquerade_trusted": (
         "firewall-cmd --zone=trusted --query-masquerade 2>/dev/null"
+    ),
+    "firewall_masquerade_podman": (
+        "firewall-cmd --zone=podman --query-masquerade 2>/dev/null"
     ),
     "route": "ip route show %s 2>/dev/null",
     "ldap_identity": ("podman exec %s ldapwhoami -x -H ldap://127.0.0.1:389"),
     "ldap_listener": "ss -H -ltn 'sport = :%s' 2>/dev/null",
     "certificate_valid": "openssl x509 -checkend 86400 -noout -in %s",
     "slapd_validate": "podman exec %s slaptest -u -f /etc/openldap/slapd.conf",
+    "slapd_process_user": "podman exec %s ps -o user,args",
 }

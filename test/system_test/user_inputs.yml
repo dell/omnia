@@ -435,3 +435,26 @@ build_stream:
   build_stream_config:
     build_stream_host_ip: ""
     gitlab_host: ""
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# OPENBAO                          not an Omnia input: where the passwords are kept
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# The ONE place OpenBao is set, for every module and theme. The generator does not
+# write it into any input file. It is read by
+#   ./setup_env.sh --domain-creds-from-openbao | --openbao   (on the OIM)
+#   pipeline/setup_svt_project.py   -> CI/CD variables BAO_SERVER_URL, BAO_DATA_PATH,
+#                                      BAO_TLS_SKIP_VERIFY (the GitLab pipeline)
+# Secrets are read from <server_url>/v1/<secret_path>/<domain>. The token is never
+# written here: export BAO_TOKEN=<token> (or type it at the prompt). See docs/OPENBAO.md.
+openbao:
+  # https://host:port of OpenBao ("" = OpenBao is not used)
+  server_url: ""
+  # KV v2: secret/data/<path>; KV v1: secret/<path>
+  secret_path: "secret/data/omnia"
+  # true: the certificate is not checked (as test/pipeline, which uses curl -k)
+  # false: check it with ca_cert, or with the system CA store when ca_cert is ""
+  tls_skip_verify: true
+  # absolute path of the OpenBao CA certificate ("" = none)
+  ca_cert: ""

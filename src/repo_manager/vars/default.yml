@@ -322,8 +322,8 @@ max_retries: 10
 # PARALLEL EXECUTION CONFIGURATION
 # -----------------------------------------------------------------------------
 parallel_config:
-  # Worker processes for catalog package downloads (1-5).
-  # Keep one worker by default for stable operation with a local Pulp service.
+  # Worker processes for catalog package downloads (1-5). The default is 4;
+  # reduce it when Pulp, network, CPU, memory, or storage cannot sustain it.
   default_nthreads: 4
   default_timeout_seconds: 60
   task_poll_interval_seconds: 10
@@ -363,7 +363,7 @@ container_sync_policy: "immediate"
 # -----------------------------------------------------------------------------
 rpm_repo_config:
   # Number of RPM repositories to process in parallel in every Pulp stage (1-10).
-  # Keep one repository in flight by default for a local Pulp service.
+  # The default is 2; reduce it when Pulp or storage cannot sustain it.
   thread_pool_size: 2      # ENV: REPO_MANAGER_THREAD_POOL_SIZE
 
   # Continue processing other repositories to collect complete diagnostics.

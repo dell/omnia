@@ -20,6 +20,7 @@ Checks that containers, services, directories, credentials, and
 volumes are properly removed after running cleanup playbooks.
 """
 
+import re
 from typing import Any, Dict, List
 
 from omnia_auto import read_remote_yaml
@@ -50,6 +51,8 @@ from library.vars.common_vars import (
     BUILD_STREAM_CONFIG_FILE,
     BUILDSTREAM_CLEANUP_DIRECTORIES,
     BUILDSTREAM_HOST_LOG_DIRECTORY,
+    BUILDSTREAM_KEPT_ARTIFACT_PATTERN,
+    BUILDSTREAM_ROOT_DIR,
     BUILDSTREAM_WATCHER_SOURCE,
     PLAYBOOK_WATCHER_SERVICE_FILE,
     PLAYBOOK_WATCHER_SERVICE_NAME,
@@ -85,6 +88,7 @@ __all__ = [
     "check_playbook_watcher_service_stopped",
     "check_postgres_container_removed",
     "check_postgres_container_stopped",
+    "check_job_data_per_backup",
     "check_postgres_data_per_backup",
     "check_postgres_quadlet_files_removed",
     "check_postgres_services_stopped",
@@ -346,6 +350,45 @@ def check_postgres_data_per_backup(host, postgres_backup: bool) -> Dict[str, Any
              f"STILL EXIST: {', '.join(volumes)}" if volumes else "deleted", not volumes),
         ]
     return summarize_probes("postgres_data", probes)
+
+
+def check_job_data_per_backup(host, postgres_backup: bool) -> Dict[str, Any]:
+    """Verify build_stream_root follows ``-e postgres_backup=<flag>``.
+
+    With a retained database, only the artifact files that artifact_metadata
+    rows reference (artifact store keys under build_stream_root/artifacts) may
+    remain; restart_state, raw playbook output, validate reports and JWT keys
+    are removed. With the database deleted, build_stream_root is gone.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    omnia_path = resolve_build_stream_data_path(host).rsplit("/build_stream", 1)[0]
+    root = f"{omnia_path}/{BUILDSTREAM_ROOT_DIR}"
+    present = _path_state(host, root)
+    if not postgres_backup:
+        probes = [(f"postgres_backup=false: {root}", "STILL EXISTS" if present else "deleted",
+                   not present)]
+        return summarize_probes("job_data", probes)
+    if not present:
+        return summarize_probes("job_data", [
+            (f"postgres_backup=true: {root}", "absent (no job data to keep)", True),
+        ])
+    listing = run_cmd(host, "list_files_recursive", path=root)
+    if listing.rc != 0:
+        return summarize_probes("job_data", [
+            (f"postgres_backup=true: {root}", f"INSPECTION FAILED (rc={listing.rc})", False),
+        ])
+    kept = re.compile(BUILDSTREAM_KEPT_ARTIFACT_PATTERN)
+    files = sorted(line.strip() for line in listing.stdout.splitlines() if line.strip())
+    probes = [
+        (f"postgres_backup=true: {root}/{name}",
+         "kept (referenced artifact)" if kept.match(name)
+         else "STILL EXISTS (not a referenced artifact)",
+         bool(kept.match(name)))
+        for name in files
+    ] or [(f"postgres_backup=true: {root}", "no files left", True)]
+    return summarize_probes("job_data", probes)
 
 
 def check_credentials_per_flag(host, files, cleanup_credentials: bool) -> Dict[str, Any]:

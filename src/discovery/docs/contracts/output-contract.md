@@ -23,7 +23,7 @@ component override is unset or empty.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `FUNCTIONAL_GROUP_NAME` | string | Node functional group (e.g., `slurm_node_aarch64`) |
+| `FUNCTIONAL_GROUP_NAME` | string | Node functional group (e.g., `slurm_node_rhel_10_0_aarch64`) |
 | `GROUP_NAME` | string | Scalable Unit / group identifier (e.g., `grp0`) |
 | `SERVICE_TAG` | string | Dell server service tag |
 | `PARENT_SERVICE_TAG` | string | Parent node service tag (for child nodes) |
@@ -33,7 +33,8 @@ component override is unset or empty.
 | `BMC_MAC` | string | BMC/iDRAC MAC address |
 | `BMC_IP` | string | BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | InfiniBand NIC FQDD (if present) |
-| `IB_IP` | string | InfiniBand IP (derived from ib_subnet + BMC IP) |
+| `IB_IPV4` | string | InfiniBand IPv4 (derived from ib_subnet + BMC IP) |
+| `IB_IPV6` | string | InfiniBand IPv6 (derived from ipv6_subnet + BMC IP when configured) |
 
 ### Symlink
 
