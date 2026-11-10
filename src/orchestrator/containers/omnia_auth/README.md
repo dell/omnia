@@ -35,7 +35,7 @@ helper can build it locally or publish it with Docker Buildx:
 ```bash
 cd src/orchestrator/containers
 
-# Local Podman build: omnia_auth:1.2
+# Local Podman build: omnia_auth:1.3
 ./build_images.sh
 
 # Local Docker build with a custom tag
