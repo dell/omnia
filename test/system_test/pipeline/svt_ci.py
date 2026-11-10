@@ -433,7 +433,9 @@ CHECKOUT_MODES = ("update", "recreate", "keep")
 # Folders a checkout is never deleted from (recreate), nor anything below them.
 PROTECTED_PATHS = ("/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/lib64", "/media",
                    "/mnt", "/opt", "/opt/omnia", "/proc", "/root", "/run", "/sbin", "/srv",
-                   "/sys", "/tmp", "/usr", "/var")
+                   "/sys",
+                   "/tmp",  # nosec B108  # a deny list of folders never deleted, not a temp file
+                   "/usr", "/var")
 PROTECTED_TREES = ("/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/opt/omnia", "/proc",
                    "/run", "/sbin", "/sys", "/usr", "/var")
 
