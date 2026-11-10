@@ -14,10 +14,16 @@
 
 """Render and enforce structured Orchestrator NFT results."""
 
+import pytest
+
 
 def verify_nft(test_log, case, host, checker, *args):
     """Execute one NFT contract, report safe fields, and enforce success."""
     result = checker(host, *args)
+    if result.get("skipped"):
+        reason = result.get("reason", "")
+        test_log.skipped(reason or "Skipped")
+        pytest.skip(reason or f"{case['title']} is not applicable")
     if result["success"]:
         test_log.passed_fields(result["details"], result["fields"])
     else:
