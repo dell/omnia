@@ -40,6 +40,8 @@ STAGE_MSGS = {
                     "folder {path}",
     "step_failed": "{label} failed (rc={rc})",
     "no_previous_setup": "no previous Omnia setup ({path} missing): nothing to clean",
+    "input_restore": "{domain}: {path} is missing (an earlier cleanup removed it): staging it "
+                     "again, the cleanup test reads it",
     "not_installed": "nothing to remove (none of {path} exists): {label} not needed",
     "no_omnia_venv": "the Omnia venv is missing: {label} skipped (needs the Omnia venv)",
     "test_config_placed": "test_config placed: {target}",
