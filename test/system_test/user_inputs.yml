@@ -60,9 +60,9 @@ main:
   # | of src/main/omnia.env (/opt/omnia, project_default, /opt/omnia/venv).    |
   # +--------------------------------------------------------------------------+
   omnia_env:
-    SYSTEM_ADMIN_NIC_IPV4: ""
-    SYSTEM_HOSTNAME: ""
-    SYSTEM_DOMAIN_NAME: ""
+    SYSTEM_ADMIN_NIC_IPV4: "172.16.107.254"
+    SYSTEM_HOSTNAME: "oim"
+    SYSTEM_DOMAIN_NAME: "omnia.cluster"
 
   # +--------------------------------------------------------------------------+
   # | catalog - the active catalog (omnia.env CATALOG_FILE_PATH)  optional     |
@@ -309,29 +309,47 @@ image_build_manager:
 orchestrator:
   # +--------------------------------------------------------------------------+
   # | network_spec.yml - networks of this cluster                              |
-  # |   admin_network                                                          |
+  # |   admin_network (IPv4)                                                   |
   # |     oim_nic_name, subnet, netmask_bits, primary_oim_admin_ip,            |
   # |     dynamic_range                                    MANDATORY           |
-  # |     primary_oim_bmc_ip, router, dns, ntp_servers     optional            |
+  # |     primary_oim_bmc_ip, router, dns, ntp_servers,                        |
+  # |     additional_subnets                               optional            |
   # |     dynamic_range is the DHCP pool "first-last" inside the subnet;       |
-  # |     dns / ntp_servers are lists, e.g. ["10.0.0.2", "10.0.0.3"]           |
-  # |   ib_network (InfiniBand)                            optional            |
+  # |     every address below must be inside the subnet (the orchestrator      |
+  # |     checks it). dns is a list of addresses, e.g. ["10.0.0.2"];           |
+  # |     ntp_servers a list of {address, type: server|pool}; additional_      |
+  # |     subnets a list of {subnet, netmask_bits, router, dynamic_range}.     |
+  # |   ib_network (InfiniBand / IPoIB, IPv4 and IPv6)                         |
+  # |     ipv4_subnet, ipv4_netmask_bits   IPv4 network of the IB interfaces   |
+  # |     ipv6_subnet, ipv6_netmask_bits   IPv6 network, e.g. "fd00:1b::"/"64" |
+  # |     dns                              optional list of addresses          |
+  # |     ib_addr_mode                     how the nodes are addressed:        |
+  # |       "dual-stack"  IPv4 and IPv6 on IPoIB (needs ipv6_subnet)           |
+  # |       "ipv6-only"   IPv6 only (needs ipv6_subnet)                        |
+  # |       "ipv4-only"   IPv4 only, IPv6 is ignored                           |
+  # |     The ib_network subnets must not overlap the admin subnet. The Slurm  |
+  # |     NodeAddr follows the mode (IPv6 in dual-stack and ipv6-only).        |
   # +--------------------------------------------------------------------------+
   network_spec:
     Networks:
       - admin_network:
-          oim_nic_name: ""
-          subnet: ""
-          netmask_bits: ""
-          primary_oim_admin_ip: ""
+          oim_nic_name: "eno1"
+          subnet: "172.16.107.0"
+          netmask_bits: "24"
+          primary_oim_admin_ip: "172.16.107.254"
           primary_oim_bmc_ip: ""
-          router: ""
-          dynamic_range: ""
+          router: "172.16.107.254"
+          dynamic_range: "172.16.107.201-172.16.107.250"
           dns: []
           ntp_servers: []
+          additional_subnets: []
       - ib_network:
-          subnet: ""
-          netmask_bits: ""
+          ipv4_subnet: "192.168.0.0"
+          ipv4_netmask_bits: "24"
+          dns: []
+          ipv6_subnet: "fd00:1b::"
+          ipv6_netmask_bits: "64"
+          ib_addr_mode: "dual-stack"
 
   # +--------------------------------------------------------------------------+
   # | orchestrator_config.yml                                                  |
@@ -355,14 +373,16 @@ orchestrator:
   # |   vast_storage  optional. Leave source "" when there is no VAST: the     |
   # |                 generator then turns VAST off (comments out the mount    |
   # |                 here and vast_storage_name in omnia_config.yml).         |
+  # |   The sources below are sample values; point                             |
+  # |   them at NFS exports that exist.                                        |
   # +--------------------------------------------------------------------------+
   storage_config:
     mounts:
       - name: "nfs_slurm"
-        source: ""
+        source: "172.16.107.168:/mnt/share/omnia"
         mount_point: "/share_omnia"
       - name: "nfs_k8s"
-        source: ""
+        source: "172.16.107.121:/mnt/share/omnia_k8s"
         mount_point: "/opt/omnia/k8s_mount"
       - name: "vast_storage"
         source: ""
@@ -370,13 +390,14 @@ orchestrator:
 
   # +--------------------------------------------------------------------------+
   # | omnia_config.yml - Kubernetes service cluster                            |
-  # |   IP ranges differ per cluster; the values below are the defaults,       |
+  # |   IP ranges differ per cluster; the values below are sample values,      |
   # |   change them when they overlap your networks:                           |
   # |     pod_external_ip_range  "first-last" for LoadBalancer services,       |
   # |                            inside the admin subnet, outside the DHCP pool|
   # |     k8s_service_addresses  service CIDR                                  |
   # |     k8s_pod_network_cidr   pod CIDR                                      |
-  # |     virtual_ip_address     control-plane VIP (used when enable_k8s_ha)   |
+  # |     virtual_ip_address     control-plane VIP (used when enable_k8s_ha),  |
+  # |                            inside the admin subnet                       |
   # |   Options:                                                               |
   # |     enable_k8s_ha, etcd_on_local_disk   true | false                     |
   # |     k8s_bootstrap_token_ttl             join token lifetime, e.g. "2h"   |
@@ -386,10 +407,10 @@ orchestrator:
   omnia_config:
     service_k8s_cluster:
       - cluster_name: "service_cluster"
-        pod_external_ip_range: ""
+        pod_external_ip_range: "172.16.107.170-172.16.107.200"
         k8s_service_addresses: "10.233.0.0/18"
         k8s_pod_network_cidr: "10.233.64.0/18"
-        virtual_ip_address: ""
+        virtual_ip_address: "172.16.107.1"
         enable_k8s_ha: true
         etcd_on_local_disk: true
         k8s_bootstrap_token_ttl: "2h"
@@ -402,23 +423,33 @@ orchestrator:
   # |   The file keeps its header line; ALL its rows are replaced by row1,     |
   # |   row2, ... below. One CSV line per node, columns in this order:         |
   # |   FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,       |
-  # |   HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP           |
+  # |   HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IPV4,IB_IPV6 |
   # |   Empty columns stay empty (",,").                                       |
+  # |   InfiniBand columns are optional, but IB_NIC_NAME, IB_IPV4 and IB_IPV6  |
+  # |   go together, as ib_addr_mode in network_spec says:                     |
+  # |     dual-stack  all three, or all empty                                  |
+  # |     ipv6-only   IB_NIC_NAME and IB_IPV6 (IB_IPV4 may stay empty)         |
+  # |     ipv4-only   IB_NIC_NAME and IB_IPV4                                  |
+  # |   IB_NIC_NAME is the iDRAC name, e.g. InfiniBand.Slot.3-1; IB_IPV6 must  |
+  # |   be inside ipv6_subnet. A dual-stack row:                               |
+  # |   slurm_node_rhel_10_2_x86_64,grp1,ABCD34,,slurm-node1,aa:bb:cc:dd:ee:ff,|
+  # |   172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,InfiniBand.Slot.3-1,     |
+  # |   192.168.0.43,fd00:1b::43                                               |
   # +--------------------------------------------------------------------------+
   pxe_mapping_file:
-    row1: "slurm_control_node_rhel_10_2_x86_64,grp0,ABCD12,,slurm-control-node1,xx:yy:zz:aa:bb:cc,172.16.107.52,xx:yy:zz:aa:bb:dd,172.17.107.52,,"
-    row2: "slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,slurm-node1,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,,"
-    row3: "slurm_node_rhel_10_0_aarch64,grp2,ABFG34,ABKD88,slurm-node2,aa:bb:cc:dd:ee:ff,172.16.107.44,aa:bb:cc:dd:ff:gg,172.17.107.44,,"
-    row4: "login_compiler_node_rhel_10_0_aarch64,grp8,ABCD78,,login-compiler-node1,aa:bb:cc:dd:ee:gg,172.16.107.41,aa:bb:cc:dd:ee:bb,172.17.107.41,,"
-    row5: "login_node_rhel_10_2_x86_64,grp9,ABFG78,,login-node1,aa:bb:cc:dd:ee:gg,172.16.107.42,aa:bb:cc:dd:ee:bb,172.17.107.42,,"
-    row6: "service_kube_control_plane_rhel_10_2_x86_64,grp3,ABFG79,,service-kube-control-plane1,aa:bb:cc:dd:ee:ff,172.16.107.53,xx:yy:zz:aa:bb:ff,172.17.107.53,,"  # noqa: yaml[line-length]
-    row7: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH78,,service-kube-control-plane2,aa:bb:cc:dd:ee:hh,172.16.107.54,xx:yy:zz:aa:bb:hh,172.17.107.54,,"  # noqa: yaml[line-length]
-    row8: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH80,,service-kube-control-plane3,aa:bb:cc:dd:ee:ii,172.16.107.55,xx:yy:zz:aa:bb:ii,172.17.107.55,,"  # noqa: yaml[line-length]
-    row9: "service_kube_node_rhel_10_2_x86_64,grp5,ABFL82,,service-kube-node1,aa:bb:cc:dd:ee:jj,172.16.107.56,xx:yy:zz:aa:bb:jj,172.17.107.56,,"
-    row10: "service_kube_node_rhel_10_2_x86_64,grp5,ABKD88,,service-kube-node2,aa:bb:cc:dd:ee:kk,172.16.107.57,xx:yy:zz:aa:bb:ff,172.17.107.57,,"
-    row11: "os_rhel_10_2_x86_64,grp6,ABEF56,,os-node1,xx:yy:zz:aa:bb:ff,172.16.107.60,xx:yy:zz:aa:bb:ee,172.17.107.60,,"
-    row12: "os_rhel_10_0_x86_64,grp7,ABEF78,,os-node2,xx:yy:zz:aa:bb:ab,172.16.107.61,xx:yy:zz:aa:bb:ac,172.17.107.61,,"
-    row13: "os_rhel_10_0_aarch64,grp8,ABGH90,,os-node3,xx:yy:zz:aa:bb:cd,172.16.107.62,xx:yy:zz:aa:bb:ce,172.17.107.62,,"
+    row1: "slurm_control_node_rhel_10_2_x86_64,grp0,ABCD12,,slurm-control-node1,xx:yy:zz:aa:bb:cc,172.16.107.52,xx:yy:zz:aa:bb:dd,172.17.107.52,,,"
+    row2: "slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,slurm-node1,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,,,"
+    row3: "slurm_node_rhel_10_0_aarch64,grp2,ABFG34,ABKD88,slurm-node2,aa:bb:cc:dd:ee:ff,172.16.107.44,aa:bb:cc:dd:ff:gg,172.17.107.44,,,"
+    row4: "login_compiler_node_rhel_10_0_aarch64,grp8,ABCD78,,login-compiler-node1,aa:bb:cc:dd:ee:gg,172.16.107.41,aa:bb:cc:dd:ee:bb,172.17.107.41,,,"
+    row5: "login_node_rhel_10_2_x86_64,grp9,ABFG78,,login-node1,aa:bb:cc:dd:ee:gg,172.16.107.42,aa:bb:cc:dd:ee:bb,172.17.107.42,,,"
+    row6: "service_kube_control_plane_rhel_10_2_x86_64,grp3,ABFG79,,service-kube-control-plane1,aa:bb:cc:dd:ee:ff,172.16.107.53,xx:yy:zz:aa:bb:ff,172.17.107.53,,,"  # noqa: yaml[line-length]
+    row7: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH78,,service-kube-control-plane2,aa:bb:cc:dd:ee:hh,172.16.107.54,xx:yy:zz:aa:bb:hh,172.17.107.54,,,"  # noqa: yaml[line-length]
+    row8: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH80,,service-kube-control-plane3,aa:bb:cc:dd:ee:ii,172.16.107.55,xx:yy:zz:aa:bb:ii,172.17.107.55,,,"  # noqa: yaml[line-length]
+    row9: "service_kube_node_rhel_10_2_x86_64,grp5,ABFL82,,service-kube-node1,aa:bb:cc:dd:ee:jj,172.16.107.56,xx:yy:zz:aa:bb:jj,172.17.107.56,,,"
+    row10: "service_kube_node_rhel_10_2_x86_64,grp5,ABKD88,,service-kube-node2,aa:bb:cc:dd:ee:kk,172.16.107.57,xx:yy:zz:aa:bb:ff,172.17.107.57,,,"
+    row11: "os_rhel_10_2_x86_64,grp6,ABEF56,,os-node1,xx:yy:zz:aa:bb:ff,172.16.107.60,xx:yy:zz:aa:bb:ee,172.17.107.60,,,"
+    row12: "os_rhel_10_0_x86_64,grp7,ABEF78,,os-node2,xx:yy:zz:aa:bb:ab,172.16.107.61,xx:yy:zz:aa:bb:ac,172.17.107.61,,,"
+    row13: "os_rhel_10_0_aarch64,grp10,ABGH90,,os-node3,xx:yy:zz:aa:bb:cd,172.16.107.62,xx:yy:zz:aa:bb:ce,172.17.107.62,,,"
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

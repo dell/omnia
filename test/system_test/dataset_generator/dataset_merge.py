@@ -19,9 +19,9 @@ merge serves every YAML file:
 
 * mapping  -> walk into the key of the same name (an unknown key is an error,
   which catches typos);
-* list of mappings -> match each item by ``name``, ``cluster_name`` or, for
-  ``- admin_network:`` style items, by their single key; a new named item is
-  appended;
+* list of mappings -> match each item by ``name``, ``cluster_name``, ``address``
+  (ntp_servers) or ``subnet`` (additional_subnets) or, for ``- admin_network:``
+  style items, by their single key; a new item is appended;
 * scalar or list of scalars -> written when given, typed like the file value.
 
 An empty value ("" / []) clears the text or plain list in the file, so a value
@@ -56,7 +56,7 @@ from .dataset_edit import (
     split_header,
 )
 
-IDENTITY_KEYS = ("name", "cluster_name")
+IDENTITY_KEYS = ("name", "cluster_name", "address", "subnet")
 VAST_MOUNT = "vast_storage"
 VAST_PREFIX = "# [vast off] "
 VAST_NOTE = (f"{VAST_PREFIX.rstrip()} VAST is off: user_inputs.yml gives no vast_storage source; "
