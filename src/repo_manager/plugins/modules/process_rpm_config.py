@@ -407,6 +407,12 @@ def _run_pulp_cli(
     This helper is intended for read-only show/list/task queries. Mutations use
     one dispatch attempt and reconcile an uncertain response by correlation ID.
     """
+    if (
+        isinstance(command, (str, bytes))
+        or not isinstance(command, (list, tuple))
+        or not all(isinstance(argument, str) for argument in command)
+    ):
+        raise TypeError("Pulp CLI command must be an argv list of strings")
     command = list(command)
     if command and command[0] == "pulp":
         command[0] = PULP_CLI_EXECUTABLE
