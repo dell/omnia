@@ -101,10 +101,17 @@ THEMES: Dict[str, Dict] = {
         # The FVT suite whose setup_env.sh writes the credential stores.
         "creds_suite": "build_stream",
         # Cleanup steps that only run when the product they remove is installed:
-        # step -> file that exists when it is.
+        # step -> the files and folders it leaves; the step runs when ANY of them exists
+        # ({domain_data} is the data folder of the step's domain). A half installed
+        # product (BuildStream: Postgres up, API quadlet gone) still has to be cleaned,
+        # or omnia.sh --cleanup --all refuses to start.
         "cleanup_requires": {
-            ("build_stream", ("cleanup", "test")):
+            ("build_stream", ("cleanup", "test")): (
                 "/etc/containers/systemd/omnia_build_stream.container",
+                "/etc/containers/systemd/omnia_postgres.container",
+                "{domain_data}/postgres",
+                "{domain_data}/build_stream_root",
+            ),
         },
         # Cleanup steps of products this theme does not deploy but a previous installation may
         # have: they run only when the domain holds deployed state (a file under its

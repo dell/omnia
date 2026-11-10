@@ -78,6 +78,17 @@ def _own_venv_env(domain: str) -> Dict[str, str]:
     return {VIRTUAL_ENV_KEY: venv, "PATH": f"{venv}/bin:{os.environ.get('PATH', '')}"}
 
 
+def _marker_paths(domain: str, markers: Tuple[str, ...]) -> List[str]:
+    """Return the paths a cleanup step looks for ({domain_data} is the domain's data root)."""
+    root = domain_data_root(omnia_env(), domain)
+    return [marker.format(domain_data=root) for marker in markers]
+
+
+def _installed_markers(domain: str, markers: Tuple[str, ...]) -> List[str]:
+    """Return the marker paths that exist (a product that is half installed still has some)."""
+    return [path for path in _marker_paths(domain, markers) if os.path.lexists(path)]
+
+
 def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> List[tuple]:
     """Return the cleanup steps that apply on this OIM; record why the others are skipped."""
     steps = []
@@ -87,8 +98,9 @@ def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> 
         domain, label = step[0], describe_step(step)
         if not cleanup_enabled(config, domain):
             reason = SETUP_MSGS["cleanup_disabled"].format(label=label, domain=domain)
-        elif step in requires and not os.path.exists(requires[step]):
-            reason = STAGE_MSGS["not_installed"].format(path=requires[step], label=label)
+        elif step in requires and not _installed_markers(domain, requires[step]):
+            reason = STAGE_MSGS["not_installed"].format(
+                path=", ".join(_marker_paths(domain, requires[step])), label=label)
         elif domain in deployed_only and not has_deployed_state(omnia_env(), domain):
             reason = SETUP_MSGS["cleanup_not_deployed"].format(
                 label=label, domain=domain, root=domain_data_root(omnia_env(), domain))

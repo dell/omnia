@@ -236,7 +236,7 @@ The run folder is `<report_path>/<run_id>/` (default `reports/<run_id>/`).
    generates the test (markers theme and stage, the order); no test function
    to write.
 4. **Optional:** `creds_suite`, `cleanup_requires` (a cleanup step that runs
-   only when a file exists) and `state_probe` (read-only product state: each
+   only when any of its files or folders exists, so a half installed product is still cleaned) and `state_probe` (read-only product state: each
    stage's outputs and what the run left behind) in the theme entry.
 
 ## Local checks (same as the GitHub workflows)
