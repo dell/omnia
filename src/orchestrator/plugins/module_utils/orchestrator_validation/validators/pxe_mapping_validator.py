@@ -96,6 +96,7 @@ GROUP_PATTERN = re.compile(
 )
 FUNCTIONAL_GROUP_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 TAG_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
+IB_ADDR_MODES = ("dual-stack", "ipv6-only", "ipv4-only")
 IB_NIC_NAME_PATTERN = re.compile(
     r"^(?:(?:InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|"
     r"NIC\.InfiniBand\.)[0-9A-Fa-f]+-[0-9]+|"
@@ -665,6 +666,26 @@ def _load_ib_addr_mode(input_project_dir: str) -> str:
     return ""
 
 
+def _validate_ib_rows_present(
+    rows: list[tuple[int, dict[str, str]]],
+    ib_addr_mode: str,
+    path: str,
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Require an InfiniBand row when network_spec sets ib_addr_mode.
+
+    ib_addr_mode switches the IPoIB pipeline on; the pipeline validates the allocations
+    of the PXE mapping file and stops the deploy when no row has InfiniBand data. Tell the
+    user here, with the parameter to change, not at the deploy.
+    """
+    if ib_addr_mode not in IB_ADDR_MODES:
+        return
+    if any(row.get("IB_NIC_NAME", "") for _, row in rows):
+        return
+    record_error(errors, logger, msg.pxe_mapping_no_ib_rows_msg(path, ib_addr_mode))
+
+
 def _load_ib_ipv6_prefix(
     input_project_dir: str,
 ) -> ipaddress.IPv6Network | None:
@@ -888,4 +909,5 @@ def validate(
         rows, input_project_dir, errors, logger
     )
     _validate_ib_ipv6_subnet(rows, input_project_dir, errors, logger)
+    _validate_ib_rows_present(rows, ib_addr_mode, path, errors, logger)
     return errors

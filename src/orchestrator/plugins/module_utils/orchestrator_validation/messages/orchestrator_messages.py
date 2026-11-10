@@ -374,6 +374,17 @@ def pxe_mapping_ib_pair_msg(row: int) -> str:
     )
 
 
+def pxe_mapping_no_ib_rows_msg(path: str, ib_addr_mode: str) -> str:
+    """Return the error for an InfiniBand mode with no InfiniBand mapping row."""
+    return (
+        f"network_spec.yml: ib_network.ib_addr_mode is '{ib_addr_mode}', which turns the "
+        f"IPoIB pipeline on, but no row of the PXE mapping file {path} has IB_NIC_NAME "
+        "and its InfiniBand address (IB_IPV4 / IB_IPV6). Fill the IB columns of the "
+        "nodes that have InfiniBand, or remove ib_addr_mode from the ib_network entry "
+        "of network_spec.yml when the cluster has no InfiniBand."
+    )
+
+
 def pxe_mapping_ib_ipv6_pair_msg(row: int) -> str:
     """Return an incomplete InfiniBand IPv6 mapping pair error message."""
     return (
