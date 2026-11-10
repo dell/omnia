@@ -43,32 +43,15 @@
     msg: "{{ ib_ipv6_pxe_missing_msg }} Path: {{ ib_ipv6_pxe_mapping_file }}"
   when: not _ib_ipv6_pxe_stat.stat.exists
 
-- name: Validate IPoIB IPv6 allocations from PXE mapping
+# The allocations are validated by the orchestrator input validation (pxe_mapping_validator),
+# which logs under the orchestrator log folder. This module only normalizes the rows that
+# render and verify consume; it writes no log file.
+- name: Normalize IPoIB IPv6 allocations from the PXE mapping
   validate_ib_ipv6_allocation:
     pxe_mapping_file: "{{ ib_ipv6_pxe_mapping_file }}"
     approved_prefixes: "{{ ib_ipv6_approved_prefixes }}"
-    log_dir: "{{ ib_ipv6_log_dir }}"
   register: _ib_ipv6_validation
   delegate_to: localhost
-
-- name: Display allocation validation log
-  ansible.builtin.debug:
-    msg: "Validation log: {{ _ib_ipv6_validation.log_file }}"
-
-- name: Fail if allocation validation failed
-  ansible.builtin.fail:
-    msg: >-
-      {{ ib_ipv6_validation_fail_msg }}
-      Errors: {{ _ib_ipv6_validation.errors }}
-  when: _ib_ipv6_validation.validation_failed
-
-- name: Display allocation validation summary
-  ansible.builtin.debug:
-    msg: >-
-      {{ ib_ipv6_validation_pass_msg }}:
-      {{ _ib_ipv6_validation.total_allocations }} IB rows,
-      {{ _ib_ipv6_validation.active_allocations }} active,
-      mode={{ _ib_ipv6_validation.ib_mode }}
 
 - name: Extract ib_addr_mode from network_spec
   ansible.builtin.set_fact:

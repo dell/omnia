@@ -71,7 +71,9 @@ options:
     elements: str
     default: []
   log_dir:
-    description: Directory where the validation log is written.
+    description: >
+      Directory where a log is written. Empty (default): no log file; the orchestrator
+      input validation owns the validation log.
     required: false
     type: str
     default: ""
@@ -84,7 +86,6 @@ EXAMPLES = r'''
   omnia.orchestrator.validate_ib_ipv6_allocation:
     pxe_mapping_file: "{{ pxe_mapping_file }}"
     approved_prefixes: "{{ network_spec.ib_ipv6_approved_prefixes | default([]) }}"
-    log_dir: "{{ omnia_data_path }}/log/core/playbooks"
   register: ib_ipv6_validation
 
 - name: Fail if allocation validation failed
@@ -140,7 +141,18 @@ log_file:
 
 
 def _create_logger(log_dir: str) -> tuple[logging.Logger, str]:
-    """Create a validation logger."""
+    """Create the logger; without ``log_dir`` nothing is written to a file.
+
+    The allocations are validated by the orchestrator input validation, which owns the
+    validation log; this module only normalizes them.
+    """
+    if not log_dir:
+        logger = logging.getLogger("ib_ipv6_allocation_validation")
+        logger.handlers.clear()
+        logger.addHandler(logging.NullHandler())
+        logger.setLevel(logging.DEBUG)
+        return logger, ""
+    log_dir = os.path.realpath(log_dir)
     os.makedirs(log_dir, mode=0o750, exist_ok=True)
     log_file = os.path.join(log_dir, "ib_ipv6_allocation_validation.log")
     handler = logging.FileHandler(log_file, mode="w")
@@ -452,12 +464,7 @@ def run_module() -> None:
     )
     pxe_mapping_file = module.params["pxe_mapping_file"]
     approved_prefixes = module.params["approved_prefixes"]
-    configured_log_dir = module.params["log_dir"] or os.path.join(
-        os.environ["OMNIA_DATA_PATH"],
-        "log", "core", "playbooks",
-    )
-    log_dir = os.path.realpath(configured_log_dir)
-    logger, log_file = _create_logger(log_dir)
+    logger, log_file = _create_logger(module.params["log_dir"])
 
     # --- PXE mapping file path (primary) ---
     if pxe_mapping_file:
