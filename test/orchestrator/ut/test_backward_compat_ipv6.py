@@ -1374,7 +1374,23 @@ class TestOptionalIbColumns:
         assert errors == [], f"Unexpected errors: {errors}"
 
     def test_base_csv_with_ib_network_passes(self, tmp_path):
-        """ORCH_UT_BC_067: 9-column CSV with ib_network in network_spec passes."""
+        """ORCH_UT_BC_067: 9-column CSV with an ib_network without ib_addr_mode passes."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(BASE_HEADERS),
+            csv_rows=[_base_csv_row()],
+            network_spec=_network_spec(ib_network={
+                "ipv4_subnet": "192.168.0.0",
+                "ipv4_netmask_bits": "24",
+                "ipv6_subnet": "fd00:1b::",
+                "ipv6_netmask_bits": "64",
+            }),
+        )
+        errors = validate({"pxe_mapping_file_path": ""}, project_dir)
+        assert errors == [], f"Unexpected errors: {errors}"
+
+    def test_base_csv_with_ib_addr_mode_names_the_parameter(self, tmp_path):
+        """ORCH_UT_BC_067b: ib_addr_mode with no IB column is reported, naming the parameter."""
         project_dir = _create_project_dir(
             tmp_path,
             csv_header=list(BASE_HEADERS),
@@ -1388,7 +1404,9 @@ class TestOptionalIbColumns:
             }),
         )
         errors = validate({"pxe_mapping_file_path": ""}, project_dir)
-        assert errors == [], f"Unexpected errors: {errors}"
+        mode_errors = [e for e in errors if "ib_addr_mode" in e]
+        assert len(mode_errors) == 1, f"Unexpected errors: {errors}"
+        assert "remove ib_addr_mode" in mode_errors[0]
 
     def test_base_csv_multiple_rows_passes(self, tmp_path):
         """ORCH_UT_BC_068: Multiple 9-column rows pass without IB errors."""
@@ -1466,3 +1484,58 @@ class TestOptionalIbColumns:
         assert len(errors) == 1
         assert "without InfiniBand" in errors[0]
         assert "with InfiniBand" in errors[0]
+
+
+# ---------------------------------------------------------------------------
+# ib_addr_mode needs an InfiniBand row (reported by the input validation)
+# ---------------------------------------------------------------------------
+
+_NOIB_HEADER = ("FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,"
+           "ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IPV4,IB_IPV6")
+_NOIB_ROW = ("slurm_node_rhel_10_2_x86_64,grp1,AAA111,,node1,aa:bb:cc:dd:ee:01,"
+              "172.16.107.10,aa:bb:cc:dd:ee:02,172.17.107.10,,,")
+_NOIB_ROW_IB = ("slurm_node_rhel_10_2_x86_64,grp2,BBB222,,node2,aa:bb:cc:dd:ee:03,"
+           "172.16.107.11,aa:bb:cc:dd:ee:04,172.17.107.11,InfiniBand.Slot.3-1,"
+           "192.168.0.11,fd00:1b::11")
+
+
+def _validate_with_mode(tmp_path, mode, rows):
+    """Run the PXE mapping validation on a project folder; return its error list."""
+    ib = {"ipv4_subnet": "192.168.0.0", "ipv4_netmask_bits": "24",
+          "ipv6_subnet": "fd00:1b::", "ipv6_netmask_bits": "64"}
+    if mode:
+        ib["ib_addr_mode"] = mode
+    spec = {"Networks": [{"admin_network": {
+        "oim_nic_name": "eno1", "subnet": "172.16.107.0", "netmask_bits": "24",
+        "primary_oim_admin_ip": "172.16.107.254", "primary_oim_bmc_ip": "",
+        "router": "172.16.107.254", "dynamic_range": "172.16.107.201-172.16.107.250"}},
+        {"ib_network": ib}]}
+    (tmp_path / "network_spec.yml").write_text(yaml.safe_dump(spec), encoding="utf-8")
+    pxe = tmp_path / "pxe_mapping_file.csv"
+    pxe.write_text("\n".join([_NOIB_HEADER, *rows]) + "\n", encoding="utf-8")
+    pxe.chmod(0o640)
+    config = {"pxe_mapping_file_path": str(pxe), "dns_enabled": False}
+    return validate(config, str(tmp_path))
+
+
+@pytest.mark.parametrize("mode", ["dual-stack", "ipv6-only", "ipv4-only"])
+def test_ib_addr_mode_without_an_ib_row_is_reported(tmp_path, mode):
+    """The error names ib_addr_mode, the PXE file, the IB columns and how to fix it."""
+    errors = [e for e in _validate_with_mode(tmp_path, mode, [_NOIB_ROW]) if "ib_addr_mode" in e]
+    assert len(errors) == 1
+    message = errors[0]
+    for expected in (f"ib_addr_mode is '{mode}'", "pxe_mapping_file.csv", "IB_NIC_NAME",
+                     "IB_IPV4 / IB_IPV6", "remove ib_addr_mode", "no InfiniBand"):
+        assert expected in message, f"'{expected}' missing from: {message}"
+
+
+def test_ib_addr_mode_with_one_ib_row_is_accepted(tmp_path):
+    """One node with InfiniBand data is enough; the other rows may have none."""
+    errors = _validate_with_mode(tmp_path, "dual-stack", [_NOIB_ROW, _NOIB_ROW_IB])
+    assert not [e for e in errors if "ib_addr_mode" in e or "IB_" in e]
+
+
+def test_no_ib_addr_mode_needs_no_ib_row(tmp_path):
+    """Without ib_addr_mode the IPoIB pipeline is skipped: rows without IB are fine."""
+    errors = _validate_with_mode(tmp_path, "", [_NOIB_ROW])
+    assert not [e for e in errors if "ib_addr_mode" in e or "IB_" in e]

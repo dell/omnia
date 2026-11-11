@@ -118,9 +118,10 @@ step (if any) and the previous run.
     steps the command runs; another failed step is refused and named. The
     failure is cleared (kept in `retries` of `current_run.json`) and the new
     attempt takes the failed section's place in the report: **one section per
-    stage**, with `(attempt 2)` in its title and the earlier attempts listed
-    in it (status, steps, duration, failed steps). The stage log keeps every
-    attempt (it is appended to). `setup_env.sh --retry` with no action skips
+    stage**, with `(attempt 2)` in its title and only the latest attempt's steps and
+    results (nothing of the earlier attempt is added to them). The earlier attempt is
+    archived as `<run folder>/attempts/<stage>-attempt-<n>.json`, and the stage log keeps
+    every attempt (it is appended to). `setup_env.sh --retry` with no action skips
     configure and the steps this run already passed, so a clean reinstall is
     not repeated.
   - **A new run (`./setup_env.sh --configure`):** a new id and folder. The
@@ -200,7 +201,8 @@ run by hand, the BuildStream validate stage) are never shown under a step.
   test, at the end of every stage and in `summary`.
 - **Repeated sections:** a section that runs again in the same run (a
   `--retry`) replaces the earlier one: one section per stage, titled
-  `(attempt N)`, with the earlier attempts listed in it.
+  `(attempt N)` and holding the latest attempt only; the earlier attempts are archived
+  in `<run folder>/attempts/`.
 - **Masking:** IPs and secrets are masked in the HTML with omnia_auto's own
   redaction; credential prompts are never logged.
 
