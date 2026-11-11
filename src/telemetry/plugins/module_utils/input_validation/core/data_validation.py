@@ -24,7 +24,7 @@ from ansible.module_utils.input_validation.messages import en_us_validation_msg
 from ansible.module_utils.input_validation.core import logical_validation
 
 
-def schema(config):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def schema(config) -> list:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     """
     Validates the input file against a JSON schema.
 
@@ -162,7 +162,7 @@ def _log_line_number(extension, input_file_path, error_key,
 
 
 # Code to run the L2 validation validate_input_logic function.
-def logic(config):  # pylint: disable=too-many-locals
+def logic(config) -> list | bool:  # pylint: disable=too-many-locals
     """
     Validates the logic of the input file.
 

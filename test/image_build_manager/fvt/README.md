@@ -86,7 +86,8 @@ These cases verify the infrastructure created by the `prepare` flow.
 | 4 | IMGBM_FVT_PREPARE_V004 | `test_firewall_ports_open` | sanity | Checks listeners used by the configured S3 backend and registry. | Registry port 5000 is listening; MinIO ports 9000 and 9001 are also required when MinIO is configured. |
 | 5 | IMGBM_FVT_PREPARE_V005 | `test_s3cmd_configured` | sanity | Checks the `s3cmd` executable and client configuration. | `s3cmd` is installed and `/root/.s3cfg` exists. |
 | 6 | IMGBM_FVT_PREPARE_V006 | `test_registry_reachable` | sanity | Calls the configured registry HTTP catalog endpoint. | Endpoint responds successfully and its repositories can be listed. |
-| 7 | IMGBM_FVT_PREPARE_V007 | `test_s3_buckets_after_prepare` | sanity | Lists required S3 buckets through `s3cmd` and reports each bucket name. | Both `s3://boot-images` and `s3://efi` are present. |
+| 7 | IMGBM_FVT_PREPARE_V008 | `test_registry_image_version` | sanity | Inspects the running registry container image. | The active container uses `docker.io/library/registry:3.1.2`. |
+| 8 | IMGBM_FVT_PREPARE_V007 | `test_s3_buckets_after_prepare` | sanity | Lists required S3 buckets through `s3cmd` and reports each bucket name. | Both `s3://boot-images` and `s3://efi` are present. |
 
 ## Build test cases
 
@@ -132,11 +133,32 @@ before artifact verification.
 ### Repo-status contract boundary
 
 The build setup validates `repo_status.yml` only when repository data is
-needed. Required structural keys include status, OS metadata, repo-manager
-metadata, and architecture repository mappings. Managed-repository metadata
-uses a numeric port and may provide certificate paths. Internet mode preserves
-the same structure but may set the port and certificate path strings to empty.
-At least one usable x86_64 repository URL is required for a build.
+needed. Required structural keys include status, OS metadata, and repository
+mappings. Repo-manager port and certificate metadata are optional;
+when present, consumed values are validated. At least one usable repository
+URL for x86_64 or AArch64 is required for a build.
+
+## Catalog-reuse end-to-end test cases
+
+The `build/catalog_reuse` suite owns its build lifecycle. These deploy-marked
+cases execute real builds and immediately assert the reuse/rebuild result. The
+final case restores and verifies the pre-suite input, manifest, and dictionary
+state so later verification reads the same baseline that existed before the
+suite.
+
+| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
+|----------|-------|------|---------|------------|---------------|
+| 1 | IMGBM_FVT_CATALOG_REUSE_V001 | `test_catalog_first_build` | deploy, sanity, x86_64 | Clears the test dictionary and builds the configured catalog groups. | Every expected group has a complete dictionary entry and existing S3 artifacts. |
+| 2 | IMGBM_FVT_CATALOG_REUSE_V002 | `test_catalog_dictionary_reuse` | deploy, sanity, x86_64 | Repeats an unchanged Image Builder catalog build. | Every group reports a dictionary hit and retains its build timestamp. |
+| 3 | IMGBM_FVT_CATALOG_REUSE_V003 | `test_catalog_selective_package_rebuild` | deploy, functional, x86_64 | Adds one valid package alias to one uniquely referenced group. | Only the affected functional group receives a new dictionary entry. |
+| 4 | IMGBM_FVT_CATALOG_REUSE_V004 | `test_catalog_repository_change_rebuild` | deploy, functional, x86_64 | Changes one repository URL. | Every dependent Image Builder group receives a new entry. |
+| 5 | IMGBM_FVT_CATALOG_REUSE_V005 | `test_catalog_force_rebuild` | deploy, functional, x86_64 | Enables `force_rebuild`. | Every current group receives a refreshed build timestamp. |
+| 6 | IMGBM_FVT_CATALOG_REUSE_V006 | `test_catalog_missing_artifact_rebuild` | deploy, regression, x86_64 | Temporarily removes one rootfs object before rebuilding. | The affected group is rebuilt and again has complete artifacts. |
+| 7 | IMGBM_FVT_CATALOG_REUSE_V007 | `test_catalog_switch_to_thrillhouse` | deploy, functional, x86_64 | Switches the engine to Image Thrillhouse. | Distinct Thrillhouse dictionary entries exist for all expected groups. |
+| 8 | IMGBM_FVT_CATALOG_REUSE_V008 | `test_catalog_switch_to_image_builder` | deploy, functional, x86_64 | Switches back to Image Builder. | The manifest selects only `-imgbld` artifacts and all groups are dictionary hits. |
+| 9 | IMGBM_FVT_CATALOG_REUSE_V009 | `test_catalog_versioned_output` | deploy, functional, x86_64 | Builds a unique temporary catalog version. | Latest and catalog-versioned status contracts match and report success. |
+| 10 | IMGBM_FVT_CATALOG_REUSE_V010 | `test_config_mode_cache_isolation` | deploy, regression, x86_64 | Runs config mode after catalog scenarios. | Config mode neither reads nor changes the global catalog dictionary or catalog-versioned status. |
+| 11 | IMGBM_FVT_CATALOG_REUSE_V011 | `test_catalog_suite_restores_target_state` | deploy, regression, x86_64 | Restores the target snapshots created before the suite. | Inputs, latest manifest, dictionary files, and temporary version output match the pre-suite state. |
 
 ### Naming test commands
 
@@ -201,14 +223,15 @@ retains those external resources.
 |-------|---------------|------------------|-------|-------|
 | Precheck | `IMGBM_FVT_PRECHECK_E001` | `IMGBM_FVT_PRECHECK_V001`–`005` | 6 | Execution-host prerequisites. |
 | Validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 | Input and template validation. |
-| Prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`007` | 8 | Infrastructure preparation. |
+| Prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`008` | 9 | Infrastructure preparation. |
 | Build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 | AArch64, artifacts, naming, and package contracts. |
+| Catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`011` | 11 | Real-build reuse, rebuild, isolation, and state restoration scenarios. |
 | Cleanup images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 | Selective image deletion. |
 | Cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 | Full local infrastructure cleanup. |
-| Tagged FVT IDs | | | 51 | IDs emitted by tagged flows. |
+| Tagged FVT IDs | | | 63 | IDs emitted by tagged flows. |
 | Full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 | Alternate ID for the build deploy function. |
 
-There are 51 physical FVT functions. The registry contains 52 reportable IDs
+There are 63 physical FVT functions. The registry contains 64 reportable IDs
 because the build deploy function can emit either `IMGBM_FVT_BUILD_E001` or `IMGBM_FVT_FULL_E001`.
 
 ## Legacy ID migration

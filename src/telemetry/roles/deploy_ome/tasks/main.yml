@@ -16,9 +16,7 @@
 # =============================================================================
 # deploy_ome — Orchestrator
 # =============================================================================
-# Auto-determines state from telemetry_config.yml:
-#   telemetry_sources.ome.metrics_enabled OR
-#   telemetry_sources.ome.logs_enabled
+# Reconciles OME on every deploy, including the fully disabled state.
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -27,15 +25,33 @@
     tasks_from: load_telemetry_config
   when: telemetry_config is not defined
 
-- name: Determine OME telemetry state from config
+- name: Validate OME source-to-bridge dependencies
+  ansible.builtin.include_tasks: validate_dependencies.yml
+
+- name: Determine effective OME channel states from config
   ansible.builtin.set_fact:
-    ome_enabled: >-
+    ome_metrics_enabled: >-
       {{
         (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool)
-        or
-        (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)
+        and
+        (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool)
       }}
-  when: telemetry_config is defined
+    ome_logs_enabled: >-
+      {{
+        (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)
+        and
+        (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool)
+      }}
+    ome_enabled: >-
+      {{
+        ((telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool)
+         and
+         (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool))
+        or
+        ((telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)
+         and
+         (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool))
+      }}
 
 - name: Enable OME telemetry
   ansible.builtin.include_tasks: enable.yml

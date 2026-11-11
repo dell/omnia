@@ -19,8 +19,10 @@ Validates cross-field credential constraints:
   - postgres_user/password required for database deployment
 """
 
+from typing import List
 
-def validate(cred_data, config_data, logger=None):
+
+def validate(cred_data, config_data, logger=None) -> List[str]:
     """
     Validate build_stream_credentials.yml business logic.
 

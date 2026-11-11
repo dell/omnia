@@ -35,6 +35,12 @@ class Job:
         request_client_id: Client ID from request payload.
         job_state: Current lifecycle state.
         client_name: Optional client name.
+        composite_image_group_id: Composite catalog identity
+            (``identifier-vVersion``). Populated after parse-catalog.
+        catalog_identifier: Catalog identifier (e.g.
+            "omnia-slurm-rhel-10-0-x86-64-aarch64").
+        catalog_version: Catalog version (e.g. "1.0").
+        catalog_schema_version: Structural schema version (integer).
         created_at: Job creation timestamp.
         updated_at: Last modification timestamp.
         version: Optimistic locking version.
@@ -46,6 +52,10 @@ class Job:
     request_client_id: str
     client_name: Optional[str] = None
     job_state: JobState = JobState.CREATED
+    composite_image_group_id: Optional[str] = None
+    catalog_identifier: Optional[str] = None
+    catalog_version: Optional[str] = None
+    catalog_schema_version: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     version: int = 1

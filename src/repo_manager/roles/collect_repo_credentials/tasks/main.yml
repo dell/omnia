@@ -15,11 +15,10 @@
 # Load, reconcile, and atomically persist Pulp, Docker Hub, and configured
 # registry credentials. The canonical credential file is never decrypted in place.
 
-- name: Load lowercase registry configuration
-  ansible.builtin.include_vars:
-    file: "{{ repo_manager_config_file }}"
-    name: _repo_manager_config_data
-  no_log: true
+- name: Load validated lowercase registry configuration
+  ansible.builtin.include_role:
+    name: ../../roles/repo_manager_setup
+    tasks_from: load_repo_manager_config.yml
 
 - name: Ensure credential directory exists
   ansible.builtin.file:
@@ -176,7 +175,7 @@
   vars:
     _registry_requirements_yaml: >-
       {% set requirements = [] %}
-      {% for registry_name, registry_config in (_repo_manager_config_data.registries | default({}) or {}).items() %}
+      {% for registry_name, registry_config in (repo_manager_config_data.registries | default({}) or {}).items() %}
       {% set auth = registry_config.auth | default({}) %}
       {% if auth.type | default('none') == 'basic' %}
       {% set _ = requirements.append({

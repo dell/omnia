@@ -51,6 +51,6 @@ extensions = {
 }
 
 
-def get_vault_password(file_name):
+def get_vault_password(file_name) -> str:
     """Returns the vault password filename for a given input file (unused in telemetry)."""
     return ""

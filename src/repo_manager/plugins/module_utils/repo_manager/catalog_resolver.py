@@ -51,6 +51,7 @@ from ansible.module_utils.repo_manager.security_utils import (
     validate_artifact_url,
     validate_repository_url,
 )
+from ansible.module_utils.repo_manager.yaml_safety import load_runtime_yaml
 
 
 class CatalogResolutionError(ValueError):
@@ -633,58 +634,6 @@ def build_global_package_index(catalogs, logger, catalog_context=None):
 
 
 # ---------------------------------------------------------------------------
-# Task List Generation from Global Index
-# ---------------------------------------------------------------------------
-
-def build_tasklist_from_index(global_index, arch, logger):
-    """Build a task list from the global package index for a given architecture.
-
-    Groups packages by their group_name and returns a dict suitable for
-    consumption by transform_package_dict and the parallel execution framework.
-
-    Args:
-        global_index (dict): Output from build_global_package_index.
-        arch (str): Architecture to build tasks for.
-        logger: Logger instance.
-
-    Returns:
-        dict: group_name -> list of task dicts (package entries with type, package, etc.)
-    """
-    if arch not in global_index:
-        logger.info("No packages found in global index for arch %s", arch)
-        return {}
-
-    tasks_by_group = {}
-    for _hash, info in global_index[arch].items():
-        group_name = info["group_name"]
-        pkg_def = dict(info["definition"])
-
-        # Normalize field names to lowercase for parallel_tasks compatibility
-        if "type" not in pkg_def:
-            pkg_def["type"] = pkg_def.get("packagetype", "rpm")
-        if "package" not in pkg_def:
-            pkg_def["package"] = pkg_def.get("name", info["package_name"])
-        if "version" not in pkg_def:
-            pkg_def["version"] = pkg_def.get("tag", "")
-        # For container images, normalize tag
-        if "tag" not in pkg_def and "tag" in info.get("definition", {}):
-            pkg_def["tag"] = info["definition"]["tag"]
-
-        # Ensure catalog_name is attached for status tracking
-        pkg_def["catalog_name"] = info["catalog_name"]
-        pkg_def["catalogs"] = info["catalogs"]
-
-        if group_name not in tasks_by_group:
-            tasks_by_group[group_name] = []
-        tasks_by_group[group_name].append(pkg_def)
-
-    logger.info("Built task list for arch %s: %d groups, %d total packages",
-                arch, len(tasks_by_group),
-                sum(len(v) for v in tasks_by_group.values()))
-    return tasks_by_group
-
-
-# ---------------------------------------------------------------------------
 # Repo URL Extraction from New Config Format
 # ---------------------------------------------------------------------------
 
@@ -774,8 +723,9 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
         os_version (str): OS version key.
         logger: Logger instance.
         global_caching_policy (bool): Global caching policy from config (default: True).
-        referenced_repo_names (iterable): Optional catalog-selected repository
-            names. Repositories outside this set are ignored before URL parsing.
+        referenced_repo_names (iterable): Retained for caller compatibility.
+            Additional repositories are intentionally independent of catalog
+            repository mappings, so this value is ignored.
 
     Returns:
         list[dict]: List of additional repo entries.
@@ -784,17 +734,13 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
     additional = arch_repos.get("additional_repos", {})
-    referenced_repos = (
-        set(referenced_repo_names) if referenced_repo_names is not None else None
-    )
+    del os_type, referenced_repo_names
 
     if not additional or not isinstance(additional, dict):
         return []
 
     parsed = []
     for repo_name, repo_def in additional.items():
-        if referenced_repos is not None and repo_name not in referenced_repos:
-            continue
         if not isinstance(repo_def, dict):
             continue
         url = repo_def.get("url", "")
@@ -802,14 +748,11 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
             continue
         url = validate_repository_url(url)
 
-        # Normalize repo name to standard format
-        normalized_name = normalize_repo_name(
-            repo_name, arch, os_type or DEFAULT_OS_TYPE, os_version
-        )
-
         parsed.append({
-            "name": normalized_name,
-            "original_name": repo_name,  # Keep original for reference
+            # Source names remain logical names. The aggregate repository owns
+            # the standard context-qualified Pulp name.
+            "name": repo_name,
+            "original_name": repo_name,
             "url": url,
             "gpgkey": repo_def.get("gpgkey", ""),
             "policy": repo_def.get("policy", repo_config_policy),
@@ -888,31 +831,12 @@ def parse_user_repos_from_config(config_data, os_version, arch,
     return parsed
 
 
-def parse_registries_from_config(config_data, logger):
-    """Parse container registry configurations from repo_manager_config.yml.
-
-    Args:
-        config_data (dict): Loaded repo_manager_config.yml data.
-        logger: Logger instance.
-
-    Returns:
-        dict: registry_name -> registry config dict.
-    """
-    registries = config_data.get("registries", {})
-    if not registries:
-        logger.info("No registries configured")
-        return {}
-
-    logger.info("Parsed %d registry entries", len(registries))
-    return registries
-
-
 # ---------------------------------------------------------------------------
 # Config Loading Helper
 # ---------------------------------------------------------------------------
 
 def load_repo_manager_config(config_path, logger):
-    """Load and parse the repo_manager_config.yml file.
+    """Load literal repo_manager_config.yml data through the safety boundary.
 
     Args:
         config_path (str): Path to repo_manager_config.yml.
@@ -923,9 +847,7 @@ def load_repo_manager_config(config_path, logger):
             config_data (dict): Parsed YAML data.
             is_catalog_based (bool): Always True (catalog-based is the only mode).
     """
-    import yaml
-    with open(config_path, 'r', encoding='utf-8') as fh:
-        config_data = yaml.safe_load(fh) or {}
+    config_data, _ = load_runtime_yaml(config_path)
 
     logger.info("Loaded catalog-based configuration from %s", config_path)
     return config_data, True

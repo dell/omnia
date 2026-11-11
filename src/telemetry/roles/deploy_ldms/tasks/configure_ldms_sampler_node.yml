@@ -1,0 +1,40 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_ldms — Bootstrap and configure the LDMS sampler on one reachable node
+# =============================================================================
+# This is the enable-only counterpart to enable.yml for Slurm nodes: enable.yml
+# runs on kube_vip_group and cannot reach these hosts directly, so Play 2 of
+# the deploy_ldms playbook runs this task file in parallel across the
+# ldms_deploy_reachable group (populated by enable.yml's
+# build_deployment_inventory step in Play 1). Bundling the bootstrap steps
+# here keeps the playbook itself to a single include, with no logic
+# duplicated between Play 1 and Play 2.
+# =============================================================================
+
+- name: Propagate telemetry credentials from localhost
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: propagate_telemetry_credentials
+
+- name: Load telemetry configuration (only if not already loaded)
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
+
+- name: Configure LDMS sampler on reachable node
+  ansible.builtin.include_tasks: configure_ldms_sampler.yml

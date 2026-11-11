@@ -20,8 +20,10 @@ Validates cross-field constraints that cannot be expressed in JSON Schema:
   - Host IP addresses must be non-empty strings
 """
 
+from typing import List
 
-def validate(config_data, logger=None):
+
+def validate(config_data, logger=None) -> List[str]:
     """
     Validate build_stream_config.yml business logic.
 

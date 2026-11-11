@@ -100,7 +100,7 @@ See the authoritative test-case registries:
 
 - [fvt/README.md](fvt/README.md) -- FVT test-case registry (117 tests)
 - [nft/README.md](nft/README.md) -- NFT test-case registry (5 tests)
-- [ut/README.md](ut/README.md) -- UT test-case registry (141 tests)
+- [ut/README.md](ut/README.md) -- UT test-case registry (205 tests)
 - [docs/TEST_CASES.md](docs/TEST_CASES.md) -- Consolidated summary
 
 ## Directory Structure
@@ -197,9 +197,9 @@ The test framework is organized into several categories:
 | **User Registry Tests** | Test user registry configuration and validation | 15 |
 | **Negative Tests** | Test error scenarios | 10 |
 | **Catalog Tests** | Catalog generate, add, delete, validate, and negative | 30 |
-| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 141 |
+| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 205 |
 | **Non-Functional Tests** | Idempotency, performance, and security | 5 |
-| | **Total** | **263** |
+| | **Total** | **327** |
 
 ## Test Markers
 

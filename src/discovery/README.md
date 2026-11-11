@@ -26,7 +26,7 @@ ansible-galaxy collection install omnia.discovery
 | `omnia.discovery.discovery_credentials` | Credential prompting, encryption, vault |
 | `omnia.discovery.discovery_common` | Shared task library (vault and OME endpoint helpers) |
 | `omnia.discovery.ome_discovery` | OME-specific discovery, inventory, PXE mapping |
-| `omnia.discovery.discovery_cleanup` | Project output and credential cleanup |
+| `omnia.discovery.discovery_cleanup` | Project output, runtime-log, and credential cleanup |
 
 ### Modules
 
@@ -110,19 +110,29 @@ unset or empty, it defaults to `$OMNIA_DATA_PATH/discovery`.
 
 Full cleanup does not remove or create the current project's Discovery output
 directory. When the directory exists, cleanup removes every entry inside it
-and leaves the empty directory in place. It also removes the encrypted
-credential file and vault key:
+and leaves the empty directory in place. It also resets the current project's
+runtime log directory to an empty directory, removes the Discovery Ansible
+execution-log directory, and removes the encrypted credential file and vault
+key:
 
 ```bash
 ansible-playbook playbooks/discovery.yml --tags cleanup
 ```
 
 Preserve the credential file and vault key while still removing all generated
-output contents:
+output and runtime-log contents:
 
 ```bash
 ansible-playbook playbooks/discovery.yml --tags cleanup \
   -e cleanup_credentials=false
+```
+
+Preserve the current project's runtime and Ansible execution logs while still
+cleaning generated outputs and credentials:
+
+```bash
+ansible-playbook playbooks/discovery.yml --tags cleanup \
+  -e cleanup_logs=false
 ```
 
 Other files under the Discovery input project directory are never removed.
@@ -135,7 +145,8 @@ ansible-playbook playbooks/discovery.yml --tags cleanup_credentials
 The explicit `cleanup_credentials` tag always removes the credential artifacts,
 even when it is combined with `cleanup` and
 `-e cleanup_credentials=false`. Cleanup is limited to the project selected by
-`OMNIA_PROJECT_NAME`; Discovery log files are preserved.
+`OMNIA_PROJECT_NAME`. Runtime logs are removed by default; preserving them can
+block guarded global cleanup until they are removed.
 
 For a complete Omnia reset, run the Discovery cleanup tag first, then run the
 guarded global cleanup from `src/main`:
@@ -149,6 +160,26 @@ sudo ./omnia.sh --cleanup --all
 initializer-owned staged input and domain log paths. It does not replace the
 Ansible cleanup tag. Both global cleanup modes prompt for `yes`; trusted
 automation can add `--skip-approval`.
+
+### Functional Groups
+
+Discovery assigns `FUNCTIONAL_GROUP_NAME` based on OME static groups:
+
+| Scenario | Result |
+|----------|--------|
+| Valid OME static group | Uses OME group name |
+| Invalid OME static group | Default: `slurm_node_rhel_10_0_aarch64` |
+| No OME static group | Default: `slurm_node_rhel_10_0_aarch64` |
+
+**Valid pattern:** `<prefix>_rhel_<major>_<minor>_(x86_64|aarch64)`
+
+Examples:
+- ✅ `slurm_node_rhel_10_0_x86_64`
+- ✅ `login_node_rhel_10_2_aarch64`
+- ❌ `login_node` (missing `_rhel_<version>_<arch>`)
+
+> **Note:** Discovery does not read from catalog. The default functional group
+> is a fixed value with no external dependencies.
 
 ### Logs
 

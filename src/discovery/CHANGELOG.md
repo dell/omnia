@@ -11,6 +11,9 @@ All notable changes to the `omnia.discovery` collection will be documented in th
 
 ### Changed
 - Galaxy version set to 2.3.0.
+- Discovery cleanup now removes current-project runtime logs and
+  `/var/log/omnia/discovery` by default, and supports `cleanup_logs=false`
+  when log retention is required.
 
 ## [3.0.0] - 2026-07-30
 

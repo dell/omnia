@@ -14,7 +14,7 @@
 ---
 galaxy_info:
   author: Dell Technologies
-  description: Domain setup role for Build Stream — resolves input/output directories, loads OIM metadata, and guards against upgrades
+  description: Domain setup role for Build Stream — resolves input/output directories and loads OIM metadata
   license: Apache-2.0
   min_ansible_version: "2.14"
   platforms:

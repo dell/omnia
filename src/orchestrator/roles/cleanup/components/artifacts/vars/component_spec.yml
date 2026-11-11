@@ -23,5 +23,4 @@ artifacts_config:
   cleanup_framework_artifacts:
     - "{{ orchestrator_data_path }}/log/cleanup"
     - "/var/lib/omnia/cleanup"
-  preserve_inputs:
-    - "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
+  preserve_inputs: []

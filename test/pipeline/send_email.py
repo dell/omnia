@@ -66,21 +66,50 @@ domains = os.environ.get("DOMAINS", "default")
 test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
 cluster_name = os.environ.get("CLUSTER", os.environ.get("CLUSTER_NAME", ""))
 cluster_ip = os.environ.get("TARGET_IP", "")
+utils_enable = os.environ.get("UTILS_ENABLE", "false").lower() == "true"
+utils_mode = os.environ.get("UTILS_MODE", "default_logs")
+build_stream_enable = os.environ.get("BUILD_STREAM_ENABLE", "false").lower() == "true"
+enable_discovery = os.environ.get("ENABLE_DISCOVERY", "false").lower() == "true"
+target_user = os.environ.get("TARGET_USER", "")
+target_pass = os.environ.get("TARGET_PASS", "")
+omnia_install_path = os.environ.get("OMNIA_INSTALL_PATH", "")
 
-# Get the current commit ID of the omnia repository
-# Priority: CI_COMMIT_SHA (from GitLab CI) > git rev-parse HEAD (local) > unknown
-commit_id = os.environ.get("CI_COMMIT_SHA", "")
-if not commit_id:
+# Get the actual commit ID from the cloned repo on target server
+# SSH into target server and run: cd $OMNIA_INSTALL_PATH && git rev-parse HEAD
+commit_id = "unknown"
+print(f"Attempting to get commit ID from target server: {cluster_ip}")
+print(f"Install path: {omnia_install_path}")
+
+if cluster_ip and target_user and target_pass and omnia_install_path:
     try:
+        # Use sshpass to SSH into target and get commit ID
+        ssh_cmd = [
+            "sshpass", "-p", target_pass,
+            "ssh", "-o", "StrictHostKeyChecking=no",
+            f"{target_user}@{cluster_ip}",
+            f"cd {omnia_install_path} && git rev-parse HEAD"
+        ]
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
+            ssh_cmd,
             capture_output=True,
             text=True,
-            check=True
+            timeout=30
         )
-        commit_id = result.stdout.strip()
-    except Exception:
-        commit_id = "unknown"
+        if result.returncode == 0:
+            commit_id = result.stdout.strip()
+            print(f"✓ Successfully retrieved commit ID from target server: {commit_id}")
+        else:
+            print(f"✗ SSH command failed: {result.stderr}")
+    except Exception as e:
+        print(f"✗ Error connecting to target server: {e}")
+else:
+    print(f"Missing required variables for SSH connection:")
+    print(f"  TARGET_IP: {cluster_ip}")
+    print(f"  TARGET_USER: {target_user}")
+    print(f"  TARGET_PASS: {'***' if target_pass else 'NOT SET'}")
+    print(f"  OMNIA_INSTALL_PATH: {omnia_install_path}")
+
+print(f"Final commit ID: {commit_id}")
 
 # ---------------------------------------------------------------------------
 missing = []
@@ -111,35 +140,114 @@ print(f"Trigger time: {trigger_time}")
 print(f"Test reports path: {TEST_REPORTS_PATH}")
 
 # ---------------------------------------------------------------------------
+# Helper function to load job statuses
+# ---------------------------------------------------------------------------
+def load_job_statuses():
+    """Load job statuses from the JSON file written by the pipeline."""
+    status_file = "pipeline_reports/job_statuses.json"
+    if not os.path.exists(status_file):
+        return {}
+    try:
+        with open(status_file, "r", encoding="utf-8") as f:
+            jobs = json.load(f)
+        if not isinstance(jobs, list):
+            return {}
+        return {job["name"]: job.get("status", "unknown") for job in jobs if "name" in job}
+    except Exception as e:
+        print(f"Error loading job statuses: {e}")
+        return {}
+
+# ---------------------------------------------------------------------------
 # Collect test report summary
 test_reports_summary = ""
 test_report_files = []
+
+# Load job statuses to determine which tests actually ran
+job_statuses = load_job_statuses()
+
+# Build set of test stages that actually executed (status is not "unknown")
+_test_stage_map = {
+    "main": "test_main_installation",
+    "repo_manager": "test_repo_manager",
+    "image_build_manager": "test_image_build_manager",
+    "discovery": "test_discovery",
+    "orchestrator": "test_orchestrator",
+    "telemetry": "test_telemetry",
+    "build_stream": "test_build_stream",
+}
+executed_test_domains = set()
+for domain, stage in _test_stage_map.items():
+    status = job_statuses.get(stage)
+    if status and status not in ("unknown", "created"):
+        executed_test_domains.add(domain)
+print(f"Test stages that executed: {sorted(executed_test_domains)}")
+
+
+def _domain_from_filename(filename, domain_order):
+    """Extract domain name from a report filename."""
+    # Try exact patterns first (most specific)
+    for d in domain_order:
+        if (f"_{d}_report" in filename or f"_{d}_test_report" in filename or
+                f"{d}_test_report" in filename or f"{d}_report" in filename):
+            return d
+    # Fallback to substring matching
+    for d in domain_order:
+        if d in filename:
+            return d
+    return None
+
+
 if os.path.exists(TEST_REPORTS_PATH):
+    domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
+
     json_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.json"))
     html_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.html"))
-    test_report_files = sorted(json_files + html_files)
 
     print(f"Test reports directory contents: {TEST_REPORTS_PATH}")
     for f in sorted(os.listdir(TEST_REPORTS_PATH)):
         print(f"  {f}")
 
-    if json_files:
-        print(f"Found {len(json_files)} JSON test report(s)")
+    # Filter: only include reports for domains whose test stage actually ran
+    filtered_json_files = []
+    filtered_html_files = []
+
+    for fpath in json_files:
+        domain = _domain_from_filename(os.path.basename(fpath), domain_order)
+        if domain and domain in executed_test_domains:
+            filtered_json_files.append(fpath)
+            print(f"  Including JSON report: {os.path.basename(fpath)} (domain={domain})")
+        else:
+            print(f"  Skipping JSON report: {os.path.basename(fpath)} (domain={domain}, test did not run)")
+
+    for fpath in html_files:
+        domain = _domain_from_filename(os.path.basename(fpath), domain_order)
+        if domain and domain in executed_test_domains:
+            filtered_html_files.append(fpath)
+            print(f"  Including HTML report: {os.path.basename(fpath)} (domain={domain})")
+        else:
+            print(f"  Skipping HTML report: {os.path.basename(fpath)} (domain={domain}, test did not run)")
+
+    test_report_files = sorted(filtered_json_files + filtered_html_files)
+
+    if filtered_json_files:
+        print(f"Found {len(filtered_json_files)} JSON test report(s)")
         # Aggregate summary across all JSON reports with per-domain breakdown
         try:
-            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+            domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
             domain_summaries = {}
             total_passed = 0
             total_failed = 0
             total_skipped = 0
 
-            for json_file in json_files:
+            for json_file in filtered_json_files:
                 with open(json_file, "r", encoding="utf-8") as f:
                     report_data = json.load(f)
 
                 # Extract domain from filename using multiple patterns
                 filename = os.path.basename(json_file)
                 domain = None
+                
+                # Try exact patterns first (most specific)
                 for d in domain_order:
                     if (
                         f"_{d}_report" in filename
@@ -149,14 +257,18 @@ if os.path.exists(TEST_REPORTS_PATH):
                     ):
                         domain = d
                         break
+                
+                # If no match, try substring matching (less specific)
                 if not domain:
-                    # Try to match domain name anywhere in filename (substring)
                     for d in domain_order:
                         if d in filename:
                             domain = d
                             break
+                
+                # If still no match, skip this file (don't create "unknown" entries)
                 if not domain:
-                    domain = "unknown"
+                    print(f"  WARNING: Could not determine domain for {filename}, skipping")
+                    continue
 
                 print(f"  Processing report: {filename} -> domain: {domain}")
 
@@ -232,12 +344,16 @@ if os.path.exists(TEST_REPORTS_PATH):
                 total_failed += failed
                 total_skipped += skipped
 
-            # Build per-domain table
+            # Build per-domain table showing ALL domains with appropriate status
             domain_rows = ""
+            row_idx = 0
             for domain in domain_order:
+                bg = "#f8f9fa" if row_idx % 2 == 0 else "#ffffff"
+                row_idx += 1
+
                 if domain in domain_summaries:
+                    # Has report data — show counts
                     ds = domain_summaries[domain]
-                    bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
                     domain_rows += f"""\
         <tr style="background-color: {bg};">
             <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
@@ -245,16 +361,19 @@ if os.path.exists(TEST_REPORTS_PATH):
             <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
             <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
         </tr>"""
-            # Include any domains not in the standard order (e.g. "unknown")
-            for domain in sorted(domain_summaries.keys()):
-                if domain not in domain_order:
-                    ds = domain_summaries[domain]
+                elif domain in executed_test_domains:
+                    # Test ran but no report file generated
                     domain_rows += f"""\
-        <tr style="background-color: #f8f9fa;">
+        <tr style="background-color: {bg};">
             <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: #6c757d;" colspan="3" align="center">No Report</td>
+        </tr>"""
+                else:
+                    # Test did not run
+                    domain_rows += f"""\
+        <tr style="background-color: {bg};">
+            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: #6c757d;" colspan="3" align="center">Not Executed</td>
         </tr>"""
 
             test_reports_summary = f"""
@@ -281,7 +400,41 @@ if os.path.exists(TEST_REPORTS_PATH):
             traceback.print_exc()
             test_reports_summary = "<p><em>Test reports are attached to this email.</em></p>"
     else:
-        test_reports_summary = "<p><em>No test reports found.</em></p>"
+        # No JSON reports found, but still show domain status table if tests ran
+        if executed_test_domains:
+            domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
+            domain_rows = ""
+            row_idx = 0
+            for domain in domain_order:
+                bg = "#f8f9fa" if row_idx % 2 == 0 else "#ffffff"
+                row_idx += 1
+                if domain in executed_test_domains:
+                    domain_rows += f"""\
+        <tr style="background-color: {bg};">
+            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: #6c757d;" colspan="3" align="center">No Report</td>
+        </tr>"""
+                else:
+                    domain_rows += f"""\
+        <tr style="background-color: {bg};">
+            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: #6c757d;" colspan="3" align="center">Not Executed</td>
+        </tr>"""
+            test_reports_summary = f"""
+    <h3>Test Execution Summary</h3>
+    <table style="border-collapse: collapse; margin: 10px 0;">
+        <tr style="background-color: #343a40; color: white;">
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: left;">Domain</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Passed</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Failed</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Skipped</th>
+        </tr>
+{domain_rows}
+    </table>
+    <p><em>No test report files found.</em></p>
+"""
+        else:
+            test_reports_summary = "<p><em>No test reports found.</em></p>"
 else:
     print(f"Test reports directory not found: {TEST_REPORTS_PATH}")
 
@@ -292,11 +445,12 @@ else:
 # Stage ordering per pipeline mode
 STAGE_ORDER_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_telemetry", "cleanup_orchestrator",
-    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
     "setup_main", "test_main_installation",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
+    "discovery", "test_discovery",
     "orchestrator", "test_orchestrator",
     "telemetry", "test_telemetry",
     "summary",
@@ -305,14 +459,45 @@ STAGE_ORDER_DEPLOY = [
     "initialization", "setup_environment",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
+    "discovery", "test_discovery",
     "orchestrator", "test_orchestrator",
     "telemetry", "test_telemetry",
     "summary",
 ]
 STAGE_ORDER_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_telemetry", "cleanup_orchestrator",
-    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
+    "summary",
+]
+# Stage ordering for UTILS_ENABLE (utils pipeline)
+STAGE_ORDER_UTILS = [
+    "initialization", "setup_environment",
+    "install_os", "log_collection_cluster", "log_collection_oim",
+    "test_utils",
+    "summary",
+]
+# Stage ordering for BUILD_STREAM_ENABLE (build_stream pipeline)
+STAGE_ORDER_BUILD_STREAM_DEFAULT = [
+    "initialization", "setup_environment",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
+    "setup_main", "test_main_installation", "prepare_base",
+    "test_repo_manager", "test_image_build_manager", "test_orchestrator",
+    "build_stream", "test_build_stream",
+    "summary",
+]
+STAGE_ORDER_BUILD_STREAM_DEPLOY = [
+    "initialization", "setup_environment",
+    "test_main_installation", "prepare_base",
+    "test_repo_manager", "test_image_build_manager", "test_orchestrator",
+    "build_stream", "test_build_stream",
+    "summary",
+]
+STAGE_ORDER_BUILD_STREAM_CLEANUP = [
+    "initialization", "setup_environment",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
     "summary",
 ]
 
@@ -329,31 +514,31 @@ STATUS_STYLES = {
 }
 
 
-def load_job_statuses():
-    """Load job statuses from the JSON file written by the pipeline."""
-    status_file = "pipeline_reports/job_statuses.json"
-    if not os.path.exists(status_file):
-        return {}
-    try:
-        with open(status_file, "r", encoding="utf-8") as f:
-            jobs = json.load(f)
-        if not isinstance(jobs, list):
-            return {}
-        return {job["name"]: job.get("status", "unknown") for job in jobs if "name" in job}
-    except Exception as e:
-        print(f"Error loading job statuses: {e}")
-        return {}
-
-
-def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
+def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_utils_pipeline=False, is_build_stream_pipeline=False, enable_discovery=False):
     """Return stages applicable to the selected mode and domains."""
+    if is_utils_pipeline:
+        # Use utils pipeline stages when UTILS_ENABLE is true
+        return STAGE_ORDER_UTILS
+    
+    if is_build_stream_pipeline:
+        # Use build_stream pipeline stages with mode awareness
+        return {
+            "cleanup": STAGE_ORDER_BUILD_STREAM_CLEANUP,
+            "deploy": STAGE_ORDER_BUILD_STREAM_DEPLOY,
+        }.get(mode, STAGE_ORDER_BUILD_STREAM_DEFAULT)
+    
     order = {
         "cleanup": STAGE_ORDER_CLEANUP,
         "deploy": STAGE_ORDER_DEPLOY,
     }.get(mode, STAGE_ORDER_DEFAULT)
     domain_names = {
-        "repo_manager", "image_build_manager", "orchestrator", "telemetry",
+        "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry",
     }
+    # Discovery stages only appear when ENABLE_DISCOVERY is true
+    discovery_stages = {"discovery", "test_discovery"}
+    # cleanup_discovery always runs regardless of ENABLE_DISCOVERY
+    # Infrastructure cleanup stages that only run when DOMAINS == "default"
+    infrastructure_cleanup_stages = {"cleanup_build_stream", "cleanup_utils"}
     selected = domain_names if selected_domains == "default" else {
         value.strip() for value in re.split(r"[,|]", selected_domains) if value.strip()
     }
@@ -361,6 +546,12 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
     for stage in order:
         domain = stage.removeprefix("cleanup_").removeprefix("test_")
         if domain in domain_names and domain not in selected:
+            continue
+        # Skip infrastructure cleanup stages when DOMAINS != "default"
+        if stage in infrastructure_cleanup_stages and selected_domains != "default":
+            continue
+        # Skip discovery deploy/test stages when ENABLE_DISCOVERY is false
+        if stage in discovery_stages and not enable_discovery:
             continue
         if stage.startswith("test_") and stage != "test_main_installation" and not include_tests:
             continue
@@ -374,10 +565,10 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
     return applicable
 
 
-def build_stage_table_html(job_statuses, mode, selected_domains, include_tests):
+def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, is_utils_pipeline=False, is_build_stream_pipeline=False, enable_discovery=False):
     """Build an HTML table showing each applicable stage and its status."""
     stage_order = pick_stage_order(
-        mode, selected_domains, include_tests, job_statuses
+        mode, selected_domains, include_tests, job_statuses, is_utils_pipeline, is_build_stream_pipeline, enable_discovery
     )
     rows = []
     has_failure = False
@@ -421,7 +612,7 @@ def build_stage_table_html(job_statuses, mode, selected_domains, include_tests):
 # Load job statuses and build table
 job_statuses = load_job_statuses()
 stage_table_html, has_failure, failed_stage = build_stage_table_html(
-    job_statuses, pipeline_mode, domains, test_mode
+    job_statuses, pipeline_mode, domains, test_mode, utils_enable, build_stream_enable, enable_discovery
 )
 
 if not job_statuses:

@@ -28,6 +28,15 @@
   ansible.builtin.import_tasks: cleanup_credentials.yml
   tags: credentials
 
+- name: Remove BuildStream host playbook logs after successful cleanup
+  ansible.builtin.file:
+    path: "{{ build_stream_host_log_directory }}"
+    state: absent
+    force: true
+  register: build_stream_host_log_deletion
+  until: build_stream_host_log_deletion is not failed
+  retries: "{{ max_retries }}"
+
 - name: Display cleanup summary
   ansible.builtin.debug:
     msg: "{{ cleanup_summary_msg | split('\n') }}"

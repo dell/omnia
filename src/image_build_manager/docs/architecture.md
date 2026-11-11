@@ -42,8 +42,6 @@ ansible-playbook image_build_manager.yml --tags build           # Build images o
 ansible-playbook image_build_manager.yml --tags execute         # Build images (alias for build)
 ansible-playbook image_build_manager.yml --tags cleanup         # Remove all infrastructure
 ansible-playbook image_build_manager.yml --tags cleanup_images  # Delete built images only
-ansible-playbook image_build_manager.yml --tags upgrade         # Placeholder; no action yet
-ansible-playbook image_build_manager.yml --tags rollback        # Placeholder; no action yet
 ```
 
 Only the tags above are accepted by the top-level validator. The `x86_64` and
@@ -62,7 +60,6 @@ top-level architecture selectors.
 | `build` / `execute` | Yes | Yes | Yes | build x86_64/aarch64 + write_status | Yes |
 | `cleanup` | Yes | **No** | **No** | cleanup_image_build_manager | No |
 | `cleanup_images` | Yes | **No** | **No** | cleanup_images | No |
-| `upgrade` / `rollback` | Yes | Yes | Yes | placeholder only | No |
 
 ### Invalid Tag Combinations
 
@@ -193,8 +190,8 @@ s3_configurations:
 functional_group_images:
   - x86_64:
     - functional_group: "slurm_node_x86_64"
-      kernel: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/vmlinuz"
-      initrd: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/initramfs.img"
+      kernel: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/vmlinuz-6.12.0-55.103.1.el10_0.x86_64"
+      initrd: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/initramfs-6.12.0-55.103.1.el10_0.x86_64.img"
       image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
 
@@ -223,8 +220,8 @@ boot-images/
 
 ```text
 boot-images/<functional_group>/<image_name>-imgth/<release>/
-+-- vmlinuz
-+-- initramfs.img
++-- vmlinuz-<kernel-version>
++-- initramfs-<kernel-version>.img
 +-- rootfs.squashfs
 ```
 

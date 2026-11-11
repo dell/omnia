@@ -87,6 +87,10 @@ TEST_CASES = {
         "id": "IMGBM_FVT_PREPARE_V007",
         "title": "Verify required S3 buckets exist after prepare",
     },
+    "registry_image_version": {
+        "id": "IMGBM_FVT_PREPARE_V008",
+        "title": "Verify registry container uses version 3.1.2",
+    },
     # ── Build ─────────────────────────────────────────────────────────────
     "s3_images_x86_64": {
         "id": "IMGBM_FVT_BUILD_V006",
@@ -165,6 +169,51 @@ TEST_CASES = {
     "artifact_suffix_isolation": {
         "id": "IMGBM_FVT_BUILD_V017",
         "title": "Verify -imgbld and -imgth artifact paths are fully isolated",
+    },
+    # -- Build: catalog reuse and rebuild policy ---------------------------
+    "catalog_first_build": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V001",
+        "title": "Build images on a global dictionary miss",
+    },
+    "catalog_dictionary_reuse": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V002",
+        "title": "Reuse images on a valid global dictionary hit",
+    },
+    "catalog_selective_package_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V003",
+        "title": "Rebuild only the functional group whose packages changed",
+    },
+    "catalog_repository_change_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V004",
+        "title": "Rebuild images when repository configuration changes",
+    },
+    "catalog_force_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V005",
+        "title": "Bypass dictionary reuse when force_rebuild is enabled",
+    },
+    "catalog_missing_artifact_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V006",
+        "title": "Rebuild a dictionary hit with a missing S3 artifact",
+    },
+    "catalog_switch_to_thrillhouse": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V007",
+        "title": "Build new artifacts after switching to image-thrillhouse",
+    },
+    "catalog_switch_to_image_builder": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V008",
+        "title": "Select image-builder artifacts after switching back",
+    },
+    "catalog_versioned_output": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V009",
+        "title": "Write catalog-versioned image status and identity",
+    },
+    "config_mode_cache_isolation": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V010",
+        "title": "Keep config-mode cache and backup behavior independent",
+    },
+    "catalog_suite_restores_target_state": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V011",
+        "title": "Restore target state after catalog-reuse E2E scenarios",
     },
     # ── Precheck ──────────────────────────────────────────────────────────
     "deploy_precheck": {
@@ -261,5 +310,14 @@ TEST_CASES = {
     "prepare_idempotent": {
         "id": "IMGBM_NFT_004",
         "title": "NFT: Prepare idempotency",
+    },
+    # ── Non-functional security (file permissions / ownership) ──────────
+    "minio_quadlet_permissions": {
+        "id": "IMGBM_NFT_SECURITY_001",
+        "title": "NFT: MinIO quadlet is 0600 root:root",
+    },
+    "s3cfg_permissions": {
+        "id": "IMGBM_NFT_SECURITY_002",
+        "title": "NFT: /root/.s3cfg is 0600 root:root",
     },
 }

@@ -1,0 +1,878 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Immutable contracts for PXE boot and post-boot cluster verification."""
+
+ORCHESTRATOR_STATUS = "orchestrator_status.yml"
+OMNIA_CONFIG = "omnia_config.yml"
+STORAGE_CONFIG = "storage_config.yml"
+ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
+
+PING_RETRIES = 3
+PING_RETRY_DELAY_SECONDS = 5
+SSH_RETRIES = 3
+SSH_RETRY_DELAY_SECONDS = 10
+
+KUBERNETES_TEST_IMAGE_DEFAULT = "docker.io/library/busybox:1.36"
+KUBERNETES_WAIT_TIMEOUT_SECONDS = 300
+RECOVERY_WAIT_TIMEOUT_SECONDS = 900
+RECOVERY_POLL_SECONDS = 15
+SLURM_JOB_TIMEOUT_SECONDS = 180
+SLURM_ACCOUNTING_TIMEOUT_SECONDS = 30
+SLURM_ACCOUNTING_POLL_SECONDS = 2
+SLURM_TEST_JOB_COMMAND = "hostname -s"
+SLURM_CONCURRENT_JOB_COMMAND = "sleep 5; hostname -s"
+SLURM_QUEUE_HOLDER_COMMAND = "sleep 30; hostname -s"
+SLURM_QUEUE_FOLLOWER_COMMAND = "hostname -s"
+PAM_ACCESS_SETTLE_SECONDS = 5
+PAM_SESSION_TERMINATION_TIMEOUT_SECONDS = 30
+SLURM_DRAIN_REASON = "omnia_fvt_validation"
+ETCD_RAFT_INDEX_DELTA_MAX = 100
+# A rebooted etcd member must resynchronize its raft log before every
+# endpoint reports healthy; five minutes covers a full snapshot transfer.
+ETCD_HEALTH_WAIT_TIMEOUT_SECONDS = 300
+ETCD_MEDIA_TYPES = ("ssd", "hdd", "nvme")
+ETCD_SETUP_LOG = "/var/log/etcd-disk-setup.log"
+ETCD_UPDATE_LOG = "/var/log/diskless-etcd-mount.log"
+APPTAINER_IMAGE_DIRECTORY = "/hpc_tools/container_images"
+APPTAINER_SCRIPT_DIRECTORY = "/hpc_tools/scripts"
+APPTAINER_DOWNLOAD_SCRIPT = "/hpc_tools/scripts/download_container_image.sh"
+APPTAINER_IMAGE_LIST = "/hpc_tools/scripts/container_image.list"
+APPTAINER_DOWNLOAD_TIMEOUT_SECONDS = 1800
+LONG_OPERATION_POLL_SECONDS = 20
+APPTAINER_DOWNLOAD_MAX_RSS_KIB = 1048576
+APPTAINER_JOB_TIMEOUT_SECONDS = 300
+APPTAINER_CONCURRENT_JOB_COUNT = 3
+APPTAINER_ARRAY_SIZE = 3
+APPTAINER_GPU_MEMORY_SETTLE_SECONDS = 5
+
+HPC_TOOLS_BASE = "/hpc_tools"
+HPC_TOOLS_SCRIPTS_DIRECTORY = "/hpc_tools/scripts"
+HPC_TOOLS_BENCHMARKS_DIRECTORY = "/hpc_tools/benchmarks"
+HPC_TOOLS_PLATFORMS_DIRECTORY = "/hpc_tools/platforms"
+HPC_TOOLS_CONTAINER_IMAGES_DIRECTORY = "/hpc_tools/container_images"
+HPC_TOOLS_CUDA_DIRECTORY = "/hpc_tools/cuda"
+HPC_TOOLS_NVIDIA_SDK_DIRECTORY = "/hpc_tools/nvidia_sdk"
+HPC_TOOLS_CORE_SUBDIRS: tuple[str, ...] = (
+    "cuda",
+    "scripts",
+    "container_images",
+    "nvidia_sdk",
+)
+HPC_TOOLS_DIRECTORY_MODE = "755"
+HPC_BENCHMARKS_PLATFORM_SCRIPT = "/hpc_tools/scripts/omnia_platform.sh"
+HPC_BENCHMARKS_PULL_SCRIPT = "/hpc_tools/scripts/pull_benchmarks.sh"
+HPC_BENCHMARKS_TOOLS_LIST = "/hpc_tools/scripts/benchmark_tools.list"
+HPC_BENCHMARKS_CONTAINER_IMAGE_LIST = "/hpc_tools/scripts/container_image.list"
+HPC_BENCHMARKS_CUSTOM_JSON_SEARCH: tuple[str, ...] = (
+    "/opt/omnia/config/slurm_custom.json",
+    "/etc/omnia/slurm_custom.json",
+    "/opt/omnia/slurm_custom.json",
+)
+HPC_BENCHMARKS_OFFLINE_REPO_ROOTS: tuple[str, ...] = (
+    "/var/lib/pulp/content/offline_repo",
+    "/opt/omnia/offline_repo",
+)
+HPC_BENCHMARKS_OFFLINE_LAYOUT = "cluster/{arch}/rhel/10.0/{layout}/{package}"
+HPC_BENCHMARKS_SOURCE_TYPES: frozenset[str] = frozenset({"tarball", "source"})
+HPC_BENCHMARKS_CONTAINER_FIRST_PACKAGES: tuple[str, ...] = (
+    "hpl",
+    "hpl-mxp",
+    "stream",
+)
+HPC_BENCHMARKS_CONTAINER_FIRST_IMAGE_MARKER = "nvcr.io/nvidia/hpc-benchmarks"
+HPC_BENCHMARKS_MSR_SAFE_PACKAGE = "msr-safe"
+HPC_BENCHMARKS_RHEL_MAJOR = "10"
+HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS = 600
+HPC_BENCHMARKS_COMPILE_KEYWORDS: tuple[str, ...] = (
+    "make ",
+    "gcc ",
+    "g++ ",
+    "cmake ",
+    "configure ",
+    "./configure",
+)
+
+# CoreDNS / CoreDHCP (coresmd) — deployed by src/orchestrator/roles/deploy_openchami
+# and configured by src/orchestrator/roles/provision_common/tasks/configure_dns.yml
+CORESMD_COREDNS_CONTAINER = "coresmd-coredns"
+CORESMD_COREDHCP_CONTAINER = "coresmd-coredhcp"
+CORESMD_CONTAINERS: tuple[str, ...] = (
+    CORESMD_COREDNS_CONTAINER,
+    CORESMD_COREDHCP_CONTAINER,
+)
+SMD_CONTAINER_NAME = "smd"
+CORESMD_IMAGE_REPO = "ghcr.io/openchami/coresmd"
+COREDNS_COREFILE_PATH = "/etc/openchami/configs/Corefile"
+COREDHCP_CONFIG_PATH = "/etc/openchami/configs/coredhcp.yaml"
+COREDNS_QUERY_TIMEOUT_SECONDS = 5
+COREDNS_QUERY_SAMPLE_SIZE = 5
+COREDNS_IDEMPOTENCY_SETTLE_SECONDS = 5
+COREDNS_CACHE_DURATION_SECONDS = 30
+COREDNS_NODE_ADDITION_WAIT_SECONDS = 60
+COREDNS_SMD_UNREACHABLE_HOLD_SECONDS = 45
+COREDNS_TEMP_XNAME = "x9999c0s0b0n0"
+COREDNS_TEMP_HOSTNAME = "omnia-fvt-tempnode"
+COREDNS_TEMP_MAC = "aa:bb:cc:dd:ee:99"
+COREDNS_TEMP_IP = "127.9.9.9"
+
+KUBERNETES_PREFIX = "service_kube_"
+KUBERNETES_CONTROL_PLANE_PREFIX = "service_kube_control_plane_"
+KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX = "service_kube_control_plane_first_"
+KUBERNETES_NODE_PREFIX = "service_kube_node_"
+
+SLURM_CONTROL_PREFIX = "slurm_control_node_"
+SLURM_COMPUTE_PREFIX = "slurm_node_"
+SLURM_LOGIN_PREFIX = "login_node_"
+SLURM_COMPILER_PREFIX = "login_compiler_node_"
+SLURM_LOGIN_PREFIXES: tuple[str, ...] = (
+    SLURM_LOGIN_PREFIX,
+    SLURM_COMPILER_PREFIX,
+)
+SLURM_SUBMISSION_PREFIXES: tuple[str, ...] = (
+    SLURM_CONTROL_PREFIX,
+    *SLURM_LOGIN_PREFIXES,
+)
+SLURM_PREFIXES: tuple[str, ...] = (
+    SLURM_CONTROL_PREFIX,
+    SLURM_COMPUTE_PREFIX,
+    *SLURM_LOGIN_PREFIXES,
+)
+CATALOG_ROLE_PREFIXES: tuple[str, ...] = (
+    KUBERNETES_CONTROL_PLANE_PREFIX,
+    KUBERNETES_NODE_PREFIX,
+    *SLURM_PREFIXES,
+)
+
+_UCX_DISCOVERY_COMMAND = (
+    "for profile in /etc/profile.d/doca_mpi.sh /etc/profile.d/ucx.sh; do "
+    'if test -r "$profile"; then . "$profile"; fi; done; '
+    'ucx_info_path="$(command -v ucx_info 2>/dev/null || true)"; '
+    'if ! test -x "$ucx_info_path"; then '
+    "for candidate in "
+    "/hpc_tools/benchmarks/ucx/bin/ucx_info "
+    "/usr/mpi/gcc/openmpi-4.1.9a1/bin/ucx_info "
+    "/opt/mellanox/hpcx/ucx/bin/ucx_info "
+    "/opt/mellanox/ucx/bin/ucx_info "
+    "/usr/local/bin/ucx_info /usr/bin/ucx_info; do "
+    'if test -x "$candidate"; then ucx_info_path="$candidate"; break; fi; '
+    "done; fi; "
+    'if ! test -x "$ucx_info_path"; then '
+    "echo 'ucx_info executable not found in the DOCA, system, or shared-tool "
+    "locations' >&2; exit 127; fi; "
+    "printf 'UCX_EXECUTABLE|%s\\n' \"$ucx_info_path\"; "
+)
+
+_OPENMPI_DISCOVERY_COMMAND = (
+    "for profile in /etc/profile.d/doca_mpi.sh /etc/profile.d/openmpi.sh; do "
+    'if test -r "$profile"; then . "$profile"; fi; done; '
+    'mpirun_path="$(command -v mpirun 2>/dev/null || true)"; '
+    'if ! test -x "$mpirun_path"; then '
+    "for candidate in "
+    "/hpc_tools/benchmarks/openmpi/bin/mpirun "
+    "/usr/mpi/gcc/openmpi-4.1.9a1/bin/mpirun "
+    "/usr/local/bin/mpirun /usr/bin/mpirun; do "
+    'if test -x "$candidate"; then mpirun_path="$candidate"; break; fi; '
+    "done; fi; "
+    'if ! test -x "$mpirun_path"; then '
+    "echo 'mpirun executable not found in the DOCA, system, or shared-tool "
+    "locations' >&2; exit 127; fi; "
+    'mpicc_path="${mpirun_path%/mpirun}/mpicc"; '
+    'if ! test -x "$mpicc_path"; then '
+    "echo 'mpicc was not found beside the selected mpirun' >&2; exit 127; fi; "
+    "printf 'OPENMPI_EXECUTABLE|%s\\n' \"$mpirun_path\"; "
+    "printf 'OPENMPI_COMPILER|%s\\n' \"$mpicc_path\"; "
+)
+
+PXEBOOT_COMMANDS: dict[str, str] = {
+    "ping": "ping -c 1 -W 2 %s",
+    "ssh_probe": "true",
+    "cloud_init": (
+        "cloud-init status --long; printf '\\n---JSON---\\n'; "
+        "cloud-init status --format json"
+    ),
+    "hostname": "hostname -s",
+    "hostname_resolution": "getent ahostsv4 %s",
+    "node_architecture": "uname -m",
+    "os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
+    "node_services": "systemctl is-active %s",
+    "apptainer_runtime": (
+        "command -v apptainer >/dev/null 2>&1 && apptainer --version"
+    ),
+    "apptainer_shared_artifacts": (
+        "test -d /hpc_tools/container_images && "
+        "test -x /hpc_tools/scripts/download_container_image.sh && "
+        "test -r /hpc_tools/scripts/container_image.list && "
+        "bash -n /hpc_tools/scripts/download_container_image.sh"
+    ),
+    "apptainer_shared_mount": "findmnt -n -o SOURCE,FSTYPE,TARGET /hpc_tools",
+    "apptainer_find_sif": (
+        "find /hpc_tools/container_images -maxdepth 1 -type f "
+        "-name '*.sif' -printf '%p|%m|%s|%T@\\n' | sort"
+    ),
+    "apptainer_inspect": "apptainer inspect %s",
+    "apptainer_checksum": "sha256sum %s",
+    "apptainer_non_root": ("cd /tmp && runuser -u %s -- apptainer exec %s id -u"),
+    "apptainer_ldap_read": "runuser -u %s -- test -r %s",
+    "apptainer_exec_hostname": "apptainer exec %s hostname -s",
+    "apptainer_download": "timeout %s /hpc_tools/scripts/download_container_image.sh",
+    "apptainer_download_memory": (
+        "timeout %s /hpc_tools/scripts/download_container_image.sh & "
+        "command_pid=$!; peak=0; "
+        'while kill -0 "$command_pid" 2>/dev/null; do '
+        'rss=$(ps -eo pid=,ppid=,rss= | awk -v root="$command_pid" \''
+        "{ parent[$1]=$2; memory[$1]=$3 } "
+        "END { for (process in parent) { current=process; seen=0; "
+        "while (current in parent && seen++ < 100) { "
+        "if (current == root) { total += memory[process]; break } "
+        "if (parent[current] == current) break; current=parent[current] } } "
+        "print total+0 }'); "
+        'if test "$rss" -gt "$peak"; then peak=$rss; fi; sleep 1; done; '
+        'wait "$command_pid"; status=$?; '
+        'printf \'%%s|%%s\\n\' "$status" "$peak"; exit "$status"'
+    ),
+    "apptainer_pulp_policy": (
+        "grep -Eq 'PULP_SERVER=' /hpc_tools/scripts/download_container_image.sh && "
+        "grep -Eq 'PULP_IMAGE=' /hpc_tools/scripts/download_container_image.sh && "
+        "test \"$(grep -Ec '^[[:space:]]*timeout .*apptainer pull' "
+        '/hpc_tools/scripts/download_container_image.sh)" -eq 1 && '
+        "grep -Fq 'apptainer pull' /hpc_tools/scripts/download_container_image.sh && "
+        "grep -Fq '$PULP_IMAGE' "
+        "/hpc_tools/scripts/download_container_image.sh"
+    ),
+    "apptainer_missing_image_contract": (
+        "grep -Eq 'FAILED_COUNT' /hpc_tools/scripts/download_container_image.sh && "
+        "grep -Eq 'exit .*EXIT_CODE' /hpc_tools/scripts/download_container_image.sh"
+    ),
+    "apptainer_srun": (
+        "timeout %s srun --nodes=1 --ntasks=1 --nodelist=%s "
+        "apptainer exec %s sh -c "
+        '\'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; hostname -s\''
+    ),
+    "apptainer_srun_non_root": (
+        "timeout %s runuser -u %s -- srun --nodes=1 --ntasks=1 "
+        "--chdir=/tmp --nodelist=%s apptainer exec %s sh -c "
+        '\'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; hostname -s\''
+    ),
+    "apptainer_multi_srun": (
+        "timeout %s srun --nodes=%s --ntasks=%s apptainer exec %s hostname -s"
+    ),
+    "apptainer_srun_nfs": (
+        "timeout %s srun --nodes=1 --ntasks=1 --nodelist=%s "
+        "apptainer exec --bind /hpc_tools:/hpc_tools %s "
+        "test -r /hpc_tools/container_images/%s"
+    ),
+    "apptainer_srun_environment": (
+        "timeout %s srun --nodes=1 --ntasks=1 --nodelist=%s "
+        "apptainer exec %s sh -c "
+        '\'test -n "$SLURM_JOB_ID" && test -n "$SLURM_NODEID" && '
+        'printf "%%s|%%s\\n" "$SLURM_JOB_ID" "$SLURM_NODEID"\''
+    ),
+    "apptainer_invalid_sif": (
+        "timeout %s srun --nodes=1 --ntasks=1 --nodelist=%s "
+        "apptainer exec /hpc_tools/container_images/.omnia-invalid.sif true"
+    ),
+    "apptainer_restricted_prepare": "cp -- %s %s && chmod 0600 %s",
+    "apptainer_restricted_cleanup": "rm -f -- %s",
+    "apptainer_restricted_exec": "runuser -u nobody -- apptainer exec %s true",
+    "apptainer_concurrent_srun": ("timeout %s bash -c %s"),
+    "apptainer_array_submit": (
+        "timeout %s sbatch --parsable --wait --array=0-%s "
+        "--output=/dev/null --error=/dev/null --wrap=%s"
+    ),
+    "apptainer_process_probe": "pgrep -af %s",
+    "apptainer_gpu_host_count": (
+        "nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l"
+    ),
+    "apptainer_gpu_container_count": (
+        "apptainer exec --nv %s sh -c "
+        "'nvidia-smi --query-gpu=name --format=csv,noheader | wc -l'"
+    ),
+    "apptainer_gpu_memory": (
+        "nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null"
+    ),
+    "apptainer_gpu_workload": "apptainer exec --nv %s nvidia-smi -L",
+    "apptainer_infiniband": (
+        "apptainer exec --bind /dev/infiniband:/dev/infiniband %s "
+        "test -d /dev/infiniband"
+    ),
+    "kubernetes_nodes": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get nodes -o json"
+    ),
+    "kubernetes_pods": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get pods -A -o json"
+    ),
+    "kubernetes_storage": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get storageclass,pv,pvc -A -o json"
+    ),
+    "kubernetes_readyz": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get --raw='/readyz?verbose'"
+    ),
+    "kubernetes_storage_classes": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get storageclass -o json"
+    ),
+    "kubernetes_client_version": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl version -o json"
+    ),
+    "kubeadm_version": "kubeadm version -o short",
+    "kubelet_version": "kubelet --version",
+    "crio_version": "crio --version",
+    "kubernetes_namespace_create": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl create namespace %s"
+    ),
+    "kubernetes_namespace_delete": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl delete namespace %s --ignore-not-found=true "
+        "--wait=true --timeout=180s"
+    ),
+    "kubernetes_apply_base64": (
+        "printf '%%s' '%s' | base64 -d | "
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl apply -f -"
+    ),
+    "kubernetes_wait_pods": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl wait "
+        "--namespace %s --for=condition=Ready pod --all --timeout=%ss"
+    ),
+    "kubernetes_get_namespace": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get pod,pvc --namespace %s -o json"
+    ),
+    "kubernetes_read_probe": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl exec --namespace %s workload -- cat /data/probe"
+    ),
+    "kubernetes_set_test_pv_delete_policy": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl patch persistentvolume %s --type=merge "
+        '--patch \'{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}\''
+    ),
+    "kubernetes_delete_test_pv": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl delete persistentvolume %s --ignore-not-found=true "
+        "--wait=true --timeout=180s"
+    ),
+    "kubernetes_deployments": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get deployments -A -o json"
+    ),
+    "mount_contract": "findmnt -J %s",
+    "kubernetes_etcd_health": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl exec "
+        "--namespace kube-system %s -- etcdctl "
+        "--endpoints=https://127.0.0.1:2379 "
+        "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
+        "--cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt "
+        "--key=/etc/kubernetes/pki/etcd/healthcheck-client.key "
+        "endpoint health --cluster --write-out=json"
+    ),
+    "kubernetes_etcd_status": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl exec "
+        "--namespace kube-system %s -- etcdctl "
+        "--endpoints=https://127.0.0.1:2379 "
+        "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
+        "--cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt "
+        "--key=/etc/kubernetes/pki/etcd/healthcheck-client.key "
+        "endpoint status --cluster --write-out=json"
+    ),
+    "kubernetes_etcd_members": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl exec "
+        "--namespace kube-system %s -- etcdctl "
+        "--endpoints=https://127.0.0.1:2379 "
+        "--cacert=/etc/kubernetes/pki/etcd/ca.crt "
+        "--cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt "
+        "--key=/etc/kubernetes/pki/etcd/healthcheck-client.key "
+        "member list --write-out=json"
+    ),
+    "kubernetes_node_ready": (
+        'test "$(KUBECONFIG=/etc/kubernetes/admin.conf kubectl get node %s '
+        '-o jsonpath=\'{.status.conditions[?(@.type=="Ready")].status}\')" '
+        "= True"
+    ),
+    "ip_addresses": "ip -j address show",
+    "etcd_mount": "findmnt -J /var/lib/etcd",
+    "etcd_mount_identity": "findmnt -n -o SOURCE,UUID,FSTYPE /var/lib/etcd",
+    "etcd_block_devices": (
+        "lsblk -J -b -o NAME,PATH,PKNAME,TYPE,PTTYPE,FSTYPE,LABEL,UUID,"
+        "MOUNTPOINTS,MODEL,ROTA,TRAN"
+    ),
+    "etcd_root_source": "findmnt -n -o SOURCE /",
+    "etcd_fstab": (
+        'awk \'!/^[[:space:]]*#/ && NF >= 4 && $2 == "/var/lib/etcd" '
+        '{print $1 "|" $2 "|" $3 "|" $4}\' /etc/fstab'
+    ),
+    "etcd_permissions": "stat -c '%U|%G|%a' /var/lib/etcd",
+    "etcd_manifest_data_dir": (
+        "grep -Eq -- '--data-dir(=|[[:space:]]+)/var/lib/etcd([[:space:]]|$)' "
+        "/etc/kubernetes/manifests/etcd.yaml"
+    ),
+    # One line per boot script log: <path>|<mtime or missing>|<DONE count>.
+    "etcd_boot_scripts": (
+        "for log in /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log; "
+        "do if [ -s \"$log\" ]; then printf '%s|%s|%s\\n' \"$log\" "
+        "\"$(stat -c %Y \"$log\")\" "
+        "\"$(tail -n 5 \"$log\" | grep -c '===== DONE =====')\"; "
+        "else printf '%s|missing|0\\n' \"$log\"; fi; done"
+    ),
+    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
+    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
+    "etcd_selection_log": (
+        "cat /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
+        "2>/dev/null || true"
+    ),
+    "node_boot_time": 'date -d "$(uptime -s)" +%s',
+    "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
+    "slurm_nodes": "scontrol show nodes --oneliner",
+    "slurm_partitions": "sinfo --noheader --Node --format='%N|%P|%T|%a'",
+    "slurm_node_state": "sinfo --noheader --nodes=%s --format='%T'",
+    "slurm_srun_node": (
+        "timeout 60 srun --nodes=1 --ntasks=1 --nodelist=%s --immediate=30 "
+        '/bin/sh -c \'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; '
+        "hostname -s'"
+    ),
+    "slurm_job_details": (
+        "sacct --noheader --parsable2 --jobs=%s --format=State,NodeList | head -1"
+    ),
+    "slurm_array_job_details": (
+        "sacct --noheader --parsable2 --jobs=%s --format=JobID,State"
+    ),
+    "slurm_queue_snapshot": "squeue --noheader --format='%i|%T|%N|%R'",
+    "slurm_queue_snapshot_by_name": "squeue --noheader --name=%s --format='%%i|%%T|%%N|%%R'",
+    "slurm_submit_concurrent_job": (
+        "sbatch --parsable --nodes=1 --ntasks=1 --exclusive --nodelist=%s "
+        "--output=/tmp/omnia-fvt-concurrent-%%j.out "
+        "--error=/tmp/omnia-fvt-concurrent-%%j.err "
+        f"--wrap='{SLURM_CONCURRENT_JOB_COMMAND}'"
+    ),
+    "slurm_concurrent_job_stdout": "cat /tmp/omnia-fvt-concurrent-%s.out",
+    "slurm_concurrent_job_stderr": "cat /tmp/omnia-fvt-concurrent-%s.err",
+    "slurm_cleanup_concurrent_job": (
+        "rm -f /tmp/omnia-fvt-concurrent-%s.out /tmp/omnia-fvt-concurrent-%s.err"
+    ),
+    "slurm_insufficient_resources": (
+        "nodes=$(sinfo --noheader --Node | wc -l); "
+        "srun --immediate=5 --nodes=$((nodes + 1)) hostname"
+    ),
+    "slurm_submit_drain_job": (
+        "job=$(sbatch --parsable --nodelist=%s --wrap='sleep 60'); "
+        "job=${job%%;*}; "
+        'sleep 3; state=$(squeue --noheader --jobs="$job" --format=%%T); '
+        'printf \'%%s|%%s\' "$job" "$state"'
+    ),
+    "slurm_submit_queue_holder": (
+        "sbatch --parsable --nodes=1 --ntasks=1 --exclusive --nodelist=%s "
+        "--output=/tmp/omnia-fvt-queue-%%j.out "
+        "--error=/tmp/omnia-fvt-queue-%%j.err "
+        f"--wrap='{SLURM_QUEUE_HOLDER_COMMAND}'"
+    ),
+    "slurm_submit_queue_follower": (
+        "sbatch --parsable --nodes=1 --ntasks=1 --exclusive --nodelist=%s "
+        "--output=/tmp/omnia-fvt-queue-%%j.out "
+        "--error=/tmp/omnia-fvt-queue-%%j.err "
+        f"--wrap='{SLURM_QUEUE_FOLLOWER_COMMAND}'"
+    ),
+    "slurm_queue_job_state": "squeue --noheader --jobs=%s --format='%%T|%%R'",
+    "slurm_queue_job_stdout": "cat /tmp/omnia-fvt-queue-%s.out",
+    "slurm_queue_job_stderr": "cat /tmp/omnia-fvt-queue-%s.err",
+    "slurm_cleanup_queue_job": (
+        "rm -f /tmp/omnia-fvt-queue-%s.out /tmp/omnia-fvt-queue-%s.err"
+    ),
+    "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
+    "slurm_drain_state": (
+        "sinfo --noheader --nodes=%s --format='%%T' | head -1"
+    ),
+    "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
+    "slurm_cancel_job": "scancel %s",
+    "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
+    "slurm_job_accounting": (
+        "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
+    ),
+    "slurm_user_sbatch": ("su - %s -c \"sbatch --parsable --wait --wrap='hostname'\""),
+    "slurm_user_running_jobs": (
+        "squeue --noheader --user=%s --states=RUNNING --format='%%i|%%N'"
+    ),
+    "ldap_missing_identity": "getent passwd %s",
+    "cross_node_ssh": (
+        "ssh -o BatchMode=yes -o ConnectTimeout=10 "
+        "-o StrictHostKeyChecking=accept-new -- root@%s true"
+    ),
+    "slurm_config": "scontrol show config",
+    "slurm_controller_config_files": (
+        "for file in slurm slurmdbd cgroup gres acct_gather helpers "
+        "job_container mpi oci topology burst_buffer; do "
+        "path=/etc/slurm/$file.conf; "
+        'if test -f "$path"; then '
+        'printf \'%s|%s|\' "$file" "$path"; '
+        "sha256sum \"$path\" | cut -d' ' -f1; fi; done"
+    ),
+    "slurm_client_config_files": (
+        "for file in slurm cgroup gres acct_gather helpers "
+        "job_container mpi oci topology burst_buffer; do "
+        "path=/var/spool/slurmd/conf-cache/$file.conf; "
+        'if test -f "$path"; then '
+        'printf \'%s|%s|\' "$file" "$path"; '
+        "sha256sum \"$path\" | cut -d' ' -f1; fi; done"
+    ),
+    "slurm_config_content": "cat /etc/slurm/%s.conf",
+    "slurm_effective_config_hash": "scontrol show config | sha256sum | cut -d' ' -f1",
+    "slurm_config_mount": "findmnt -J /etc/slurm",
+    "slurm_reconfigure": "scontrol reconfigure",
+    "slurm_hardware": "scontrol show nodes --oneliner",
+    "openmpi": _OPENMPI_DISCOVERY_COMMAND + '"$mpirun_path" --version',
+    "slurm_mpi_plugins": "srun --mpi=list 2>&1",
+    "ssh_remove_host_key": "ssh-keygen -R %s -f %s",
+    "openmpi_compile": ("srun --nodes=1 --ntasks=1 --nodelist=%s bash -lc %s"),
+    "openmpi_job": (
+        "srun --nodes=%s --ntasks=%s --ntasks-per-node=1 "
+        "--nodelist=%s --mpi=%s --export=%s %s"
+    ),
+    "ucx": _UCX_DISCOVERY_COMMAND + '"$ucx_info_path" -v',
+    "ucx_transports": (
+        _UCX_DISCOVERY_COMMAND + '"$ucx_info_path" -v; "$ucx_info_path" -d'
+    ),
+    "infiniband": "ibstat",
+    "infiniband_slots": "dmidecode -t slot",
+    "infiniband_netdev_map": "ibdev2netdev",
+    "infiniband_pci_map": (
+        "for device in /sys/class/infiniband/*; do "
+        'test -e "$device" || continue; '
+        'printf \'%s|%s\\n\' "$(basename "$device")" '
+        '"$(basename "$(readlink -f "$device/device")")"; done'
+    ),
+    "infiniband_ofed": "ofed_info -s",
+    "infiniband_ping": "ping -c 2 -W 3 %s",
+    "mellanox_detect": "lspci 2>/dev/null | grep -qi mellanox",
+    "source_mpi_check": (
+        "test -x /hpc_tools/benchmarks/openmpi/bin/mpirun "
+        "&& echo SOURCE_OPENMPI_OK; "
+        "test -x /hpc_tools/benchmarks/ucx/bin/ucx_info "
+        "&& echo SOURCE_UCX_OK; true"
+    ),
+    "install_ucx_source": "bash /usr/local/bin/install_ucx.sh",
+    "install_openmpi_source": "bash /usr/local/bin/install_openmpi.sh",
+    "configure_ucx_openmpi_env": (
+        "bash /usr/local/bin/configure_ucx_openmpi_env.sh"
+    ),
+    "script_exists": "test -x %s && echo exists || echo missing",
+    "gpu": (
+        "nvidia-smi --query-gpu=index,name,driver_version,memory.total "
+        "--format=csv,noheader"
+    ),
+    "gpu_job": (
+        "srun --nodes=1 --ntasks=1 --gres=gpu:1 --nodelist=%s "
+        "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
+    ),
+    "gpu_memory_stress": (
+        "set -eu; "
+        "shared=/hpc_tools; "
+        "test -d \"$shared\" || shared=/tmp; "
+        "work=$(mktemp -d \"$shared/omnia-gpu-check-XXXXXX\"); "
+        "trap 'rm -rf \"$work\"' EXIT; "
+        "printf '%%s' '%s' | base64 -d > \"$work/stress.cu\"; "
+        'nvcc -O2 -o "$work/stress" "$work/stress.cu"; '
+        'srun --nodes=1 --ntasks=1 --gres=gpu:1 "$work/stress"'
+    ),
+    "slurm_job_state": (
+        "state=$(squeue --noheader --jobs=%s --format='%%T|%%N' | head -1); "
+        'if test -z "$state"; then '
+        "state=$(sacct --noheader --parsable2 --jobs=%s "
+        "--format=State,NodeList | head -1); fi; printf '%%s' \"$state\""
+    ),
+    "slurm_user_target_job": (
+        "su - %s -c \"sbatch --parsable --nodelist=%s --wrap='sleep 45'\""
+    ),
+    "node_reboot": "systemctl reboot",
+    "arch": "arch",
+    "os_release": "cat /etc/os-release",
+    "hpc_tools_stat": "stat -c '%%F|%%a|%%U|%%G' %s 2>/dev/null || echo missing",
+    "hpc_tools_list": "find %s -mindepth 1 -maxdepth 1 -printf '%%p|%%y|%%m\\n' 2>/dev/null",
+    "hpc_tools_tool_files": (
+        "find %s -mindepth 1 -maxdepth 2 -printf '%%p|%%y|%%s\\n' 2>/dev/null"
+    ),
+    "hpc_tools_tool_executables": (
+        "find %s \\( -type d \\( %s \\) -prune \\) -o "
+        "-type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
+        "! -name '*.sh' ! -name '*.py' ! -name '*.tar*' ! -name '*.tgz' "
+        "! -name '*.gz' ! -name '*.bz2' ! -name '*.xz' ! -name '*.zip' "
+        "-printf '%%p\\n' 2>/dev/null | head -20"
+    ),
+    "hpc_tools_findmnt": "findmnt -n -o SOURCE,FSTYPE,TARGET /hpc_tools",
+    "hpc_tools_readable": "test -r %s",
+    "hpc_benchmarks_read_json": "cat %s",
+    "hpc_benchmarks_locate_json": (
+        "for path in /opt/omnia/config/slurm_custom.json "
+        "/etc/omnia/slurm_custom.json /opt/omnia/slurm_custom.json; do "
+        'if test -r "$path"; then printf \'%%s\' "$path"; exit 0; fi; done; exit 1'
+    ),
+    "hpc_benchmarks_offline_probe": "test -d %s && find %s -mindepth 1 -maxdepth 1 | head -5",
+    "hpc_benchmarks_pull_script_check": (
+        "test -x %s && grep -c 'pull_benchmark\\|Pull and organize' %s"
+    ),
+    "hpc_benchmarks_pull_script_no_build": (
+        "! grep -Eq '^[[:space:]]*(make|gcc|g\\+\\+|cmake|./configure)[[:space:]]' %s"
+    ),
+    "hpc_benchmarks_run_pull_script": (
+        "timeout %s %s %s 2>&1 | tail -80; exit ${PIPESTATUS[0]}"
+    ),
+    "hpc_benchmarks_snapshot_dirs": (
+        "find %s -mindepth 1 -maxdepth 1 -type d -printf '%%p\\n' 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_egress_probe": (
+        "curl -sS --connect-timeout 5 --max-time 10 -o /dev/null "
+        "-w '%%{http_code}' https://www.google.com 2>&1 || echo failed"
+    ),
+    "hpc_benchmarks_pull_script_var": (
+        "awk -F= '/^%s=/{sub(/^%s=/,\"\"); gsub(/^\"|\"$/,\"\"); print; exit}' %s"
+    ),
+    "hpc_benchmarks_platform_helper_var": (
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && echo ${%s}"
+    ),
+    "hpc_benchmarks_platform_script_check": (
+        "test -x /hpc_tools/scripts/omnia_platform.sh && "
+        "bash -n /hpc_tools/scripts/omnia_platform.sh"
+    ),
+    "hpc_benchmarks_container_image_list_check": (
+        "test -r /hpc_tools/scripts/container_image.list && "
+        "test -s /hpc_tools/scripts/container_image.list"
+    ),
+    "hpc_benchmarks_pulp_list": (
+        "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
+        "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
+    ),
+    "hpc_benchmarks_cleanup_platform_tools": (
+        "rm -rf %s 2>&1 && echo CLEANED"
+    ),
+    "hpc_benchmarks_nfs_export_check": (
+        "exportfs -v 2>/dev/null | grep -E '%s\\b' | head -5"
+    ),
+    "hpc_benchmarks_mount_type": (
+        "findmnt -n -o SOURCE,FSTYPE,OPTIONS %s 2>/dev/null"
+    ),
+    "hpc_benchmarks_tool_fingerprints": (
+        "find %s -type f -exec stat -c '%%n|%%s|%%Y' {} + 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_tool_sha256": (
+        "find %s -type f -exec sha256sum {} + 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_run_pull_script_bg": (
+        "nohup timeout %s %s %s >%s 2>&1 & echo $!"
+    ),
+    "hpc_benchmarks_wait_pid": (
+        "tail --pid=%s -f /dev/null 2>/dev/null; wait %s 2>/dev/null; echo $?"
+    ),
+    "coresmd_container_ps": (
+        "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -5"
+    ),
+    "coresmd_container_id": (
+        "podman ps --format '{{.ID}}|{{.Names}}|{{.Image}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -1"
+    ),
+    "coresmd_container_running": (
+        "podman inspect --format '{{.State.Running}}|{{.Image}}|{{.Config.Image}}' %s "
+        "2>/dev/null || echo missing"
+    ),
+    "coresmd_container_exec": "podman exec %s %s",
+    "coresmd_container_pause": "podman pause %s",
+    "coresmd_container_unpause": "podman unpause %s",
+    "dns_query_forward": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "dns_query_reverse": (
+        "dig +short +time=%s +tries=1 @%s -x %s"
+    ),
+    "dns_query_forwarders": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "resolv_conf_read": "cat /etc/resolv.conf",
+    "hosts_file_read": "cat /etc/hosts | head -200",
+    "getent_hosts": "getent hosts %s",
+    "getent_hosts_reverse": "getent hosts %s",
+    "config_file_hash": "sha256sum %s 2>/dev/null | cut -d' ' -f1 || echo missing",
+    "port_reachable": (
+        "timeout 3 bash -c 'cat < /dev/tcp/%s/%s' >/dev/null 2>&1 && "
+        "echo reachable || echo blocked"
+    ),
+    "pam_adopt_integration": (
+        "policy=missing; usepam=disabled; module=missing; "
+        "if grep -Eq '^[[:space:]]*account[[:space:]]+required"
+        "[[:space:]]+pam_slurm_adopt\\.so' /etc/pam.d/sshd; "
+        "then policy=configured; fi; "
+        "if sshd -T | grep -Eq '^usepam yes$'; then usepam=enabled; fi; "
+        "if test -e /usr/lib64/security/pam_slurm_adopt.so; "
+        "then module=available; fi; "
+        'printf \'%s|%s|%s\' "$policy" "$usepam" "$module"'
+    ),
+    # PowerVault iSCSI commands
+    "pv_iscsid_active": "systemctl is-active iscsid",
+    "pv_iscsid_enabled": "systemctl is-enabled iscsid",
+    "pv_multipathd_active": "systemctl is-active multipathd",
+    "pv_multipathd_enabled": "systemctl is-enabled multipathd",
+    "pv_iscsi_initiator_read": "cat %s",
+    "pv_iscsi_discovery": "iscsiadm -m discovery -t sendtargets -p %s:%d",
+    "pv_iscsi_sessions": "iscsiadm -m session",
+    "pv_iscsi_session_detail": "iscsiadm -m session -P 1 2>/dev/null",
+    "pv_iscsi_node_show": "iscsiadm -m node -o show",
+    "pv_multipath_list": "multipath -ll",
+    "pv_mountpoint_check": "mountpoint -q %s && echo mounted || echo not_mounted",
+    "pv_dir_exists": "test -d %s && echo exists || echo not_exists",
+    "pv_fstab_read": "cat /etc/fstab",
+    "pv_proc_mounts_read": "cat /proc/mounts",
+    "pv_blkid_fstype": "blkid -s TYPE -o value %s 2>/dev/null",
+    "pv_parted_print": "parted -s /dev/mapper/%s print 2>/dev/null",
+    "pv_port_check": (
+        "timeout %d bash -c 'cat < /dev/tcp/%s/%d' >/dev/null 2>&1 && "
+        "echo reachable || echo unreachable"
+    ),
+    "pv_df": "df -h %s",
+    "pv_mount_grep": "mount | grep '%s'",
+    "pv_log_exists": "test -f %s && echo exists || echo not_exists",
+    "pv_log_complete": "grep '%s' %s && echo found || echo not_found",
+    "pv_log_errors": "grep -E '^\\[.*\\].*ERROR' %s || true",
+    "pv_node_key_hostname": "hostname -s",
+    "pv_node_key_ipv4": "hostname -I | awk '{print $1}'",
+    "pv_node_key_instance": (
+        "cloud-init query instance_id 2>/dev/null || "
+        "cat /var/lib/cloud/data/instance-id 2>/dev/null || hostname"
+    ),
+    "pv_permissions_check": "stat -c '%%U:%%G:%%a' %s",
+    "cloud_init_file_check": "test -f %s && echo EXISTS",
+    "cloud_init_status": "cloud-init status --long",
+    # mount_config NFS verification commands
+    "mount_config_dir_exists": (
+        "test -d %s && echo EXISTS || echo MISSING"
+    ),
+    "mount_config_mountpoint_check": (
+        "mountpoint -q %s 2>/dev/null && echo MOUNTED || echo NOT_MOUNTED"
+    ),
+    "mount_config_proc_mounts": "cat /proc/mounts",
+    "mount_config_fstab_read": "cat /etc/fstab",
+    "mount_config_stat": "stat -c '%%a|%%U|%%G' %s 2>/dev/null",
+    "mount_config_node_key_value": (
+        "cloud-init query %s 2>/dev/null || hostname -s"
+    ),
+    "mount_config_write_test": (
+        "_mp=%s; "
+        "touch \"${_mp}/.omnia_fvt_write_probe_$$\" 2>/dev/null && "
+        "rm -f \"${_mp}/.omnia_fvt_write_probe_$$\" && echo WRITABLE || echo NOT_WRITABLE"
+    ),
+    # minimal_os verification commands
+    "minimal_os_rpm_check": "rpm -q %s >/dev/null 2>&1",
+    "minimal_os_binary_check": "test -x /opt/ovis-ldms/sbin/ldmsd || command -v ldmsd 2>/dev/null",
+    "minimal_os_rpm_query_grep": "rpm -qa 2>/dev/null | grep -iE '%s'",
+    "minimal_os_pkg_mgr_check": (
+        "command -v dnf >/dev/null 2>&1 && dnf --version >/dev/null 2>&1 || "
+        "command -v yum >/dev/null 2>&1 && yum --version >/dev/null 2>&1"
+    ),
+    "minimal_os_kernel_version": "uname -r",
+    "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
+    "minimal_os_fg_cloud_init": (
+        "cloud-init query ds.meta_data.functional_group 2>/dev/null || "
+        "cloud-init query local-hostname 2>/dev/null"
+    ),
+    "minimal_os_additional_packages_check": "rpm -q %s >/dev/null 2>&1",
+    "minimal_os_ssh_authorized_keys": "cat /root/.ssh/authorized_keys 2>/dev/null",
+    "minimal_os_ssh_key_auth_test": (
+        "grep -qE '^PubkeyAuthentication\\s+yes' /etc/ssh/sshd_config 2>/dev/null || "
+        "! grep -qE '^PubkeyAuthentication\\s+no' /etc/ssh/sshd_config 2>/dev/null"
+    ),
+    "minimal_os_default_route": "ip -o route show default 2>/dev/null",
+    "minimal_os_credential_scan": (
+        "grep -rlE "
+        "'(password|secret|token|api_key|private_key)\\s*[:=]\\s*[A-Za-z0-9+/]{8,}' "
+        "/etc/cloud /root 2>/dev/null | "
+        "grep -v -E '\\.(pyc|pem|pub|crt|key)$' | head -20"
+    ),
+    "minimal_os_ldms_service_state": "systemctl is-active ldmsd",
+    # ── DCGM / CUDA verification ──────────────────────────────────────
+    "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
+    "dcgm_cuda_version": (
+        "nvcc --version 2>/dev/null | grep -oP 'release \\K[0-9]+\\.[0-9]+'"
+    ),
+    "dcgm_cuda_toolkit_path": (
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && "
+        "test -x ${OMNIA_PLATFORM_ROOT}/cuda/bin/nvcc && "
+        "test -f ${OMNIA_PLATFORM_ROOT}/cuda/.done_cuda && "
+        "echo ${OMNIA_PLATFORM_ROOT}/cuda"
+    ),
+    "dcgm_cuda_lock_check": (
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && "
+        "test -d ${OMNIA_PLATFORM_ROOT}/cuda/.nfs_lock_cuda && echo LOCKED || echo UNLOCKED"
+    ),
+    "dcgm_rpm_check": "rpm -qa 2>/dev/null | grep '^datacenter-gpu-manager' | head -1",
+    "dcgm_binary_check": "command -v dcgmi 2>/dev/null && dcgmi --version 2>/dev/null",
+    "dcgm_service_active": "systemctl is-active nvidia-dcgm 2>/dev/null",
+    "dcgm_service_enabled": "systemctl is-enabled nvidia-dcgm 2>/dev/null",
+    "dcgm_discovery": "dcgmi discovery -l 2>/dev/null",
+    "dcgm_dmon": "timeout 10 dcgmi dmon -e 150,155,203 -c 3 2>/dev/null",
+    "dcgm_multi_gpu_count": (
+        "nvidia-smi --query-gpu=gpu_uuid --format=csv,noheader 2>/dev/null | wc -l"
+    ),
+    "dcgm_nfs_mount_check": "findmnt -n -o SOURCE,FSTYPE,TARGET /usr/local/cuda",
+    "dcgm_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
+    "dcgm_service_pid": "systemctl show nvidia-dcgm --property=MainPID --value",
+    "dcgm_service_restart_check": (
+        "systemctl show nvidia-dcgm --property=NRestarts --value 2>/dev/null"
+    ),
+    "dcgm_socket_path": (
+        "test -S /var/run/nvidia-dcgm/nv-hostengine.sock && echo EXISTS || "
+        "test -S /tmp/nv-hostengine.sock && echo EXISTS || echo MISSING"
+    ),
+}
+
+KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
+    "etcd-",
+    "kube-apiserver-",
+    "kube-controller-manager-",
+    "kube-scheduler-",
+    "kube-proxy-",
+    "kube-vip-",
+    "coredns-",
+)
+
+KUBERNETES_CNI_POD_PREFIXES: dict[str, tuple[str, ...]] = {
+    "calico": ("calico-kube-controllers-", "calico-node-"),
+    "flannel": ("kube-flannel-",),
+}
+
+KUBERNETES_CSI_POD_PREFIXES: tuple[str, ...] = (
+    "isilon-controller-",
+    "isilon-node-",
+    "snapshot-controller-",
+)
+KUBERNETES_CSI_SNAPSHOT_POD_PREFIXES: tuple[str, ...] = (
+    "snapshot-controller-",
+    "isilon-controller-",
+    "isilon-node-",
+)
+
+SLURM_ROLE_SERVICES: dict[str, tuple[str, ...]] = {
+    SLURM_CONTROL_PREFIX: ("slurmctld", "slurmdbd", "mariadb", "munge"),
+    SLURM_COMPUTE_PREFIX: ("slurmd", "munge"),
+    SLURM_LOGIN_PREFIX: ("slurmd", "munge"),
+    SLURM_COMPILER_PREFIX: ("slurmd", "munge"),
+}
+
+# =============================================================================
+# PowerVault iSCSI Storage Constants
+# =============================================================================
+POWERVAULT_DEFAULT_ISCSI_PORT = 3260
+POWERVAULT_DEFAULT_FS_TYPE = "xfs"
+POWERVAULT_DEFAULT_MOUNT_OPTS = "defaults,_netdev,noatime"
+POWERVAULT_DEFAULT_NODE_KEY = "local_hostname"
+POWERVAULT_LOG_TEMPLATE = "/var/log/omnia_iscsi_setup_{name}.log"
+POWERVAULT_LOG_COMPLETE_MSG = "iSCSI/multipath setup complete"
+POWERVAULT_PORT_CHECK_TIMEOUT = 5
+POWERVAULT_STORAGE_CONFIG_PATH = "/opt/omnia/input/project_default/storage_config.yml"
+POWERVAULT_ISCSI_INITIATOR_PATH = "/etc/iscsi/initiatorname.iscsi"

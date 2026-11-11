@@ -1,1 +1,0 @@
-"""PowerVault storage functional verification."""

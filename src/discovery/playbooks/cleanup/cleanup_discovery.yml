@@ -12,18 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# cleanup_discovery.yml -- Remove Discovery-owned outputs and credentials.
+# cleanup_discovery.yml -- Remove Discovery-owned outputs, logs, and credentials.
 #
 # Usage from the Discovery domain root:
 #   ansible-playbook playbooks/discovery.yml --tags cleanup
 #   ansible-playbook playbooks/discovery.yml --tags cleanup \
 #     -e cleanup_credentials=false
+#   ansible-playbook playbooks/discovery.yml --tags cleanup \
+#     -e cleanup_logs=false
 #   ansible-playbook playbooks/discovery.yml --tags cleanup_credentials
 #
 # Full cleanup does not remove or create the current project's output
 # directory. When it exists, cleanup removes all contents and leaves the empty
-# directory in place. Discovery credentials are removed by default. The
-# opt-out preserves only the encrypted credential file and its vault key.
+# directory in place. The current project's runtime log directory is reset to
+# an empty directory and /var/log/omnia/discovery is removed by default.
+# Discovery credentials are removed by default. The opt-outs preserve
+# credentials or both log locations independently.
 
 - name: Standalone setup for Discovery cleanup
   hosts: localhost
@@ -40,7 +44,7 @@
         discovery_cleanup_mode: true
       when: not (discovery_setup_done | default(false) | bool)
 
-- name: Cleanup Discovery outputs and credentials
+- name: Cleanup Discovery outputs, logs, and credentials
   hosts: localhost
   connection: local
   gather_facts: false

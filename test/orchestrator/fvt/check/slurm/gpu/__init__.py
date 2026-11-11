@@ -1,1 +1,0 @@
-# Slurm GPU feature tests.

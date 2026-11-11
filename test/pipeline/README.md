@@ -44,6 +44,7 @@ this:
 ```
 .gitlab-ci.yml                          Parent pipeline (triggers per-cluster)
 .gitlab-ci-cluster.yml                  Child pipeline (all stages for one cluster)
+.gitlab-ci-build-stream.yml             Build stream child pipeline (per-cluster)
 pipeline_config.yml                     Pipeline configuration (fill this out)
 setup_gitlab_project.py                 Script to create/update the GitLab project
 send_email.py                           Email notification helper
@@ -53,6 +54,7 @@ clusters/cluster1/
     omnia.env                           Omnia environment config
     repo_manager/                       repo_manager input files
     image_build_manager/                image_build_manager input files
+    discovery/                          discovery input files
     orchestrator/                       orchestrator input files
     telemetry/                          telemetry input files
     test/                               Test configuration files
@@ -98,6 +100,37 @@ clusters/cluster1/
 
 ---
 
+## Utils Pipeline
+
+The **Utils Pipeline** runs independently when `UTILS_ENABLE=true`. It executes utils domain operations on target servers without running the main cluster pipeline.
+
+| Mode | Operations | Use case |
+|---|---|---|
+| `default_logs` | Collect cluster + OIM logs | Default log collection |
+| `install_os` | Run install_os playbook | OS installation on target nodes |
+| `collect` | Collect cluster logs only | Cluster-specific log collection |
+| `backup_oim_logs` | Backup OIM logs only | OIM log backup |
+
+Set `UTILS_ENABLE=true` and choose a `UTILS_MODE` to run utils operations. Tests run when `TEST_MODE=true`.
+
+For detailed information, see [docs/UTILS_PIPELINE.md](docs/UTILS_PIPELINE.md).
+
+---
+
+## Build Stream Pipeline
+
+The **Build Stream Pipeline** runs independently when `BUILD_STREAM_ENABLE=true`. It prepares the base infrastructure (repo_manager, image_build_manager, orchestrator) using a unified `prepare_base` stage, then deploys and tests the build_stream domain on target servers. The cluster and utils pipelines are skipped when build stream mode is active.
+
+**Key differences from cluster pipeline:**
+- Uses `prepare_base` stage instead of individual deploy stages for repo_manager, image_build_manager, orchestrator
+- `prepare_base` combines input file copying, credential fetching, encryption, and runs `omnia.sh --prepare-base`
+- Test stages for repo_manager, image_build_manager, orchestrator run after prepare_base
+- build_stream deploy runs after prepare_base
+
+Set `BUILD_STREAM_ENABLE=true` to trigger the build stream pipeline.
+
+---
+
 ## Domains
 
 | Domain | Purpose |
@@ -105,12 +138,15 @@ clusters/cluster1/
 | **repo_manager** | Pulp-based package and repository management |
 | **image_build_manager** | Container image building and registry |
 | **orchestrator** | Kubernetes and container orchestration |
+| **discovery** | Network and hardware discovery |
 | **telemetry** | Monitoring, logging, and observability |
+| **build_stream** | Build stream image provisioning and deployment |
 
 Select which domains to run with the `domains` setting:
 
-- `"default"` -- All 4 domains
+- `"default"` -- All domains
 - `"repo_manager"` -- Single domain
+- `"discovery"` -- Discovery domain only
 - `"repo_manager|orchestrator"` -- Multiple domains (regex OR)
 
 ---
@@ -120,19 +156,22 @@ Select which domains to run with the `domains` setting:
 ```
  Stage                         Mode: default   deploy   cleanup
  ─────────────────────────────────────────────────────────────────
- 1. initialization                  Y            Y        Y
- 2. setup_environment               Y          (opt)    (opt)
- 3. cleanup_<domains>               Y                     Y
- 4. cleanup_omnia                   Y                     Y
- 5. setup_main                      Y
- 6. test_main_installation        (test)       (test)
- 7. <domain> deploy                 Y            Y
- 8. test_<domain>                 (test)       (test)
- 9. summary                         Y            Y        Y
+ 1.  initialization                  Y            Y        Y
+ 2.  setup_environment               Y          (opt)    (opt)
+ 3.  cleanup_build_stream            Y                     Y
+ 4.  cleanup_<domains>               Y                     Y
+ 5.  cleanup_omnia                   Y                     Y
+ 6.  setup_main                      Y
+ 7.  test_main_installation        (test)       (test)
+ 8.  <domain> deploy                 Y            Y
+ 9.  test_<domain>                 (test)       (test)
+ 10. cleanup_discovery               Y                     Y
+ 11. summary                         Y            Y        Y
 ```
 
 `(opt)` = runs only if `ENABLE_SETUP=true` |
-`(test)` = runs only if `TEST_MODE=true`
+`(test)` = runs only if `TEST_MODE=true` |
+`discovery` stages require `ENABLE_DISCOVERY=true`
 
 ---
 
@@ -144,6 +183,7 @@ Select which domains to run with the `domains` setting:
 | `domains` | `default` | Which domains to run (regex pattern) |
 | `test_mode` | `false` | Run validation tests after deploy |
 | `enable_setup` | `false` | Force setup in deploy/cleanup modes |
+| `enable_discovery` | `false` | Enable discovery stage after image_build_manager |
 | `dry_run` | `false` | Simulate without making changes |
 | `verbose` | `false` | Detailed Ansible logging (`-vvv`) |
 | `skip_stages` | `""` | Comma-separated stages to skip |

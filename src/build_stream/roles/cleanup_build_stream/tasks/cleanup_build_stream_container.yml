@@ -51,23 +51,21 @@
     state: absent
   loop: "{{ build_stream_quad_path_list }}"
 
-- name: Stop playbook_watcher service if it exists
+- name: Stop playbook-watcher service if it exists
   ansible.builtin.systemd_service:
-    name: playbook_watcher.service
+    name: "{{ watcher_service_name }}"
     state: stopped
-  failed_when: false
   when:
-    - ("playbook_watcher.service" in ansible_facts.services)
-    - ansible_facts.services['playbook_watcher.service'].state == 'running'
+    - watcher_service_name in ansible_facts.services
+    - ansible_facts.services[watcher_service_name].state == 'running'
 
-- name: Disable playbook_watcher service
+- name: Disable playbook-watcher service
   ansible.builtin.systemd_service:
-    name: playbook_watcher.service
+    name: "{{ watcher_service_name }}"
     enabled: false
-  failed_when: false
-  when: ("playbook_watcher.service" in ansible_facts.services)
+  when: watcher_service_name in ansible_facts.services
 
-- name: Remove playbook_watcher service file
+- name: Remove playbook-watcher service file
   ansible.builtin.file:
     path: "{{ playbook_watcher_service_file }}"
     state: absent
@@ -112,6 +110,49 @@
         msg: |
           {{ build_stream_cleanup_failure_msg }}
 
+- name: Check BuildStream runtime directory for generated Python caches
+  ansible.builtin.stat:
+    path: "{{ build_stream_runtime_directory }}"
+  register: build_stream_runtime_directory_stat
+
+- name: Find generated Python cache directories
+  ansible.builtin.find:
+    paths: "{{ build_stream_runtime_directory }}"
+    patterns: "{{ build_stream_python_cache_directories }}"
+    file_type: directory
+    recurse: true
+    hidden: true
+    follow: false
+  register: build_stream_python_cache_dirs
+  when: build_stream_runtime_directory_stat.stat.isdir | default(false)
+
+- name: Remove generated Python cache directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ build_stream_python_cache_dirs.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Find generated Python bytecode files
+  ansible.builtin.find:
+    paths: "{{ build_stream_runtime_directory }}"
+    patterns: "{{ build_stream_python_cache_files }}"
+    file_type: file
+    recurse: true
+    hidden: true
+    follow: false
+  register: build_stream_python_cache_files_found
+  when: build_stream_runtime_directory_stat.stat.isdir | default(false)
+
+- name: Remove generated Python bytecode files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ build_stream_python_cache_files_found.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+
 - name: Check if target file exists
   ansible.builtin.stat:
     path: "{{ omnia_target }}"
@@ -124,10 +165,10 @@
     replace: ''
   when: p.stat.exists
 
-- name: Remove playbook_watcher service from omnia.target
+- name: Remove playbook-watcher service from omnia.target
   ansible.builtin.replace:
     path: "{{ omnia_target }}"
-    regexp: "playbook_watcher.service"
+    regexp: "{{ watcher_service_name | regex_escape }}"
     replace: ''
   when: p.stat.exists
 

@@ -33,7 +33,7 @@ from library.vars.common_vars import PLAYBOOK_ENTRY_POINT
 
 
 @pytest.mark.nft
-@pytest.mark.order(1)
+@pytest.mark.order(10)
 def test_precheck_idempotent(host):
     """Verify running precheck twice does not produce errors."""
     tc = TC["precheck_idempotent"]
@@ -72,7 +72,7 @@ def test_precheck_idempotent(host):
 
 
 @pytest.mark.nft
-@pytest.mark.order(2)
+@pytest.mark.order(20)
 def test_cleanup_idempotent(host):
     """Verify running cleanup twice leaves a clean state."""
     tc = TC["cleanup_idempotent"]

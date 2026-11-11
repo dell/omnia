@@ -25,12 +25,20 @@ spec:
   retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoria_metrics.retention_period }}h"
   
   # VMStorage configuration
+{% set _img = victoria_cluster.vmstorage.image %}
+{% set _parts = _img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _img.split(':')[-1] %}
   vmstorage:
     replicaCount: {{ victoria_cluster.vmstorage.replicas }}
     replicationFactor: {{ victoria_cluster.vmstorage.replication_factor | default(1) }}
     image:
-      repository: {{ victoria_cluster.vmstorage.image.split(':')[0] }}
-      tag: {{ victoria_cluster.vmstorage.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      repository: {{ telemetry_registry.host }}/{{ _repo }}
+{% else %}
+      repository: {{ _repo }}
+{% endif %}
+      tag: {{ _tag }}
       pullPolicy: IfNotPresent
 
     # Graceful shutdown - gives VMStorage time to flush data and clean up lock files
@@ -40,7 +48,7 @@ spec:
     # Required because POSIX flock is not reliably released on NFS-backed PVCs
     initContainers:
       - name: remove-stale-locks
-        image: "{{ _support_images.busybox | default('docker.io/library/busybox:1.36') }}"
+        image: "{% set _bb_img = _support_images.busybox | default('docker.io/library/busybox:1.36') %}{% set _bb_parts = _bb_img | regex_replace(':[^:]+$', '') | split('/') %}{% set _bb_repo = '/'.join(_bb_parts[1:]) if (_bb_parts | length) > 2 or '.' in _bb_parts[0] else '/'.join(_bb_parts) %}{% set _bb_tag = _bb_img.split(':')[-1] %}{% if telemetry_registry.host | default('') %}{{ telemetry_registry.host }}/{{ _bb_repo }}:{{ _bb_tag }}{% else %}{{ _bb_img }}{% endif %}"
         command: ["sh", "-c", "rm -f /vmstorage-data/flock.lock || true"]
         volumeMounts:
           - name: vmstorage-db
@@ -150,11 +158,19 @@ spec:
 {% endif %}
   
   # VMSelect configuration
+{% set _img = victoria_cluster.vmselect.image %}
+{% set _parts = _img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _img.split(':')[-1] %}
   vmselect:
     replicaCount: {{ victoria_cluster.vmselect.replicas }}
     image:
-      repository: {{ victoria_cluster.vmselect.image.split(':')[0] }}
-      tag: {{ victoria_cluster.vmselect.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      repository: {{ telemetry_registry.host }}/{{ _repo }}
+{% else %}
+      repository: {{ _repo }}
+{% endif %}
+      tag: {{ _tag }}
       pullPolicy: IfNotPresent
 
     # External access via LoadBalancer (useAsDefault merges into the main service)
@@ -222,11 +238,19 @@ spec:
 {% endif %}
   
   # VMInsert configuration
+{% set _img = victoria_cluster.vminsert.image %}
+{% set _parts = _img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _img.split(':')[-1] %}
   vminsert:
     replicaCount: {{ victoria_cluster.vminsert.replicas }}
     image:
-      repository: {{ victoria_cluster.vminsert.image.split(':')[0] }}
-      tag: {{ victoria_cluster.vminsert.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      repository: {{ telemetry_registry.host }}/{{ _repo }}
+{% else %}
+      repository: {{ _repo }}
+{% endif %}
+      tag: {{ _tag }}
       pullPolicy: IfNotPresent
     
     # Resource limits

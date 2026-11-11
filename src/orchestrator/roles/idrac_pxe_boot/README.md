@@ -79,6 +79,11 @@ Credentials are expected to be loaded on `localhost` before this role runs
 
 - `main.yml` — Verify iDRAC LC status, set PXE boot, restart server, report results
 
+The role publishes `reboot_state` as a compact machine value such as
+`pxe_initiated`, `idrac_unreachable`, `idrac_unavailable`,
+`pxe_request_failed`, or `power_operation_failed`. Lifecycle reports consume
+this state instead of persisting verbose Redfish errors.
+
 ## License
 
 Apache 2.0

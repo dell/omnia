@@ -35,7 +35,9 @@ postgres_dir_mode: "0750"
 
 # Quadlet service file path
 postgres_quadlet_path: "/etc/containers/systemd/{{ postgres_container_name }}.container"
-postgres_quadlet_file_mode: "0644"
+# Quadlet file embeds the Postgres superuser password. Restrict to root-only to
+# close CWE-732 / CWE-522 (world-readable credential exposure on the OIM).
+postgres_quadlet_file_mode: "0600"
 
 # Wait for PostgreSQL to be ready
 postgres_ready_wait_seconds: 10
@@ -59,7 +61,16 @@ postgres_container_failure_msg: |
     - This will reuse the existing database at {{ postgres_data_dir }}
 
   Option 2: Delete existing database data and start fresh
-    - Run the cleanup playbook with postgres_backup=false:
-      ansible-playbook utils/oim_cleanup.yml -e postgres_backup=false
-    - This will delete the Postgres data at {{ postgres_data_dir }} (and associated data/logs)
-    - After cleanup completes, re-run build_stream.yml to deploy a fresh {{ postgres_container_name }} container
+    - WARNING: postgres_backup=false PERMANENTLY deletes the preserved PostgreSQL
+      database at {{ postgres_data_dir }} (and associated data/logs). This cannot be undone.
+    - Run the targeted Build Stream cleanup playbook from the Build Stream source directory.
+      This keeps the separately deployed GitLab environment and the newly entered
+      Build Stream credentials (--skip-tags credentials):
+        cd <OMNIA_SOURCE>/src/build_stream
+        ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false --skip-tags credentials
+    - After cleanup completes, reinitialize the domain to recreate its runtime and log directories:
+        cd <OMNIA_SOURCE>/src/main
+        ./omnia.sh --init build_stream
+    - Then re-run the prepare flow to deploy a fresh {{ postgres_container_name }} container:
+        cd <OMNIA_SOURCE>/src/build_stream/playbooks
+        ansible-playbook build_stream.yml --tags prepare

@@ -17,6 +17,7 @@
 
 import csv
 import os
+from typing import Any, Tuple
 from ansible.module_utils.basic import AnsibleModule
 
 DOCUMENTATION = r'''
@@ -70,7 +71,7 @@ REPORT_HEADERS = [
 ]
 
 
-def generate_report(servers, output_file):
+def generate_report(servers: list[dict[str, Any]], output_file: str) -> Tuple[str, int]:
     """Generate the BMC discovery report CSV file.
 
     Args:
@@ -106,7 +107,7 @@ def generate_report(servers, output_file):
     return output_file, server_count
 
 
-def main():
+def main() -> None:
     """Main function for the Ansible module."""
     module = AnsibleModule(
         argument_spec=dict(

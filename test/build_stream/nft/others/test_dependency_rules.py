@@ -258,7 +258,7 @@ class TestDependencyInjectionPatterns:
             except (UnicodeDecodeError, IOError):
                 continue
 
-        # At least some routes should use DI (we know generate_input_files does)
+        # At least some routes should use DI (we know build_image does)
         assert len(routes_with_di) > 0, (
             "No routes found using Depends() for use case injection. "
             "This might indicate a test setup issue."

@@ -15,14 +15,82 @@
 Catalog mutation operations: add (upsert) and delete packages/groups.
 """
 
+import copy
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+def _source_identity(source):
+    """Return the source fields other than its OS-version list."""
+    return {k: v for k, v in source.items() if k != 'version'}
+
+
+def merge_package_entry(existing, incoming):
+    """
+    Merge an incoming package entry into an existing one without dropping the
+    sources of other architectures or OS versions.
+
+    Top-level fields (name, tag, version, ...) come from `incoming`. Each
+    incoming source takes over its (architecture, OS) pair for the OS versions
+    it lists; the existing sources keep every other architecture and OS
+    version. A source with no OS-version list (images) replaces the existing
+    source of the same architecture. If the package type changes, the source
+    shapes are incompatible and `incoming` replaces the entry outright.
+
+    Args:
+        existing: Package entry currently in the catalog.
+        incoming: Package entry parsed from the input file.
+
+    Returns:
+        dict: The merged package entry (a new dict; inputs are not modified).
+    """
+    if existing.get('packagetype') != incoming.get('packagetype'):
+        return copy.deepcopy(incoming)
+
+    merged = copy.deepcopy(existing)
+    merged.update({k: copy.deepcopy(v) for k, v in incoming.items() if k != 'sources'})
+    sources = merged.setdefault('sources', [])
+
+    for new_src in incoming.get('sources', []):
+        new_src = copy.deepcopy(new_src)
+        arch = new_src.get('architecture')
+        os_name = new_src.get('name')
+        new_versions = new_src.get('version')
+
+        kept = []
+        target = None
+        for src in sources:
+            if src.get('architecture') != arch or os_name not in (None, src.get('name')):
+                kept.append(src)
+            elif new_versions is None:
+                # No OS-version list (e.g. image lines): this source replaces
+                # the matching one, keeping fields the input cannot express.
+                new_src = dict(src, **new_src)
+            elif src.get('version') is None:
+                continue
+            elif target is None and _source_identity(src) == _source_identity(new_src):
+                # Same source: extend its OS versions in place.
+                src['version'] = src['version'] + [
+                    v for v in new_versions if v not in src['version']]
+                target = src
+                kept.append(src)
+            else:
+                remaining = [v for v in src['version'] if v not in new_versions]
+                if remaining:
+                    kept.append(dict(src, version=remaining))
+        sources[:] = kept
+
+        if target is None:
+            sources.append(new_src)
+
+    return merged
+
+
 def upsert_packages(catalog, parsed):
     """
-    Add or update packages in a catalog (upsert semantics).
+    Add or update packages in a catalog (upsert semantics). Updating an
+    existing package merges its sources (see `merge_package_entry`).
 
     Args:
         catalog: Catalog dict (with 'catalog' root key).
@@ -78,8 +146,8 @@ def upsert_packages(catalog, parsed):
     # Process packages
     for pkg_key, pkg_entry in parsed['packages'].items():
         if pkg_key in packages:
-            # Update existing package
-            packages[pkg_key] = pkg_entry
+            # Update existing package, keeping other architectures/OS versions
+            packages[pkg_key] = merge_package_entry(packages[pkg_key], pkg_entry)
             summary['updated'] += 1
             logger.info("Updated package: %s", pkg_key)
         else:
@@ -155,10 +223,13 @@ def delete_packages(catalog, parsed_delete):
         if not components:
             del groups[group_key]
             # Also remove from functional layers
+            affected_layers = []
             for layer in functional_layers:
                 if group_key in layer.get('components', []):
                     layer['components'].remove(group_key)
+                    affected_layers.append(layer.get('name', ''))
             summary['groups_removed'] += 1
-            logger.info("Removed empty group [%s]", group_key)
+            logger.warning("Removed empty group [%s] from functional layer(s): %s",
+                           group_key, ', '.join(affected_layers) or 'none')
 
     return summary

@@ -19,21 +19,68 @@
 # Scales down the iDRAC telemetry StatefulSet to 0 replicas when
 # telemetry_sources.idrac.metrics_enabled is false.
 #
-# This stops iDRAC metrics collection but preserves the MySQL database
-# PVCs for future re-enablement.
+# This stops iDRAC metrics collection while preserving the StatefulSet,
+# services, generated configuration, secrets, credentials, and PVC-backed
+# MySQL data for future re-enablement.
 # =============================================================================
 
 - name: Load telemetry configuration
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
+
+- name: Check if the telemetry namespace exists
+  ansible.builtin.command: >
+    kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: idrac_namespace_check
+  changed_when: false
+  failed_when: false
 
 - name: Check if iDRAC telemetry StatefulSet exists
   ansible.builtin.command: >
-    kubectl get statefulset {{ idrac_telemetry_k8s_name }} -n {{ telemetry_namespace }}
+    kubectl get statefulset {{ idrac_telemetry_k8s_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.spec.replicas}'
   register: idrac_sts_check
   changed_when: false
   failed_when: false
+  when:
+    - idrac_namespace_check.rc == 0
+    - idrac_namespace_check.stdout | trim | length > 0
+
+- name: Record iDRAC StatefulSet discovery failure
+  ansible.builtin.set_fact:
+    idrac_reconcile_failed: true
+    idrac_reconcile_error: >-
+      Failed to discover the {{ idrac_telemetry_k8s_name }} StatefulSet:
+      {{ idrac_namespace_check.stderr
+         if idrac_namespace_check.rc != 0
+         else idrac_sts_check.stderr | default('unknown kubectl error') }}
+  when: >-
+    idrac_namespace_check.rc != 0 or
+    (idrac_sts_check is not skipped and idrac_sts_check.rc | default(0) != 0)
+
+- name: Set current iDRAC replica state
+  ansible.builtin.set_fact:
+    idrac_sts_exists: >-
+      {{ idrac_sts_check is not skipped and idrac_sts_check.rc | default(1) == 0
+         and (idrac_sts_check.stdout | default('') | trim | length > 0) }}
+    idrac_current_replicas: "{{ idrac_sts_check.stdout | default('0') | trim | default('0', true) | int }}"
+
+- name: Preserve configured iDRAC replica count for re-enable
+  ansible.builtin.command: >
+    kubectl annotate statefulset {{ idrac_telemetry_k8s_name }}
+    -n {{ telemetry_namespace }}
+    {{ idrac_desired_replicas_annotation }}={{ idrac_current_replicas }} --overwrite
+  register: idrac_preserve_replicas
+  changed_when: "'annotated' in idrac_preserve_replicas.stdout"
+  failed_when: false
+  when:
+    - not (idrac_reconcile_failed | bool)
+    - idrac_sts_exists | bool
+    - idrac_current_replicas | int > 0
 
 - name: Scale down iDRAC telemetry StatefulSet to 0 replicas
   ansible.builtin.command: >
@@ -41,14 +88,75 @@
     -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_result
   changed_when: "'scaled' in scale_down_result.stdout"
-  when: idrac_sts_check.rc == 0
+  failed_when: false
+  when:
+    - not (idrac_reconcile_failed | bool)
+    - idrac_sts_exists | bool
+    - idrac_current_replicas | int > 0
+
+- name: Warn when the iDRAC replica count could not be preserved
+  ansible.builtin.debug:
+    msg: >-
+      The configured iDRAC replica count could not be annotated; re-enable will
+      derive it from the BMC inventory instead:
+      {{ idrac_preserve_replicas.stderr | default('unknown kubectl error') }}
+  when:
+    - idrac_preserve_replicas is not skipped
+    - idrac_preserve_replicas.rc | default(0) != 0
+
+- name: Record iDRAC scale-down failure
+  ansible.builtin.set_fact:
+    idrac_reconcile_failed: true
+    idrac_reconcile_error: >-
+      Failed to scale {{ idrac_telemetry_k8s_name }} to zero replicas:
+      {{ scale_down_result.stderr | default('unknown kubectl error') }}
+  when:
+    - scale_down_result is not skipped
+    - scale_down_result.rc | default(0) != 0
+
+- name: Wait until all iDRAC telemetry pods have terminated
+  ansible.builtin.command: >
+    kubectl get pods -n {{ telemetry_namespace }}
+    -l app={{ idrac_telemetry_k8s_name }} --no-headers
+    -o custom-columns='NAME:.metadata.name'
+  register: idrac_pods_after_scale
+  changed_when: false
+  failed_when: false
+  retries: "{{ pod_ready_retries }}"
+  delay: "{{ pod_ready_delay }}"
+  until: >-
+    idrac_pods_after_scale.rc == 0
+    and (idrac_pods_after_scale.stdout | trim | length) == 0
+  when:
+    - not (idrac_reconcile_failed | bool)
+    - idrac_namespace_check.stdout | trim | length > 0
+
+- name: Record iDRAC pod termination failure
+  ansible.builtin.set_fact:
+    idrac_reconcile_failed: true
+    idrac_reconcile_error: >-
+      Timed out waiting for iDRAC telemetry pods to terminate:
+      {{ idrac_pods_after_scale.stderr | default('pods still exist') }}
+  when:
+    - idrac_pods_after_scale is not skipped
+    - idrac_pods_after_scale.rc | default(1) != 0 or
+      (idrac_pods_after_scale.stdout | default('') | trim | length) > 0
 
 - name: Display scale down result
   ansible.builtin.debug:
     msg: "{{ idrac_telemetry_statefulset_scale_down_msg }}"
-  when: idrac_sts_check.rc == 0
+  when:
+    - idrac_sts_exists | bool
+    - not (idrac_reconcile_failed | bool)
 
 - name: StatefulSet not found - nothing to scale down
   ansible.builtin.debug:
     msg: "{{ idrac_telemetry_statefulset_not_found_msg }}"
-  when: idrac_sts_check.rc != 0
+  when:
+    - not (idrac_sts_exists | bool)
+    - not (idrac_reconcile_failed | bool)
+
+- name: Display iDRAC disable failure
+  ansible.builtin.debug:
+    msg: "{{ idrac_reconcile_error }}"
+  when: idrac_reconcile_failed | bool

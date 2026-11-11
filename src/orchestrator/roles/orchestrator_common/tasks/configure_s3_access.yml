@@ -107,10 +107,7 @@
       - _build_status.s3_configurations is mapping
       - _build_status.s3_configurations.endpoint_url is defined
       - _build_status.s3_configurations.endpoint_url | length > 0
-    fail_msg: >-
-      image_build_manager build_status.yml does not contain a usable
-      s3_configurations.endpoint_url. Regenerate the build output before
-      running orchestrator.
+    fail_msg: "{{ s3_config_fail_msg }}"
   when: _build_status_stat.stat.exists
 
 # -------------------------------------------------------------------

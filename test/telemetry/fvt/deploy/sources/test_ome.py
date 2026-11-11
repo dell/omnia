@@ -32,9 +32,14 @@ Always-run checks validate the Vector-OME bridge and KafkaUser. When
 ``configure_ome=true``, the suite also validates the exported mTLS artifacts,
 PFX conversion and upload, OME connectivity, certificate identity, topic
 creation, and data in each OME Kafka topic.
+
+TEL_FVT_DEPLOY_V088 validates the already-disabled OME state without changing
+the deployed configuration.
 """
 
 from datetime import datetime
+import time
+from uuid import uuid4
 
 import pytest
 
@@ -46,6 +51,7 @@ from library.functions import (
     get_kafka_external_bootstrap,
     get_ome_kafka_forwarder_config,
     get_ome_pipeline_context,
+    load_telemetry_config_from_target,
     load_test_config,
     load_test_credentials,
     run_external_kafka_playbook,
@@ -61,6 +67,14 @@ from library.functions import (
     verify_ome_logs_in_victoria,
     verify_ome_metrics_in_victoria,
     view_ome_client_cert,
+)
+from library.functions.k8s_func import (
+    verify_enabled_shared_sinks,
+    verify_workloads_stopped,
+)
+from library.functions.ome_lifecycle_func import (
+    publish_ome_lifecycle_records,
+    query_ome_lifecycle_data,
 )
 from library.messages import (
     OME_ASSERT_MSGS,
@@ -197,6 +211,22 @@ def _get_ome_config(host=None):
         "ome_identifier": test_cfg.get("ome_identifier", "ome"),
         "pfx_secret": pfx_secret,
     }
+
+
+def _ldms_uses_vector_vmagent(config):
+    """Return whether the shared Vector vmagent must remain active for LDMS."""
+    sources = config.get("telemetry_sources", {})
+    bridges = config.get("telemetry_bridges", {})
+    ldms = sources.get("ldms", {}) if isinstance(sources, dict) else {}
+    vector_ldms = (
+        bridges.get("vector_ldms", {}) if isinstance(bridges, dict) else {}
+    )
+    return (
+        isinstance(ldms, dict)
+        and ldms.get("metrics_enabled") is True
+        and isinstance(vector_ldms, dict)
+        and vector_ldms.get("metrics_enabled") is True
+    )
 
 
 # =========================================================================
@@ -1275,3 +1305,142 @@ def test_ome_auditlogs_logs_in_victoria(host):
     _verify_victoria_log_topic(
         host, tl, "ome.auditlogs",
     )
+
+
+# =========================================================================
+# TEL_FVT_DEPLOY_V088: Verify configured-disabled OME state
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.sanity
+@pytest.mark.ome
+@pytest.mark.order(98)
+def test_ome_disabled_state(host):
+    """Verify disabled OME routing is inactive and shared sinks stay healthy."""
+    context = get_ome_pipeline_context(host)
+    if context["source_enabled"]:
+        pytest.skip("OME source is enabled; disabled-state check is not applicable")
+
+    tc = TC["ome_disabled_state"]
+    tl = TestLogger(tc["title"], tc["id"])
+    tl.check("Verifying the configured-disabled OME reconciliation state")
+
+    config = load_telemetry_config_from_target(host)
+    ldms_uses_vmagent = _ldms_uses_vector_vmagent(config)
+    workloads = [
+        {
+            "kind": "deployment",
+            "name": VECTOR_OME_APP_NAME,
+            "selector": f"app={VECTOR_OME_APP_NAME}",
+        },
+        {
+            "kind": "deployment",
+            "name": "vlagent-vector",
+            "selector": "app=vlagent-vector",
+        },
+    ]
+    if not ldms_uses_vmagent:
+        workloads.append({
+            "kind": "deployment",
+            "name": "vmagent-vector",
+            "selector": "app=vmagent-vector",
+        })
+
+    stopped = verify_workloads_stopped(host, workloads)
+    shared = verify_enabled_shared_sinks(host)
+    ldms_forwarder = (
+        verify_deploy_ready(host, "vmagent-vector")
+        if ldms_uses_vmagent else {"success": True, "ready_replicas": 0}
+    )
+
+    check_metrics = shared["sinks"]["victoria_metrics"]["checked"]
+    check_logs = shared["sinks"]["victoria_logs"]["checked"]
+    marker = f"ome-fvt-disabled-{uuid4().hex}"
+    marker_started = time.time() - 1
+    if check_metrics or check_logs:
+        published = publish_ome_lifecycle_records(host, marker)
+        if published["success"]:
+            time.sleep(20)
+            observed = query_ome_lifecycle_data(
+                host,
+                marker,
+                marker_started,
+                time.time(),
+                check_metrics=check_metrics,
+                check_logs=check_logs,
+            )
+        else:
+            observed = {
+                "success": False,
+                "metric_counts": {},
+                "log_counts": {},
+                "error": published["error"],
+            }
+    else:
+        published = {"success": True, "topics": {}, "error": ""}
+        observed = {
+            "success": True,
+            "metric_counts": {},
+            "log_counts": {},
+            "error": "",
+        }
+    marker_absent = (
+        observed["success"]
+        and not any(observed["metric_counts"].values())
+        and not any(observed["log_counts"].values())
+    )
+
+    detail_lines = [
+        "Configured state: OME metrics_enabled=false, logs_enabled=false",
+    ]
+    for state in stopped["workloads"]:
+        detail_lines.append(
+            f"{state['name']}: {'retained' if state['exists'] else 'absent'}, "
+            f"desired={state['replicas']}, active={state['active_replicas']}, "
+            f"pods={len(state['pods'])}"
+        )
+    if ldms_uses_vmagent:
+        detail_lines.append(
+            "vmagent-vector: retained for enabled LDMS bridge, "
+            f"ready={ldms_forwarder['ready_replicas']}"
+        )
+    detail_lines.extend([
+        f"OME Kafka marker published: {published['success']}",
+        (
+            "Disabled metrics marker counts: "
+            f"{observed['metric_counts'] if check_metrics else 'not checked'}"
+        ),
+        (
+            "Disabled logs marker counts: "
+            f"{observed['log_counts'] if check_logs else 'not checked'}"
+        ),
+    ])
+    detail_lines.extend(
+        f"Shared {name}: {result['details']}"
+        for name, result in shared["sinks"].items()
+    )
+    details = "\n".join(detail_lines)
+    success = (
+        stopped["success"]
+        and shared["success"]
+        and ldms_forwarder["success"]
+        and marker_absent
+    )
+
+    if success:
+        tl.passed("OME disabled state is correctly reconciled", details)
+    else:
+        errors = [stopped["error"], shared["error"]]
+        if not ldms_forwarder["success"]:
+            errors.append("vmagent-vector is not ready for the enabled LDMS bridge")
+        if not marker_absent:
+            errors.append(
+                observed.get("error")
+                or "a disabled OME marker reached VictoriaMetrics or VictoriaLogs"
+            )
+        tl.failed(
+            "OME disabled-state reconciliation is incorrect",
+            "\n".join(filter(None, [details, *errors])),
+        )
+
+    assert success, "; ".join(filter(None, errors if not success else []))

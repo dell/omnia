@@ -78,7 +78,10 @@
       ansible.builtin.template:
         src: postgres.j2
         dest: "{{ postgres_quadlet_path }}"
+        owner: root
+        group: root
         mode: "{{ postgres_quadlet_file_mode }}"
+      no_log: true
       register: quadlet_out
 
     - name: Reload systemd if Quadlet changed

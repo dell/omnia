@@ -96,9 +96,10 @@ variables:
   TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
+  TEST_DISCOVERY_CMD: "./run_validation.sh fvt_discovery verify"
   TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
   # SKIP_STAGES: Comma-separated list of stages to skip.
-  # Valid values: repo_manager, image_build_manager, orchestrator, telemetry,
+  # Valid values: repo_manager, image_build_manager, orchestrator, discovery, telemetry,
   #   setup_environment, setup_main, cleanup_omnia
   # Example: SKIP_STAGES="repo_manager,telemetry" skips cleanup+deploy+test for both.
   #
@@ -117,8 +118,11 @@ variables:
 stages:
   - initialization
   - setup_environment
+  - cleanup_build_stream
+  - cleanup_utils
   - cleanup_telemetry
   - cleanup_orchestrator
+  - cleanup_discovery
   - cleanup_image_build
   - cleanup_repo_manager
   - cleanup_omnia
@@ -128,6 +132,8 @@ stages:
   - test_repo_manager
   - image_build_manager
   - test_image_build_manager
+  - discovery
+  - test_discovery
   - orchestrator
   - test_orchestrator
   - telemetry
@@ -410,6 +416,11 @@ setup_environment:
   needs:
     - job: initialization
       artifacts: true
+  artifacts:
+    paths:
+      - actual_commit_sha.txt
+      - pipeline_job_status/
+    when: always
   script:
     - echo "========================================================"
     - echo "  Setting up Omnia environment on cluster $CLUSTER"
@@ -441,6 +452,13 @@ setup_environment:
     - echo "  Branch - $OMNIA_BRANCH"
     - echo "  Path   - $OMNIA_INSTALL_PATH"
     - $SSH_CMD $TARGET "cd $(dirname $OMNIA_INSTALL_PATH) && git clone -b $OMNIA_BRANCH $OMNIA_REPO $(basename $OMNIA_INSTALL_PATH)"
+
+    # Step 4a: Capture the actual commit SHA from the cloned repo
+    - echo "Step 4a - Capturing actual commit SHA from cloned repo"
+    - |
+      ACTUAL_COMMIT_SHA=$($SSH_CMD $TARGET "cd $OMNIA_INSTALL_PATH && git rev-parse HEAD" | tail -1)
+      echo "  Actual Commit SHA: $ACTUAL_COMMIT_SHA"
+      echo "$ACTUAL_COMMIT_SHA" > actual_commit_sha.txt
 
     # Step 5: Copy cluster-specific omnia.env to the cloned repo (if it exists)
     - echo "Step 5 - Copying cluster-specific omnia.env to target omnia repo"
@@ -603,6 +621,9 @@ cleanup_image_build_manager:
     - job: cleanup_orchestrator
       artifacts: true
       optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
     - job: setup_environment
       artifacts: true
       optional: true
@@ -692,6 +713,110 @@ cleanup_orchestrator:
     - echo "  orchestrator cleanup completed for cluster $CLUSTER"
     - echo "========================================================"
 
+# ======================  CLEANUP: DISCOVERY  =============================
+# Cleans up discovery components on the target.
+# Uses the discovery cleanup playbook: src/discovery/playbooks/discovery.yml --tags cleanup
+# This stage always runs regardless of enable_discovery variable.
+# ---------------------------------------------------------------------------
+cleanup_discovery:
+  stage: cleanup_discovery
+  timeout: 3h
+  allow_failure: false
+  before_script: []
+  rules:
+    - if: '$SKIP_STAGES =~ /discovery/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default")'
+      when: on_success
+  needs:
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — discovery on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running discovery cleanup"
+    - 'echo "  Tags: cleanup"'
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute discovery.yml --tags cleanup on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/discovery/playbooks/
+          ansible-playbook discovery.yml --tags cleanup $ANSIBLE_VERBOSITY
+        " || true
+      fi
+
+    - echo "========================================================"
+    - echo "  discovery cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ======================  CLEANUP: BUILD STREAM  ============================
+# Cleans up build_stream components on the target.
+# Uses the build_stream cleanup playbook: src/build_stream/playbooks/build_stream.yml --tags cleanup
+# ---------------------------------------------------------------------------
+cleanup_build_stream:
+  stage: cleanup_build_stream
+  timeout: 3h
+  allow_failure: false
+  before_script: []
+  rules:
+    - if: '$SKIP_STAGES =~ /build_stream/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /build_stream/)'
+      when: on_success
+  needs:
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — build_stream on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running build_stream cleanup"
+    - 'echo "  Tags: cleanup"'
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute build_stream.yml --tags cleanup on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/build_stream/playbooks/
+          ansible-playbook build_stream.yml --tags cleanup $ANSIBLE_VERBOSITY
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  build_stream cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
 # ========================  CLEANUP: TELEMETRY  ==============================
 # Cleans up telemetry components (sources + sinks) on the target.
 # Uses the telemetry cleanup playbook: src/telemetry/playbooks/cleanup/cleanup.yml
@@ -707,6 +832,9 @@ cleanup_telemetry:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /telemetry/)'
       when: on_success
   needs:
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
     - job: setup_environment
       artifacts: true
       optional: true
@@ -742,6 +870,59 @@ cleanup_telemetry:
     - echo "  telemetry cleanup completed for cluster $CLUSTER"
     - echo "========================================================"
 
+# ========================  CLEANUP: UTILS  ==================================
+# Cleanup for utils domain (log collection, install_os, etc.)
+# Uses --tags cleanup which triggers cleanup plays.
+# ---------------------------------------------------------------------------
+cleanup_utils:
+  stage: cleanup_utils
+  timeout: 3h
+  allow_failure: true
+  before_script: []
+  rules:
+    - if: '$SKIP_STAGES =~ /utils/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /utils/)'
+      when: on_success
+  needs:
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — utils on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running utils cleanup"
+    - 'echo "  Tags: cleanup"'
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute utils.yml --tags cleanup on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/utils/playbooks/
+          ansible-playbook utils.yml --tags cleanup $ANSIBLE_VERBOSITY
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  utils cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
 # ========================  CLEANUP: OMNIA.SH  ==============================
 # Full omnia cleanup — destroys venv, $OMNIA_DATA_PATH/, /etc/omnia/.
 # The git repo at $OMNIA_INSTALL_PATH is NOT removed.
@@ -760,6 +941,9 @@ cleanup_omnia:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && $DOMAINS == "default"'
       when: on_success
   needs:
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
     - job: cleanup_telemetry
       artifacts: true
       optional: true
@@ -859,6 +1043,9 @@ setup_main:
       artifacts: true
       optional: true
     - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_build_stream
       artifacts: true
       optional: true
     - job: cleanup_telemetry
@@ -1037,15 +1224,17 @@ test_main_installation:
     # Step 3: Activate test venv and run all verification tests
     - echo "Step 3 - Running $TEST_MAIN_CMD"
     - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_MAIN_CMD:-./run_validation.sh fvt_main verify}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute $TEST_MAIN_CMD on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
 
           cd $OMNIA_INSTALL_PATH/test/main
           source .venv/bin/activate
-          $TEST_MAIN_CMD
+          $TEST_CMD
         "
       fi
 
@@ -1262,8 +1451,10 @@ test_repo_manager:
     # Step 3: Run repo_manager validation tests
     - echo "Step 3 - Running repo_manager validation tests"
     - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_REPO_MANAGER_CMD:-./run_validation.sh fvt_repo_manager verify}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute $TEST_REPO_MANAGER_CMD on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
@@ -1271,7 +1462,7 @@ test_repo_manager:
           cd $OMNIA_INSTALL_PATH/test/repo_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            $TEST_REPO_MANAGER_CMD
+            $TEST_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -1497,8 +1688,10 @@ test_image_build_manager:
     # Step 3: Run image_build_manager validation tests
     - echo "Step 3 - Running image_build_manager validation tests"
     - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_IMAGE_BUILD_MANAGER_CMD:-./run_validation.sh fvt_image_build_manager verify}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute $TEST_IMAGE_BUILD_MANAGER_CMD on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
@@ -1506,7 +1699,7 @@ test_image_build_manager:
           cd $OMNIA_INSTALL_PATH/test/image_build_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            $TEST_IMAGE_BUILD_MANAGER_CMD
+            $TEST_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -1515,6 +1708,242 @@ test_image_build_manager:
 
     - echo "========================================================"
     - echo "  image_build_manager tests completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ============================  DISCOVERY  ==================================
+# Runs discovery stage when enable_discovery CI/CD variable is set to true.
+# Copies discovery input files, encrypts credentials, and runs the playbook.
+# ---------------------------------------------------------------------------
+discovery:
+  stage: discovery
+  timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
+  rules:
+    - if: '$SKIP_STAGES =~ /discovery/'
+      when: never
+    - if: '$ENABLE_DISCOVERY == "true" && ($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /discovery/)'
+      when: on_success
+    - when: never
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: setup_main
+      artifacts: true
+      optional: true
+    - job: test_main_installation
+      artifacts: true
+      optional: true
+    - job: image_build_manager
+      artifacts: true
+      optional: true
+    - job: test_image_build_manager
+      artifacts: true
+      optional: true
+  script:
+    - echo "========================================================"
+    - echo "  Running discovery on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - source pipeline_time.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - STAGE_RC=0
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    # Step 1: Resolve OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
+    - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      ENV_VARS=$($SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh
+        echo \$OMNIA_DATA_PATH
+        echo \$OMNIA_PROJECT_NAME
+      ")
+      OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
+      INPUT_DIR="$OMNIA_DATA_PATH/discovery/input/$OMNIA_PROJECT_NAME"
+      echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
+      echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
+      echo "  INPUT_DIR          = $INPUT_DIR"
+
+    # Step 2: Create input directory and copy discovery input files
+    - echo "Step 2 - Copying discovery input files to target"
+    - |
+      $SSH_CMD $TARGET "mkdir -p $INPUT_DIR"
+      if [ -d "$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/discovery" ]; then
+        $SCP_CMD -r $CI_PROJECT_DIR/clusters/$CLUSTER/inputs/discovery/. $TARGET:$INPUT_DIR/
+        echo "  Copied discovery input files to $INPUT_DIR/"
+        $SSH_CMD $TARGET "ls -la $INPUT_DIR/"
+      else
+        echo "WARNING: clusters/$CLUSTER/inputs/discovery/ not found"
+      fi
+
+    # Step 3: Fetch credential file from OpenBao
+    - echo "Step 3 - Fetching discovery credentials from OpenBao"
+    - |
+      CRED_FILE="/tmp/discovery_creds_$$.yml"
+      if fetch_openbao_secret "discovery" "$CRED_FILE"; then
+        $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/discovery_credentials.yml 2>/dev/null
+        echo "  Credential file copied to target"
+      else
+        echo "WARNING: Failed to fetch discovery credentials from OpenBao"
+      fi
+      rm -f "$CRED_FILE"
+
+    # Step 4: Encrypt discovery_credentials.yml with ansible-vault
+    - echo "Step 4 - Encrypting discovery_credentials.yml"
+    - |
+      $SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh
+        VAULT_KEY='$INPUT_DIR/.discovery_credentials_key'
+        CRED_FILE='$INPUT_DIR/discovery_credentials.yml'
+        if [ -f \"\$CRED_FILE\" ]; then
+          # Check if already encrypted
+          if head -n1 \"\$CRED_FILE\" | grep -q '\$ANSIBLE_VAULT;'; then
+            echo 'Credential file is already encrypted'
+          else
+            # Generate vault key if it does not exist
+            if [ ! -f \"\$VAULT_KEY\" ]; then
+              openssl rand -base64 32 > \"\$VAULT_KEY\"
+              chmod 600 \"\$VAULT_KEY\"
+              echo 'Generated vault key'
+            fi
+            ansible-vault encrypt --vault-password-file=\"\$VAULT_KEY\" \"\$CRED_FILE\"
+            echo 'Credential file encrypted successfully'
+          fi
+        else
+          echo 'WARNING: discovery_credentials.yml not found — skipping encryption'
+        fi
+      "
+
+    # Step 5: Run discovery.yml playbook
+    - echo "Step 5 - Running discovery.yml playbook"
+    - 'TAGS_FLAG=$( [ -n "$DISCOVERY_TAGS" ] && echo "--tags $DISCOVERY_TAGS" || echo "" )'
+    - 'echo "  Tags: ${DISCOVERY_TAGS:-<none>}"'
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute discovery.yml $TAGS_FLAG $ANSIBLE_VERBOSITY on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/discovery
+          ansible-playbook playbooks/discovery.yml $TAGS_FLAG $ANSIBLE_VERBOSITY
+        " || STAGE_RC=$?
+      fi
+
+    - |
+      if [ "$STAGE_RC" -ne 0 ]; then
+        echo "ERROR: discovery playbook failed (exit code: $STAGE_RC)"
+        exit 1
+      fi
+      echo "discovery completed successfully for cluster $CLUSTER"
+
+# ========================  TEST: DISCOVERY  =============================
+# Runs discovery validation tests from test/discovery/.
+# Only executes when TEST_MODE=true and enable_discovery is true.
+# ---------------------------------------------------------------------------
+test_discovery:
+  stage: test_discovery
+  timeout: 3h
+  allow_failure: true
+  rules:
+    - if: '$SKIP_STAGES =~ /discovery/'
+      when: never
+    - if: '$ENABLE_DISCOVERY == "true" && ($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default")
+        && $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /discovery/)'
+      when: on_success
+    - when: never
+  needs:
+    - job: discovery
+      artifacts: true
+      optional: true
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Testing discovery on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    # Step 1: Copy test configuration files to target
+    - echo "Step 1 - Copying discovery test config to target"
+    - |
+      TEST_SRC="$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/test/discovery"
+      TEST_DST="$OMNIA_INSTALL_PATH/test/discovery"
+      for f in test_config.yml test_run_config.yml; do
+        if [ -f "$TEST_SRC/$f" ]; then
+          $SCP_CMD "$TEST_SRC/$f" $TARGET:$TEST_DST/$f
+          echo "  Copied $f to $TEST_DST/"
+        else
+          echo "  WARNING: $f not found in pipeline — using defaults"
+        fi
+      done
+
+      # Copy test credentials from CI/CD File Variable
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$TEST_DST/test_creds.yml 2>/dev/null
+        echo "  test_creds.yml copied to target"
+      else
+        echo "WARNING: CI/CD File Variable $CRED_VAR not set — using defaults"
+      fi
+
+    # Step 2: Install the test venv
+    - echo "Step 2 - Installing discovery test venv"
+    - |
+      $SSH_CMD $TARGET "
+        cd $OMNIA_INSTALL_PATH/test/discovery
+        if [ -f setup_env.sh ]; then
+          bash setup_env.sh --venv
+        else
+          echo 'WARNING: setup_env.sh not found — skipping test venv setup'
+        fi
+      "
+
+    # Step 3: Run discovery validation tests
+    - echo "Step 3 - Running discovery validation tests"
+    - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_DISCOVERY_CMD:-./run_validation.sh fvt_discovery verify}"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute $TEST_CMD on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+
+          cd $OMNIA_INSTALL_PATH/test/discovery
+          if [ -f run_validation.sh ]; then
+            source .venv/bin/activate 2>/dev/null || true
+            $TEST_CMD
+          else
+            echo 'WARNING: run_validation.sh not found — skipping tests'
+          fi
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  discovery tests completed for cluster $CLUSTER"
     - echo "========================================================"
 
 # ============================  ORCHESTRATOR  ================================
@@ -1551,6 +1980,12 @@ orchestrator:
       artifacts: true
       optional: true
     - job: test_image_build_manager
+      artifacts: true
+      optional: true
+    - job: discovery
+      artifacts: true
+      optional: true
+    - job: test_discovery
       artifacts: true
       optional: true
   script:
@@ -1731,8 +2166,10 @@ test_orchestrator:
     # Step 3: Run orchestrator validation tests
     - echo "Step 3 - Running orchestrator validation tests"
     - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_ORCHESTRATOR_CMD:-./run_validation.sh fvt_orchestrator verify}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute $TEST_ORCHESTRATOR_CMD on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
@@ -1740,7 +2177,7 @@ test_orchestrator:
           cd $OMNIA_INSTALL_PATH/test/orchestrator
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            $TEST_ORCHESTRATOR_CMD
+            $TEST_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -1964,8 +2401,10 @@ test_telemetry:
     # Step 3: Run telemetry validation tests
     - echo "Step 3 - Running telemetry validation tests"
     - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_TELEMETRY_CMD:-./run_validation.sh fvt_telemetry verify}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute $TEST_TELEMETRY_CMD on $TARGET"
+        echo "DRY_RUN: Would execute $TEST_CMD on $TARGET"
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
@@ -1973,7 +2412,7 @@ test_telemetry:
           cd $OMNIA_INSTALL_PATH/test/telemetry
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            $TEST_TELEMETRY_CMD
+            $TEST_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
@@ -2024,16 +2463,37 @@ summary:
     - job: cleanup_orchestrator
       artifacts: true
       optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
     - job: cleanup_telemetry
       artifacts: true
       optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
     - job: cleanup_omnia
+      artifacts: true
+      optional: true
+    - job: setup_main
+      artifacts: true
+      optional: true
+    - job: test_main_installation
       artifacts: true
       optional: true
     - job: repo_manager
       artifacts: true
       optional: true
     - job: image_build_manager
+      artifacts: true
+      optional: true
+    - job: discovery
+      artifacts: true
+      optional: true
+    - job: test_discovery
       artifacts: true
       optional: true
     - job: orchestrator
@@ -2067,52 +2527,68 @@ summary:
     - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
     - TARGET="$TARGET_USER@$TARGET_IP"
     - mkdir -p pipeline_reports
+    # Read the actual commit SHA from the cloned repo
+    - |
+      if [ ! -f actual_commit_sha.txt ]; then
+        echo "ERROR: actual_commit_sha.txt not found - commit SHA was not captured from cloned repo"
+        exit 1
+      fi
+      ACTUAL_COMMIT_SHA=$(cat actual_commit_sha.txt)
+      echo "Using actual commit SHA from cloned repo: $ACTUAL_COMMIT_SHA"
 
     # Generate summary report based on PIPELINE_MODE
     - |
       if [ "$PIPELINE_MODE" = "cleanup" ]; then
         SUMMARY_MODE="CLEANUP"
-        STAGES_EXECUTED="
+        STAGES_EXECUTED='
         - initialization
         - setup_environment
-        - cleanup_repo_manager (if DOMAINS matches)
-        - cleanup_image_build_manager (if DOMAINS matches)
-        - cleanup_orchestrator (if DOMAINS matches)
-        - cleanup_telemetry (if DOMAINS matches)
-        - cleanup_omnia (only if DOMAINS == \"default\")"
+        - cleanup_build_stream if DOMAINS matches
+        - cleanup_repo_manager if DOMAINS matches
+        - cleanup_image_build_manager if DOMAINS matches
+        - cleanup_orchestrator if DOMAINS matches
+        - cleanup_discovery always runs
+        - cleanup_telemetry if DOMAINS matches
+        - cleanup_omnia only if DOMAINS == "default"'
       elif [ "$PIPELINE_MODE" = "deploy" ]; then
         SUMMARY_MODE="DEPLOY"
-        STAGES_EXECUTED="
+        STAGES_EXECUTED='
         - initialization
-        - setup_environment (if ENABLE_SETUP=true)
-        - repo_manager (if DOMAINS matches)
-        - test_repo_manager (if TEST_MODE=true)
-        - image_build_manager (if DOMAINS matches)
-        - test_image_build_manager (if TEST_MODE=true)
-        - orchestrator (if DOMAINS matches)
-        - test_orchestrator (if TEST_MODE=true)
-        - telemetry (if DOMAINS matches)
-        - test_telemetry (if TEST_MODE=true)"
+        - setup_environment if ENABLE_SETUP=true
+        - repo_manager if DOMAINS matches
+        - test_repo_manager if TEST_MODE=true
+        - image_build_manager if DOMAINS matches
+        - test_image_build_manager if TEST_MODE=true
+        - discovery if ENABLE_DISCOVERY=true and DOMAINS matches
+        - test_discovery if ENABLE_DISCOVERY=true, TEST_MODE=true, and DOMAINS matches
+        - orchestrator if DOMAINS matches
+        - test_orchestrator if TEST_MODE=true
+        - telemetry if DOMAINS matches
+        - test_telemetry if TEST_MODE=true'
       else
-        SUMMARY_MODE="DEFAULT (cleanup + deploy)"
-        STAGES_EXECUTED="
+        SUMMARY_MODE="DEFAULT - cleanup and deploy"
+        STAGES_EXECUTED='
         - initialization
         - setup_environment
-        - cleanup_repo_manager (if DOMAINS matches)
-        - cleanup_image_build_manager (if DOMAINS matches)
-        - cleanup_orchestrator (if DOMAINS matches)
-        - cleanup_telemetry (if DOMAINS matches)
-        - cleanup_omnia (only if DOMAINS == \"default\")
+        - cleanup_build_stream if DOMAINS matches
+        - cleanup_repo_manager if DOMAINS matches
+        - cleanup_image_build_manager if DOMAINS matches
+        - cleanup_orchestrator if DOMAINS matches
+        - cleanup_discovery always runs
+        - cleanup_telemetry if DOMAINS matches
+        - cleanup_omnia only if DOMAINS == "default"
         - setup_main
-        - test_main_installation (if TEST_MODE=true)
-        - repo_manager (if DOMAINS matches)
-        - test_repo_manager (if TEST_MODE=true)
-        - image_build_manager (if DOMAINS matches)
-        - test_image_build_manager (if TEST_MODE=true)
-        - orchestrator (if DOMAINS matches)
-        - test_orchestrator (if TEST_MODE=true)
-        - telemetry (if DOMAINS matches)
-        - test_telemetry (if TEST_MODE=true)"
+        - test_main_installation if TEST_MODE=true
+        - repo_manager if DOMAINS matches
+        - test_repo_manager if TEST_MODE=true
+        - image_build_manager if DOMAINS matches
+        - test_image_build_manager if TEST_MODE=true
+        - discovery if ENABLE_DISCOVERY=true and DOMAINS matches
+        - test_discovery if ENABLE_DISCOVERY=true, TEST_MODE=true, and DOMAINS matches
+        - orchestrator if DOMAINS matches
+        - test_orchestrator if TEST_MODE=true
+        - telemetry if DOMAINS matches
+        - test_telemetry if TEST_MODE=true'
       fi
 
     - |
@@ -2128,7 +2604,7 @@ summary:
       Pipeline URL:     $CI_PIPELINE_URL
       Project:          $CI_PROJECT_NAME
       Branch:           $CI_COMMIT_REF_NAME
-      Commit SHA:       $CI_COMMIT_SHA
+      Commit SHA:       $ACTUAL_COMMIT_SHA
       Trigger Time:     $PIPELINE_TRIGGER_TIME
       TEST_MODE:        $TEST_MODE
       DRY_RUN:          $DRY_RUN
@@ -2155,6 +2631,17 @@ summary:
       ):
           with open(path, encoding="utf-8") as status_file:
               jobs.append(json.load(status_file))
+
+      # Check if discovery stages should be marked as skipped
+      enable_discovery = os.environ.get("ENABLE_DISCOVERY", "false").lower() == "true"
+      discovery_stage_exists = any(job.get("name") == "discovery" for job in jobs)
+      test_discovery_stage_exists = any(job.get("name") == "test_discovery" for job in jobs)
+
+      if not enable_discovery and not discovery_stage_exists:
+        jobs.append({"name": "discovery", "status": "skipped"})
+      if not enable_discovery and not test_discovery_stage_exists:
+        jobs.append({"name": "test_discovery", "status": "skipped"})
+
       jobs.append({"name": "summary", "status": "running"})
       with open("pipeline_reports/job_statuses.json", "w", encoding="utf-8") as output:
           json.dump(jobs, output)
@@ -2171,7 +2658,7 @@ summary:
       cluster = os.environ.get("CLUSTER", "cluster1")
       domains_env = os.environ.get("DOMAINS", "default")
       if domains_env == "default":
-        domains = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+        domains = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry"]
       else:
         # Handle both comma and pipe separators for domain lists
         import re
@@ -2186,7 +2673,6 @@ summary:
         "telemetry": "telemetry_test_report",
         "build_stream": "build_stream_test_report",
         "discovery": "discovery_test_report",
-        "utils": "utils_test_report",
       }
 
       report_paths = {}
@@ -2224,15 +2710,18 @@ summary:
 
     # Copy test reports from remote target to CI runner
     - |
-      echo "Fetching test reports from target..."
-      LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
-      mkdir -p "$LOCAL_REPORTS_PATH"
-      if [ "$DOMAINS" = "default" ]; then
-        REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Skipping test report fetching"
       else
-        # Handle both comma and pipe separators for domain lists
-        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
-      fi
+        echo "Fetching test reports from target..."
+        LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+        mkdir -p "$LOCAL_REPORTS_PATH"
+        if [ "$DOMAINS" = "default" ]; then
+          REPORT_DOMAINS="main repo_manager image_build_manager discovery orchestrator telemetry"
+        else
+          # Handle both comma and pipe separators for domain lists
+          REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
+        fi
 
       # Check which test stages actually executed successfully
       echo "Checking which test stages executed..."
@@ -2248,12 +2737,13 @@ summary:
       except:
         pass
 
-      # Determine which test stages succeeded
+      # Determine which test stages executed (success or failure)
       test_stages_executed = {}
       for job in job_statuses:
         name = job.get("name", "")
         status = job.get("status", "")
-        if status == "success" and "test_" in name:
+        # Fetch reports for any test stage that ran (success, failure, or other non-skipped status)
+        if status not in ("skipped", "unknown", "created") and "test_" in name:
           # Extract domain from job name
           if "test_main" in name:
             test_stages_executed["main"] = True
@@ -2261,6 +2751,8 @@ summary:
             test_stages_executed["repo_manager"] = True
           elif "test_image_build_manager" in name:
             test_stages_executed["image_build_manager"] = True
+          elif "test_discovery" in name:
+            test_stages_executed["discovery"] = True
           elif "test_orchestrator" in name:
             test_stages_executed["orchestrator"] = True
           elif "test_telemetry" in name:
@@ -2273,7 +2765,17 @@ summary:
       print(f"Test stages executed: {list(test_stages_executed.keys())}")
       PY
 
+      # Read which test stages actually executed
+      EXECUTED_DOMAINS=$(python3 -c "import json; print(' '.join(json.load(open('pipeline_reports/test_stages_executed.json')).keys()))" 2>/dev/null || echo "")
+      echo "  Test stages that executed: $EXECUTED_DOMAINS"
+
       for domain in $REPORT_DOMAINS; do
+        # Skip domains whose test stage did not execute
+        if ! echo " $EXECUTED_DOMAINS " | grep -q " $domain "; then
+          echo "  Skipping $domain — test stage did not execute"
+          continue
+        fi
+
         REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('$domain', '/opt/omnia/reports'))")
         REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/report_names.json')); print(d.get('$domain','${domain}_test_report'))")
         echo "  Domain: $domain, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
@@ -2283,6 +2785,7 @@ summary:
         $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*.json 2>/dev/null | head -20" || true
 
         # Search for reports using exact name from test_config.yml
+        # Only fetch reports with current pipeline ID to avoid picking up old reports from previous runs
         LATEST_JSON=""
         # Pattern 1: <pipeline_id>_<report_name>.json (CI naming: exact match)
         REPORT_GLOB="${CI_PIPELINE_ID}_${REPORT_BASE_NAME}.json"
@@ -2290,18 +2793,10 @@ summary:
         LATEST_JSON=$($SSH_CMD $TARGET \
           "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
 
-        # Pattern 2: <report_name>.json (CLI naming: no pipeline prefix)
-        if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="${REPORT_BASE_NAME}.json"
-          echo "  Trying pattern 2: $REPORT_GLOB"
-          LATEST_JSON=$($SSH_CMD $TARGET \
-            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
-        fi
-
-        # Pattern 3: *<pipeline_id>*<report_name>*.json (broad fallback)
+        # Pattern 2: *<pipeline_id>*<report_name>*.json (broad fallback with pipeline ID)
         if [ -z "$LATEST_JSON" ]; then
           REPORT_GLOB="*${CI_PIPELINE_ID}*${REPORT_BASE_NAME}*.json"
-          echo "  Trying pattern 3: $REPORT_GLOB"
+          echo "  Trying pattern 2: $REPORT_GLOB"
           LATEST_JSON=$($SSH_CMD $TARGET \
             "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
         fi
@@ -2309,11 +2804,22 @@ summary:
         if [ -n "$LATEST_JSON" ]; then
           echo "  Found JSON: $LATEST_JSON"
           $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
+          # Rename to include pipeline ID if not already prefixed
+          JSON_BASENAME=$(basename "$LATEST_JSON")
+          if ! echo "$JSON_BASENAME" | grep -q "^${CI_PIPELINE_ID}_"; then
+            mv "$LOCAL_REPORTS_PATH/$JSON_BASENAME" "$LOCAL_REPORTS_PATH/${CI_PIPELINE_ID}_${JSON_BASENAME}" 2>/dev/null || true
+            echo "  Renamed: $JSON_BASENAME -> ${CI_PIPELINE_ID}_${JSON_BASENAME}"
+          fi
           # Look for matching HTML report
           LATEST_HTML="${LATEST_JSON%.json}.html"
           if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
             echo "  Found HTML: $LATEST_HTML"
             $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
+            HTML_BASENAME=$(basename "$LATEST_HTML")
+            if ! echo "$HTML_BASENAME" | grep -q "^${CI_PIPELINE_ID}_"; then
+              mv "$LOCAL_REPORTS_PATH/$HTML_BASENAME" "$LOCAL_REPORTS_PATH/${CI_PIPELINE_ID}_${HTML_BASENAME}" 2>/dev/null || true
+              echo "  Renamed: $HTML_BASENAME -> ${CI_PIPELINE_ID}_${HTML_BASENAME}"
+            fi
           fi
         else
           echo "  WARNING: No report found for domain: $domain (test stage executed but no report generated)"
@@ -2321,6 +2827,7 @@ summary:
       done
       echo "  Reports copied to $LOCAL_REPORTS_PATH/"
       ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
+      fi
 
     - export PIPELINE_MODE
     - export DOMAINS
@@ -2328,6 +2835,9 @@ summary:
     - export CLUSTER="${CLUSTER}"
     - export CLUSTER_NAME="${CLUSTER_NAME}"
     - export TARGET_IP="${TARGET_IP}"
+    - export TARGET_USER="${TARGET_USER}"
+    - export TARGET_PASS="${TARGET_PASS}"
+    - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"

@@ -100,10 +100,7 @@
       - _pg_init_script_verified.stat.readable | default(false) | bool
       - _pg_init_script_verified.stat.size | default(0) | int > 0
     fail_msg: >-
-      The OpenCHAMI PostgreSQL initialization script is missing or unreadable.
-      It could not be restored from
-      {{ openchami_work_dir }}/{{ openchami_rpm_name }}. Refusing to start
-      OpenCHAMI because the SMD database and role would not be initialized.
+      {{ pg_init_script_fail_msg }}
 
 - name: Create tokensmith quadlet override directory
   ansible.builtin.file:

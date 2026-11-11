@@ -39,7 +39,7 @@
 
     - name: Check slurmctld is reachable
       ansible.builtin.fail:
-        msg: "Failed to connect to {{ ctld }}."
+        msg: "{{ controller_reachability_fail_msg }}"
       when: service_facts is unreachable
 
     - name: Update ctld_state if slurmctld is running
@@ -74,7 +74,7 @@
         hosts: "{{ reachable_hosts }}"
         ip_name_map: "{{ ip_name_map }}"
         ssh_key_path: "{{ ssh_private_key_path }}"
-        nodes_to_remove: "{{ nodes_in_normal_not_in_cmpt | default([]) }}"
+        nodes_to_remove: []
         ssh_max_parallel: "{{ bulk_ssh_max_parallel }}"
         ssh_connect_timeout: "{{ bulk_ssh_connect_timeout }}"
       register: bulk_update_result
@@ -112,6 +112,4 @@
   rescue:
     - name: Fail if slurmctld is not running on any host
       ansible.builtin.debug:
-        msg: "Failed to 'scontrol reconfigure' on {{ ctld }}.
-         As task '{{ ansible_failed_task.name }}' failed.
-         results: {{ ansible_failed_result }}"
+        msg: "Failed to 'scontrol reconfigure' on {{ ctld }}. As task '{{ ansible_failed_task.name }}' failed. results: {{ ansible_failed_result }}"

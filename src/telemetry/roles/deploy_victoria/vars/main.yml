@@ -42,7 +42,7 @@ victoria_crd_wait_retries: 60
 victoria_crd_wait_delay: 2
 
 # File modes
-victoria_file_mode: "0644"
+victoria_file_mode: "0600"
 
 # Error messages
 victoria_operator_not_installed_msg: >-

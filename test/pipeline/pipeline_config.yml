@@ -28,7 +28,30 @@
 global:
   # List of clusters to manage (comma-separated, must match section names below)
   # Example: "cluster1,cluster2,cluster3"
-  clusters: "cluster1"
+  clusters: "cluster1,automation_cluster"
+
+  # ---- Utils Pipeline Control (Optional) ----
+  # Enable utils pipeline mode instead of the standard domain deployment pipeline.
+  # When "true", each cluster triggers .gitlab-ci-utils.yml for log collection,
+  # install_os, or OIM log backup operations.
+  # Default: "false"
+  utils_enable: "false"
+
+  # Utils mode (which utils operations to run when utils_enable is "true"):
+  #   "default_logs"    = Run log collection (cluster + OIM)
+  #   "install_os"      = Run install_os only
+  #   "collect"         = Run cluster log collection only
+  #   "backup_oim_logs" = Run OIM log backup only
+  # Default: "default_logs"
+  utils_mode: "default_logs"
+
+  # ---- Build Stream Pipeline Control (Optional) ----
+  # Enable build_stream pipeline mode instead of the standard domain deployment pipeline.
+  # When "true", each cluster triggers .gitlab-ci-build-stream.yml which runs
+  # prepare_base, domain tests, then build_stream deployment and testing.
+  # Mutually exclusive with utils_enable — build_stream takes priority.
+  # Default: "false"
+  build_stream_enable: "false"
 
   # ---- Email Notifications (Optional) ----
   # Configure email alerts when pipeline stages complete or fail.
@@ -114,9 +137,13 @@ cluster1:
     pipeline_mode: "default"
 
     # Which domains to deploy (controls which stages run):
-    #   "default"  = All domains (repo_manager, image_build_manager, orchestrator, telemetry)
+    #   "default"  = All domains
+    #     Cluster pipeline: repo_manager, image_build_manager, orchestrator, telemetry
+    #     Build stream pipeline: repo_manager, image_build_manager, orchestrator, build_stream
     #   "repo_manager"  = Deploy only repo_manager
     #   "orchestrator"  = Deploy only orchestrator
+    #   "discovery"     = Deploy only discovery
+    #   "build_stream"  = Deploy only build_stream (build_stream pipeline only)
     #   "repo_manager|orchestrator"  = Deploy repo_manager OR orchestrator (regex pattern)
     # Default: "default"
     domains: "default"
@@ -126,6 +153,12 @@ cluster1:
     # Set to "true" if target doesn't have Omnia installed yet
     # Default: "false"
     enable_setup: "false"
+
+    # Enable discovery stage
+    # When "true", runs the discovery playbook after image_build_manager
+    # When "false", skips discovery deploy and test stages
+    # Default: "false"
+    enable_discovery: "false"
 
     # Enable test stages after deployment
     # When "true", runs validation tests for each deployed domain
@@ -147,7 +180,7 @@ cluster1:
     # Stages to skip (comma-separated list)
     # Useful for disabling specific domains or stages without modifying config
     # Valid values:
-    #   - repo_manager, image_build_manager, orchestrator, telemetry (skip cleanup+deploy+test)
+    #   - repo_manager, image_build_manager, orchestrator, discovery, telemetry, build_stream (skip cleanup+deploy+test)
     #   - setup_environment, setup_main, cleanup_omnia (skip specific stages)
     # Example: "repo_manager,telemetry" (skip both domains entirely)
     # Default: "" (skip nothing)
@@ -171,9 +204,17 @@ cluster1:
     # Examples: "deploy", "validate"
     orchestrator: ""
 
+    # Discovery (network and hardware discovery) deployment tags
+    # Examples: "deploy", "validate"
+    discovery: ""
+
     # Telemetry (monitoring and observability) deployment tags
     # Examples: "deploy", "validate"
     telemetry: ""
+
+    # Build Stream deployment tags
+    # Examples: "deploy", "validate"
+    build_stream: ""
 
   # ---- Test Commands ----
   # Full test commands to execute for each domain's test stage.
@@ -184,6 +225,10 @@ cluster1:
   #   "./run_validation.sh fvt_repo_manager verify --marker sanity"    = Run only sanity tests
   #   "./run_validation.sh fvt_repo_manager verify --marker functional" = Run only functional tests
   test_commands:
+    # Main Omnia test command
+    # Used in the main/test stage for cross-domain validation
+    test_main: "./run_validation.sh fvt_main verify"
+
     # Repo Manager test command
     repo_manager: "./run_validation.sh fvt_repo_manager verify"
 
@@ -193,5 +238,14 @@ cluster1:
     # Orchestrator test command
     orchestrator: "./run_validation.sh fvt_orchestrator verify"
 
+    # Discovery test command
+    discovery: "./run_validation.sh fvt_discovery verify"
+
     # Telemetry test command
     telemetry: "./run_validation.sh fvt_telemetry verify"
+
+    # Build Stream test command
+    build_stream: "./run_validation.sh fvt_build_stream test"
+
+    # Utils test command
+    utils: "./run_validation.sh fvt_utils verify"

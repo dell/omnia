@@ -52,12 +52,13 @@ component override is unset or empty.
 
 ### Validation Rules
 
-- The execute flow requires the file to exist and be parseable YAML.
-- Discovery currently consumes only `admin_network.subnet` and
-  `ib_network.subnet`; it does not consume `netmask_bits`.
-- These subnet values are not covered by the current L1/L2 validator. The
-  mapping generator derives output addresses from the first two subnet octets
-  and the last two BMC-IP octets.
+- The validate flow performs L1 JSON schema validation using the same
+  `network_spec.json` schema as Orchestrator.
+- File must exist and be valid YAML with a `Networks` array.
+- At least one `admin_network` entry is required with `subnet` and `netmask_bits`.
+- Discovery consumes `admin_network.subnet` and `ib_network.subnet` for IP
+  derivation; the mapping generator derives output addresses from the first
+  two subnet octets and the last two BMC-IP octets.
 
 ---
 
@@ -95,6 +96,7 @@ component override is unset or empty.
 |----------|--------|------|----------|-------------|
 | `OMNIA_PROJECT_NAME` | Environment | string | No | Project name (default: `project_default`) |
 | `cleanup_credentials` | CLI extra variable | bool | No | Remove credentials during `cleanup` (default: `true`) |
+| `cleanup_logs` | CLI extra variable | bool | No | Remove current-project runtime logs and Discovery Ansible execution logs during `cleanup` (default: `true`) |
 
 ### Usage
 
@@ -103,13 +105,17 @@ cd src/discovery/playbooks
 ansible-playbook discovery.yml
 OMNIA_PROJECT_NAME=my_project ansible-playbook discovery.yml
 ansible-playbook discovery.yml --tags cleanup -e cleanup_credentials=false
+ansible-playbook discovery.yml --tags cleanup -e cleanup_logs=false
 ansible-playbook discovery.yml --tags cleanup_credentials
 ```
 
 `cleanup_credentials=false` preserves only `discovery_credentials.yml` and
 `.discovery_credentials_key`. Cleanup does not remove or create the current
 project's Discovery output directory. When it exists, cleanup empties it and
-leaves the directory in place. All other input files are preserved.
+leaves the directory in place. Cleanup resets the current project's runtime log
+directory and removes `/var/log/omnia/discovery` by default;
+`cleanup_logs=false` preserves both log locations. All other input files are
+preserved.
 The `cleanup_credentials` tag removes only the credential file and vault key.
 
 ---

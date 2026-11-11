@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Orchestrator FVT — Cleanup Scenario."""
+"""Full Orchestrator cleanup functional verification."""

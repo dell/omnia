@@ -26,13 +26,11 @@ component_spec:
     pre_cleanup: "tasks/pre_cleanup.yml"
     cleanup: "tasks/cleanup.yml"
     post_cleanup: "tasks/post_cleanup.yml"
-    rollback: "tasks/rollback.yml"
 
   state_management:
     supports_state: true
     state_file: "/var/lib/omnia/cleanup/openldap.state"
     checkpoint_before_cleanup: true
-    supports_rollback: true
 
   error_handling:
     continue_on_error: false

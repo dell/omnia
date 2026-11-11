@@ -378,6 +378,15 @@ def pxe_mapping_architecture_mismatch_msg(
     )
 
 
+def pxe_mapping_missing_os_version_msg(value: str, row: int) -> str:
+    """Return a missing OS version suffix error message."""
+    return (
+        f"orchestrator_config: FUNCTIONAL_GROUP_NAME '{value}' at mapping "
+        f"row {row} must include an OS version suffix "
+        "(e.g. _rhel_10_0) before the architecture suffix."
+    )
+
+
 def pxe_mapping_unknown_catalog_group_msg(
     value: str, row: int, path: str
 ) -> str:

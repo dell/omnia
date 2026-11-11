@@ -1,0 +1,122 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check for aggregate Orchestrator status
+  ansible.builtin.stat:
+    path: "{{ external_boot_verification_status_file }}"
+  register: external_status_stat
+
+- name: Require provisioning lifecycle status
+  ansible.builtin.assert:
+    that:
+      - external_status_stat.stat.exists
+    fail_msg: "{{ external_boot_verification_missing_status_msg }}"
+    quiet: true
+
+- name: Load aggregate Orchestrator status
+  ansible.builtin.slurp:
+    src: "{{ external_boot_verification_status_file }}"
+  register: external_status_raw
+
+- name: Decode aggregate Orchestrator status
+  ansible.builtin.set_fact:
+    external_previous_status: "{{ external_status_raw.content | b64decode | from_yaml }}"
+
+- name: Validate aggregate Orchestrator status
+  ansible.builtin.assert:
+    that:
+      - external_previous_status | type_debug == 'dict'
+      - external_previous_status.nodes | default([]) | type_debug == 'list'
+      - external_previous_status.inventory_source | default('') == pxe_mapping_file_path
+    fail_msg: "{{ external_boot_verification_invalid_status_msg }}"
+    quiet: true
+
+- name: Select nodes that still require reprovisioning
+  ansible.builtin.set_fact:
+    external_pending_nodes: >-
+      {{ external_previous_status.nodes
+         | selectattr('reprovision_required', 'defined')
+         | selectattr('reprovision_required', 'equalto', true)
+         | list }}
+    verification_start_epoch: "{{ external_status_stat.stat.mtime | int }}"
+    verification_trigger_method: external
+    node_registration_retries: >-
+      {{ node_registration_retries | default(external_boot_verification_retries) | int }}
+    node_registration_delay: >-
+      {{ node_registration_delay | default(external_boot_verification_delay) | int }}
+    external_verification_skip: false
+    cacheable: true
+
+- name: Separate externally verifiable and provisioning-blocked nodes
+  ansible.builtin.set_fact:
+    external_verification_nodes: >-
+      {{ external_pending_nodes
+         | selectattr('provisioning_status', 'defined')
+         | selectattr('provisioning_status', 'equalto', 'success')
+         | list }}
+    external_blocked_nodes: >-
+      {{ external_previous_status.nodes
+         | rejectattr('provisioning_status', 'defined')
+         | list
+         + external_previous_status.nodes
+         | selectattr('provisioning_status', 'defined')
+         | rejectattr('provisioning_status', 'equalto', 'success')
+         | list }}
+
+- name: Fail before SSH verification when provisioning is incomplete
+  ansible.builtin.assert:
+    that:
+      - external_blocked_nodes | length == 0
+    fail_msg: >-
+      {{ external_boot_verification_blocked_nodes_msg }}
+      {{ external_blocked_nodes | map(attribute='xname') | join(', ') }}
+    quiet: true
+
+- name: Validate pending node verification data
+  ansible.builtin.assert:
+    that:
+      - item.xname | default('') | length > 0
+      - item.admin_ip | default('') | length > 0
+      - item.admin_ip != 'N/A'
+    fail_msg: "{{ external_boot_verification_invalid_node_msg }}"
+    quiet: true
+  loop: "{{ external_verification_nodes }}"
+  loop_control:
+    label: "{{ item.xname | default('unknown') }}"
+
+- name: Build external node-registration inventory
+  ansible.builtin.add_host:
+    hostname: "{{ item.admin_ip }}"
+    groups: external_node_registration_targets
+    ansible_user: "{{ external_boot_verification_ssh_user }}"
+    ansible_python_interpreter: "{{ external_boot_verification_python }}"
+    ansible_ssh_timeout: "{{ external_boot_verification_ssh_timeout }}"
+    ansible_ssh_retries: "{{ external_boot_verification_ssh_retries }}"
+    bmc_ip: "{{ item.bmc_ip | default('') }}"
+    xname: "{{ item.xname }}"
+    hostname_node: "{{ item.hostname | default('') }}"
+  loop: "{{ external_verification_nodes }}"
+  loop_control:
+    label: "{{ item.admin_ip }}"
+
+- name: Report when no nodes require verification
+  ansible.builtin.debug:
+    msg: "{{ external_boot_verification_no_nodes_msg }}"
+  when: external_pending_nodes | length == 0
+
+- name: Skip external verification when no nodes are pending
+  ansible.builtin.set_fact:
+    external_verification_skip: true
+    cacheable: true
+  when: external_pending_nodes | length == 0

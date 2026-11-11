@@ -109,6 +109,8 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "nft": "Non-functional tests (performance, idempotency)",
+        "contract": "Contract tests (verify interface compatibility)",
+        "ome": "OME integration tests (require OME connectivity)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -240,7 +242,12 @@ def pytest_sessionstart(session):
     )
     report = TestReport(
         module_name=module_name,
-        report_path=str(config.get("report_path", "/opt/omnia/reports")),
+        report_path=str(
+            config.get(
+                "report_path",
+                os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
+            )
+        ),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         run_id=run_id,
@@ -333,6 +340,22 @@ def pytest_report_teststatus(report, config):
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
+
+
+# =============================================================================
+# SESSION CLEANUP
+# =============================================================================
+
+def pytest_sessionfinish(session, exitstatus):
+    """Clean up resources at end of test session."""
+    # Close OME session if one was opened (follows src pattern)
+    try:
+        from library.functions import close_ome_session
+        host = get_testinfra_host()
+        close_ome_session(host)
+    except Exception:
+        # Best-effort cleanup - don't fail tests due to cleanup issues
+        pass
 
 
 # =============================================================================

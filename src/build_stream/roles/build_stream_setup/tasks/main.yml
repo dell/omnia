@@ -13,13 +13,11 @@
 # limitations under the License.
 ---
 # build_stream_setup — Self-contained setup for the build_stream domain.
-# Replaces: upgrade_checkup.yml + include_input_dir.yml + create_container_group.yml
 #
 # What it does:
-#   1. Guard: block if upgrade is in progress
-#   2. Load omnia project config (input/output dirs)
-#   3. Load OIM metadata
-#   4. Create oim inventory group
+#   1. Load omnia project config (input/output dirs)
+#   2. Load OIM metadata
+#   3. Create oim inventory group
 
 # =====================================================================
 # Step 0: Tag validation
@@ -37,22 +35,7 @@
     cacheable: true
 
 # =====================================================================
-# Step 2: Upgrade guard
-# =====================================================================
-- name: Check upgrade lock file
-  ansible.builtin.stat:
-    path: "{{ upgrade_lock_path }}"
-  register: upgrade_lock
-
-- name: Block playbook while upgrade is in progress
-  ansible.builtin.fail:
-    msg: "{{ upgrade_in_progress_msg }}"
-  when:
-    - upgrade_lock.stat.exists
-    - not (upgrade_mode | default(false) | bool)
-
-# =====================================================================
-# Step 3: Set project directories as facts and verify
+# Step 2: Set project directories as facts and verify
 # =====================================================================
 - name: Set input_project_dir and output_project_dir as facts
   ansible.builtin.set_fact:
@@ -82,7 +65,7 @@
   when: not (build_stream_cleanup_context | default(false) | bool)
 
 # =====================================================================
-# Step 4: Create oim inventory group (local connection)
+# Step 3: Create oim inventory group (local connection)
 # =====================================================================
 - name: Create {{ oim_host_group }} group # noqa: name[template]
   ansible.builtin.add_host:
@@ -94,7 +77,7 @@
   when: create_oim_group | default(false) | bool
 
 # =====================================================================
-# Step 5: Set guard fact so downstream plays can skip re-runs
+# Step 4: Set guard fact so downstream plays can skip re-runs
 # =====================================================================
 - name: Mark build_stream_setup as done
   ansible.builtin.set_fact:

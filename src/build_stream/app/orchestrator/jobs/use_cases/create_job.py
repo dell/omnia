@@ -53,8 +53,8 @@ class CreateJobUseCase:
     - Atomicity: All-or-nothing persistence (job + stages + idempotency record)
     - Audit trail: Emits JOB_CREATED event
     - Initial stages: Creates all 7 stages in PENDING state
-      (Omnia 2.3+: generate-input-files retired; parse-catalog reintroduced
-      in minimal form solely for the image_group_id uniqueness check)
+      (Omnia 2.3+: parse-catalog reintroduced in minimal form solely for
+      the image_group_id uniqueness check)
 
     Attributes:
         job_repo: Job repository port.
@@ -250,9 +250,11 @@ class CreateJobUseCase:
         - UPLOAD
         - DEPLOY
 
-        Deprecated stages (GENERATE_INPUT_FILES, BUILD_IMAGE_X86_64,
-        BUILD_IMAGE_AARCH64) are retained in StageType enum for backward compatibility
-        but are not created for new jobs.
+        The retired stages (generate-input-files, build-image-x86_64,
+        build-image-aarch64) were removed from the StageType enum in 2.3;
+        rows carrying those names may still exist in ``job_stages`` for
+        pre-2.3 jobs and are filtered out by
+        ``SqlStageRepository.find_all_by_job``.
 
         Returns:
             List of Stage entities in PENDING state.

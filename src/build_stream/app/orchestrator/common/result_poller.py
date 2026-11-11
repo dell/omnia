@@ -49,7 +49,7 @@ from core.jobs.repositories import (
     UUIDGenerator,
 )
 from core.jobs.services import JobStateHelper
-from core.jobs.value_objects import JobId, StageName
+from core.jobs.value_objects import JobId, StageName, StageType
 from core.localrepo.entities import PlaybookResult
 from core.localrepo.services import PlaybookQueueResultService
 
@@ -58,22 +58,24 @@ from core.localrepo.services import PlaybookQueueResultService
 # ``images.image_name``. The CleanUp API reads this column verbatim
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
-DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
+DEFAULT_NFS_ARTIFACT_BASE = os.path.join(
+    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root"
+)
 
 
 def _discover_s3_image_paths(
     bucket_uri: str,
-    job_id: str,
+    artifact_identity: str,
     role_names: list,
 ) -> dict:
     """Query S3 using s3cmd ls to discover actual image paths.
 
     Instead of constructing paths based on conventions, this queries
-    S3 directly and greps for the job_id to find actual paths.
+    S3 directly and filters for the artifact identity to find actual paths.
 
     Args:
         bucket_uri: S3 bucket URI (e.g., s3://boot-images)
-        job_id: Job ID to search for
+        artifact_identity: Composite image-group ID or legacy Job ID to search.
         role_names: List of role names to discover paths for
 
     Returns:
@@ -88,8 +90,9 @@ def _discover_s3_image_paths(
 
     try:
         # Run s3cmd ls -Hr using safe subprocess with list args (Checkmarx-safe)
-        # Filter for job_id in Python instead of using shell pipe
-        result = subprocess.run(  # nosec B602,B603,B607 - using list args, no shell, full path to s3cmd
+        # Filter for the artifact identity in Python instead of using a shell.
+        # nosec: fixed executable, list arguments, and no shell.
+        result = subprocess.run(  # nosec B602,B603,B607
             ["/usr/bin/s3cmd", "ls", "-Hr", bucket],
             capture_output=True,
             text=True,
@@ -104,7 +107,7 @@ def _discover_s3_image_paths(
             )
             return role_to_paths
 
-        # Filter output for job_id in Python (safer than shell pipe)
+        # Filter output for the artifact identity in Python.
         # s3cmd ls output format: "DATE SIZE s3://bucket/role/path/file.img"
         # Extract directory paths from file paths
         discovered_paths = set()
@@ -112,9 +115,8 @@ def _discover_s3_image_paths(
             line = line.strip()
             if not line:
                 continue
-            
-            # Filter for job_id (replaces grep filter)
-            if job_id not in line:
+
+            if artifact_identity not in line:
                 continue
 
             # Extract S3 file path from line (last column)
@@ -148,10 +150,60 @@ def _discover_s3_image_paths(
     except Exception as exc:  # pylint: disable=broad-except
         log_secure_info(
             "error",
-            f"Failed to discover S3 paths for {job_id}: {exc}",
+            f"Failed to discover S3 paths for {artifact_identity}: {exc}",
             exc_info=True,
         )
         return role_to_paths
+
+
+def _resolve_catalog_image_group_id(catalog_metadata: dict) -> str:
+    """Return the catalog composite ID with legacy metadata compatibility."""
+    composite_id = str(
+        catalog_metadata.get("composite_image_group_id", "")
+    ).strip()
+    if composite_id:
+        return composite_id
+
+    identifier = str(catalog_metadata["image_group_id"]).strip()
+    version = str(
+        catalog_metadata.get(
+            "catalog_version", catalog_metadata.get("version", "")
+        )
+    ).strip()
+    version_suffix = f"-v{version}" if version else ""
+    if version_suffix and not identifier.endswith(version_suffix):
+        return f"{identifier}{version_suffix}"
+    return identifier
+
+
+def _merge_discovered_paths(
+    destination: dict,
+    discovered: dict,
+    role_names: list,
+) -> None:
+    """Copy non-empty discovered paths for the selected roles."""
+    for role_name in role_names:
+        paths = discovered.get(role_name, [])
+        if paths:
+            destination[role_name] = paths
+
+
+def _apply_catalog_metadata(image_group: ImageGroup, metadata: dict) -> None:
+    """Populate catalog fields when the versioned entity model is present."""
+    catalog_fields = {
+        "catalog_identifier": metadata.get(
+            "catalog_identifier", metadata.get("image_group_id")
+        ),
+        "catalog_version": metadata.get(
+            "catalog_version", metadata.get("version")
+        ),
+        "catalog_schema_version": metadata.get(
+            "schema_version", metadata.get("catalog_schema_version")
+        ),
+    }
+    for field_name, value in catalog_fields.items():
+        if hasattr(image_group, field_name):
+            setattr(image_group, field_name, value)
 
 
 def _load_build_image_meta(job_id: str) -> Dict[str, str]:
@@ -301,19 +353,25 @@ class ResultPoller:
                 return
 
             # Update stage based on result
-            # Check if stage is already in terminal state (e.g., after service restart)
-            if stage.stage_state in {StageState.COMPLETED, StageState.FAILED, StageState.CANCELLED}:
+            # A service restart may leave a result for an already-finished stage.
+            if stage.stage_state in {
+                StageState.COMPLETED,
+                StageState.FAILED,
+                StageState.CANCELLED,
+            }:
                 log_secure_info(
                     "info",
                     f"Stage already in terminal state: job_id={result.job_id}, "
-                    f"stage={result.stage_name}, state={stage.stage_state}",
+                    f"stage={result.stage_name}, state={stage.stage_state}, "
+                    f"result_status={result.status}, "
+                    f"log_file={result.log_file_path or 'N/A'}",
                     job_id=str(result.job_id),
                 )
-                # Return early - service will archive the result file automatically
+                # The service archives the result file automatically.
                 return
 
             if result.status == "success":
-                # For validate stage, populate result_detail BEFORE complete() to avoid version conflict
+                # Populate validation detail before completing the stage.
                 if result.stage_name == "validate":
                     stage.result_detail = self._build_validate_result_detail(
                         result, outcome="PASSED"
@@ -375,11 +433,6 @@ class ResultPoller:
                 # S12: On restart failure, still persist node_results.json
                 if result.stage_name == "restart":
                     self._on_restart_completed(result)
-                    self._on_restart_failure(result)
-
-                # On deploy failure, mark ImageGroup FAILED
-                if result.stage_name == "deploy":
-                    self._on_deploy_failure(result)
 
                 # On validate failure, mark ImageGroup FAILED
                 if result.stage_name == "validate":
@@ -402,14 +455,19 @@ class ResultPoller:
                     client_id=str(result.job_id),
                 )
 
-            # Update log file path if available
+            if self._is_build_image_stage(result.stage_name):
+                self._emit_dictionary_hit_events(result)
+
+            # Record the stage log path for every outcome
             if result.log_file_path:
                 stage.log_file_path = result.log_file_path
-                log_secure_info(
-                    "info",
-                    f"Updated stage log path: job_id={result.job_id}, stage={result.stage_name}",
-                    job_id=str(result.job_id),
-                )
+            log_secure_info(
+                "info" if result.log_file_path else "warning",
+                f"Stage log: job_id={result.job_id}, stage={result.stage_name}, "
+                f"attempt={stage.attempt}, status={result.status}, "
+                f"log_file={result.log_file_path or 'N/A (not reported by watcher)'}",
+                job_id=str(result.job_id),
+            )
 
             # Save updated stage and commit immediately to avoid stale API responses
             self._stage_repo.save(stage)
@@ -433,6 +491,8 @@ class ResultPoller:
                     "status": result.status,
                     "duration_seconds": result.duration_seconds,
                     "exit_code": result.exit_code,
+                    "attempt": stage.attempt,
+                    "log_file_path": result.log_file_path,
                 },
             )
             self._audit_repo.save(event)
@@ -461,12 +521,60 @@ class ResultPoller:
 
     @staticmethod
     def _is_build_image_stage(stage_name: str) -> bool:
-        """Check if the stage is a build-image stage."""
-        return stage_name in (
-            "build-image-x86_64",
-            "build-image-aarch64",
-            "build-image",
-        )
+        """Check if the stage is the build-image stage."""
+        return stage_name == StageType.BUILD_IMAGE.value
+
+    def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
+        """Persist one audit event for each catalog image reused by hash."""
+        for hit in result.dictionary_hits or []:
+            functional_group = hit.get("functional_group", "")
+            image_group_id = hit.get("image_group_id", "")
+            if not functional_group or not image_group_id:
+                continue
+            event = AuditEvent(
+                event_id=str(self._uuid_generator.generate()),
+                job_id=result.job_id,
+                event_type="DICTIONARY_HIT",
+                correlation_id=(
+                    str(result.correlation_id)
+                    if result.correlation_id
+                    else str(self._uuid_generator.generate())
+                ),
+                client_id=result.job_id,
+                timestamp=datetime.now(timezone.utc),
+                details={
+                    "stage_name": result.stage_name,
+                    "functional_group": functional_group,
+                    "image_group_id": image_group_id,
+                },
+            )
+            self._audit_repo.save(event)
+
+    def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
+        """Persist one audit event for each catalog image reused by hash."""
+        for hit in result.dictionary_hits or []:
+            functional_group = hit.get("functional_group", "")
+            image_group_id = hit.get("image_group_id", "")
+            if not functional_group or not image_group_id:
+                continue
+            event = AuditEvent(
+                event_id=str(self._uuid_generator.generate()),
+                job_id=result.job_id,
+                event_type="DICTIONARY_HIT",
+                correlation_id=(
+                    str(result.correlation_id)
+                    if result.correlation_id
+                    else str(self._uuid_generator.generate())
+                ),
+                client_id=result.job_id,
+                timestamp=datetime.now(timezone.utc),
+                details={
+                    "stage_name": result.stage_name,
+                    "functional_group": functional_group,
+                    "image_group_id": image_group_id,
+                },
+            )
+            self._audit_repo.save(event)
 
     def _on_build_image_success(self, result: PlaybookResult) -> None:
         """Create ImageGroup (BUILT) and Image records on build-image success.
@@ -498,7 +606,9 @@ class ResultPoller:
                 )
                 return
 
-            image_group_id = catalog_metadata["image_group_id"]
+            image_group_id = _resolve_catalog_image_group_id(
+                catalog_metadata
+            )
             role_images = catalog_metadata.get("role_images", {})
 
             # Create ImageGroup entity
@@ -511,26 +621,73 @@ class ResultPoller:
                 created_at=now,
                 updated_at=now,
             )
+            _apply_catalog_metadata(image_group, catalog_metadata)
 
-            # Discover S3 paths by grepping for job_id.
+            # Catalog artifacts are named with the composite image-group ID.
+            # Legacy builds used the Job ID, so use it only as a fallback.
             # The CleanUp API uses ``images.image_name`` verbatim
             # with ``s3cmd del --recursive --force``.
             bucket_uri = os.environ.get(
                 "CLEANUP_S3_BUCKET", DEFAULT_S3_BUCKET_URI
             )
 
+            metadata_has_catalog_identity = bool(
+                catalog_metadata.get("composite_image_group_id")
+                or catalog_metadata.get("catalog_version")
+                or catalog_metadata.get("version")
+            )
+            primary_identity = (
+                image_group_id
+                if metadata_has_catalog_identity
+                else str(result.job_id)
+            )
+
             log_secure_info(
                 "info",
                 f"Discovering S3 paths for ImageGroup {image_group_id} "
-                f"with job_id={result.job_id}, roles: {list(role_images.keys())}",
+                f"with artifact_identity={primary_identity}, roles: "
+                f"{list(role_images.keys())}",
                 job_id=str(result.job_id),
             )
 
             role_to_paths = _discover_s3_image_paths(
-                bucket_uri=bucket_uri,
-                job_id=str(result.job_id),
-                role_names=list(role_images.keys()),
+                bucket_uri,
+                primary_identity,
+                list(role_images.keys()),
             )
+
+            missing_roles = [
+                role_name
+                for role_name in role_images
+                if not role_to_paths.get(role_name)
+            ]
+            if missing_roles and primary_identity != str(result.job_id):
+                legacy_paths = _discover_s3_image_paths(
+                    bucket_uri,
+                    str(result.job_id),
+                    missing_roles,
+                )
+                _merge_discovered_paths(
+                    role_to_paths, legacy_paths, missing_roles
+                )
+
+            # Dictionary hits deliberately reuse artifacts from an older
+            # image group. Resolve those roles against the owning group ID,
+            # not the current catalog ID or Job ID.
+            dictionary_hits = result.dictionary_hits or []
+            for hit in dictionary_hits:
+                role_name = hit.get("functional_group", "")
+                source_image_group_id = hit.get("image_group_id", "")
+                if role_name not in role_images or not source_image_group_id:
+                    continue
+                reused_paths = _discover_s3_image_paths(
+                    bucket_uri,
+                    source_image_group_id,
+                    [role_name],
+                )
+                _merge_discovered_paths(
+                    role_to_paths, reused_paths, [role_name]
+                )
 
             # Create Image entities for each role with discovered S3
             # paths (semicolon-delimited).
@@ -670,13 +827,19 @@ class ResultPoller:
                 new_status=ImageGroupStatus.DEPLOYED,
             )
 
+            # ER-BSM-002 Story 4: Increment deploy_count for retention safety
+            self._image_group_repo.increment_deploy_count(
+                image_group_id=image_group.id,
+            )
+
             if hasattr(self._image_group_repo, 'session'):
                 self._image_group_repo.session.commit()
 
             log_secure_info(
                 "info",
                 f"Deploy SUCCESS for job={result.job_id}. "
-                f"ImageGroup '{image_group.id}' -> DEPLOYED.",
+                f"ImageGroup '{image_group.id}' -> DEPLOYED "
+                f"(deploy_count incremented).",
                 job_id=str(result.job_id),
             )
         except Exception as exc:  # pylint: disable=broad-except
@@ -706,6 +869,14 @@ class ResultPoller:
         Args:
             result: Playbook execution result from NFS queue.
         """
+        log_secure_info(
+            "info" if result.log_file_path else "warning",
+            f"Stage log: job_id={result.job_id}, stage=cleanup, "
+            f"status={result.status}, "
+            f"log_file={result.log_file_path or 'N/A (not reported by watcher)'}",
+            job_id=str(result.job_id),
+        )
+
         if self._image_group_repo is None:
             log_secure_info(
                 "warning",
@@ -819,6 +990,7 @@ class ResultPoller:
                     "status": result.status,
                     "error_code": result.error_code,
                     "error_summary": result.error_summary,
+                    "log_file_path": result.log_file_path,
                 },
             )
             self._audit_repo.save(event)
@@ -978,17 +1150,34 @@ class ResultPoller:
                 exc_info=True,
             )
 
-    def _build_validate_result_detail(self, result: PlaybookResult, outcome: str) -> dict:
+    def _build_validate_result_detail(
+        self, result: PlaybookResult, outcome: str
+    ) -> dict:
         """Build result_detail JSONB for validate stage per spec §9.3."""
         artifact_dir = result.artifact_dir or ""
         detail = {
             "outcome": outcome,
             "exit_code": result.exit_code,
-            "test_summary": result.test_summary or {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
+            "test_summary": result.test_summary
+            or {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0,
+                "errors": 0,
+            },
             "duration_seconds": result.duration_seconds,
             "artifact_dir": artifact_dir,
-            "log_path": str(Path(artifact_dir) / "validate_output.log") if artifact_dir else "",
-            "report_path": str(Path(artifact_dir) / "test_report.json") if artifact_dir else "",
+            "log_path": (
+                str(Path(artifact_dir) / "validate_output.log")
+                if artifact_dir
+                else ""
+            ),
+            "report_path": (
+                str(Path(artifact_dir) / "test_report.json")
+                if artifact_dir
+                else ""
+            ),
             "correlation_id": str(result.request_id),
         }
         if outcome == "FAILED":
@@ -1088,94 +1277,4 @@ class ResultPoller:
                 exc_info=True,
             )
 
-    def _on_deploy_failure(self, result: PlaybookResult) -> None:
-        """Transition ImageGroup from DEPLOYING to FAILED on deploy failure."""
-        if self._image_group_repo is None:
-            log_secure_info(
-                "warning",
-                f"ImageGroup repo not available; skipping deploy failure "
-                f"update for job={result.job_id}",
-                job_id=str(result.job_id),
-            )
-            return
 
-        try:
-            image_group = self._image_group_repo.find_by_job_id(
-                JobId(str(result.job_id))
-            )
-            if image_group is None:
-                log_secure_info(
-                    "error",
-                    f"Deploy failure callback: No ImageGroup found for job={result.job_id}.",
-                    job_id=str(result.job_id),
-                )
-                return
-
-            self._image_group_repo.update_status(
-                image_group_id=image_group.id,
-                new_status=ImageGroupStatus.FAILED,
-            )
-
-            if hasattr(self._image_group_repo, 'session'):
-                self._image_group_repo.session.commit()
-
-            log_secure_info(
-                "warning",
-                f"Deploy FAILED for job={result.job_id}. "
-                f"ImageGroup '{image_group.id}' -> FAILED.",
-                job_id=str(result.job_id),
-            )
-        except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "error",
-                "Failed to update ImageGroup status on deploy "
-                f"failure for job={result.job_id}: {exc}",
-                job_id=str(result.job_id),
-                exc_info=True,
-            )
-
-    def _on_restart_failure(self, result: PlaybookResult) -> None:
-        """Transition ImageGroup from RESTARTING to FAILED on restart failure."""
-        if self._image_group_repo is None:
-            log_secure_info(
-                "warning",
-                f"ImageGroup repo not available; skipping restart failure "
-                f"update for job={result.job_id}",
-                job_id=str(result.job_id),
-            )
-            return
-
-        try:
-            image_group = self._image_group_repo.find_by_job_id(
-                JobId(str(result.job_id))
-            )
-            if image_group is None:
-                log_secure_info(
-                    "error",
-                    f"Restart failure callback: No ImageGroup found for job={result.job_id}.",
-                    job_id=str(result.job_id),
-                )
-                return
-
-            self._image_group_repo.update_status(
-                image_group_id=image_group.id,
-                new_status=ImageGroupStatus.FAILED,
-            )
-
-            if hasattr(self._image_group_repo, 'session'):
-                self._image_group_repo.session.commit()
-
-            log_secure_info(
-                "warning",
-                f"Restart FAILED for job={result.job_id}. "
-                f"ImageGroup '{image_group.id}' -> FAILED.",
-                job_id=str(result.job_id),
-            )
-        except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "error",
-                "Failed to update ImageGroup status on restart "
-                f"failure for job={result.job_id}: {exc}",
-                job_id=str(result.job_id),
-                exc_info=True,
-            )

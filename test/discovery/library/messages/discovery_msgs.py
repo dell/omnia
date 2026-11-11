@@ -85,6 +85,34 @@ TEST_NAMES: Dict[str, str] = {
         "Verify discovery output directory exists"
     ),
 
+    # PXE Mapping Validation (V007-V009, V014)
+    "functional_groups_supported": (
+        "Verify all functional groups follow Omnia 2.3 pattern"
+    ),
+    "ip_correlation": (
+        "Verify ADMIN_IP/IB_IP correlation with BMC_IP"
+    ),
+    "parent_service_tag": (
+        "Verify PARENT_SERVICE_TAG references (optional - validate if present)"
+    ),
+    "pxe_mapping_orchestrator_contract": (
+        "Verify PXE mapping CSV format for Orchestrator compatibility"
+    ),
+
+    # OME Integration (V010-V013)
+    "ome_static_groups_match": (
+        "Verify OME static groups match PXE mapping functional groups"
+    ),
+    "ome_unassigned_devices": (
+        "Verify OME devices without static group assignment"
+    ),
+    "admin_mac_validation": (
+        "Verify ADMIN_MAC matches OME first active non-iDRAC NIC"
+    ),
+    "ib_nic_name_validation": (
+        "Verify IB_NIC_NAME matches OME first active InfiniBand NIC"
+    ),
+
     # Clone / sync
     "clone_status": (
         "Verify repository is cloned and synced on target"
@@ -144,6 +172,38 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "pxe_symlink_missing": "Symlink not found or broken",
     "output_dir_ok": "Output directory exists",
     "output_dir_missing": "Output directory not found",
+
+    # PXE Mapping Validation (V007-V009, V014)
+    "functional_groups_ok": "All functional groups are Omnia-supported",
+    "functional_groups_unsupported": (
+        "Unsupported functional groups found: {groups}"
+    ),
+    "ip_correlation_ok": "All rows have valid IP correlation",
+    "ip_correlation_failed": "{count} rows have IP correlation issues",
+    "parent_service_tag_ok": "PARENT_SERVICE_TAG validation passed",
+    "parent_service_tag_skipped": "PARENT_SERVICE_TAG column not present - skipped",
+    "parent_service_tag_failed": (
+        "{count} rows have invalid PARENT_SERVICE_TAG references"
+    ),
+    "orchestrator_contract_ok": (
+        "Orchestrator contract satisfied: {required} required, "
+        "{optional} optional columns"
+    ),
+    "orchestrator_contract_failed": (
+        "Missing required columns for Orchestrator: {missing}"
+    ),
+
+    # OME Integration (V010-V013)
+    "ome_groups_match_ok": (
+        "All {count} PXE functional groups match OME static groups"
+    ),
+    "ome_groups_mismatch": "PXE groups not in OME: {groups}",
+    "ome_unassigned_ok": "{count} devices without static group assignment",
+    "admin_mac_ok": "All {count} sampled rows have valid ADMIN_MAC",
+    "admin_mac_failed": "{count} rows have ADMIN_MAC validation issues",
+    "ib_nic_ok": "All {count} sampled rows have valid IB_NIC_NAME",
+    "ib_nic_failed": "{count} rows have IB_NIC_NAME validation issues",
+    "ome_skipped": "OME not configured - skipping OME validation",
 
     # Deploy
     "playbook_success": (

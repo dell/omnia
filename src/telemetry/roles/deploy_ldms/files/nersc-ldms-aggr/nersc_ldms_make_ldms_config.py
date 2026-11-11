@@ -26,19 +26,19 @@ import shutil
 import time
 import yaml  # pylint: disable=import-error
 
-def setup_logging(verbose_mode=False):
+def setup_logging(verbose_mode=False) -> None:
     """Configure logging."""
     level = logging.DEBUG if verbose_mode else logging.INFO
     logging.basicConfig(level=level, format='%(asctime)s %(levelname)s: %(message)s')
 
-def load_config(config_path):
+def load_config(config_path) -> dict:
     """Load JSON config file from a given file path."""
     if not os.path.exists(config_path):
         return {}
     with open(config_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def str_presenter(dumper, data):
+def str_presenter(dumper, data) -> yaml.ScalarNode:
     """Custom YAML representer for multiline strings."""
     if len(data.splitlines()) > 1:
         return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')

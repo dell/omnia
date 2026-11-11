@@ -25,7 +25,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: true
     confirmation_token: "CLEANUP_OPENCHAMI"
-    rollback_supported: true
     preserve:
       - "/etc/openchami/backup"
     cleanup_paths:
@@ -41,7 +40,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: true
     confirmation_token: "CLEANUP_OPENLDAP"
-    rollback_supported: true
     preserve: []
     cleanup_paths:
       - "{{ omnia_data_path }}/auth"
@@ -53,7 +51,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: true
     confirmation_token: "CLEANUP_SLURM"
-    rollback_supported: false
     preserve:
       - "slurm_backups"
     cleanup_paths:
@@ -73,7 +70,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: true
     confirmation_token: "CLEANUP_K8S"
-    rollback_supported: false
     preserve: []
     cleanup_paths:
       - "all entries under the configured Kubernetes NFS mount"
@@ -88,7 +84,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: true
     confirmation_token: "CLEANUP_MOUNTS"
-    rollback_supported: false
     unmount_nfs: true
     cleanup_fstab: true
     description: "NFS storage mount unmounting and fstab cleanup"
@@ -99,7 +94,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: false
     confirmation_token: ""
-    rollback_supported: false
     preserve: []
     cleanup_paths:
       - "{{ orchestrator_output_dir }}"
@@ -111,7 +105,6 @@ cleanup_components:
     dependencies: []
     requires_confirmation: false
     confirmation_token: ""
-    rollback_supported: false
     preserve: []
     cleanup_paths:
       - "{{ input_project_dir }}/orchestrator_credentials.yml"

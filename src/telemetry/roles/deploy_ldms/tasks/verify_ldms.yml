@@ -58,12 +58,7 @@
 
 - name: Read shared LDMS sampler configuration result
   ansible.builtin.set_fact:
-    ldms_sampler_config_prepared: >-
-      {{
-        hostvars[_ldms_deploy_aggregator_control_host]
-        ['ldms_sampler_shared_config_prepared'] | default(false)
-      }}
-  when: _ldms_deploy_aggregator_control_host | default('') | length > 0
+    ldms_sampler_config_prepared: "{{ ldms_sampler_shared_config_prepared | default(false) }}"
 
 - name: Display LDMS telemetry verification summary
   ansible.builtin.debug:

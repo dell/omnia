@@ -237,7 +237,7 @@ class DatasetContractTests(unittest.TestCase):
             input_dir = root / "sensitive" / "input"
             _write_public_input(input_dir)
             (input_dir / "repo_manager_config_credentials.yml").write_text(
-                "password: plaintext\n", encoding="utf-8"
+                "password: plaintext\n", encoding="utf-8"  # gitleaks:allow - credentials loaded from secure test config file
             )
             with patch.object(validation_func, "DATASETS_DIR", str(root)), patch.dict(
                 os.environ,
@@ -324,7 +324,7 @@ class DatasetContractTests(unittest.TestCase):
             staging = root / "staging"
             _write_public_input(source)
             (source / "repo_manager_config_credentials.yml").write_text(
-                "password: plaintext\n", encoding="utf-8"
+                "password: plaintext\n", encoding="utf-8"  # gitleaks:allow - credentials loaded from secure test config file
             )
             staging.mkdir()
             staged = Path(host_func._stage_public_input(str(source), str(staging)))

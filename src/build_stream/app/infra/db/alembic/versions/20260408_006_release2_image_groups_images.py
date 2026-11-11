@@ -12,10 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# pylint: disable=C0103,E0401,E1102
+# pylint: disable=C0103,E0401,E1102,E1101
 # C0103: Module name and constant names follow Alembic migration naming conventions
 # E0401: Import errors due to pylint running outside package context
 # E1102: SQLAlchemy func.now() is callable at runtime
+# E1101: Alembic op functions are dynamically added (proxy object)
 
 """Release 2: Create image_groups and images tables, modify jobs and job_stages.
 

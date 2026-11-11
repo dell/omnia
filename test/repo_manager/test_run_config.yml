@@ -62,7 +62,7 @@
 #   negative:      error_scenarios
 #
 #   precheck, prepare, execute, status, cleanup, cleanup_repos, policy,
-#   and user_registry keep their tests directly under the tag directory;
+#   user_registry, and repo_sync keep their tests directly under the tag directory;
 #   leave suite empty for those scenarios.
 #
 # =============================================================================
@@ -148,6 +148,13 @@ fvt_repo_manager:
     command: "verify"
     suite: ""
     marker: "sanity"
+    dataset: ""
+    sync_input: false
+  repo_sync:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "repo_resync"
     dataset: ""
     sync_input: false
 

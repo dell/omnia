@@ -19,26 +19,386 @@ Functions for verifying iDRAC telemetry pods, MySQL data,
 and receiver metrics collection.
 """
 
+import json
 import re
 import shlex
+import time
+from uuid import uuid4
 
 from omnia_auto import run_on_host
 
+from .ldms_func import get_kafka_bridge_ip, get_kafka_bridge_port
+
 from ..vars.common_vars import (
+    IDRAC_KAFKA_TOPIC,
     IDRAC_POD_PREFIX,
+    IDRAC_STS_NAME,
     TELEMETRY_NAMESPACE,
 )
 from .telemetry_func import (
     _get_input_path,
     get_output_path,
+    get_vmselect_endpoint,
     load_telemetry_config_from_target,
     read_remote_env,
-    resolve_domain_data_path,
     run_on_kube_vip,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
-    DOMAIN_NAME,
 )
+
+_IDRAC_PVC_PREFIX = "mysqldb-pvc-idrac-telemetry-"
+_IDRAC_VM_MATCH = '{__name__=~"PowerEdge_.*"}'
+
+
+def get_idrac_telemetry_config_path(host):
+    """Return the active project telemetry_config.yml path on the OIM."""
+    return f"{_get_input_path(host)}/telemetry_config.yml"
+
+
+def set_idrac_metrics_enabled(host, enabled):  # pylint: disable=too-many-function-args
+    """Atomically update only the active iDRAC metrics flag on the OIM."""
+    config_path = get_idrac_telemetry_config_path(host)
+    script = (
+        "import os,sys,tempfile,yaml;"
+        "path=sys.argv[1];enabled=sys.argv[2].lower()=='true';"
+        "data=yaml.safe_load(open(path,encoding='utf-8')) or {};"
+        "data.setdefault('telemetry_sources',{})"
+        ".setdefault('idrac',{})['metrics_enabled']=enabled;"
+        "fd,tmp=tempfile.mkstemp(prefix='.idrac-lifecycle-',"
+        "dir=os.path.dirname(path),text=True);"
+        "f=os.fdopen(fd,'w',encoding='utf-8');"
+        "yaml.safe_dump(data,f,sort_keys=False);f.flush();"
+        "os.fsync(f.fileno());f.close();os.replace(tmp,path)"
+    )
+    result = run_on_host(  # pylint: disable=too-many-function-args
+        host, "python3 -c %s %s %s", script, config_path,
+        "true" if enabled else "false",
+    )
+    return {
+        "success": result.rc == 0,
+        "path": config_path,
+        "error": result.stderr.strip(),
+    }
+
+
+def get_idrac_lifecycle_state(host):  # pylint: disable=too-many-locals
+    """Return StatefulSet, pod, and PVC identity for lifecycle assertions.
+
+    PVC UID and ``spec.volumeName`` are retained so a lifecycle test can
+    distinguish reuse from creation of a same-named replacement.
+    """
+    sts_result = run_on_kube_vip(
+        host,
+        f"kubectl get statefulset {IDRAC_STS_NAME} "
+        f"-n {TELEMETRY_NAMESPACE} -o json 2>/dev/null",
+    )
+    if sts_result.rc != 0 or not sts_result.stdout.strip():
+        return {
+            "success": False,
+            "error": "iDRAC StatefulSet not found",
+            "statefulset": {},
+            "pods": [],
+            "pvcs": {},
+        }
+
+    pods_result = run_on_kube_vip(
+        host,
+        f"kubectl get pods -n {TELEMETRY_NAMESPACE} "
+        f"-l app={IDRAC_STS_NAME} -o json 2>/dev/null",
+    )
+    pvc_result = run_on_kube_vip(
+        host,
+        f"kubectl get pvc -n {TELEMETRY_NAMESPACE} -o json 2>/dev/null",
+    )
+    topic_result = run_on_kube_vip(
+        host,
+        f"kubectl get kafkatopic {IDRAC_KAFKA_TOPIC} "
+        f"-n {TELEMETRY_NAMESPACE} -o json 2>/dev/null",
+    )
+
+    try:
+        sts = json.loads(sts_result.stdout)
+        pods_doc = json.loads(pods_result.stdout or '{"items": []}')
+        pvc_doc = json.loads(pvc_result.stdout or '{"items": []}')
+        topic_doc = json.loads(topic_result.stdout or '{}')
+    except json.JSONDecodeError as exc:
+        return {
+            "success": False,
+            "error": f"Failed to parse iDRAC lifecycle resources: {exc}",
+            "statefulset": {},
+            "pods": [],
+            "pvcs": {},
+        }
+
+    pods = []
+    for item in pods_doc.get("items", []):
+        statuses = item.get("status", {}).get("containerStatuses", [])
+        pods.append({
+            "name": item.get("metadata", {}).get("name", ""),
+            "uid": item.get("metadata", {}).get("uid", ""),
+            "phase": item.get("status", {}).get("phase", ""),
+            "ready": bool(statuses) and all(
+                status.get("ready", False) for status in statuses
+            ),
+        })
+
+    pvcs = {}
+    for item in pvc_doc.get("items", []):
+        metadata = item.get("metadata", {})
+        name = metadata.get("name", "")
+        if not name.startswith(_IDRAC_PVC_PREFIX):
+            continue
+        pvcs[name] = {
+            "uid": metadata.get("uid", ""),
+            "volume_name": item.get("spec", {}).get("volumeName", ""),
+            "phase": item.get("status", {}).get("phase", ""),
+            "capacity": (
+                item.get("status", {}).get("capacity", {}).get("storage", "")
+            ),
+        }
+
+    metadata = sts.get("metadata", {})
+    spec = sts.get("spec", {})
+    status = sts.get("status", {})
+    annotation = (
+        metadata.get("annotations", {})
+        .get("telemetry.omnia.dell.com/desired-replicas", "")
+    )
+    command_ok = (
+        pods_result.rc == 0
+        and pvc_result.rc == 0
+        and topic_result.rc == 0
+    )
+    return {
+        "success": command_ok,
+        "error": "" if command_ok else (
+            pods_result.stderr.strip()
+            or pvc_result.stderr.strip()
+            or topic_result.stderr.strip()
+        ),
+        "statefulset": {
+            "uid": metadata.get("uid", ""),
+            "replicas": int(spec.get("replicas") or 0),
+            "ready_replicas": int(status.get("readyReplicas") or 0),
+            "desired_replicas_annotation": int(annotation or 0),
+        },
+        "pods": pods,
+        "pvcs": pvcs,
+        "kafka_topic": {
+            "uid": topic_doc.get("metadata", {}).get("uid", ""),
+            "topic_id": topic_doc.get("status", {}).get("topicId", ""),
+        },
+    }
+
+
+def wait_for_idrac_replicas(host, replicas, timeout=600, poll_interval=10):
+    """Wait until iDRAC reaches the requested replica state."""
+    started = time.time()
+    last_state = {}
+    while time.time() - started < timeout:
+        last_state = get_idrac_lifecycle_state(host)
+        sts = last_state.get("statefulset", {})
+        pods = last_state.get("pods", [])
+        if replicas == 0:
+            ready = sts.get("replicas") == 0 and not pods
+        else:
+            ready = (
+                sts.get("replicas") == replicas
+                and sts.get("ready_replicas") == replicas
+                and len(pods) == replicas
+                and all(pod.get("ready") for pod in pods)
+            )
+        if ready:
+            return {"success": True, "state": last_state, "error": ""}
+        time.sleep(poll_interval)
+    return {
+        "success": False,
+        "state": last_state,
+        "error": f"iDRAC did not reach {replicas} replicas within {timeout}s",
+    }
+
+
+def probe_fresh_idrac_kafka_records(host, timeout_seconds=90):  # pylint: disable=too-many-locals
+    """Consume only iDRAC records produced after this probe starts.
+
+    A unique Kafka Bridge consumer starts at ``latest`` with auto-commit
+    disabled. It is always removed, and only record metadata is returned.
+    """
+    bridge_ip = get_kafka_bridge_ip(host)
+    bridge_port = get_kafka_bridge_port(host) if bridge_ip else ""
+    if not bridge_ip or not bridge_port:
+        return {
+            "success": False,
+            "records": [],
+            "error": "Kafka Bridge endpoint not found",
+        }
+
+    consumer_group = f"idrac-lifecycle-{uuid4().hex}"
+    consumer_name = "fresh-record-check"
+    base_uri = (
+        f"https://{bridge_ip}:{bridge_port}/consumers/{consumer_group}"
+        f"/instances/{consumer_name}"
+    )
+    create_payload = json.dumps({
+        "name": consumer_name,
+        "format": "binary",
+        "auto.offset.reset": "latest",
+        "enable.auto.commit": False,
+    }, separators=(",", ":"))
+    create_cmd = (
+        f"curl -kfsS --max-time 15 -X POST "
+        f"https://{bridge_ip}:{bridge_port}/consumers/{consumer_group} "
+        "-H 'Content-Type: application/vnd.kafka.v2+json' "
+        f"-d '{create_payload}'"
+    )
+    subscribe_cmd = (
+        f"curl -kfsS --max-time 15 -X POST {base_uri}/subscription "
+        "-H 'Content-Type: application/vnd.kafka.v2+json' "
+        f"-d '{{\"topics\":[\"{IDRAC_KAFKA_TOPIC}\"]}}'"
+    )
+    consume_cmd = (
+        f"curl -kfsS --max-time 15 -X GET {base_uri}/records "
+        "-H 'Accept: application/vnd.kafka.binary.v2+json'"
+    )
+    delete_cmd = f"curl -kfsS --max-time 15 -X DELETE {base_uri}"
+
+    records = []
+    error = ""
+    try:
+        create = run_on_kube_vip(host, create_cmd)
+        if create.rc != 0:
+            return {
+                "success": False,
+                "records": [],
+                "error": create.stderr.strip() or "consumer creation failed",
+            }
+        subscribe = run_on_kube_vip(host, subscribe_cmd)
+        if subscribe.rc != 0:
+            return {
+                "success": False,
+                "records": [],
+                "error": subscribe.stderr.strip() or "subscription failed",
+            }
+
+        started = time.time()
+        while time.time() - started < timeout_seconds:
+            result = run_on_kube_vip(host, consume_cmd)
+            if result.rc != 0:
+                error = result.stderr.strip() or "Kafka record read failed"
+                break
+            try:
+                batch = json.loads(result.stdout or "[]")
+            except json.JSONDecodeError:
+                batch = []
+            for record in batch:
+                if record.get("topic") != IDRAC_KAFKA_TOPIC:
+                    continue
+                records.append({
+                    "topic": record.get("topic"),
+                    "partition": record.get("partition"),
+                    "offset": record.get("offset"),
+                    "timestamp": record.get("timestamp"),
+                    "value_bytes": len(record.get("value") or ""),
+                })
+            if records:
+                break
+            time.sleep(2)
+    finally:
+        run_on_kube_vip(host, delete_cmd)
+
+    return {
+        "success": bool(records),
+        "records": records,
+        "error": error,
+    }
+
+
+def query_idrac_vm_samples(host, start_epoch, end_epoch):
+    """Return raw iDRAC samples stored in a VictoriaMetrics time window."""
+    vmselect_ip, vmselect_port = get_vmselect_endpoint(host)
+    if not vmselect_ip or not vmselect_port:
+        return {
+            "success": False,
+            "sample_count": 0,
+            "latest_timestamp": 0,
+            "series": [],
+            "error": "vmselect endpoint not found",
+        }
+
+    cmd = (
+        f"curl -kfsS --max-time 30 -G "
+        f"'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/export' "
+        f"--data-urlencode 'match[]={_IDRAC_VM_MATCH}' "
+        f"--data-urlencode 'start={float(start_epoch)}' "
+        f"--data-urlencode 'end={float(end_epoch)}'"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "sample_count": 0,
+            "latest_timestamp": 0,
+            "series": [],
+            "error": result.stderr.strip() or "VictoriaMetrics export failed",
+        }
+
+    series = []
+    sample_count = 0
+    latest_timestamp = 0
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        timestamps = item.get("timestamps", [])
+        sample_count += len(timestamps)
+        if timestamps:
+            latest_timestamp = max([latest_timestamp, *timestamps])
+        metric = item.get("metric", {})
+        series.append({
+            "name": metric.get("__name__", ""),
+            "service_tag": metric.get("ServiceTag", ""),
+            "samples": len(timestamps),
+        })
+
+    return {
+        "success": result.rc == 0,
+        "sample_count": sample_count,
+        "latest_timestamp": latest_timestamp,
+        "series": series,
+        "error": "",
+    }
+
+
+def wait_for_fresh_idrac_vm_samples(
+    host, start_epoch, timeout_seconds=90, poll_interval=5,
+):
+    """Wait for raw VictoriaMetrics iDRAC samples newer than start_epoch."""
+    started = time.time()
+    last_result = {}
+    while time.time() - started < timeout_seconds:
+        last_result = query_idrac_vm_samples(host, start_epoch, time.time())
+        if last_result.get("success") and last_result.get("sample_count", 0) > 0:
+            return last_result
+        time.sleep(poll_interval)
+    if not last_result:
+        last_result = {
+            "success": False,
+            "sample_count": 0,
+            "latest_timestamp": 0,
+            "series": [],
+            "error": "No query attempted",
+        }
+    last_result["success"] = False
+    last_result["error"] = (
+        last_result.get("error")
+        or f"No fresh iDRAC VictoriaMetrics samples within {timeout_seconds}s"
+    )
+    return last_result
+
 
 # -------------------------------------------------------------------------
 # BMC Group Data — pod count scaling

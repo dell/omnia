@@ -14,8 +14,14 @@
 ---
 
 # Pre-flight: Install minimal SELinux policy module to fix container-selinux
-# regression on RHEL 10.2 (crun 1.27 + kernel 6.12). SELinux stays enforcing.
-# Retire this when an updated container-selinux ships the bpf prog_run rule.
+# regressions on RHEL 10.2. SELinux stays enforcing.
+# Retire this when an updated container-selinux ships both compatibility rules.
+
+- name: Check SELinux enforcement state
+  ansible.builtin.command: getenforce
+  register: _selinux_enforcement
+  changed_when: false
+  failed_when: false
 
 - name: Install omnia-crun-bpf SELinux policy module
   block:
@@ -26,24 +32,49 @@
           - checkpolicy
         state: present
 
+    - name: Calculate managed SELinux policy checksum
+      ansible.builtin.set_fact:
+        _selinux_policy_checksum: >-
+          {{ lookup('ansible.builtin.file', role_path + '/files/omnia-crun-bpf.te', rstrip=False)
+             | hash('sha256') }}
+
     - name: Check if omnia-crun-bpf SELinux module is loaded
-      ansible.builtin.command: semodule -lfull
+      ansible.builtin.command: semodule -l
       register: _selinux_modules
       changed_when: false
+
+    - name: Check installed SELinux policy checksum marker
+      ansible.builtin.stat:
+        path: "{{ selinux_policy_checksum_path }}"
+      register: _selinux_policy_checksum_marker
+
+    - name: Read installed SELinux policy checksum marker
+      ansible.builtin.slurp:
+        src: "{{ selinux_policy_checksum_path }}"
+      register: _selinux_policy_installed_checksum
+      when: _selinux_policy_checksum_marker.stat.exists
+
+    - name: Determine whether SELinux policy refresh is required
+      ansible.builtin.set_fact:
+        _selinux_policy_refresh_required: >-
+          {{ selinux_module_name not in _selinux_modules.stdout
+             or not _selinux_policy_checksum_marker.stat.exists
+             or ((_selinux_policy_installed_checksum.content | default('') | b64decode | trim)
+                 != _selinux_policy_checksum) }}
 
     - name: Create SELinux custom policy directory
       ansible.builtin.file:
         path: "{{ selinux_policy_dir }}"
         state: directory
         mode: "0755"
-      when: selinux_module_name not in _selinux_modules.stdout
+      when: _selinux_policy_refresh_required | bool
 
     - name: Copy omnia-crun-bpf policy source
       ansible.builtin.copy:
         src: omnia-crun-bpf.te
         dest: "{{ selinux_policy_dir }}/omnia-crun-bpf.te"
         mode: "0600"
-      when: selinux_module_name not in _selinux_modules.stdout
+      when: _selinux_policy_refresh_required | bool
 
     - name: Compile SELinux policy module
       ansible.builtin.command:
@@ -52,7 +83,7 @@
           -o {{ selinux_policy_dir }}/omnia-crun-bpf.mod
           {{ selinux_policy_dir }}/omnia-crun-bpf.te
       changed_when: true
-      when: selinux_module_name not in _selinux_modules.stdout
+      when: _selinux_policy_refresh_required | bool
 
     - name: Package SELinux policy module
       ansible.builtin.command:
@@ -61,15 +92,34 @@
           -o {{ selinux_policy_dir }}/omnia-crun-bpf.pp
           -m {{ selinux_policy_dir }}/omnia-crun-bpf.mod
       changed_when: true
-      when: selinux_module_name not in _selinux_modules.stdout
+      when: _selinux_policy_refresh_required | bool
 
     - name: Load SELinux policy module
       ansible.builtin.command:
         cmd: semodule -X 300 -i {{ selinux_policy_dir }}/omnia-crun-bpf.pp
       changed_when: true
-      when: selinux_module_name not in _selinux_modules.stdout
+      when: _selinux_policy_refresh_required | bool
+
+    - name: Verify omnia-crun-bpf SELinux module is enabled
+      ansible.builtin.command: semodule -l
+      register: _selinux_modules_after_install
+      changed_when: false
+      failed_when: selinux_module_name not in _selinux_modules_after_install.stdout
+
+    - name: Record installed SELinux policy checksum
+      ansible.builtin.copy:
+        content: "{{ _selinux_policy_checksum }}\n"
+        dest: "{{ selinux_policy_checksum_path }}"
+        mode: "0600"
+      when: _selinux_policy_refresh_required | bool
 
   rescue:
+    - name: Fail when SELinux policy installation fails while enforcing
+      ansible.builtin.fail:
+        msg: "{{ selinux_install_fail_msg }}"
+      when: (_selinux_enforcement.stdout | default('') | trim) == 'Enforcing'
+
     - name: Warn that SELinux policy module installation failed
       ansible.builtin.debug:
         msg: "{{ selinux_install_warn_msg }}"
+      when: (_selinux_enforcement.stdout | default('') | trim) != 'Enforcing'

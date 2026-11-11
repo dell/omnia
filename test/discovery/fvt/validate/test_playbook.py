@@ -40,6 +40,7 @@ def test_deploy_validate(host):
     )
     result = run_playbook(
         extra_vars={"discovery_mechanism": "ome"},
+        tag="validate",
     )
 
     if result["success"]:

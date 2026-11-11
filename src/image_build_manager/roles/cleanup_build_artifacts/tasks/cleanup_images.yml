@@ -71,6 +71,7 @@
 - name: Initialize image cleanup discovery results
   ansible.builtin.set_fact:
     _s3_object_paths: []
+    _s3_available_images: []
     _repos_to_delete: []
 
 # ── 2. Discover S3 objects ─────────────────────────────────────────────────
@@ -84,15 +85,31 @@
       ansible.builtin.command: s3cmd ls -r s3://boot-images/
       register: _s3_listing
       changed_when: false
+      failed_when: false
 
+    - name: Warn when the boot-images bucket cannot be listed
+      ansible.builtin.debug:
+        msg: "{{ cleanup_images_s3_list_failed_msg }}"
+      when: _s3_listing.rc != 0
+
+    # s3cmd line format: "<date> <time> <size> s3://<bucket>/<key>". Keep only the
+    # URL (split on the scheme, so keys containing spaces survive).
     - name: Filter S3 objects matching cleanup pattern
       ansible.builtin.set_fact:
         _s3_object_paths: >-
-          {{ _s3_listing.stdout_lines | default([])
-             | map('regex_replace', '^.*\\s+(s3://\\S+)$', '\\1')
-             | select('match', '^s3://boot-images/')
+          {{ (_s3_listing.stdout_lines | default([]))
+             | select('search', 's3://boot-images/')
+             | map('split', 's3://', 1) | map('last')
+             | map('regex_replace', '^', 's3://')
              | select('search', cleanup_image_s3_regex)
              | list }}
+        _s3_available_images: >-
+          {{ (_s3_listing.stdout_lines | default([]))
+             | select('search', 's3://boot-images/')
+             | map('split', 's3://boot-images/', 1) | map('last')
+             | map('regex_replace', '^efi-images/', '')
+             | map('split', '/') | map('first') | unique | list }}
+      when: _s3_listing.rc == 0
 
 - name: Set S3 object count
   ansible.builtin.set_fact:
@@ -130,7 +147,7 @@
         _repos_to_delete: >-
           {%- set result = [] -%}
           {%- for repo in (_registry_repos.stdout_lines | default([])) -%}
-            {%- if cleanup_image_pattern == '*' or repo is search(cleanup_image_registry_regex) -%}
+            {%- if cleanup_image_match_all | bool or repo is search(cleanup_image_registry_regex) -%}
               {%- set _ = result.append(repo) -%}
             {%- endif -%}
           {%- endfor -%}
@@ -181,6 +198,21 @@
                  if not (skip_approval | default(false) | bool)
                  else cleanup_images_skip_approval_msg) }}
 
+- name: Report that no image matched the pattern
+  ansible.builtin.debug:
+    msg:
+      - "{{ cleanup_images_no_match_msg }}"
+      - "Pattern '{{ cleanup_image_pattern }}' is matched as 'contains' text; use '*' as wildcard."
+      - >-
+        Available S3 image groups:
+        {{ _s3_available_images | join(', ') if _s3_available_images | length > 0 else '(none)' }}
+      - >-
+        Available registry repos:
+        {{ _registry_repos.stdout_lines | default([]) | join(', ') or '(none)' }}
+  when:
+    - (_cleanup_image_count | int) == 0
+    - not (cleanup_image_match_all | bool)
+
 - name: Prompt for approval before deleting images
   ansible.builtin.pause:
     prompt: "{{ cleanup_images_approval_prompt }}"
@@ -210,7 +242,11 @@
     - _s3cmd_config.stat.exists | default(false)
   block:
     - name: Delete matching S3 boot-images objects
-      ansible.builtin.command: "s3cmd del {{ item }}"
+      ansible.builtin.command:
+        argv:
+          - s3cmd
+          - del
+          - "{{ item }}"
       loop: "{{ _s3_object_paths }}"
       loop_control:
         label: "{{ item | basename }}"
@@ -218,7 +254,7 @@
       changed_when: _s3_delete_objects.rc == 0
       failed_when: _s3_delete_objects.rc != 0
       when:
-        - cleanup_image_pattern != '*'
+        - not (cleanup_image_match_all | bool)
         - _s3_object_paths | length > 0
 
     - name: "Delete all S3 boot-images recursively (clean all)"
@@ -227,12 +263,13 @@
       changed_when: _s3_delete_all.rc == 0
       failed_when: _s3_delete_all.rc != 0
       when:
-        - cleanup_image_pattern == '*'
+        - cleanup_image_match_all | bool
         - _s3_object_paths | length > 0
 
     - name: Display S3 image cleanup result
       ansible.builtin.debug:
         msg: "{{ cleanup_images_s3_done_msg }}"
+      when: (_s3_object_count | int) > 0
 
 - name: Skip S3 image cleanup (s3cmd not available)
   ansible.builtin.debug:
@@ -246,97 +283,81 @@
     - _s3cmd_available.rc == 0
     - not (_s3cmd_config.stat.exists | default(false))
 
-# ── 6. Registry image cleanup (digest-based, tag-only) ────────────────────
-#
-# Production flow per repo:
-#   regctl tag ls          → enumerate tags
-#   regctl image digest    → resolve digest for each tag
-#   regctl image delete    → delete manifest by digest
-#   regctl tag ls          → verify tags are gone
-#
-# Repository metadata is preserved — no filesystem hacks.
+- name: Clean registry images and verify deletion
+  ansible.builtin.include_tasks: cleanup_registry_images.yml
 
-- name: Cleanup registry images
+# Builds skip a base/compute image when its package hash is unchanged, so stale
+# hash files for deleted images would make the next build skip (and then fail
+# registry verification). Drop hashes for every image that was cleaned.
+- name: Invalidate package hash cache for cleaned images
   when:
     - _cleanup_approved | bool
-    - _regctl_available.stat.exists | default(false)
-    - _repos_to_delete | default([]) | length > 0
+    - (_cleanup_image_count | int) > 0
   block:
-    - name: Display registry cleanup plan
-      ansible.builtin.debug:
-        msg: >-
-          Cleaning {{ _registry_tag_count }} tag(s) across
-          {{ _repos_to_delete | length }} repo(s) matching
-          '{{ cleanup_image_pattern }}'
+    - name: Find package hash cache files
+      ansible.builtin.find:
+        paths: "{{ image_build_hash_cache_dir }}"
+        patterns:
+          - ".compute_pkg_hash_*"
+          - ".base_image_pkg_hash_*"
+        file_type: file
+        hidden: true
+      register: _image_hash_files
 
-    - name: Resolve digest and delete manifest for each tag
-      ansible.builtin.shell: |
-        set -o pipefail
-        REGISTRY="{{ _cleanup_registry_host }}:5000"
-        REPO="{{ item.0.item }}"
-        TAG="{{ item.1 }}"
-        DIGEST=$(/usr/local/bin/regctl image digest "${REGISTRY}/${REPO}:${TAG}" 2>/dev/null)
-        if [ -z "${DIGEST}" ]; then
-          echo "SKIP ${REPO}:${TAG} (no digest)"
-          exit 0
-        fi
-        if /usr/local/bin/regctl image delete "${REGISTRY}/${REPO}@${DIGEST}" 2>&1; then
-          echo "DELETED ${REPO}:${TAG} (${DIGEST})"
-        else
-          echo "FAILED ${REPO}:${TAG} (${DIGEST})"
-          exit 1
-        fi
-      args:
-        executable: /bin/bash
-      loop: >-
-        {{ _repo_tags.results | default([])
-           | subelements('stdout_lines', skip_missing=True) }}
+    # .compute_pkg_hash_<group>         -> image name contains 'rhel-<group>'
+    # .base_image_pkg_hash_<arch>_<ver> -> image name contains 'rhel-<arch>-base'
+    - name: Remove hash cache files of cleaned images
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ _image_hash_files.files | default([]) }}"
       loop_control:
-        label: "{{ item.0.item }}:{{ item.1 }}"
-      register: _delete_results
-      changed_when: "'DELETED' in _delete_results.stdout"
-      failed_when: "'FAILED' in _delete_results.stdout"
+        label: "{{ item.path | basename }}"
+      vars:
+        _hash_name: "{{ item.path | basename }}"
+        _hash_image_marker: >-
+          {%- if _hash_name.startswith('.compute_pkg_hash_') -%}
+          rhel-{{ _hash_name[('.compute_pkg_hash_' | length):] }}
+          {%- else -%}
+          rhel-{{ 'aarch64' if _hash_name.startswith('.base_image_pkg_hash_aarch64_') else 'x86_64' }}-base
+          {%- endif -%}
+      when: >-
+        cleanup_image_match_all | bool or
+        (_s3_object_paths + (_repos_to_delete | default([])))
+        | select('search', _hash_image_marker | regex_escape) | list | length > 0
 
-    # ── 7. Verify deletion ───────────────────────────────────────────────
-
-    - name: Verify tags removed from each repo
-      ansible.builtin.shell: |
-        set -o pipefail
-        REGISTRY="{{ _cleanup_registry_host }}:5000"
-        REMAINING=$(/usr/local/bin/regctl tag ls "${REGISTRY}/{{ item }}" 2>/dev/null | wc -l)
-        if [ "${REMAINING}" -eq 0 ]; then
-          echo "VERIFIED {{ item }}: no tags remaining"
-        else
-          echo "WARNING {{ item }}: ${REMAINING} tag(s) still present"
-        fi
-      loop: "{{ _repos_to_delete }}"
-      loop_control:
-        label: "{{ item }}"
-      register: _verify_results
-      changed_when: false
-      failed_when: false
-
-    - name: Display registry verification results
-      ansible.builtin.debug:
-        msg: "{{ item.stdout }}"
-      loop: "{{ _verify_results.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item }}"
-      when: _verify_results.results is defined
-
-    - name: Display registry image cleanup result
-      ansible.builtin.debug:
-        msg: "{{ cleanup_images_registry_done_msg }}"
-
-- name: Skip registry image cleanup (regctl not available)
-  ansible.builtin.debug:
-    msg: "{{ cleanup_images_registry_skip_msg }}"
-  when: not (_regctl_available.stat.exists | default(false))
-
-- name: Skip registry image cleanup (managed state not initialized)
-  ansible.builtin.debug:
-    msg: "{{ cleanup_images_registry_not_initialized_msg }}"
+# Dictionary cleanup follows artifact cleanup. It is deliberately non-fatal so
+# a damaged or inaccessible cache cannot reverse successful image deletion.
+- name: Remove cleaned image group from global image dictionary
+  manage_image_group_dictionary:
+    dictionary_path: "{{ image_group_dictionary_path }}"
+    operation: prune
+    image_group_id: "{{ dictionary_cleanup_image_group_id }}"
+  register: _dictionary_cleanup
+  failed_when: false
   when:
-    - _regctl_available.stat.exists | default(false)
-    - not (_registry_storage.stat.exists | default(false))
-    - _registry_service.rc != 0 or _registry_service.stdout != 'active'
+    - _cleanup_approved | bool
+    - dictionary_cleanup_image_group_id | length > 0
+
+- name: Remove cleaned catalog-version output contract
+  ansible.builtin.file:
+    path: "{{ output_project_dir }}/{{ dictionary_cleanup_image_group_id }}"
+    state: absent
+  when:
+    - _cleanup_approved | bool
+    - dictionary_cleanup_image_group_id | length > 0
+    - >-
+      dictionary_cleanup_image_group_id
+      is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+
+- name: Report non-fatal global image dictionary cleanup warning
+  ansible.builtin.debug:
+    msg: >-
+      {{ dictionary_cleanup_warning_msg }}
+      {{ _dictionary_cleanup.msg
+         | default(_dictionary_cleanup.dictionary_warnings | default([]) | join('; ')) }}
+  when:
+    - _dictionary_cleanup is defined
+    - >-
+      (_dictionary_cleanup.failed | default(false) | bool) or
+      (_dictionary_cleanup.dictionary_warnings | default([]) | length > 0)

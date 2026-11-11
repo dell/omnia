@@ -54,8 +54,8 @@ catalog's embedded name and description and derive those key characteristics
 and the functional-layer count from its JSON content. The selection command
 validates JSON, confirms replacement, preserves a timestamped backup, and
 atomically replaces `CATALOG_FILE_PATH`. For a small x86_64 Slurm-only test
-without VAST, select `10.0/slurm_x86_64_no_vast.json` or the matching `10.2`
-variant.
+without VAST, select `rhel/10.0/slurm_x86_64_no_vast.json` or the matching
+`rhel/10.2` variant. Mixed-version selectors are under `hybrid/`.
 
 Use `--deps-only` to skip input file staging in step 7 (e.g., in CI or if you manage input files externally). Dependencies are still installed.
 

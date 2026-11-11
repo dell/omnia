@@ -1,0 +1,32 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+---
+
+# This validation is intentionally local and side-effect free so standalone
+# OME deployment fails before Kafka, Victoria, or OME resources are changed.
+- name: Validate Vector-OME metrics source dependency
+  ansible.builtin.fail:
+    msg: >-
+      Vector-OME metrics bridge is enabled but
+      telemetry_sources.ome.metrics_enabled is false. Either enable
+      telemetry_sources.ome.metrics_enabled or disable
+      telemetry_bridges.vector_ome.metrics_enabled.
+  when:
+    - telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool
+    - not (telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool)
+
+- name: Validate Vector-OME logs source dependency
+  ansible.builtin.fail:
+    msg: >-
+      Vector-OME logs bridge is enabled but
+      telemetry_sources.ome.logs_enabled is false. Either enable
+      telemetry_sources.ome.logs_enabled or disable
+      telemetry_bridges.vector_ome.logs_enabled.
+  when:
+    - telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+    - not (telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool)

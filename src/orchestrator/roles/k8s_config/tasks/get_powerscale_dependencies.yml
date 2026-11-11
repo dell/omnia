@@ -21,29 +21,18 @@
     - name: Validate Repo Manager file repository data
       ansible.builtin.assert:
         that:
-          - hostvars['localhost']['file_repos'] is defined
-          - hostvars['localhost']['file_repos'] is mapping
+          - hostvars['localhost']['service_k8s_repo_file_repos'] is defined
+          - hostvars['localhost']['service_k8s_repo_file_repos'] is mapping
         fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
         quiet: true
 
-    - name: Read x86_64 file repositories
-      ansible.builtin.set_fact:
-        powerscale_x86_64_file_repos: >-
-          {{ hostvars['localhost']['file_repos'].get('x86_64', none) }}
-
-    - name: Validate x86_64 file repository data
-      ansible.builtin.assert:
-        that:
-          - powerscale_x86_64_file_repos is mapping
-        fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
-        quiet: true
-
-    - name: Read x86_64 Git repositories
+    - name: Read service Kubernetes architecture Git repositories
       ansible.builtin.set_fact:
         powerscale_git_repos: >-
-          {{ powerscale_x86_64_file_repos.get('git', none) }}
+          {{ hostvars['localhost']['service_k8s_repo_file_repos']
+             .get('git', none) }}
 
-    - name: Validate x86_64 Git repository data
+    - name: Validate service Kubernetes architecture Git repository data
       ansible.builtin.assert:
         that:
           - powerscale_git_repos is mapping
@@ -143,9 +132,11 @@
 
     - name: Create ansible vault key if it does not exist
       ansible.builtin.set_fact:
-        vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
+        vault_key: >-
+          {{ lookup('password', '/dev/null chars=ascii_letters length=32') }}
       when: not vault_key_result.stat.exists
       delegate_to: localhost
+      no_log: true
 
     - name: Save vault key
       ansible.builtin.lineinfile:
@@ -156,58 +147,107 @@
         create: true
       when: not vault_key_result.stat.exists
       delegate_to: localhost
+      no_log: true
 
-    - name: Check if secret file is encrypted
-      ansible.builtin.command: cat "{{ csi_powerscale_driver_secret_file_path }}"
-      changed_when: false
-      register: config_content
+    - name: Enforce PowerScale vault key permissions
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}"
+        state: file
+        owner: root
+        group: root
+        mode: "{{ vault_key_permission }}"
       delegate_to: localhost
+      no_log: true
 
-    - name: Encrypt secret file
-      ansible.builtin.command: >-
-        ansible-vault encrypt {{ csi_powerscale_driver_secret_file_path }}
-        --vault-password-file {{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}
-      when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+    - name: Check PowerScale source secret encryption header
+      ansible.builtin.command:
+        argv:
+          - head
+          - -n
+          - "1"
+          - "{{ csi_powerscale_driver_secret_file_path }}"
       changed_when: false
+      register: powerscale_secret_header
       delegate_to: localhost
+      no_log: true
 
-    - name: Check if secret file is encrypted
-      ansible.builtin.command: cat "{{ csi_powerscale_driver_secret_file_path }}"
-      changed_when: false
-      register: config_content
+    - name: Encrypt PowerScale source secret when plaintext
+      ansible.builtin.command:
+        argv:
+          - ansible-vault
+          - encrypt
+          - "{{ csi_powerscale_driver_secret_file_path }}"
+          - --vault-password-file
+          - "{{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}"
+      when: not powerscale_secret_header.stdout.startswith('$ANSIBLE_VAULT;')
+      changed_when: true
       delegate_to: localhost
+      no_log: true
 
-    - name: Decrpyt secret file
-      ansible.builtin.command: >-
-        ansible-vault decrypt {{ csi_powerscale_driver_secret_file_path }}
-        --vault-password-file {{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-      delegate_to: localhost
-      changed_when: false
-
-    - name: Update username in secret.yaml with encoded value
-      ansible.builtin.replace:
+    - name: Enforce encrypted PowerScale source secret permissions
+      ansible.builtin.file:
         path: "{{ csi_powerscale_driver_secret_file_path }}"
+        state: file
+        owner: root
+        group: root
+        mode: "0600"
+      delegate_to: localhost
+      no_log: true
+
+    - name: Create temporary PowerScale secret working file
+      ansible.builtin.tempfile:
+        state: file
+        prefix: omnia_powerscale_secret_
+      register: powerscale_secret_work_file
+      changed_when: false
+      delegate_to: localhost
+      no_log: true
+
+    - name: Copy encrypted PowerScale secret to temporary working file
+      ansible.builtin.copy:
+        src: "{{ csi_powerscale_driver_secret_file_path }}"
+        dest: "{{ powerscale_secret_work_file.path }}"
+        mode: "0600"
+        decrypt: false
+      changed_when: false
+      delegate_to: localhost
+      no_log: true
+
+    - name: Decrypt temporary PowerScale secret working file
+      ansible.builtin.command:
+        argv:
+          - ansible-vault
+          - decrypt
+          - "{{ powerscale_secret_work_file.path }}"
+          - --vault-password-file
+          - "{{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}"
+      changed_when: false
+      delegate_to: localhost
+      no_log: true
+
+    - name: Update username in temporary PowerScale secret
+      ansible.builtin.replace:
+        path: "{{ powerscale_secret_work_file.path }}"
         regexp: '^(\s*)username:\s*(?!#).*'
         replace: '\1username: {{ csi_username_b64 }}'
+      changed_when: false
       no_log: true
       delegate_to: localhost
 
-    - name: Update password in secret.yaml with encoded value
+    - name: Update password in temporary PowerScale secret
       ansible.builtin.replace:
-        path: "{{ csi_powerscale_driver_secret_file_path }}"
+        path: "{{ powerscale_secret_work_file.path }}"
         regexp: '^(\s*)password:\s*(?!#).*'
         replace: '\1password: {{ csi_password_b64 }}'
+      changed_when: false
       no_log: true
       delegate_to: localhost
 
-    - name: Load PowerScale CSI secret file
+    - name: Load temporary PowerScale CSI secret file
       ansible.builtin.include_vars:
-        file: "{{ csi_powerscale_driver_secret_file_path }}"
+        file: "{{ powerscale_secret_work_file.path }}"
         name: clusters
       no_log: true
-      when:
-        - csi_powerscale_driver_secret_file_path is defined
       delegate_to: localhost
 
     - name: Load values.yaml file
@@ -223,6 +263,10 @@
           csi_powerscale_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_archive }}"
         mode: "{{ permission_644 }}"
+      register: csi_powerscale_archive_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: csi_powerscale_archive_download is succeeded
 
     - name: Extract csi-powerscale tar file
       ansible.builtin.unarchive:
@@ -237,6 +281,10 @@
           helm_charts_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
+      register: powerscale_helm_charts_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: powerscale_helm_charts_download is succeeded
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
@@ -245,6 +293,10 @@
           external_snapshotter_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
+      register: external_snapshotter_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: external_snapshotter_download is succeeded
 
     - name: Transfer storage class template to nfs share (inside versioned directory)
       ansible.builtin.template:
@@ -256,11 +308,9 @@
 
     - name: Copy PowerScale CSI secret file to target path (inside versioned directory)
       ansible.builtin.copy:
-        src: "{{ csi_powerscale_driver_secret_file_path }}"
+        src: "{{ powerscale_secret_work_file.path }}"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/secret.yaml"
         mode: "0600"
-      when:
-        - csi_powerscale_driver_secret_file_path is defined
       no_log: true
 
     - name: Copy PowerScale CSI values file to target path (inside versioned directory)
@@ -335,3 +385,15 @@
     - name: Handle dependency failure
       ansible.builtin.fail:
         msg: "{{ fail_msg_download }}"
+
+  always:
+    - name: Remove temporary PowerScale secret working file
+      ansible.builtin.file:
+        path: "{{ powerscale_secret_work_file.path }}"
+        state: absent
+      when:
+        - powerscale_secret_work_file is defined
+        - powerscale_secret_work_file.path is defined
+      changed_when: false
+      delegate_to: localhost
+      no_log: true

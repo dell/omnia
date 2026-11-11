@@ -17,6 +17,7 @@
 
 import glob
 import os
+import re
 import subprocess
 import time
 from collections import OrderedDict
@@ -149,34 +150,31 @@ def _check_repo_exists_in_pulp(repo_name, logger):
 
 
 def _check_rpm_downloaded(rpm_directory, pkg_name):
-    """
-    Check if an RPM file for the given package exists in the directory.
-    This is more reliable than parsing DNF output which varies between DNF4 and DNF5.
+    """Check whether the requested RPM was downloaded.
+
+    Supports both unversioned package names and versioned NEVRA specifications.
 
     Args:
-        rpm_directory (str): Directory where RPMs are downloaded
-        pkg_name (str): Package name to check for
+        rpm_directory (str): Directory containing downloaded RPM files.
+        pkg_name (str): Package name or versioned NEVRA specification.
 
     Returns:
-        bool: True if RPM file exists for the package
+        bool: True when a matching RPM exists.
     """
-    # Look for RPM files that start with the package name
-    # Pattern: pkg_name-version-release.arch.rpm
-    pattern = os.path.join(rpm_directory, f"{pkg_name}-[0-9]*.rpm")
-    matches = glob.glob(pattern)
-    if matches:
+    filename_spec = re.sub(r"-(\d+):", "-", pkg_name, count=1)
+
+    exact_patterns = (
+        os.path.join(rpm_directory, f"{filename_spec}.rpm"),
+        os.path.join(rpm_directory, f"{filename_spec}.*.rpm"),
+    )
+    if any(glob.glob(pattern) for pattern in exact_patterns):
         return True
 
-    # Also check for exact match pattern (some packages have numbers in name)
-    pattern2 = os.path.join(rpm_directory, f"{pkg_name}-*.rpm")
-    for match in glob.glob(pattern2):
-        # Extract just the filename
-        filename = os.path.basename(match)
-        # Check if filename starts with pkg_name followed by a dash and version
-        if filename.startswith(f"{pkg_name}-"):
-            return True
-
-    return False
+    unversioned_patterns = (
+        os.path.join(rpm_directory, f"{pkg_name}-[0-9]*.rpm"),
+        os.path.join(rpm_directory, f"{pkg_name}-*.rpm"),
+    )
+    return any(glob.glob(pattern) for pattern in unversioned_patterns)
 
 
 def _catalog_repo_priority_option(pkg_name, repo_mapping, status_file_path, logger):

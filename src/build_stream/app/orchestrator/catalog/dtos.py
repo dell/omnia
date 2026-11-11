@@ -14,10 +14,7 @@
 
 """Response DTOs for catalog orchestrator use cases."""
 
-from dataclasses import dataclass, field
-from typing import List, Tuple
-
-from core.artifacts.value_objects import ArtifactRef
+from dataclasses import dataclass
 
 
 @dataclass
@@ -36,17 +33,3 @@ class ParseCatalogResult:
     message: str
     image_group_id: str
     completed_at: str  # ISO 8601
-
-
-@dataclass
-class GenerateInputFilesResult:
-    """Result DTO for GenerateInputFilesUseCase."""
-
-    job_id: str
-    stage_state: str
-    message: str
-    configs_ref: ArtifactRef = field(metadata={"exclude": True})  # Exclude from JSON response
-    config_file_count: int = field(metadata={"exclude": True})  # Exclude from JSON response
-    config_files: List[str] = field(metadata={"exclude": True})  # Exclude from JSON response
-    arch_os_combinations: List[Tuple[str, str, str]] = field(metadata={"exclude": True})  # Exclude from JSON response
-    completed_at: str = field(metadata={"exclude": True})  # Exclude from JSON response

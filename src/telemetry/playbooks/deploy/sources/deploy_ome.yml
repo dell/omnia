@@ -36,6 +36,14 @@
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
 
+    # Keep this ahead of every role that can mutate the cluster.  The full
+    # telemetry flow validates globally, but this playbook also supports a
+    # standalone invocation.
+    - name: Validate OME source-to-bridge dependencies
+      ansible.builtin.include_role:
+        name: deploy_ome
+        tasks_from: validate_dependencies
+
     - name: Derive sink support flags (only if not already derived)
       ansible.builtin.include_role:
         name: common

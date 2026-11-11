@@ -20,7 +20,7 @@ import os
 
 
 # Function to verify if a file exists at the given path
-def file_exists(file_path, module, logger):
+def file_exists(file_path, module, logger) -> bool:
     """
     Verify if a file exists at the given path.
 
@@ -41,7 +41,7 @@ def file_exists(file_path, module, logger):
 
 
 # Function to verify if a directory exists at the given path
-def directory_exists(directory_path, module, logger):
+def directory_exists(directory_path, module, logger) -> bool:
     """
     Verify if a directory exists at the given path.
 

@@ -40,7 +40,7 @@ class ArtifactStore(Protocol):
       - content: bytes
     """
 
-    def store(
+    def store(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         hint: StoreHint,
         kind: ArtifactKind,
@@ -68,7 +68,6 @@ class ArtifactStore(Protocol):
             ArtifactStoreError: If storage operation fails.
             ValueError: If wrong inputs for the given kind.
         """
-        ...
 
     def retrieve(
         self,
@@ -94,7 +93,6 @@ class ArtifactStore(Protocol):
             ArtifactNotFoundError: If artifact does not exist.
             ArtifactStoreError: If retrieval fails.
         """
-        ...
 
     def exists(self, key: ArtifactKey) -> bool:
         """Check if an artifact exists.
@@ -105,7 +103,6 @@ class ArtifactStore(Protocol):
         Returns:
             True if artifact exists, False otherwise.
         """
-        ...
 
     def delete(self, key: ArtifactKey) -> bool:
         """Delete an artifact.
@@ -116,7 +113,6 @@ class ArtifactStore(Protocol):
         Returns:
             True if artifact was deleted, False if not found.
         """
-        ...
 
     def generate_key(self, hint: StoreHint, kind: ArtifactKind) -> ArtifactKey:
         """Generate a deterministic artifact key from hints.
@@ -128,7 +124,6 @@ class ArtifactStore(Protocol):
         Returns:
             Deterministic ArtifactKey.
         """
-        ...
 
 
 class ArtifactMetadataRepository(Protocol):
@@ -143,7 +138,6 @@ class ArtifactMetadataRepository(Protocol):
         Args:
             record: ArtifactRecord to persist.
         """
-        ...
 
     def find_by_job_stage_and_label(
         self,
@@ -161,7 +155,6 @@ class ArtifactMetadataRepository(Protocol):
         Returns:
             ArtifactRecord if found, None otherwise.
         """
-        ...
 
     def find_by_job(self, job_id: JobId) -> List[ArtifactRecord]:
         """Find all artifact records for a job.
@@ -172,7 +165,6 @@ class ArtifactMetadataRepository(Protocol):
         Returns:
             List of ArtifactRecord (may be empty).
         """
-        ...
 
     def delete_by_job(self, job_id: JobId) -> int:
         """Delete all artifact records for a job.
@@ -183,4 +175,3 @@ class ArtifactMetadataRepository(Protocol):
         Returns:
             Number of records deleted.
         """
-        ...

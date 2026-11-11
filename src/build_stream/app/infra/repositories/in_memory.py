@@ -227,6 +227,54 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
         filtered.sort(key=lambda x: x.created_at)
         return filtered
 
+    def increment_deploy_count(self, image_group_id: ImageGroupId) -> None:
+        """Increment deploy_count and set last_deployed_at."""
+        ig = self._store.get(str(image_group_id))
+        if ig:
+            ig.deploy_count = (ig.deploy_count or 0) + 1
+            from datetime import datetime, timezone
+            ig.last_deployed_at = datetime.now(timezone.utc)
+
+    def list_eligible_for_retention(
+        self, max_age_days: int, min_keep_count: int
+    ) -> List[ImageGroup]:
+        """List ImageGroups eligible for age-based retention cleanup."""
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        active = [
+            ig for ig in self._store.values()
+            if ig.status not in (
+                ImageGroupStatus.CLEANED,
+                ImageGroupStatus.CLEANING,
+            )
+        ]
+        candidates = sorted(
+            (
+                ig for ig in active
+                if not ig.is_protected
+                and ig.deploy_count == 0
+                and ig.created_at < cutoff
+            ),
+            key=lambda ig: ig.created_at,
+        )
+        if min_keep_count <= 0:
+            return candidates
+
+        group_counts = {}
+        for image_group in active:
+            key = image_group.catalog_identifier or "__unknown__"
+            group_counts[key] = group_counts.get(key, 0) + 1
+
+        eligible = []
+        pending_deletes = {}
+        for image_group in candidates:
+            key = image_group.catalog_identifier or "__unknown__"
+            pending = pending_deletes.get(key, 0)
+            if group_counts.get(key, 0) - pending > min_keep_count:
+                eligible.append(image_group)
+                pending_deletes[key] = pending + 1
+        return eligible
+
 
 class InMemoryImageRepository(ImageRepository):
     """In-memory implementation of ImageRepository for development/testing."""

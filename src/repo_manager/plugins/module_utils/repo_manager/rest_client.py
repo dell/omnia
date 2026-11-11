@@ -85,19 +85,7 @@ class RestClient:
         Returns:
             dict or None: Parsed JSON response if successful, None otherwise.
         """
-        conn = None
-        try:
-            conn = self.get_connection()
-            conn.request("POST", uri, body=json.dumps(data), headers=self.headers)
-            response = conn.getresponse()
-            if response.status != 202:
-                return None
-            return json.loads(response.read())
-        except Exception:
-            return None
-        finally:
-            if conn is not None:
-                conn.close()
+        return self.request_json("POST", uri, data, expected_statuses=(202,))
 
     def get(self, uri):
         """
@@ -109,14 +97,49 @@ class RestClient:
         Returns:
             dict or None: Parsed JSON response if status is 200, None otherwise.
         """
+        return self.request_json("GET", uri, expected_statuses=(200,))
+
+    def request_json(
+            self, method, uri, data=None, *, expected_statuses=(200,),
+            max_response_bytes=1024 * 1024):
+        """Send one bounded JSON request to a root-relative Pulp API path."""
+        normalized_method = str(method).upper()
+        if normalized_method not in {"GET", "POST", "PATCH"}:
+            raise ValueError("Unsupported Pulp REST method")
+        if not isinstance(uri, str):
+            raise ValueError("Pulp REST URI must be a string")
+        parsed_uri = urlparse(uri)
+        if (
+                not uri.startswith("/pulp/api/v3/")
+                or parsed_uri.scheme
+                or parsed_uri.netloc
+                or parsed_uri.query
+                or parsed_uri.fragment
+        ):
+            raise ValueError("Pulp REST URI must be a root-relative API path")
+        if (
+                not isinstance(max_response_bytes, int)
+                or isinstance(max_response_bytes, bool)
+                or max_response_bytes < 1
+        ):
+            raise ValueError("Pulp REST response limit must be a positive integer")
+
         conn = None
         try:
             conn = self.get_connection()
-            conn.request("GET", uri, headers=self.headers)
+            body = json.dumps(data) if data is not None else None
+            conn.request(normalized_method, uri, body=body, headers=self.headers)
             response = conn.getresponse()
-            if response.status != 200:
+            response_body = response.read(max_response_bytes + 1)
+            if (
+                    response.status not in expected_statuses
+                    or len(response_body) > max_response_bytes
+            ):
                 return None
-            return json.loads(response.read())
+            if not response_body:
+                return {}
+            parsed_response = json.loads(response_body)
+            return parsed_response if isinstance(parsed_response, dict) else None
         except Exception:
             return None
         finally:

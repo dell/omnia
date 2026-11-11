@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+- name: Install SELinux policy module before using Podman
+  ansible.builtin.include_tasks: preflight_selinux_check.yml
+
 - name: Include prepare repo builder image task (x86_64 only)
   ansible.builtin.include_tasks: prepare_repo_builder_image.yml
   when: build_arch == 'x86_64'
@@ -45,6 +48,19 @@
     _new_images: []
     build_arch_completed: "{{ (hostvars[inventory_hostname]['build_arch_completed'] | default([])) + [build_arch] }}"
 
+- name: Initialize exact artifact paths and discovery scope
+  ansible.builtin.set_fact:
+    _s3_artifacts: >-
+      {% set result = {} -%}
+      {% for fg_name, entry in (_dictionary_hits | default({})).items() -%}
+        {% set _ = result.update({fg_name: entry.s3_paths}) -%}
+      {% endfor -%}
+      {{ result }}
+    _artifact_discovery_dict: >-
+      {{ _compute_rebuild_dict | default({})
+         if _pkg_source == 'catalog'
+         else compute_images_dict }}
+
 # ---------------------------------------------------------------------------
 # Discover exact artifact object keys from S3.
 #
@@ -53,7 +69,8 @@
 #     kernel/initrd: efi-images/<group>/<image>/versioned-filename
 #     rootfs:        <group>/<image>/rhel-versioned-filename
 #   image-thrillhouse:
-#     kernel/initrd/rootfs: <group>/<image>/<release>/fixed-filename
+#     kernel/initrd: <group>/<image>/<release>/versioned-filename
+#     rootfs:        <group>/<image>/<release>/rootfs.squashfs
 #
 # Keep build_status.yml engine-neutral by recording the exact endpoint-relative
 # S3 path (bucket + object key) instead of reconstructing paths from basenames.
@@ -124,14 +141,40 @@
     rootfs_uri=""
 
     if [ "${_thrillhouse}" = "true" ]; then
-      kernel_uri=$(printf '%s\n' "${_root_listing}" \
-        | awk -v expected="${_image_root}${_release_tag}/vmlinuz" \
-          '$NF == expected {print $NF; exit}')
-      initrd_uri=$(printf '%s\n' "${_root_listing}" \
-        | awk -v expected="${_image_root}${_release_tag}/initramfs.img" \
-          '$NF == expected {print $NF; exit}')
+      _release_root="${_image_root}${_release_tag}/"
+
+      # Thrillhouse publishes a matched, kernel-versioned vmlinuz/initramfs
+      # pair. Prefer the newest complete pair when an image directory contains
+      # artifacts from more than one build.
+      while IFS= read -r _kernel_candidate; do
+        [ -n "${_kernel_candidate}" ] || continue
+        _kernel_version="${_kernel_candidate#"${_release_root}vmlinuz-"}"
+        _initrd_candidate="${_release_root}initramfs-${_kernel_version}.img"
+        _matched_initrd=$(printf '%s\n' "${_root_listing}" \
+          | awk -v expected="${_initrd_candidate}" \
+            '$NF == expected {print $NF; exit}')
+        if [ -n "${_matched_initrd}" ]; then
+          kernel_uri="${_kernel_candidate}"
+          initrd_uri="${_matched_initrd}"
+          break
+        fi
+      done < <(printf '%s\n' "${_root_listing}" \
+        | LC_ALL=C sort -r \
+        | awk -v prefix="${_release_root}vmlinuz-" \
+          'index($NF, prefix) == 1 && length($NF) > length(prefix) {print $NF}')
+
+      # Retain compatibility with cached artifacts produced by older
+      # Thrillhouse releases, which used fixed filenames.
+      if [ -z "${kernel_uri}" ]; then
+        kernel_uri=$(printf '%s\n' "${_root_listing}" \
+          | awk -v expected="${_release_root}vmlinuz" \
+            '$NF == expected {print $NF; exit}')
+        initrd_uri=$(printf '%s\n' "${_root_listing}" \
+          | awk -v expected="${_release_root}initramfs.img" \
+            '$NF == expected {print $NF; exit}')
+      fi
       rootfs_uri=$(printf '%s\n' "${_root_listing}" \
-        | awk -v expected="${_image_root}${_release_tag}/rootfs.squashfs" \
+        | awk -v expected="${_release_root}rootfs.squashfs" \
           '$NF == expected {print $NF; exit}')
     else
       _efi_root="s3://${_s3_bucket}/efi-images/{{ item.key }}/${_image_name}/"
@@ -156,7 +199,7 @@
   register: _s3_artifact_discovery
   changed_when: false
   failed_when: false
-  loop: "{{ compute_images_dict | dict2items }}"
+  loop: "{{ _artifact_discovery_dict | dict2items }}"
   loop_control:
     loop_var: item
     label: "{{ item.key }}"
@@ -164,9 +207,9 @@
 # Parse S3 discovery output: group|kernel_key|initrd_key|rootfs_key.
 - name: Build exact artifact path lookup from S3 discovery
   ansible.builtin.set_fact:
-    _s3_artifacts: >-
+    _s3_discovered_artifacts: >-
       {%- set result = {} -%}
-      {%- for r in _s3_artifact_discovery.results -%}
+      {%- for r in _s3_artifact_discovery.results | default([]) -%}
         {%- set parts = r.stdout.split('|') -%}
         {%- if parts | length >= 4 -%}
           {%- set _ = result.update({parts[0]: {
@@ -178,20 +221,50 @@
       {%- endfor -%}
       {{ result }}
 
+- name: Merge discovered and dictionary artifact paths
+  ansible.builtin.set_fact:
+    _s3_artifacts: >-
+      {{ _s3_artifacts | default({})
+         | combine(_s3_discovered_artifacts | default({})) }}
+
 - name: Validate discovered S3 artifact paths
   ansible.builtin.assert:
     that:
       - (_s3_artifacts.get(item.key, {}).get('kernel', '') | length) > 0
       - (_s3_artifacts.get(item.key, {}).get('initrd', '') | length) > 0
       - (_s3_artifacts.get(item.key, {}).get('rootfs', '') | length) > 0
-    fail_msg: >-
-      Failed to resolve exact kernel, initrd, and rootfs S3 object keys for
-      functional group {{ item.key }} using {{ _image_build_type }}.
+    fail_msg: "{{ s3_artifact_resolution_fail_msg }}"
     quiet: true
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:
     loop_var: item
     label: "{{ item.key }}"
+
+- name: Update global image dictionary
+  manage_image_group_dictionary:
+    dictionary_path: "{{ output_project_dir }}/image_group_dictionary.json"
+    operation: upsert
+    entries: >-
+      {% set result = [] -%}
+      {% for fg_name, fg_data in (_compute_rebuild_dict | default({})).items() -%}
+        {% set _ = result.append({
+          'package_hash': _compute_pkg_hashes[fg_name],
+          'functional_group': fg_name,
+          'architecture': build_arch,
+          'image_group_id': _catalog_image_group_id,
+          's3_paths': _s3_artifacts[fg_name],
+          'catalog_identifier': _catalog_id,
+          'catalog_version': _catalog_version
+        }) -%}
+      {% endfor -%}
+      {{ result }}
+    catalog_schema_version: >-
+      {{ _catalog_schema_version
+         if (_catalog_schema_version | default('', true) | string | length) > 0
+         else omit }}
+  when:
+    - _pkg_source == 'catalog'
+    - (_compute_rebuild_dict | default({}) | length) > 0
 
 - name: Build image list entries using exact S3 object keys
   vars:

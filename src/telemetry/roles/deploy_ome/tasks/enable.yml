@@ -48,21 +48,21 @@
   when:
     - _ome_bridge_config.metrics_enabled | default(false) | bool or
       _ome_bridge_config.logs_enabled | default(false) | bool
-    - not (hostvars['localhost']['kafka_support'] | default(false) | bool)
+    - not (kafka_support | default(hostvars['localhost']['kafka_support'] | default(false)) | bool)
 
 - name: Validate OME metrics bridge requires VictoriaMetrics
   ansible.builtin.fail:
     msg: "{{ ome_victoria_metrics_required_msg }}"
   when:
     - _ome_bridge_config.metrics_enabled | default(false) | bool
-    - not (hostvars['localhost']['victoria_metrics_support'] | default(false) | bool)
+    - not (victoria_metrics_support | default(hostvars['localhost']['victoria_metrics_support'] | default(false)) | bool)
 
 - name: Validate OME logs bridge requires VictoriaLogs
   ansible.builtin.fail:
     msg: "{{ ome_victoria_logs_required_msg }}"
   when:
     - _ome_bridge_config.logs_enabled | default(false) | bool
-    - not (hostvars['localhost']['victoria_logs_support'] | default(false) | bool)
+    - not (victoria_logs_support | default(hostvars['localhost']['victoria_logs_support'] | default(false)) | bool)
 
 - name: Display OME bridge configuration
   ansible.builtin.debug:
@@ -79,6 +79,12 @@
   when:
     - _ome_bridge_config.metrics_enabled | default(false) | bool or
       _ome_bridge_config.logs_enabled | default(false) | bool
+
+- name: Restore enabled OME workloads to configured replicas
+  ansible.builtin.include_tasks: restore.yml
+
+- name: Stop forwarding workloads for disabled OME channels
+  ansible.builtin.include_tasks: reconcile_disabled_channels.yml
 
 - name: Display OME telemetry integration summary
   ansible.builtin.debug:

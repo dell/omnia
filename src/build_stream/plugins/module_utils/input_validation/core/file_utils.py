@@ -18,13 +18,14 @@ Provides YAML/JSON loading and Ansible Vault detection.
 """
 import json
 import os
+from typing import Any
 
 import yaml
 
 from ansible.module_utils.input_validation.core.config import VAULT_HEADER  # pylint: disable=E0401
 
 
-def is_vault_encrypted(path):
+def is_vault_encrypted(path) -> bool:
     """Check if a file is Ansible Vault encrypted."""
     if not os.path.isfile(path):
         return False
@@ -33,7 +34,7 @@ def is_vault_encrypted(path):
     return first_line.startswith(VAULT_HEADER)
 
 
-def load_yaml(path):
+def load_yaml(path) -> Any:
     """Load a YAML file, returning None on failure."""
     if not os.path.isfile(path):
         return None
@@ -41,7 +42,7 @@ def load_yaml(path):
         return yaml.safe_load(f)
 
 
-def load_json(path):
+def load_json(path) -> Any:
     """Load a JSON file, returning None on failure."""
     if not os.path.isfile(path):
         return None

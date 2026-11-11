@@ -22,17 +22,18 @@ Usage:
 """
 
 import logging
-
-from api.logging_utils import log_secure_info
 import os
 from contextlib import asynccontextmanager
+from typing import AsyncIterator, Tuple
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.logging_utils import log_secure_info
 from api.router import api_router
 from container import container
+from orchestrator.cleanup.scheduler import AutoCleanupScheduler
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -54,19 +55,28 @@ log_secure_info('info', f"Using container: {container.__class__.__name__}")
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage application lifecycle events.
-    
-    Starts the result poller on startup and stops it on shutdown.
+
+    Starts the result poller and, with the SQL-backed (prod) container, the
+    automatic image cleanup scheduler on startup; stops both on shutdown.
     """
     # Startup: Start the result poller
     result_poller = container.result_poller()
     await result_poller.start()
+
+    # Automatic cleanup needs the SQL repositories, so it runs in prod only.
+    cleanup_scheduler = None
+    if os.getenv("ENV", "prod").lower() == "prod":
+        cleanup_scheduler = AutoCleanupScheduler()
+        await cleanup_scheduler.start()
     log_secure_info('info', "Application startup complete")
 
     yield
 
-    # Shutdown: Stop the result poller
+    # Shutdown: Stop the cleanup scheduler and the result poller
+    if cleanup_scheduler is not None:
+        await cleanup_scheduler.stop()
     await result_poller.stop()
     log_secure_info('info', "Application shutdown complete")
 
@@ -121,7 +131,7 @@ async def health_check() -> dict:
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):  # pylint: disable=unused-argument
+async def global_exception_handler(request, exc) -> JSONResponse:  # pylint: disable=unused-argument
     """Global exception handler for unhandled exceptions."""
     log_secure_info('error', "Unhandled exception occurred", exc_info=True)
     return JSONResponse(
@@ -130,41 +140,45 @@ async def global_exception_handler(request, exc):  # pylint: disable=unused-argu
     )
 
 
-def get_server_config():
+def get_server_config() -> Tuple[str, int]:
     """Get server host and port configuration with proper validation."""
-    host = os.getenv("HOST", "0.0.0.0")
-    
+    server_host = os.getenv(
+        "HOST", "0.0.0.0"  # nosec B104 — container must bind all interfaces
+    )
+
     # Validate host is not empty or just whitespace
-    if not host or host.strip() == "":
+    if not server_host or server_host.strip() == "":
         raise ValueError("HOST environment variable cannot be empty")
-    
+
     # Port validation
     port_env = os.getenv("PORT")
     if not port_env:
         raise ValueError("PORT environment variable is required")
-    
+
     try:
-        port = int(port_env)
-        if not (1 <= port <= 65535):
-            raise ValueError(f"Port {port} is not in valid range 1-65535")
-    except ValueError as e:
-        if "invalid literal" in str(e):
-            raise ValueError(f"PORT environment variable must be a valid integer, got: {port_env}")
+        server_port = int(port_env)
+        if 1 > server_port or server_port > 65535:
+            raise ValueError(f"Port {server_port} is not in valid range 1-65535")
+    except ValueError as exc:
+        if "invalid literal" in str(exc):
+            raise ValueError(
+                f"PORT environment variable must be a valid integer, got: {port_env}"
+            ) from exc
         raise
-    
-    return host.strip(), port
+
+    return server_host.strip(), server_port
 
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn  # pylint: disable=import-outside-toplevel
 
     try:
-        host, port = get_server_config()
+        _host, _port = get_server_config()
 
-        log_secure_info('info', f"Starting Build Stream API server on {host}:{port}")
-        
-        uvicorn.run("main:app", host=host, port=port)
-    except ValueError as e:
-        raise ValueError("Invalid server configuration")
-    except Exception as e:
-        raise RuntimeError("Internal server error")
+        log_secure_info('info', f"Starting Build Stream API server on {_host}:{_port}")
+
+        uvicorn.run("main:app", host=_host, port=_port)
+    except ValueError as val_err:
+        raise ValueError("Invalid server configuration") from val_err
+    except Exception as run_err:
+        raise RuntimeError("Internal server error") from run_err

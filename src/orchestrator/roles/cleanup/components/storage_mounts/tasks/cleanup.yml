@@ -32,7 +32,7 @@
   ansible.builtin.assert:
     that:
       - cleanup_storage_mounts_config_file.stat.exists
-    fail_msg: "storage_config.yml not found. Cannot determine mounts to clean."
+    fail_msg: "{{ storage_config_missing_fail_msg }}"
   tags: storage_mounts
 
 - name: Load storage configuration from storage_config.yml
@@ -80,10 +80,7 @@
       - cleanup_storage_matches[0].source | default('') | length > 0
       - cleanup_storage_matches[0].mount_point | default('') | length > 0
       - cleanup_storage_matches[0].mount_point is match('^/')
-    fail_msg: >-
-      Component cleanup cannot safely resolve omnia_config.yml storage
-      reference '{{ cleanup_storage_name }}' to exactly one complete mount
-      entry with an absolute mount_point in storage_config.yml.
+    fail_msg: "{{ storage_reference_fail_msg }}"
   loop: "{{ cleanup_referenced_storage_names }}"
   loop_control:
     loop_var: cleanup_storage_name
@@ -111,7 +108,7 @@
 
 - name: Fail if storage config has no mounts
   ansible.builtin.fail:
-    msg: "storage_config.yml has no mounts. Cannot determine mounts to clean."
+    msg: "{{ storage_mounts_missing_fail_msg }}"
   when: cleanup_storage_config.mounts | default([]) | length == 0
   tags: storage_mounts
 

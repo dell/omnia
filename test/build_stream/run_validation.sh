@@ -23,6 +23,7 @@
 #
 # Usage:
 #   ./run_validation.sh fvt_build_stream <tag> <command> [options]
+#   ./run_validation.sh fvt_build_stream build_deploy_lifecycle <command> [options]
 #   ./run_validation.sh fvt_build_stream list
 #   ./run_validation.sh --config
 #   ./run_validation.sh --help

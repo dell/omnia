@@ -274,14 +274,6 @@
   changed_when: _ldms_secret_delete.rc == 0
   failed_when: false
 
-- name: LDMS | Delete PVCs
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pvc -l {{ ldms_pvc_label }}
-    --ignore-not-found=true --wait=false
-  register: _ldms_pvc_delete
-  changed_when: _ldms_pvc_delete.rc == 0 and 'deleted' in _ldms_pvc_delete.stdout
-  failed_when: false
-
 - name: LDMS | Force delete pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
@@ -299,17 +291,6 @@
   register: _ldms_pod_wait
   changed_when: false
   until: _ldms_pod_wait.stdout | trim | length == 0
-  retries: "{{ cleanup_custom_resource_retries }}"
-  delay: "{{ cleanup_custom_resource_delay }}"
-  failed_when: false
-
-- name: LDMS | Wait for PVCs to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pvc -l {{ ldms_pvc_label }}
-    --output=name --ignore-not-found=true
-  register: _ldms_pvc_wait
-  changed_when: false
-  until: _ldms_pvc_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
   failed_when: false

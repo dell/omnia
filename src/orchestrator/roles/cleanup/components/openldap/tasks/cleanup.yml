@@ -53,6 +53,16 @@
   failed_when: false
   tags: openldap
 
+- name: Fail when Podman cannot be queried for OpenLDAP cleanup
+  ansible.builtin.fail:
+    msg: >-
+      Podman is unavailable. OpenLDAP container cleanup cannot be completed
+      or verified.
+  when:
+    - "'remove_container' in openldap_config.cleanup_operations"
+    - cleanup_openldap_podman_check.rc != 0
+  tags: openldap
+
 - name: Check whether the OpenLDAP container exists
   ansible.builtin.command: >-
     podman container exists
@@ -78,6 +88,19 @@
         - cleanup_openldap_podman_check.rc == 0
         - cleanup_openldap_container_check.rc == 0
       tags: openldap
+
+- name: Verify OpenLDAP container was removed
+  ansible.builtin.command: >-
+    podman container exists
+    {{ openldap_config.container_name | default('omnia_auth') }}
+  register: cleanup_openldap_removed_container_check
+  changed_when: false
+  failed_when: cleanup_openldap_removed_container_check.rc != 1
+  when:
+    - not (dry_run | default(false) | bool)
+    - "'remove_container' in openldap_config.cleanup_operations"
+    - cleanup_openldap_podman_check.rc == 0
+  tags: openldap
 
 - name: Remove OpenLDAP Quadlet unit
   tags: openldap

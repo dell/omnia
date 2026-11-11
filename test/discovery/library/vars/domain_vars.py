@@ -68,6 +68,27 @@ SUITES: Dict[str, List[str]] = {
 }
 
 # =====================================================================
+# Lifecycle execution order for "fvt_discovery test" (all tags)
+# =====================================================================
+# Empty list means:
+# - "fvt_discovery verify" runs ALL verification tests at once
+# - "fvt_discovery test" requires a tag (e.g., "fvt_discovery discovery test")
+# To run full playbook: ./run_validation.sh fvt_discovery discovery test
+
+ALL_EXEC_TAGS: List[str] = []
+ALL_EXEC_MARKER: str = ""
+ALL_VERIFY_EXCLUDE_MARKERS: List[str] = []
+
+# =====================================================================
+# Tags that support verify only (no exec)
+# =====================================================================
+
+VERIFY_ONLY_TAGS: List[str] = []
+REQUIRED_SUITE_TAGS: List[str] = []
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {}
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {}
+
+# =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
 # =====================================================================
 

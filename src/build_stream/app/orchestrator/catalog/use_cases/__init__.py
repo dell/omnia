@@ -15,9 +15,7 @@
 """Catalog orchestrator use cases."""
 
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
-from orchestrator.catalog.use_cases.generate_input_files import GenerateInputFilesUseCase
 
 __all__ = [
     "ParseCatalogUseCase",
-    "GenerateInputFilesUseCase",
 ]

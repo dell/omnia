@@ -362,7 +362,7 @@ _show_expected_domain_outputs() {
             echo -e "    ${DIM}.data/functional_groups_config.yml — generated functional groups${NC}"
             echo -e "    ${DIM}orchestrator_inventory.yml and bmc_group_data.csv — generated inventories${NC}"
             echo -e "    ${DIM}provisioning_report.yml — provision flow report${NC}"
-            echo -e "    ${DIM}pxeboot_status.yml and failed_nodes.json — PXE flow reports${NC}"
+            echo -e "    ${DIM}failed_nodes.json — PXE failure report${NC}"
             echo -e "    ${DIM}orchestrator_status.yml — latest aggregate provision/PXE status${NC}"
             ;;
         discovery)
@@ -433,15 +433,12 @@ _validate_domain_output_artifacts() {
                 echo -e "  ${PASS} Provisioning report: ${DIM}provisioning_report.yml${NC}"
             fi
             if [ "$last_phase" = "pxeboot" ]; then
-                local pxe_artifact
-                for pxe_artifact in pxeboot_status.yml failed_nodes.json; do
-                    if [ -f "${output_dir}/${pxe_artifact}" ]; then
-                        echo -e "  ${PASS} PXE report: ${DIM}${pxe_artifact}${NC}"
-                    else
-                        echo -e "  ${FAIL} ${pxe_artifact} missing for completed PXE phase"
-                        artifact_issues=$((artifact_issues + 1))
-                    fi
-                done
+                if [ -f "${output_dir}/failed_nodes.json" ]; then
+                    echo -e "  ${PASS} PXE report: ${DIM}failed_nodes.json${NC}"
+                else
+                    echo -e "  ${FAIL} failed_nodes.json missing for completed PXE phase"
+                    artifact_issues=$((artifact_issues + 1))
+                fi
             fi
             ;;
     esac

@@ -9,7 +9,7 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
@@ -30,30 +30,28 @@
 #      $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/, and encrypted
 #      with ansible-vault.
 #
-# SSH CREDENTIALS:
-#   --set-creds          Interactive prompt (2x confirmation). Asks to update if exists.
+# TEST CREDENTIALS:
+#   --set-creds          Prompt for the OIM SSH password and, when
+#                        configure_external_ldap is true, LDAP test and bind
+#                        credentials. Existing values can be retained.
 #   --update-creds       Force-update existing SSH password (2x prompt).
-#   --creds-stdin        Read a non-interactive SSH password from stdin.
+#   --creds-stdin        Read a non-interactive JSON test-credential object
+#                        from stdin. LDAP fields are required when external
+#                        LDAP validation is enabled.
 #
 # DOMAIN CREDENTIALS:
 #   --set-domain-creds     Interactive prompt for LDAP creds.
 #   --update-domain-creds  Force-update domain credentials.
 #   --domain-creds-stdin Read a non-interactive JSON object from stdin.
 #
-# LDAP TEST CREDENTIALS:
-#   --set-ldap-test-creds     Prompt for the LDAP test user and optional
-#                             external-directory admin password.
-#   --update-ldap-test-creds  Replace the stored LDAP test credentials.
-#   --ldap-test-creds-stdin   Read a username/password JSON object from stdin.
-#
 # Usage:
 #   ./setup_env.sh                        # Baremetal or active venv
 #   ./setup_env.sh --force                # Force-reinstall all requirements
 #   ./setup_env.sh --venv                 # Create .venv/ and install there
 #   ./setup_env.sh --venv --force         # Recreate .venv/ and reinstall requirements
-#   ./setup_env.sh --set-creds            # Prompt for SSH password
+#   ./setup_env.sh --set-creds            # Prompt for SSH and enabled LDAP credentials
 #   ./setup_env.sh --update-creds         # Update existing SSH password
-#   approved-secret-provider | ./setup_env.sh --creds-stdin
+#   test-credential-json-provider | ./setup_env.sh --creds-stdin
 #   ./setup_env.sh --set-domain-creds     # Prompt for LDAP creds
 #   credential-json-provider | ./setup_env.sh --domain-creds-stdin
 #   ./setup_env.sh --debug                # Verbose pip output
@@ -77,6 +75,7 @@ DOMAIN_CREDS_FILENAME="orchestrator_credentials.yml"
 DOMAIN_CREDS_KEY_FILENAME=".orchestrator_credentials_key"
 DOMAIN_NAME="orchestrator"
 DOMAIN_DATA_PATH_ENV="ORCHESTRATOR_DATA_PATH"
+TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors & helpers
@@ -128,9 +127,6 @@ CREDS_FROM_STDIN=false
 SET_DOMAIN_CREDS=false
 UPDATE_DOMAIN_CREDS=false
 DOMAIN_CREDS_FROM_STDIN=false
-SET_LDAP_TEST_CREDS=false
-UPDATE_LDAP_TEST_CREDS=false
-LDAP_TEST_CREDS_FROM_STDIN=false
 
 # shellcheck disable=SC2034
 while [[ $# -gt 0 ]]; do
@@ -144,9 +140,6 @@ while [[ $# -gt 0 ]]; do
         --set-domain-creds)    SET_DOMAIN_CREDS=true; shift ;;
         --update-domain-creds) UPDATE_DOMAIN_CREDS=true; shift ;;
         --domain-creds-stdin) DOMAIN_CREDS_FROM_STDIN=true; shift ;;
-        --set-ldap-test-creds) SET_LDAP_TEST_CREDS=true; shift ;;
-        --update-ldap-test-creds) UPDATE_LDAP_TEST_CREDS=true; shift ;;
-        --ldap-test-creds-stdin) LDAP_TEST_CREDS_FROM_STDIN=true; shift ;;
         --creds|--creds=*|--password|--password=*|--set-password|\
         --update-password|--password-stdin)
             fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
@@ -168,11 +161,17 @@ INSTALL MODES
   --force, -f     Force-reinstall all packages from requirements.txt.
                   With --venv, also recreate .venv/ from scratch.
 
-SSH CREDENTIALS (test_creds.yml)
+TEST CREDENTIALS (test_creds.yml)
 ─────────────────────────────────────────────────────────────────
-  --set-creds     Interactive SSH password setup (2x confirmation).
-  --update-creds  Force-update existing SSH password (2x prompt).
-  --creds-stdin   Read an SSH password from standard input.
+  --set-creds     Configure the OIM SSH password. When
+                  configure_external_ldap is true in test_config.yml, also
+                  configure the LDAP test identity and external bind secret.
+  --update-creds  Update the OIM SSH password and, when external LDAP is
+                  enabled, the LDAP test identity and external bind secret.
+  --creds-stdin   Read a JSON object from standard input. Always include
+                  oim_password. When configure_external_ldap is true, also
+                  include ldap_username, ldap_password, and
+                  external_ldap_bind_password.
 DOMAIN CREDENTIALS (orchestrator_credentials.yml)
 ─────────────────────────────────────────────────────────────────
   Created on this machine at:
@@ -186,20 +185,6 @@ DOMAIN CREDENTIALS (orchestrator_credentials.yml)
   --update-domain-creds  Update an existing valid domain credential store.
   --domain-creds-stdin   Read a JSON object from standard input. Example:
     credential-json-provider | ./setup_env.sh --domain-creds-stdin
-
-LDAP TEST CREDENTIALS
-─────────────────────────────────────────────────────────────────
-  Stored only in encrypted test_creds.yml. These credentials are consumed by
-  Slurm LDAP login tests and the explicit external-directory setup utility.
-  They are never written to Orchestrator input files.
-
-  --set-ldap-test-creds     Prompt for test-user credentials and the optional
-                            external-directory admin password.
-  --update-ldap-test-creds  Update the stored LDAP test credentials.
-  --ldap-test-creds-stdin   Read a credential JSON object from standard input.
-
-  external_ldap_admin_password is required only when running:
-    .venv/bin/python3 utility/create_ldap_user.py
 
 OTHER OPTIONS
 ─────────────────────────────────────────────────────────────────
@@ -265,24 +250,8 @@ done
 if [ "$domain_action_count" -gt 1 ]; then
     fail "Use only one domain credential action per invocation."
 fi
-if [ "$CREDS_FROM_STDIN" = true ] \
-    && [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
-    fail "Only one credential payload can be read from stdin per invocation."
-fi
-
-ldap_test_action_count=0
-for selected in "$LDAP_TEST_CREDS_FROM_STDIN" \
-    "$SET_LDAP_TEST_CREDS" "$UPDATE_LDAP_TEST_CREDS"; do
-    if [ "$selected" = true ]; then
-        ldap_test_action_count=$((ldap_test_action_count + 1))
-    fi
-done
-if [ "$ldap_test_action_count" -gt 1 ]; then
-    fail "Use only one LDAP test credential action per invocation."
-fi
 stdin_action_count=0
-for selected in "$CREDS_FROM_STDIN" "$DOMAIN_CREDS_FROM_STDIN" \
-    "$LDAP_TEST_CREDS_FROM_STDIN"; do
+for selected in "$CREDS_FROM_STDIN" "$DOMAIN_CREDS_FROM_STDIN"; do
     if [ "$selected" = true ]; then
         stdin_action_count=$((stdin_action_count + 1))
     fi
@@ -474,19 +443,41 @@ _show_oim_server_ip() {
     fi
 }
 
-_prompt_and_write_ssh_creds() {
-    _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty \
-        | _credential_cli write-field \
-        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --field oim_password --value-stdin >/dev/null
-    ok "SSH credentials saved: test_creds.yml (encrypted)"
+_external_ldap_is_enabled() {
+    [ -f "$TEST_CONFIG" ] && grep -Eq \
+        '^[[:space:]]*configure_external_ldap:[[:space:]]*(true|True|TRUE)[[:space:]]*(#.*)?$' \
+        "$TEST_CONFIG"
 }
 
-_write_ssh_creds_stdin() {
-    _credential_cli write-field \
+_test_credential_spec() {
+    if _external_ldap_is_enabled; then
+        printf '%s\n' '[
+          {"field":"oim_password","label":"OIM SSH Password","group":"Remote OIM","secret":true,"confirm":true,"min_length":1},
+          {"field":"ldap_username","label":"LDAP Test Username","group":"LDAP Test Credentials","secret":false,"min_length":1},
+          {"field":"ldap_password","label":"LDAP Test Password","group":"LDAP Test Credentials","secret":true,"confirm":true,"min_length":1},
+          {"field":"external_ldap_bind_password","label":"External LDAP Bind Password","group":"External LDAP Proxy","secret":true,"confirm":true,"min_length":1}
+        ]'
+    else
+        printf '%s\n' '[
+          {"field":"oim_password","label":"OIM SSH Password","group":"Remote OIM","secret":true,"confirm":true,"min_length":1}
+        ]'
+    fi
+}
+
+_prompt_and_write_test_credentials() {
+    local _spec; _spec=$(_test_credential_spec)
+    _credential_cli prompt-fields \
         --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --field oim_password --value-stdin >/dev/null
-    ok "SSH credentials saved: test_creds.yml (encrypted)"
+        --spec "$_spec" --require-complete </dev/tty
+    ok "Test credentials saved: test_creds.yml (encrypted)"
+}
+
+_write_test_credentials_stdin() {
+    local _spec; _spec=$(_test_credential_spec)
+    _credential_cli write-fields \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --fields-stdin --spec "$_spec" --require-complete >/dev/null
+    ok "Test credentials saved: test_creds.yml (encrypted)"
 }
 
 # Write domain creds to orchestrator_credentials.yml (at env-var path)
@@ -501,22 +492,6 @@ _write_domain_creds_stdin() {
         --fields-stdin --spec "$DOMAIN_CRED_SPEC" \
         --require-complete >/dev/null
     ok "Domain credentials saved: $_path (encrypted)"
-}
-
-_write_ldap_test_credentials_stdin() {
-    _credential_cli write-fields \
-        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --fields-stdin --spec "$LDAP_TEST_CRED_SPEC" \
-        --require-complete >/dev/null
-    ok "LDAP test credentials saved: test_creds.yml (encrypted)"
-}
-
-_prompt_and_write_ldap_test_credentials() {
-    _credential_cli prompt-fields \
-        --creds-path "$CREDS_FILE" \
-        --key-path "$CREDS_KEY" \
-        --spec "$LDAP_TEST_CRED_SPEC" --require-complete </dev/tty
-    ok "LDAP test credentials saved: test_creds.yml (encrypted)"
 }
 
 # Read a field from the domain creds file
@@ -555,12 +530,22 @@ _ssh_credentials_are_set() {
 _domain_credentials_are_set() {
     _credential_fields_are_set \
         "$(_domain_creds_path)" "$(_domain_creds_key_path)" \
-        provision_password
+        provision_password bmc_username bmc_password
 }
 
 _ldap_test_credentials_are_set() {
-    _credential_fields_are_set \
-        "$CREDS_FILE" "$CREDS_KEY" ldap_username ldap_password
+    local _fields=(ldap_username ldap_password)
+    if _external_ldap_is_enabled; then
+        _fields+=(external_ldap_bind_password)
+    fi
+    _credential_fields_are_set "$CREDS_FILE" "$CREDS_KEY" "${_fields[@]}"
+}
+
+_test_credentials_are_set() {
+    _ssh_credentials_are_set || return 1
+    if _external_ldap_is_enabled; then
+        _ldap_test_credentials_are_set
+    fi
 }
 
 # Ask yes/no
@@ -581,30 +566,29 @@ _ask_yes_no() {
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$CREDS_FROM_STDIN" = true ]; then
     _show_oim_server_ip
-    info "Reading SSH password from standard input"
-    _write_ssh_creds_stdin
+    info "Reading test credential JSON from standard input"
+    _write_test_credentials_stdin
 
 elif [ "$UPDATE_CREDS" = true ]; then
     _show_oim_server_ip
     if ! _ssh_credentials_are_set; then
         fail "No valid SSH credentials found. Use --set-creds first."
     fi
-    echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
-    _prompt_and_write_ssh_creds
+    echo -e "\n  ${CYAN}Update test credentials.${NC}"
+    echo -e "  ${CYAN}Press Enter to keep an existing value.${NC}\n"
+    _prompt_and_write_test_credentials
 
 elif [ "$SET_CREDS" = true ]; then
     _show_oim_server_ip
-    if _ssh_credentials_are_set; then
-        warn "SSH password is already set."
-        if _ask_yes_no "  Do you want to update the SSH password?"; then
-            echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
-            _prompt_and_write_ssh_creds
+    if _test_credentials_are_set; then
+        warn "Test credentials are already set."
+        if _ask_yes_no "  Do you want to update the test credentials?"; then
+            _prompt_and_write_test_credentials
         else
-            ok "SSH password update skipped."
+            ok "Test credential update skipped."
         fi
     else
-        echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
-        _prompt_and_write_ssh_creds
+        _prompt_and_write_test_credentials
     fi
 fi
 
@@ -616,18 +600,12 @@ fi
 DOMAIN_CRED_SPEC='[
   {"field":"provision_password","label":"Provision Password","group":"Provision Credentials","secret":true,"confirm":true,"min_length":8},
   {"field":"bmc_username","label":"BMC Username","group":"Provision Credentials","secret":false},
-  {"field":"bmc_password","label":"BMC Password","group":"Provision Credentials","secret":true,"confirm":true},
-  {"field":"slurm_db_password","label":"Slurm Database Password","group":"Slurm Credentials","secret":true,"confirm":true,"min_length":8},
-  {"field":"openldap_db_username","label":"OpenLDAP Database Username","group":"OpenLDAP Credentials","secret":false},
-  {"field":"openldap_db_password","label":"OpenLDAP Database Password","group":"OpenLDAP Credentials","secret":true,"confirm":true,"min_length":8},
-  {"field":"csi_username","label":"CSI Driver Username","group":"CSI Driver (Powerscale)","secret":false,"optional":true},
-  {"field":"csi_password","label":"CSI Driver Password","group":"CSI Driver (Powerscale)","secret":true,"confirm":true,"optional":true}
-]'
-
-LDAP_TEST_CRED_SPEC='[
-  {"field":"ldap_username","label":"LDAP Test Username","group":"LDAP Test Credentials","secret":false},
-  {"field":"ldap_password","label":"LDAP Test Password","group":"LDAP Test Credentials","secret":true,"confirm":true,"min_length":1},
-  {"field":"external_ldap_admin_password","label":"External LDAP Admin Password","group":"External LDAP Setup (optional)","secret":true,"confirm":true,"optional":true}
+  {"field":"bmc_password","label":"BMC Password","group":"Provision Credentials","secret":true,"confirm":true,"min_length":3},
+  {"field":"slurm_db_password","label":"Slurm Database Password","group":"Slurm Credentials (optional unless Slurm is enabled)","secret":true,"confirm":true,"min_length":8,"optional":true},
+  {"field":"openldap_db_username","label":"OpenLDAP Database Username","group":"OpenLDAP Credentials (optional unless OpenLDAP is enabled)","secret":false,"min_length":4,"optional":true},
+  {"field":"openldap_db_password","label":"OpenLDAP Database Password","group":"OpenLDAP Credentials (optional unless OpenLDAP is enabled)","secret":true,"confirm":true,"min_length":8,"optional":true},
+  {"field":"csi_username","label":"CSI Driver Username","group":"CSI Driver (optional unless PowerScale CSI is enabled)","secret":false,"min_length":4,"optional":true},
+  {"field":"csi_password","label":"CSI Driver Password","group":"CSI Driver (optional unless PowerScale CSI is enabled)","secret":true,"confirm":true,"min_length":5,"optional":true}
 ]'
 
 if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
@@ -669,45 +647,24 @@ elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LDAP test credential dispatch
-# ─────────────────────────────────────────────────────────────────────────────
-if [ "$LDAP_TEST_CREDS_FROM_STDIN" = true ]; then
-    info "Reading LDAP test credentials from standard input"
-    _write_ldap_test_credentials_stdin
-
-elif [ "$UPDATE_LDAP_TEST_CREDS" = true ]; then
-    if ! _ldap_test_credentials_are_set; then
-        fail "No LDAP test credentials are stored. Use --set-ldap-test-creds first."
-    fi
-    _prompt_and_write_ldap_test_credentials
-
-elif [ "$SET_LDAP_TEST_CREDS" = true ]; then
-    if _ldap_test_credentials_are_set; then
-        warn "LDAP test credentials are already stored."
-        if _ask_yes_no "  Do you want to update them?"; then
-            _prompt_and_write_ldap_test_credentials
-        else
-            ok "LDAP test credential update skipped."
-        fi
-    else
-        _prompt_and_write_ldap_test_credentials
-    fi
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
 # No credential flags — status report
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
    && [ "$DOMAIN_CREDS_FROM_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
-   && [ "$UPDATE_DOMAIN_CREDS" = false ] \
-   && [ "$LDAP_TEST_CREDS_FROM_STDIN" = false ] \
-   && [ "$SET_LDAP_TEST_CREDS" = false ] \
-   && [ "$UPDATE_LDAP_TEST_CREDS" = false ]; then
+   && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
     if _ssh_credentials_are_set; then
         ok "SSH credentials: test_creds.yml (encrypted)"
     else
         warn "No SSH credentials (test_creds.yml)"
         warn "  Set with: ./setup_env.sh --set-creds"
+    fi
+    if _external_ldap_is_enabled; then
+        if _ldap_test_credentials_are_set; then
+            ok "LDAP test credentials: test_creds.yml (encrypted)"
+        else
+            warn "LDAP validation is enabled but its test credentials are missing."
+            warn "  Set with: ./setup_env.sh --set-creds"
+        fi
     fi
     _dc=$(_domain_creds_path)
     if _domain_credentials_are_set; then
@@ -737,26 +694,29 @@ case "$INSTALL_MODE" in
         echo "  Next steps:"
         echo "    source .venv/bin/activate"
         echo "    ./run_validation.sh --help"
-        echo "    ./run_validation.sh orchestrator list"
+        echo "    ./run_validation.sh fvt_orchestrator list"
         ;;
     active-venv)
         echo "  Next steps (venv already active):"
         echo "    ./run_validation.sh --help"
-        echo "    ./run_validation.sh orchestrator list"
+        echo "    ./run_validation.sh fvt_orchestrator list"
         ;;
     baremetal)
         echo "  Next steps:"
         echo "    ./run_validation.sh --help"
-        echo "    ./run_validation.sh orchestrator list"
+        echo "    ./run_validation.sh fvt_orchestrator list"
         ;;
 esac
 
 echo ""
 echo "  Credentials (two separate files):"
 echo ""
-echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
+echo "    1. Test credentials (test_creds.yml) — SSH and enabled LDAP tests:"
 if _ssh_credentials_are_set; then
     echo "       test_creds.yml is readable and contains the SSH password"
+    if _external_ldap_is_enabled && _ldap_test_credentials_are_set; then
+        echo "       LDAP test identity and external bind secret are also set"
+    fi
     echo "       To update:  ./setup_env.sh --update-creds"
 else
     echo "       Not set. Create with: ./setup_env.sh --set-creds"

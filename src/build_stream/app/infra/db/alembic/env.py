@@ -14,6 +14,9 @@
 
 """Alembic environment configuration."""
 
+# pylint: disable=no-member
+# no-member: alembic.context is a runtime proxy; pylint cannot see its members
+
 import os
 import sys
 from logging.config import fileConfig
@@ -24,7 +27,8 @@ from sqlalchemy import engine_from_config, pool
 # Add build_stream root to sys.path so models can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from infra.db.models import Base  # noqa: E402
+# Import must follow the sys.path update above.
+from infra.db.models import Base  # noqa: E402  # pylint: disable=wrong-import-position
 
 config = context.config
 

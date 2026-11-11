@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Check if OpenCHAMI images already exist
   ansible.builtin.command:
     cmd: "podman image exists {{ item }}"
@@ -36,6 +35,6 @@
 
 - name: Fail if any OpenCHAMI image pull failed
   ansible.builtin.fail:
-    msg: "Failed to pull OpenCHAMI image: {{ item.item }}. Error: {{ item.stderr }}"
+    msg: "{{ image_pull_fail_msg }}"
   loop: "{{ pull_result.results | default([]) }}"
   when: item.rc is defined and item.rc != 0

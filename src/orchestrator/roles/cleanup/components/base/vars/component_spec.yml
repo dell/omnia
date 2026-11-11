@@ -26,7 +26,6 @@ component_spec:
     pre_cleanup: "tasks/pre_cleanup.yml"
     cleanup: "tasks/cleanup.yml"
     post_cleanup: "tasks/post_cleanup.yml"
-    rollback: "tasks/rollback.yml"
 
   # Validation interface - optional but recommended
   validation:
@@ -39,7 +38,6 @@ component_spec:
     supports_state: true
     state_file: "/var/lib/omnia/cleanup/{{ component_name }}.state"
     checkpoint_before_cleanup: true
-    supports_rollback: true
 
   # Error handling
   error_handling:

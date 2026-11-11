@@ -1,0 +1,836 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Focused unit contracts for PXE parsers, features, and safety gates."""
+
+import json
+import subprocess
+from types import SimpleNamespace
+
+import pytest
+from library.functions import _apptainer_helpers as apptainer
+from library.functions import _pxeboot_helpers as helpers
+from library.functions import _workload_helpers as workload
+from library.functions import apptainer_runtime_pxeboot_func as apptainer_runtime
+from library.functions import kubernetes_pxeboot_func as kubernetes
+from library.functions import kubernetes_runtime_pxeboot_func as kubernetes_runtime
+from library.functions import kubernetes_storage_pxeboot_func as kubernetes_storage
+from library.functions import slurm_auth_pxeboot_func as slurm_auth
+from library.functions import slurm_configuration_pxeboot_func as slurm_config
+from library.functions import slurm_lifecycle_pxeboot_func as slurm_lifecycle
+from library.functions import slurm_pxeboot_func as slurm
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("v1.31.4", "1.31"),
+        ("Kubernetes v1.30.9+vendor", "1.30"),
+        ("4.9", "4.9"),
+        ("not-a-version", ""),
+    ],
+)
+def test_version_parser_extracts_major_minor(value, expected):
+    """ORCH_UT_001: Version parsing accepts product output and rejects noise."""
+    assert kubernetes_runtime._major_minor(value) == expected
+
+
+def test_version_skew_policy_is_directional():
+    """ORCH_UT_002: Kubernetes version skew honors older/newer bounds."""
+    server = (1, 31)
+    assert kubernetes_runtime._within_minor_skew((1, 30), server, older=1, newer=0)
+    assert not kubernetes_runtime._within_minor_skew((1, 32), server, older=1, newer=0)
+    assert not kubernetes_runtime._within_minor_skew((2, 31), server, older=1, newer=0)
+
+
+def test_catalog_kubernetes_version_uses_the_single_kubeadm_package():
+    """ORCH_UT_061: Configured Kubernetes version follows the product catalog."""
+    catalog = {
+        "packages": {
+            "bash": {"name": "bash-5.2"},
+            "kubeadm_1_35_1": {"name": "kubeadm-1.35.1"},
+        }
+    }
+    assert kubernetes_runtime._catalog_kubernetes_version(catalog) == "1.35.1"
+
+
+def test_catalog_kubernetes_version_rejects_ambiguous_packages():
+    """ORCH_UT_062: Multiple kubeadm contracts fail instead of guessing."""
+    catalog = {
+        "packages": {
+            "kubeadm_1_34_0": {"name": "kubeadm-1.34.0"},
+            "kubeadm_1_35_1": {"name": "kubeadm-1.35.1"},
+        }
+    }
+    with pytest.raises(ValueError, match="exactly one kubeadm package"):
+        kubernetes_runtime._catalog_kubernetes_version(catalog)
+
+
+def test_kubernetes_nfs_storage_resolves_selected_mount():
+    """ORCH_UT_063: Kubernetes NFS uses the active cluster storage reference."""
+    context = {
+        "storage_config": {
+            "mounts": [
+                {
+                    "name": "nfs_k8s",
+                    "source": "192.0.2.10:/exports/kubernetes",
+                    "mount_point": "/mnt/kubernetes",
+                }
+            ]
+        }
+    }
+    assert kubernetes_storage._kubernetes_nfs_storage(
+        context,
+        {"nfs_storage_name": "nfs_k8s"},
+    ) == {
+        "name": "nfs_k8s",
+        "source": "192.0.2.10:/exports/kubernetes",
+        "server": "192.0.2.10",
+        "export": "/exports/kubernetes",
+        "mount_point": "/mnt/kubernetes",
+    }
+
+
+def test_kubernetes_nfs_storage_rejects_non_nfs_source():
+    """ORCH_UT_064: The NFS contract rejects an unrelated local mount."""
+    context = {
+        "storage_config": {
+            "mounts": [
+                {
+                    "name": "nfs_k8s",
+                    "source": "/dev/sdb1",
+                    "mount_point": "/mnt/kubernetes",
+                }
+            ]
+        }
+    }
+    with pytest.raises(ValueError, match="must use an NFS source"):
+        kubernetes_storage._kubernetes_nfs_storage(
+            context,
+            {"nfs_storage_name": "nfs_k8s"},
+        )
+
+
+def test_slurm_node_and_config_hash_parsers_ignore_malformed_records():
+    """ORCH_UT_003: Slurm parsers accept only complete, valid records."""
+    nodes = slurm._parse_slurm_nodes(
+        "NodeName=nid001 State=IDLE CPUTot=64 RealMemory=128000\n"
+        "malformed line\n"
+        "NodeName=nid002 State=ALLOCATED CPUTot=32 RealMemory=64000\n"
+    )
+    hashes = slurm_config._parse_config_hashes(
+        "slurm|/etc/slurm/slurm.conf|"
+        + ("a" * 64)
+        + "\nbad|1234\ncgroup|/etc/slurm/cgroup.conf|"
+        + ("b" * 64)
+        + "\n"
+    )
+    assert set(nodes) == {"nid001", "nid002"}
+    assert nodes["nid001"]["State"] == "IDLE"
+    assert hashes == {
+        "slurm": ("/etc/slurm/slurm.conf", "a" * 64),
+        "cgroup": ("/etc/slurm/cgroup.conf", "b" * 64),
+    }
+
+
+def test_catalog_features_are_limited_to_mapped_functional_layers():
+    """ORCH_UT_004: Unmapped catalog features cannot enable PXE checks."""
+    catalog = {
+        "functionallayer": [
+            {
+                "name": "slurm_node_rhel_10_0_x86_64",
+                "components": ["slurm_runtime"],
+            },
+            {
+                "name": "service_kube_node_rhel_10_0_x86_64",
+                "components": ["gpu_runtime"],
+            },
+        ],
+        "groups": {
+            "slurm_runtime": {
+                "name": "openmpi_ucx",
+                "components": ["openmpi", "ucx"],
+            },
+            "gpu_runtime": {
+                "name": "nvidia_cuda",
+                "components": ["cuda"],
+            },
+        },
+    }
+    rows = [{"EXPECTED_FUNCTIONAL_GROUP": "slurm_node_rhel_10_0_x86_64"}]
+    tokens = helpers._catalog_feature_tokens(catalog, rows)
+    assert {"slurm_runtime", "openmpi_ucx", "openmpi", "ucx"} <= tokens
+    assert "gpu_runtime" not in tokens
+    assert "cuda" not in tokens
+
+
+def test_first_control_plane_alias_selects_normal_control_plane_catalog_layer():
+    """ORCH_UT_005: Generated first-control-plane roles resolve features."""
+    catalog = {
+        "functionallayer": [
+            {
+                "name": "service_kube_control_plane_rhel_10_0_x86_64",
+                "components": ["kubernetes_runtime"],
+            }
+        ],
+        "groups": {
+            "kubernetes_runtime": {
+                "name": "kubernetes_runtime",
+                "components": ["crio"],
+            }
+        },
+    }
+    rows = [
+        {
+            "EXPECTED_FUNCTIONAL_GROUP": "service_kube_control_plane_first_rhel_10_0_x86_64"
+        }
+    ]
+    assert "crio" in helpers._catalog_feature_tokens(catalog, rows)
+
+
+def test_marker_authorization_requires_exact_explicit_selection(monkeypatch):
+    """ORCH_UT_006: Mutation helpers trust only exact authorized markers."""
+    monkeypatch.setenv(
+        "OMNIA_FVT_AUTHORIZED_MARKERS",
+        "functional,reboot",
+    )
+    assert helpers.marker_is_authorized("functional")
+    assert helpers.marker_is_authorized("reboot")
+    assert not helpers.marker_is_authorized("image_download")
+    monkeypatch.delenv("OMNIA_FVT_AUTHORIZED_MARKERS")
+    assert not helpers.marker_is_authorized("functional")
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected", "detail"),
+    [
+        (
+            {"status": "done", "extended_status": "done", "errors": []},
+            True,
+            "cloud-init done",
+        ),
+        (
+            {
+                "status": "done",
+                "extended_status": "degraded done",
+                "errors": [],
+                "recoverable_errors": {"WARNING": ["Empty cloud config was provided"]},
+            },
+            True,
+            "known empty-cloud-config warning",
+        ),
+        (
+            {
+                "status": "done",
+                "extended_status": "degraded done",
+                "errors": [],
+                "recoverable_errors": {"WARNING": ["scripts_user failed"]},
+            },
+            False,
+            "extended_status",
+        ),
+        (
+            {
+                "status": "error",
+                "extended_status": "error",
+                "errors": ["scripts_user failed"],
+            },
+            False,
+            "status=error",
+        ),
+    ],
+)
+def test_cloud_init_interpretation(monkeypatch, payload, expected, detail):
+    """ORCH_UT_007: Cloud-init accepts only the documented terminal states."""
+    output = "status: done\nextended_status: done\n---JSON---\n" + json.dumps(payload)
+    monkeypatch.setattr(
+        helpers,
+        "remote_command",
+        lambda _host, _row, _command: SimpleNamespace(
+            rc=0,
+            stdout=output,
+            stderr="",
+        ),
+    )
+    success, message = helpers.direct_cloud_init_probe(
+        object(),
+        {"HOSTNAME": "nid001", "ADMIN_IP": "192.0.2.10"},
+    )
+    assert success is expected
+    assert detail in message
+
+
+def test_cloud_init_rejects_unstructured_output(monkeypatch):
+    """ORCH_UT_008: Missing cloud-init JSON is a hard verification failure."""
+    monkeypatch.setattr(
+        helpers,
+        "remote_command",
+        lambda _host, _row, _command: SimpleNamespace(
+            rc=0,
+            stdout="status: done",
+            stderr="",
+        ),
+    )
+    success, detail = helpers.direct_cloud_init_probe(
+        object(),
+        {"HOSTNAME": "nid001", "ADMIN_IP": "192.0.2.10"},
+    )
+    assert not success
+    assert "structured status" in detail
+
+
+def test_slurm_shared_storage_resolves_authoritative_mount():
+    """ORCH_UT_009: Slurm jobs use the storage selected by Omnia config."""
+    context = {
+        "storage_config": {
+            "mounts": [
+                {
+                    "name": "nfs_slurm",
+                    "source": "192.0.2.10:/exports/slurm",
+                    "mount_point": "/mnt/slurm-shared",
+                },
+                {
+                    "name": "nfs_k8s",
+                    "source": "192.0.2.10:/exports/k8s",
+                    "mount_point": "/mnt/k8s-shared",
+                },
+            ]
+        }
+    }
+    resolved = workload.slurm_shared_storage(
+        context,
+        {"nfs_storage_name": "nfs_slurm"},
+    )
+    assert resolved == {
+        "name": "nfs_slurm",
+        "source": "192.0.2.10:/exports/slurm",
+        "mount_point": "/mnt/slurm-shared",
+    }
+
+
+@pytest.mark.parametrize(
+    "mounts",
+    [
+        [],
+        [
+            {
+                "name": "nfs_slurm",
+                "source": "192.0.2.10:/exports/a",
+                "mount_point": "/mnt/a",
+            },
+            {
+                "name": "nfs_slurm",
+                "source": "192.0.2.10:/exports/b",
+                "mount_point": "/mnt/b",
+            },
+        ],
+    ],
+)
+def test_slurm_shared_storage_rejects_missing_or_duplicate_mounts(mounts):
+    """ORCH_UT_010: Ambiguous Slurm storage fails before job submission."""
+    with pytest.raises(ValueError, match="exactly one mount entry"):
+        workload.slurm_shared_storage(
+            {"storage_config": {"mounts": mounts}},
+            {"nfs_storage_name": "nfs_slurm"},
+        )
+
+
+def test_apptainer_inventory_accepts_only_supported_sif_paths(monkeypatch):
+    """ORCH_UT_011: SIF inventory rejects paths outside shared image storage."""
+    monkeypatch.setattr(
+        apptainer,
+        "remote_command",
+        lambda _host, _row, _command: SimpleNamespace(
+            rc=0,
+            stdout=(
+                "/hpc_tools/container_images/valid.sif|644|4096|100.0\n"
+                "/tmp/escape.sif|644|4096|100.0\n"
+            ),
+            stderr="",
+        ),
+    )
+    assert apptainer.image_inventory(object(), {}) == [
+        {
+            "path": "/hpc_tools/container_images/valid.sif",
+            "name": "valid.sif",
+            "mode": "644",
+            "size": 4096,
+            "modified": 100.0,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        # Unsafe-path rejection fixture.
+        "/tmp/image.sif",  # nosec B108
+        "/hpc_tools/container_images/../escape.sif",
+        "/hpc_tools/container_images/image.sif;id",
+    ],
+)
+def test_apptainer_image_path_validation_rejects_unsafe_values(value):
+    """ORCH_UT_012: Container commands accept only fixed shared SIF paths."""
+    with pytest.raises(ValueError, match="outside the supported directory"):
+        apptainer.quoted_image(value)
+
+
+def test_apptainer_primary_image_requires_one_nonempty_sif(monkeypatch):
+    """ORCH_UT_013: Image-dependent checks cannot select an empty SIF."""
+    monkeypatch.setattr(
+        apptainer,
+        "image_inventory",
+        lambda _host, _row: [
+            {
+                "path": "/hpc_tools/container_images/empty.sif",
+                "name": "empty.sif",
+                "mode": "644",
+                "size": 0,
+                "modified": 100.0,
+            }
+        ],
+    )
+    with pytest.raises(FileNotFoundError, match="No usable SIF image"):
+        apptainer.primary_image(object(), {})
+
+
+@pytest.mark.parametrize(
+    "checker",
+    [
+        slurm_auth.check_slurm_login_ldap_jobs,
+        slurm_auth.check_slurm_login_pam_job_access,
+        slurm_auth.check_slurm_compiler_ldap_jobs,
+        slurm_auth.check_slurm_compiler_pam_job_access,
+    ],
+)
+def test_unmapped_slurm_submission_roles_skip_before_credentials(monkeypatch, checker):
+    """ORCH_UT_024: Unmapped optional Slurm roles never require credentials."""
+    rows = [
+        {
+            "HOSTNAME": "control-01",
+            "ADMIN_IP": "192.0.2.10",
+            "EXPECTED_FUNCTIONAL_GROUP": "slurm_control_node_rhel_10_0_x86_64",
+        },
+        {
+            "HOSTNAME": "compute-01",
+            "ADMIN_IP": "192.0.2.11",
+            "EXPECTED_FUNCTIONAL_GROUP": "slurm_node_rhel_10_0_x86_64",
+        },
+    ]
+    monkeypatch.setattr(
+        slurm_auth,
+        "_context",
+        lambda _host: (
+            {"features": {"openldap": True}},
+            rows,
+            rows[0],
+            {},
+        ),
+    )
+    monkeypatch.setattr(slurm_auth, "_require_functional", lambda _summary: None)
+    monkeypatch.setattr(slurm_auth, "marker_is_authorized", lambda _marker: True)
+
+    def unexpected_credentials():
+        raise AssertionError("credentials were loaded before role applicability")
+
+    monkeypatch.setattr(slurm_auth, "_ldap_username", unexpected_credentials)
+    monkeypatch.setattr(slurm_auth, "_ldap_credentials", unexpected_credentials)
+
+    result = checker(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    assert "nodes are mapped" in dict(result["details"]["fields"])["Reason"]
+
+
+def test_mapped_node_host_key_policy_is_limited_to_one_target():
+    """ORCH_UT_025: First-seen SSH keys are accepted only for the mapped node."""
+    client = slurm_auth.paramiko.SSHClient()
+    key = SimpleNamespace(
+        get_name=lambda: "ssh-ed25519",
+        get_base64=lambda: "A" * 68,
+    )
+    policy = slurm_auth._MappedNodeHostKeyPolicy("192.0.2.10")
+
+    policy.missing_host_key(client, "192.0.2.10", key)
+
+    assert client.get_host_keys().lookup("192.0.2.10")["ssh-ed25519"] is key
+    with pytest.raises(slurm_auth.paramiko.SSHException, match="mapped node target"):
+        policy.missing_host_key(client, "192.0.2.11", key)
+
+
+def _row(hostname, group):
+    """Return one minimal desired-node row for workload-selection contracts."""
+    return {
+        "HOSTNAME": hostname,
+        "ADMIN_IP": "192.0.2.10",
+        "EXPECTED_FUNCTIONAL_GROUP": group,
+    }
+
+
+@pytest.mark.parametrize(
+    ("module", "checker", "reason"),
+    [
+        (
+            kubernetes,
+            kubernetes.check_kubernetes_nodes,
+            "No Kubernetes nodes are mapped",
+        ),
+        (slurm, slurm.check_slurm_membership, "No Slurm nodes are mapped"),
+    ],
+)
+def test_absent_workload_returns_canonical_skip_before_remote_probe(
+    monkeypatch,
+    module,
+    checker,
+    reason,
+):
+    """ORCH_UT_035: Unmapped Kubernetes and Slurm checks skip safely."""
+    monkeypatch.setattr(module, "_context", lambda _host: ({}, [], None, None))
+
+    def unexpected_remote_command(*_args, **_kwargs):
+        raise AssertionError("unmapped workload issued a remote command")
+
+    monkeypatch.setattr(module, "remote_command", unexpected_remote_command)
+
+    result = checker(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    fields = dict(result["details"]["fields"])
+    assert fields["Reason"] == reason
+
+
+@pytest.mark.parametrize(
+    ("context_loader", "foreign_row"),
+    [
+        (
+            workload.kubernetes_context,
+            _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64"),
+        ),
+        (
+            workload.slurm_context,
+            _row(
+                "kube-control",
+                "service_kube_control_plane_first_rhel_10_0_x86_64",
+            ),
+        ),
+    ],
+)
+def test_absent_workload_skips_before_loading_workload_inputs(
+    monkeypatch,
+    context_loader,
+    foreign_row,
+):
+    """ORCH_UT_036: Single-workload mappings avoid unrelated configuration."""
+    mapped_context = {"rows": [foreign_row]}
+    monkeypatch.setattr(
+        workload,
+        "load_context",
+        lambda _host: mapped_context,
+    )
+
+    def unexpected_workload_load(_host, _context):
+        raise AssertionError("unmapped workload loaded unrelated inputs")
+
+    monkeypatch.setattr(workload, "load_workload_context", unexpected_workload_load)
+
+    context, rows, control, config = context_loader(object())
+
+    assert context is mapped_context
+    assert rows == []
+    assert control is None
+    assert config is None
+
+
+@pytest.mark.parametrize(
+    ("context_loader", "mapped_row", "selected_config"),
+    [
+        (
+            workload.kubernetes_context,
+            _row(
+                "kube-control",
+                "service_kube_control_plane_first_rhel_10_0_x86_64",
+            ),
+            {"name": "kubernetes"},
+        ),
+        (
+            workload.slurm_context,
+            _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64"),
+            {"name": "slurm"},
+        ),
+    ],
+)
+def test_mapped_workload_loads_extended_context_once(
+    monkeypatch,
+    context_loader,
+    mapped_row,
+    selected_config,
+):
+    """ORCH_UT_037: Mapped Kubernetes-only and Slurm-only inputs are loaded."""
+    mapped_context = {"rows": [mapped_row]}
+    extended_context = {"rows": [mapped_row], "extended": True}
+    loads = []
+    monkeypatch.setattr(
+        workload,
+        "load_context",
+        lambda _host: mapped_context,
+    )
+
+    def extend_context(_host, context):
+        loads.append(context)
+        return extended_context
+
+    monkeypatch.setattr(workload, "load_workload_context", extend_context)
+    if context_loader is workload.kubernetes_context:
+        monkeypatch.setattr(
+            workload,
+            "selected_kubernetes_config",
+            lambda context: selected_config,
+        )
+    else:
+        monkeypatch.setattr(
+            workload,
+            "selected_slurm_config",
+            lambda context: selected_config,
+        )
+
+    context, rows, control, config = context_loader(object())
+
+    assert loads == [mapped_context]
+    assert context is extended_context
+    assert rows == [mapped_row]
+    assert control == mapped_row
+    assert config == selected_config
+
+
+def test_slurm_control_without_compute_skips_before_scheduler_probe(monkeypatch):
+    """ORCH_UT_038: Slurm checks skip when no compute role is mapped."""
+    control = _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64")
+    monkeypatch.setattr(
+        slurm,
+        "_context",
+        lambda _host: ({}, [control], control, {}),
+    )
+
+    def unexpected_remote_command(*_args, **_kwargs):
+        raise AssertionError("scheduler was queried without a mapped compute")
+
+    monkeypatch.setattr(slurm, "remote_command", unexpected_remote_command)
+
+    result = slurm.check_slurm_membership(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    assert dict(result["details"]["fields"])["Reason"] == (
+        "No Slurm compute nodes are mapped"
+    )
+
+
+def test_slurm_membership_accepts_login_roles_as_scheduler_nodes(monkeypatch):
+    """ORCH_UT_039: Login roles are expected Slurm NodeName members."""
+    control = _row("control-01", "slurm_control_node_rhel_10_0_x86_64")
+    compute = _row("compute-01", "slurm_node_rhel_10_0_x86_64")
+    login = _row("login-01", "login_node_rhel_10_0_x86_64")
+    compiler = _row(
+        "compiler-01",
+        "login_compiler_node_rhel_10_0_x86_64",
+    )
+    rows = [control, compute, login, compiler]
+    monkeypatch.setattr(
+        slurm,
+        "_context",
+        lambda _host: (
+            {},
+            rows,
+            control,
+            {"node_discovery_mode": "heterogeneous"},
+        ),
+    )
+    monkeypatch.setattr(
+        slurm,
+        "remote_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            rc=0,
+            stdout=(
+                "NodeName=compute-01 State=IDLE CPUTot=64 RealMemory=128000\n"
+                "NodeName=login-01 State=IDLE\n"
+                "NodeName=compiler-01 State=IDLE\n"
+            ),
+        ),
+    )
+
+    result = slurm.check_slurm_membership(object())
+
+    assert result["success"]
+    fields = dict(result["details"]["fields"])
+    assert fields["Desired Slurm scheduler nodes"] == 3
+    assert fields["Registered Slurm scheduler nodes"] == 3
+    assert fields["Unexpected nodes"] == "none"
+
+
+def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
+    """ORCH_UT_065: Apptainer skips when no Slurm compute role is mapped."""
+    control = _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64")
+    monkeypatch.setattr(
+        apptainer_runtime,
+        "apptainer_context",
+        lambda _host: ({}, [control], control, [], {}),
+    )
+
+    def unexpected_remote_command(*_args, **_kwargs):
+        raise AssertionError("Apptainer probed a node without mapped computes")
+
+    monkeypatch.setattr(
+        apptainer_runtime,
+        "remote_command",
+        unexpected_remote_command,
+    )
+
+    result = apptainer_runtime.check_apptainer_runtime(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    assert dict(result["details"]["fields"])["Reason"] == (
+        "No Slurm compute nodes are mapped"
+    )
+
+
+@pytest.mark.parametrize("content", ["H,A\nr1,x\n", "H,A\nr1,x", "H,A\nr1,'q'"])
+def test_slurm_lifecycle_mapping_write_keeps_content_exact(
+    monkeypatch, tmp_path, content
+):
+    """ORCH_UT_090: Heredoc writes never append the delimiter to the data."""
+    def run_locally(_host, command):
+        proc = subprocess.run(
+            ["bash", "-c", command], capture_output=True, text=True, check=False
+        )
+        return SimpleNamespace(rc=proc.returncode, stdout=proc.stdout,
+                               stderr=proc.stderr)
+
+    monkeypatch.setattr(slurm_lifecycle, "run_on_host", run_locally)
+    target = tmp_path / "pxe_mapping_file.csv"
+    result = slurm_lifecycle._write_remote_file(None, str(target), content)
+
+    assert result.rc == 0
+    written = target.read_text(encoding="utf-8")
+    assert "OMNIA_EOF" not in written
+    assert written.rstrip("\n") == content.rstrip("\n")
+
+
+_LIFECYCLE_HEADER = "FUNCTIONAL_GROUP_NAME,GROUP_NAME,HOSTNAME,ADMIN_MAC,ADMIN_IP"
+
+
+@pytest.mark.parametrize(
+    ("slurm_nodes", "configured", "expected"),
+    [
+        (1, "", None),
+        (1, "192.0.2.11", None),
+        (2, "", ["192.0.2.12"]),
+        (2, "192.0.2.11", ["192.0.2.11"]),
+    ],
+)
+def test_slurm_node_remove_requires_two_slurm_nodes(
+    monkeypatch, slurm_nodes, configured, expected
+):
+    """ORCH_UT_091: Node removal skips with fewer than two slurm_node rows."""
+    rows = ["slurm_control_node_x86_64,grp2,ctl,aa:bb:cc:dd:ee:00,192.0.2.10"]
+    rows += [
+        f"slurm_node_x86_64,grp3,node{i},aa:bb:cc:dd:ee:0{i},192.0.2.1{i}"
+        for i in range(1, slurm_nodes + 1)
+    ]
+    content = "\n".join([_LIFECYCLE_HEADER, *rows]) + "\n"
+    host = SimpleNamespace(
+        file=lambda _path: SimpleNamespace(is_file=True, content_string=content)
+    )
+    monkeypatch.setattr(
+        slurm_lifecycle,
+        "load_test_config",
+        lambda: {"slurm_lifecycle_remove_add_nodes": configured},
+    )
+
+    resolved = slurm_lifecycle._resolve_target_nodes(host, "mapping.csv")
+
+    assert (resolved[0] if resolved else None) == expected
+
+
+def test_slurm_node_remove_skip_discards_stale_backup(monkeypatch, tmp_path):
+    """ORCH_UT_092: A skipped removal leaves no backup for the add test."""
+    backup = tmp_path / "pxe_mapping_file.csv.backup"
+    backup.write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(slurm_lifecycle, "_backup_path", lambda: str(backup))
+    monkeypatch.setattr(slurm_lifecycle, "_mapping_path", lambda _host: "m.csv")
+    monkeypatch.setattr(
+        slurm_lifecycle, "_resolve_target_nodes", lambda _host, _path: None
+    )
+
+    result = slurm_lifecycle.check_slurm_node_remove(None)
+
+    assert result["skipped"] and result["success"]
+    assert "At least 2 slurm_node" in result["details"]["fields"][0][1]
+    assert not backup.exists()
+
+
+def test_stale_host_key_removal_uses_central_runner(monkeypatch, tmp_path):
+    """ORCH_UT_093: Host-key reconciliation uses the centralized local runner."""
+    known_hosts = tmp_path / "known_hosts"
+    known_hosts.write_text("old key\n", encoding="utf-8")
+    monkeypatch.setenv("OMNIA_SSH_KNOWN_HOSTS", str(known_hosts))
+    calls = []
+
+    def run_locally(host, command, *args):
+        calls.append((host, command, args))
+        return SimpleNamespace(rc=0, stdout="", stderr="")
+
+    monkeypatch.setattr(slurm_auth, "run_on_host", run_locally)
+    key = SimpleNamespace(
+        get_name=lambda: "ssh-ed25519",
+        get_base64=lambda: "A" * 68,
+    )
+    host = object()
+
+    success, _detail = slurm_auth._remove_stale_mapped_host_key(
+        host, "192.0.2.10", key
+    )
+
+    assert success
+    assert calls == [
+        (
+            host,
+            slurm_auth.PXEBOOT_COMMANDS["ssh_remove_host_key"],
+            ("192.0.2.10", str(known_hosts)),
+        )
+    ]
+    assert known_hosts.read_text(encoding="utf-8").endswith(
+        f"192.0.2.10 ssh-ed25519 {'A' * 68}\n"
+    )
+
+
+def test_poll_progress_uses_structured_logging(monkeypatch):
+    """ORCH_UT_094: Poll progress is emitted through structured logging."""
+    messages = []
+    monkeypatch.setattr(
+        helpers, "log", lambda message, level: messages.append((message, level))
+    )
+    monkeypatch.setattr(helpers.time, "monotonic", lambda: 12.0)
+
+    helpers.report_poll_progress("node reboot", 2, 10.0, 30, "booting")
+
+    assert messages == [
+        (
+            "    ↻ node reboot: still in progress; retrying status check "
+            "(attempt 2, elapsed 2s, remaining 28s) | last state: booting",
+            "INFO",
+        )
+    ]

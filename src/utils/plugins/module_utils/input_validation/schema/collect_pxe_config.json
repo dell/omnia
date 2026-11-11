@@ -1,64 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Collect PXE Configuration Schema",
-  "description": "Schema for collect_pxe.yml - Node inventory for log collection",
+  "description": "Schema for collect_pxe.yml - Node inventory for log collection. Each key is a functional group: <role>_<arch> (e.g. slurm_node_aarch64), optionally with an OS name and version inserted before the architecture per Omnia's PXE-mapping naming convention (e.g. slurm_node_rhel_10_0_aarch64). Supported roles: service_kube_control_plane_first, service_kube_control_plane, service_kube_node, slurm_control_node, slurm_node, login_node, login_compiler_node. Supported architectures: x86_64, aarch64. Supported OS names: rhel, rocky, ubuntu, sles.",
   "type": "object",
-  "properties": {
-    "service_kube_control_plane_x86_64": {
+  "patternProperties": {
+    "^(service_kube_control_plane_first|service_kube_control_plane|service_kube_node|slurm_control_node|slurm_node|login_node|login_compiler_node)(_(rhel|rocky|ubuntu|sles)(_[0-9]+)+)?_(x86_64|aarch64)$": {
       "type": "array",
-      "description": "Kubernetes control plane nodes (x86_64)",
-      "items": {
-        "type": "string",
-        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
-      }
-    },
-    "service_kube_node_x86_64": {
-      "type": "array",
-      "description": "Kubernetes worker nodes (x86_64)",
-      "items": {
-        "type": "string",
-        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
-      }
-    },
-    "slurm_control_node_x86_64": {
-      "type": "array",
-      "description": "Slurm controller nodes (x86_64)",
-      "items": {
-        "type": "string",
-        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
-      }
-    },
-    "slurm_node_x86_64": {
-      "type": "array",
-      "description": "Slurm compute nodes (x86_64)",
-      "items": {
-        "type": "string",
-        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
-      }
-    },
-    "slurm_node_aarch64": {
-      "type": "array",
-      "description": "Slurm compute nodes (aarch64)",
-      "items": {
-        "type": "string",
-        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
-      }
-    },
-    "login_node_x86_64": {
-      "type": "array",
-      "description": "Login nodes (x86_64)",
-      "items": {
-        "type": "string",
-        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
-      }
-    },
-    "login_compiler_node_aarch64": {
-      "type": "array",
-      "description": "Login compiler nodes (aarch64)",
+      "description": "Admin-network IPv4 addresses for nodes in this functional group",
       "items": {
         "type": "string",
         "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

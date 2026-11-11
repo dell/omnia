@@ -36,7 +36,7 @@
 # Usage:
 #   Offline (air-gapped HPC cluster — DEFAULT):
 #     install_mode: "offline"
-#     repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/10.0"
+#     repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/<os_version>"
 #
 #   Online (internet-connected):
 #     install_mode: "online"
@@ -56,11 +56,12 @@ install_mode: "offline"
 # Single entry point for all offline packages. Set this ONCE and every
 # Helm chart, git repo, and pip module URL is auto-derived.
 #
-# Format: https://<ip_or_hostname>:<port>/pulp/content/offline_repo/cluster/x86_64/rhel/10.0
+# Format: https://<ip_or_hostname>:<port>/pulp/content/offline_repo/cluster/x86_64/rhel/<os_version>
 #
 # The hostname/IP can be an FQDN (e.g., oim.lab.example.com) or IP address.
 # Default (when empty and install_mode is "offline"):
-#   Auto-derived as https://<$SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0
+#   Auto-derived as https://<$SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/<os_version>
+#   where <os_version> is detected from the orchestrator inventory group names (e.g., 10.0, 10.2)
 # Leave empty when install_mode is "online" (not used).
 repo_url: ""
 
@@ -102,6 +103,7 @@ images:
     vminsert: "docker.io/victoriametrics/vminsert:v1.149.0-cluster"
     vmagent: "docker.io/victoriametrics/vmagent:v1.149.0"
     operator: "docker.io/victoriametrics/operator:v0.68.3"
+    config_reloader: "docker.io/victoriametrics/operator:config-reloader-v0.68.3"
 
   # -- Sink: VictoriaLogs -----------------------------------------------------
   # Source: https://hub.docker.com/u/victoriametrics
@@ -115,8 +117,12 @@ images:
   # Source: https://quay.io/organization/strimzi
   kafka:
     broker: "quay.io/strimzi/kafka:1.1.0-kafka-4.3.0"
-    bridge: "quay.io/strimzi/kafka-bridge:1.0.0"
+
+  # -- Operator: Strimzi Kafka Operator ----------------------------------------
+  # Source: https://quay.io/organization/strimzi
+  strimzi:
     operator: "quay.io/strimzi/operator:1.1.0"
+    kafka_bridge: "quay.io/strimzi/kafka-bridge:1.0.0"
 
   # -- Source: iDRAC Telemetry ------------------------------------------------
   # Source: https://hub.docker.com/u/dellhpcomniaaisolution

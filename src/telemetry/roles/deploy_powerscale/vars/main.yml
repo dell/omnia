@@ -123,3 +123,12 @@ csi_volume_exporter:
     limits:
       cpu: "200m"
       memory: "256Mi"
+
+# Karavi Observability Deployment Names
+# ============================================================================
+# These are the deployment names created by karavi-observability Helm chart
+# Used for scaling down during disable operations and scaling up during enable
+karavi_observability:
+  metrics_deployment: "karavi-metrics-powerscale"
+  otel_collector_deployment: "otel-collector"
+  otel_collector_pvc: "otel-collector-data"

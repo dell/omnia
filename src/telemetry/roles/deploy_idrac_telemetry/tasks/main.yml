@@ -37,6 +37,11 @@
     idrac_enabled: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
   when: telemetry_config is defined
 
+- name: Initialize iDRAC reconciliation result
+  ansible.builtin.set_fact:
+    idrac_reconcile_failed: false
+    idrac_reconcile_error: ""
+
 - name: Enable iDRAC telemetry
   ansible.builtin.include_tasks: enable.yml
   when: idrac_enabled | default(false) | bool

@@ -82,6 +82,24 @@
           }}/orchestrator_inventory.yml{%- endif %}
         cacheable: true
 
+    - name: Notify - cluster_inventory using default path
+      when: telemetry_config.cluster_inventory | default('') | length == 0
+      block:
+        - name: Display warning
+          ansible.builtin.debug:
+            msg: "⚠️  cluster_inventory is empty in telemetry_config.yml"
+          vars:
+            ansible_debug_color: "yellow"
+
+        - name: Display resolved path
+          ansible.builtin.debug:
+            msg: "Constructing default path: {{ _cluster_inv_path }}"
+
+        - name: Pause for user confirmation
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
+
     - name: Expose resolved cluster inventory path for downstream consumers
       ansible.builtin.set_fact:
         cluster_inventory_path: "{{ _cluster_inv_path }}"
@@ -117,6 +135,40 @@
         - cluster_inv is defined
         - cluster_inv.all.children.kube_vip_group.hosts is defined
         - cluster_inv.all.children.kube_vip_group.hosts | length > 0
+
+    - name: Derive OS version from orchestrator inventory group names
+      ansible.builtin.set_fact:
+        pulp_os_version: >-
+          {%- set ns = namespace(version='') -%}
+          {%- for group_name in cluster_inv.all.children.keys() -%}
+            {%- if ns.version == '' -%}
+              {%- set match = group_name | regex_search('_rhel_(\d+)_(\d+)_') -%}
+              {%- if match -%}
+                {%- set ver = match | regex_replace('^_rhel_', '') | regex_replace('_$', '') | regex_replace('_', '.') -%}
+                {%- set ns.version = ver -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.version }}
+        cacheable: true
+      when:
+        - cluster_inv is defined
+        - cluster_inv.all.children is defined
+
+    - name: Fail if OS version could not be determined
+      ansible.builtin.fail:
+        msg: >
+          Could not determine OS version for Pulp repository URL.
+          {% if cluster_inv is not defined -%}
+          The orchestrator inventory file was not found at: {{ _cluster_inv_path | default('(not set)') }}.
+          Ensure orchestrator has been run and the inventory file exists,
+          or set repo_url explicitly in telemetry_packages.yml.{%- else -%}
+          No group matching the pattern '*_rhel_<major>_<minor>_*' was found in the orchestrator inventory
+          (e.g., service_kube_control_plane_first_rhel_10_2_x86_64).
+          Found groups: {{ cluster_inv.all.children.keys() | list }}{%- endif %}
+      when:
+        - ((_pkg_raw.repo_url | default('')) or '') | length == 0
+        - (pulp_os_version | default('')) | length == 0
 
     - name: Set kube_vip from telemetry_config (fallback)
       ansible.builtin.set_fact:
@@ -169,7 +221,7 @@
       ansible.builtin.set_fact:
         _resolved_repo_url: >-
           {% set mode = _pkg_raw.install_mode | default('offline') -%}
-          {% set url = _pkg_raw.repo_url | default('') -%}
+          {% set url = (_pkg_raw.repo_url | default('')) or '' -%}
           {% if url | length > 0 -%}
           {{ url | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
           {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
@@ -177,6 +229,65 @@
           https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif -%}
           {%- endif %}
       when: _pkg_raw is defined
+
+    - name: Notify - repo_url using default path
+      when:
+        - _pkg_raw is defined
+        - ((_pkg_raw.repo_url | default('')) or '') | length == 0
+      block:
+        - name: Set default repo_url for display
+          ansible.builtin.set_fact:
+            _default_repo_url: >-
+              {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
+              {% if nic_ip | length > 0 -%}
+              https://{{ nic_ip }}:{{ pulp_port }}/{{ pulp_base_path }}/{{ pulp_cluster_arch }}/{{ pulp_os_name }}/{{ pulp_os_version }}{%- endif %}
+
+        - name: Display warning
+          ansible.builtin.debug:
+            msg: "⚠️  repo_url is empty in telemetry_packages.yml"
+          vars:
+            ansible_debug_color: "yellow"
+
+        - name: Display resolved path
+          ansible.builtin.debug:
+            msg: "Constructing default path from SYSTEM_ADMIN_NIC_IPV4: {{ _default_repo_url | trim }}"
+
+        - name: Pause for user confirmation
+          ansible.builtin.pause:
+            seconds: 10
+            prompt: "Proceeding in 10 seconds... (Press Ctrl+C to cancel)"
+
+    # -----------------------------------------------------------------------
+    # Validate repo_url is set for offline mode
+    # -----------------------------------------------------------------------
+    # In offline mode, repo_url must be provided either explicitly or
+    # auto-derived from SYSTEM_ADMIN_NIC_IPV4. Fail if neither is available.
+    - name: Validate repo_url for offline mode
+      ansible.builtin.fail:
+        msg: |
+          repo_url is required for offline mode but not provided.
+
+          Current state:
+          - install_mode: {{ _pkg_raw.install_mode | default('offline') }}
+          - repo_url in telemetry_packages.yml: "{{ _pkg_raw.repo_url | default('') }}"
+          - SYSTEM_ADMIN_NIC_IPV4 environment variable: {{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('NOT SET', true) }}
+          - admin_nic_ip variable: {{ admin_nic_ip | default('NOT SET') }}
+
+          Solution:
+          1. Set SYSTEM_ADMIN_NIC_IPV4 environment variable to the Pulp server IP:
+             export SYSTEM_ADMIN_NIC_IPV4=<pulp_server_ip>
+             ansible-playbook telemetry.yml --tags execute
+
+          2. OR explicitly set repo_url in telemetry_packages.yml:
+             install_mode: "offline"
+             repo_url: "https://<pulp_server_ip>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/<os_version>"
+
+          3. OR set admin_nic_ip in roles/common/vars/main.yml:
+             admin_nic_ip: "<pulp_server_ip>"
+      when:
+        - _pkg_raw is defined
+        - (_pkg_raw.install_mode | default('offline')) == 'offline'
+        - (_resolved_repo_url | default('')) | length == 0
 
     # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog
@@ -255,8 +366,10 @@
           images:
             victoria: "{{ _all_victoria }}"
             kafka: "{{ _images.kafka | default({}) }}"
+            strimzi: "{{ _images.strimzi | default({}) }}"
             victoria_operator:
               operator: "{{ (_images.victoria_metrics | default({})).operator | default('') }}"
+              config_reloader: "{{ (_images.victoria_metrics | default({})).config_reloader | default('') }}"
             idrac: "{{ _images.idrac | default({}) }}"
             powerscale: "{{ _images.powerscale | default({}) }}"
             ldms: "{{ _images.ldms | default({}) }}"

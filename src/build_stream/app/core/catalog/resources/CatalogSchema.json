@@ -9,6 +9,7 @@
       "properties": {
         "Name": {"type": "string"},
         "Version": {"type": "string"},
+        "SchemaVersion": {"type": "integer", "minimum": 1},
         "Identifier": {"type": "string"},
         "FunctionalLayer": {
           "type": "array",

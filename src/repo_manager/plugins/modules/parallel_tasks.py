@@ -295,7 +295,7 @@ def determine_function(
         if task_type == "image":
             return get_artifact_processor(task_type), [
                 task, status_file, version_variables, registry_contexts,
-                docker_username, docker_secret_token
+                docker_username, docker_secret_token, arc
             ]
         if task_type == "rpm_file":
             return get_artifact_processor(task_type), [

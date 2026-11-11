@@ -16,9 +16,10 @@
 
 import hashlib
 import json
-from api.logging_utils import log_secure_info
 from datetime import datetime, timezone
 from typing import Any, Dict
+
+from api.logging_utils import log_secure_info
 
 from .entities import AuditEvent
 from .repositories import JobRepository, AuditEventRepository, UUIDGenerator
@@ -67,7 +68,7 @@ class JobStateHelper:
     """
 
     @staticmethod
-    def handle_stage_failure(
+    def handle_stage_failure(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         job_repo: JobRepository,
         audit_repo: AuditEventRepository,
         uuid_generator: UUIDGenerator,
@@ -101,11 +102,19 @@ class JobStateHelper:
         try:
             job = job_repo.find_by_id(job_id)
             if job is None:
-                log_secure_info('warning', f"Job not found when handling stage failure: job_id={job_id}, stage={stage_name}")
+                log_secure_info(
+                    'warning',
+                    f"Job not found when handling stage failure: "
+                    f"job_id={job_id}, stage={stage_name}",
+                )
                 return
 
             if job.job_state.is_terminal():
-                log_secure_info('info', f"Job already in terminal state: job_id={job_id}, state={job.job_state.value}, stage={stage_name}")
+                log_secure_info(
+                    'info',
+                    f"Job already in terminal state: job_id={job_id}, "
+                    f"state={job.job_state.value}, stage={stage_name}",
+                )
                 return
 
             job.fail()
@@ -132,13 +141,23 @@ class JobStateHelper:
             if hasattr(audit_repo, 'session') and audit_repo.session:
                 audit_repo.session.commit()
 
-            log_secure_info('info', f"Job marked as FAILED: job_id={job_id}, failed_stage={stage_name}, error_code={error_code}")
+            log_secure_info(
+                'info',
+                f"Job marked as FAILED: job_id={job_id}, "
+                f"failed_stage={stage_name}, error_code={error_code}",
+            )
 
-        except Exception as exc:
-            log_secure_info('error', f"Failed to update job state on stage failure: job_id={job_id}, stage={stage_name}", exc_info=True)
+        # Best-effort state update: never propagate failures to the caller.
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                'error',
+                f"Failed to update job state on stage failure: "
+                f"job_id={job_id}, stage={stage_name}",
+                exc_info=True,
+            )
 
     @staticmethod
-    def handle_job_resume(
+    def handle_job_resume(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         job_repo: JobRepository,
         audit_repo: AuditEventRepository,
         uuid_generator: UUIDGenerator,
@@ -165,11 +184,19 @@ class JobStateHelper:
         try:
             job = job_repo.find_by_id(job_id)
             if job is None:
-                log_secure_info('warning', f"Job not found when handling resume: job_id={job_id}, stage={stage_name}")
+                log_secure_info(
+                    'warning',
+                    f"Job not found when handling resume: "
+                    f"job_id={job_id}, stage={stage_name}",
+                )
                 return
 
             if job.job_state != JobState.FAILED:
-                log_secure_info('info', f"Job not in FAILED state, skip resume: job_id={job_id}, state={job.job_state.value}, stage={stage_name}")
+                log_secure_info(
+                    'info',
+                    f"Job not in FAILED state, skip resume: job_id={job_id}, "
+                    f"state={job.job_state.value}, stage={stage_name}",
+                )
                 return
 
             job.resume()
@@ -194,13 +221,22 @@ class JobStateHelper:
             if hasattr(audit_repo, 'session') and audit_repo.session:
                 audit_repo.session.commit()
 
-            log_secure_info('info', f"Job resumed from FAILED to IN_PROGRESS: job_id={job_id}, retried_stage={stage_name}")
+            log_secure_info(
+                'info',
+                f"Job resumed from FAILED to IN_PROGRESS: "
+                f"job_id={job_id}, retried_stage={stage_name}",
+            )
 
-        except Exception as exc:
-            log_secure_info('error', f"Failed to resume job state: job_id={job_id}, stage={stage_name}", exc_info=True)
+        # Best-effort state update: never propagate failures to the caller.
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                'error',
+                f"Failed to resume job state: job_id={job_id}, stage={stage_name}",
+                exc_info=True,
+            )
 
     @staticmethod
-    def handle_job_completion(
+    def handle_job_completion(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         job_repo: JobRepository,
         audit_repo: AuditEventRepository,
         uuid_generator: UUIDGenerator,
@@ -228,11 +264,17 @@ class JobStateHelper:
         try:
             job = job_repo.find_by_id(job_id)
             if job is None:
-                log_secure_info('warning', f"Job not found when handling completion: job_id={job_id}")
+                log_secure_info(
+                    'warning', f"Job not found when handling completion: job_id={job_id}"
+                )
                 return
 
             if job.job_state.is_terminal():
-                log_secure_info('info', f"Job already in terminal state: job_id={job_id}, state={job.job_state.value}")
+                log_secure_info(
+                    'info',
+                    f"Job already in terminal state: "
+                    f"job_id={job_id}, state={job.job_state.value}",
+                )
                 return
 
             job.complete()
@@ -259,5 +301,10 @@ class JobStateHelper:
 
             log_secure_info('info', f"Job marked as COMPLETED: job_id={job_id}")
 
-        except Exception as exc:
-            log_secure_info('error', f"Failed to update job state on completion: job_id={job_id}", exc_info=True)
+        # Best-effort state update: never propagate failures to the caller.
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                'error',
+                f"Failed to update job state on completion: job_id={job_id}",
+                exc_info=True,
+            )

@@ -31,6 +31,8 @@ Parses the INI-like input format:
 import re
 import logging
 
+from .mutator import merge_package_entry
+
 logger = logging.getLogger(__name__)
 
 # Regex patterns
@@ -284,8 +286,13 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
 
             overrides = _parse_trailing_overrides(fields, override_start)
             pkg_entry = _build_package_entry(pkg_type, fields, defaults, overrides)
+            if pkg_key in packages:
+                # Same key on several lines (e.g. one per arch/OS version):
+                # merge the sources instead of keeping only the last line.
+                pkg_entry = merge_package_entry(packages[pkg_key], pkg_entry)
             packages[pkg_key] = pkg_entry
-            groups[current_section]['components'].append(pkg_key)
+            if pkg_key not in groups[current_section]['components']:
+                groups[current_section]['components'].append(pkg_key)
 
     logger.info("Parsed input file: %d functional layers, %d groups, %d packages",
                 len(functional_layers), len(groups), len(packages))

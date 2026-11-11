@@ -211,6 +211,20 @@ def catalog_no_arch_layers_msg(build_arch):
 
 
 # =============================================================================
+# REPOSITORY STATUS MESSAGES
+# =============================================================================
+
+REPO_STATUS_UNSUCCESSFUL_MSG = (
+    "repo_status.yml: overall_status must be 'success'."
+)
+
+REPO_STATUS_REPOSITORIES_REQUIRED_MSG = (
+    "repo_status.yml: repositories must contain at least one non-empty "
+    "x86_64 or aarch64 repository URL."
+)
+
+
+# =============================================================================
 # LOG HEADER/FOOTER MESSAGES
 # =============================================================================
 

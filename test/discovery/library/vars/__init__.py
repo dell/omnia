@@ -20,6 +20,10 @@ from .common_vars import (
     PLAYBOOK_WORKDIR,
     PLAYBOOK_TAGS,
     CMDS,
+    ENV_OMNIA_DATA_PATH,
+    ENV_DISCOVERY_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    SRC_INPUT_DIR,
 )
 
 from .test_case_vars import TEST_CASES
@@ -39,6 +43,10 @@ __all__ = [
     "PLAYBOOK_WORKDIR",
     "PLAYBOOK_TAGS",
     "CMDS",
+    "ENV_OMNIA_DATA_PATH",
+    "ENV_DISCOVERY_DATA_PATH",
+    "ENV_OMNIA_PROJECT_NAME",
+    "SRC_INPUT_DIR",
     "TEST_CASES",
     "UT_TEST_CASE_IDS",
     "VALIDATION_DOMAIN",

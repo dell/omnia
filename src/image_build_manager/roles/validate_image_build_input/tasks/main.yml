@@ -65,7 +65,7 @@
 
 - name: Fail on validation errors
   ansible.builtin.fail:
-    msg: "{{ image_build_validation_fail_msg }} Errors: {{ image_build_validation_result.errors }}"
+    msg: "{{ image_build_validation_errors_fail_msg }}"
   when: image_build_validation_result.validation_failed
 
 - name: Validation passed

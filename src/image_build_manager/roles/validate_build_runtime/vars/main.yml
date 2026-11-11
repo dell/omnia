@@ -41,6 +41,11 @@ validate_aarch64_host_fail_msg: >
   Please set aarch64_inventory_host_ip in image_build_config.yml
   with the IP address of the ARM admin build host.
 
+aarch64_unreachable_fail_msg: >-
+  Cannot reach aarch64 build host at {{ aarch64_inventory_host_ip }}.
+  Verify the IP is correct and the host is powered on and network-reachable.
+  Ping stderr: {{ _aarch64_ping.stderr | default('no output') }}
+
 validate_repo_status_fail_msg: >
   repo_status.yml pre-check failed. overall_status is not 'synced'.
   Run repo_manager first:

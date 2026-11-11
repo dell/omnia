@@ -237,6 +237,7 @@ Repo Manager state together.
 | Add or restore catalog-selected content | `ansible-playbook repo_manager.yml --tags download` |
 | Force all required RPM remotes to check upstream | `ansible-playbook repo_manager.yml --tags download -e "resync_repos=all"` |
 | Force one exact RPM repository | `ansible-playbook repo_manager.yml --tags download -e "resync_repos=x86_64_rhel_10.0_baseos"` |
+| Make every catalog RPM repository exactly match upstream and prune superseded versions | `ansible-playbook repo_operations/repo_sync.yml` |
 | Generate normalized consumer URLs | `ansible-playbook repo_manager.yml --tags status` |
 | Remove one exact RPM repository | `ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel"` |
 | Remove one container tag | `ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/library/busybox:1.36"` |
@@ -244,6 +245,26 @@ Repo Manager state together.
 | Remove one File or Python catalog artifact | `ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=cffi==1.17.1"` |
 | Remove all Pulp content of selected categories | Use the matching `cleanup_repos=all`, `cleanup_containers=all` or `cleanup_files=all` value with `-e "force=true"` |
 | Remove the complete Pulp deployment | `ansible-playbook repo_manager.yml --tags cleanup_pulp` |
+
+An ordinary `download` rerun processes only new, changed, failed or pending
+catalog packages. A targeted RPM resync processes packages mapped to that exact
+repository; `resync_repos=all` processes every catalog `rpm` and `rpm_repo`
+package in each ordered execution context. Effective `immediate` and
+`on_demand` policies use `dnf download --resolve --alldeps`; `streamed` uses
+metadata-only `dnf info`. A failed repository synchronization is checkpointed,
+retried before DNF on the next run, and never makes an incomplete repository
+available to package workers.
+
+The standalone `repo_operations/repo_sync.yml` command is intentionally
+separate from normal resync. It performs a two-pass all-context preflight,
+uses Pulp's `mirror_content_only` sync policy, switches distributions only
+after replacement publication creation, validates the served `repomd.xml`,
+persists the live version HREF, and then prunes every superseded publication
+and nonzero repository version. Changed repositories mark their mapped catalog
+RPMs pending for the next normal DNF reconciliation. Its administrative output
+is `output/<project>/repo_resync_status.yml`; it does not rewrite
+`repo_status.yml`. Do not run this playbook concurrently with download or
+cleanup operations.
 
 To add permanent content, update the catalog and Repo Manager input mapping,
 then run:

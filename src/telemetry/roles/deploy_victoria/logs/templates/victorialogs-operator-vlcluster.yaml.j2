@@ -28,12 +28,20 @@ spec:
   # ========================
   # vlstorage — Persistent log storage (StatefulSet, 3 replicas)
   # ========================
+{% set _img = victoria_logs_cluster.vlstorage.image %}
+{% set _parts = _img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _img.split(':')[-1] %}
   vlstorage:
     replicaCount: {{ victoria_logs_cluster.vlstorage.replicas }}
     replicationFactor: 2  # Data redundancy: each log written to 2 of 3 nodes
     image:
-      repository: {{ victoria_logs_cluster.vlstorage.image.split(':')[0] }}
-      tag: {{ victoria_logs_cluster.vlstorage.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      repository: {{ telemetry_registry.host }}/{{ _repo }}
+{% else %}
+      repository: {{ _repo }}
+{% endif %}
+      tag: {{ _tag }}
       pullPolicy: IfNotPresent
 
     # Graceful shutdown - gives storage engine time to flush data and clean up lock files
@@ -42,7 +50,7 @@ spec:
     # Init container to remove stale lock files after node reboot
     initContainers:
       - name: remove-stale-locks
-        image: "{{ _support_images.busybox | default('docker.io/library/busybox:1.36') }}"
+        image: "{% set _bb_img = _support_images.busybox | default('docker.io/library/busybox:1.36') %}{% set _bb_parts = _bb_img | regex_replace(':[^:]+$', '') | split('/') %}{% set _bb_repo = '/'.join(_bb_parts[1:]) if (_bb_parts | length) > 2 or '.' in _bb_parts[0] else '/'.join(_bb_parts) %}{% set _bb_tag = _bb_img.split(':')[-1] %}{% if telemetry_registry.host | default('') %}{{ telemetry_registry.host }}/{{ _bb_repo }}:{{ _bb_tag }}{% else %}{{ _bb_img }}{% endif %}"
         command: ["sh", "-c", "rm -f /vlstorage-data/flock.lock || true"]
         volumeMounts:
           - name: vlstorage-db
@@ -151,11 +159,19 @@ spec:
   # ========================
   # vlinsert — Log ingestion gateway (Deployment, 2 replicas)
   # ========================
+{% set _img = victoria_logs_cluster.vlinsert.image %}
+{% set _parts = _img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _img.split(':')[-1] %}
   vlinsert:
     replicaCount: {{ victoria_logs_cluster.vlinsert.replicas }}
     image:
-      repository: {{ victoria_logs_cluster.vlinsert.image.split(':')[0] }}
-      tag: {{ victoria_logs_cluster.vlinsert.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      repository: {{ telemetry_registry.host }}/{{ _repo }}
+{% else %}
+      repository: {{ _repo }}
+{% endif %}
+      tag: {{ _tag }}
       pullPolicy: IfNotPresent
 
     # Ports are managed by operator defaults (9481)
@@ -217,11 +233,19 @@ spec:
   # ========================
   # vlselect — Log query gateway (Deployment, 2 replicas)
   # ========================
+{% set _img = victoria_logs_cluster.vlselect.image %}
+{% set _parts = _img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _img.split(':')[-1] %}
   vlselect:
     replicaCount: {{ victoria_logs_cluster.vlselect.replicas }}
     image:
-      repository: {{ victoria_logs_cluster.vlselect.image.split(':')[0] }}
-      tag: {{ victoria_logs_cluster.vlselect.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      repository: {{ telemetry_registry.host }}/{{ _repo }}
+{% else %}
+      repository: {{ _repo }}
+{% endif %}
+      tag: {{ _tag }}
       pullPolicy: IfNotPresent
 
     # Ports are managed by operator defaults (9471)

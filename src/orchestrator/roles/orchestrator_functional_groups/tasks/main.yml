@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Include vars from orchestrator_config.yml
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/{{ orchestrator_config_file }}"
@@ -43,7 +42,7 @@
 
 - name: Fail if functional groups file is not created
   ansible.builtin.fail:
-    msg: "Failed to create functional groups file at {{ functional_groups_config_path }}"
+    msg: "{{ functional_groups_file_fail_msg }}"
   when:
     - not ansible_check_mode
     - not functional_groups_file.stat.exists

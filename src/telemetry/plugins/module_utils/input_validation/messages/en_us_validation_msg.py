@@ -55,7 +55,7 @@ POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
     "telemetry_sources.powerscale.metrics_enabled is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
-def powerscale_csm_values_not_found_msg(path):
+def powerscale_csm_values_not_found_msg(path) -> str:
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
         f"CSM Observability values.yaml file not found at '{path}'. "
@@ -66,7 +66,7 @@ POWERSCALE_CSM_VALUES_INVALID_YAML_MSG = (
     "CSM Observability values.yaml (path specified in "
     "telemetry_config.yml) must contain a valid YAML dictionary."
 )
-def powerscale_csm_values_parse_error_msg(error):
+def powerscale_csm_values_parse_error_msg(error) -> str:
     """Returns error message when CSM Observability values.yaml fails to parse."""
     return f"Failed to parse CSM Observability values.yaml: {error}"
 POWERSCALE_CSM_VALUES_MISSING_KARAVI_SECTION_MSG = (
@@ -87,7 +87,7 @@ POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
     "PowerScale image version mismatch detected in offline mode. "
     "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
 )
-def powerscale_image_version_mismatch_msg(mismatched_images):
+def powerscale_image_version_mismatch_msg(mismatched_images) -> str:
     """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
     return (
         f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
@@ -110,7 +110,7 @@ POWERSCALE_IMAGE_VERSION_MISMATCH_MSG = (
     "PowerScale image version mismatch detected in offline mode. "
     "Ensure these images match telemetry_packages.yml and are present in Pulp registry."
 )
-def powerscale_image_version_mismatch_msg(mismatched_images):
+def powerscale_image_version_mismatch_msg(mismatched_images) -> str:
     """Returns error message when CSM values.yaml image version doesn't match telemetry_packages.yml."""
     return (
         f"{POWERSCALE_IMAGE_VERSION_MISMATCH_MSG} "
@@ -119,15 +119,15 @@ def powerscale_image_version_mismatch_msg(mismatched_images):
 
 # pylint: enable=invalid-name
 
-def boolean_fail_msg(value):
+def boolean_fail_msg(value) -> str:
     """Returns a formatted message indicating boolean_fail_msg."""
     return f"{value} must be set to either true or false."
 
-def get_header():
+def get_header() -> str:
     """Returns a formatted header string for execution logs."""
     return f"{'#' * 30} START EXECUTION {'#' * 30}"
 
-def get_footer():
+def get_footer() -> str:
     """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
@@ -245,23 +245,23 @@ TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (
     "configurations."
 )
 
-def get_validation_initiated(input_file_path):
+def get_validation_initiated(input_file_path) -> str:
     """Returns a formatted message indicating validation has started for a file."""
     return f"{'#' * 10} Validation Initiated for {input_file_path} {'#' * 10}"
 
-def get_schema_failed(input_file_path):
+def get_schema_failed(input_file_path) -> str:
     """Returns a formatted message indicating schema validation failure for a file."""
     return f"{'#' * 10} Schema validation failed for {input_file_path} {'#' * 10}"
 
-def get_schema_success(input_file_path):
+def get_schema_success(input_file_path) -> str:
     """Returns a formatted message indicating schema validation success for a file."""
     return f"{'#' * 10} Schema validation successful for {input_file_path} {'#' * 10}"
 
-def get_logic_failed(input_file_path):
+def get_logic_failed(input_file_path) -> str:
     """Returns a formatted message indicating logic validation failure for a file."""
     return f"{'#' * 10} Logic validation failed for {input_file_path} {'#' * 10}"
 
-def get_logic_success(input_file_path):
+def get_logic_success(input_file_path) -> str:
     """Returns a formatted message indicating logic validation success for a file."""
     return f"{'#' * 10} Logic validation successful for {input_file_path} {'#' * 10}"
 
@@ -282,7 +282,7 @@ VECTOR_LDMS_SOURCE_DISABLED_MSG = (
 )
 
 # CSM Observability - Unsupported metrics validation messages
-def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path):
+def powerscale_unsupported_metrics_enabled_msg(component_name, section_name, values_file_path) -> str:
     """Returns error message when unsupported CSM metrics components are enabled."""
     return (
         f"{component_name} metrics collection not supported. "

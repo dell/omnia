@@ -82,17 +82,13 @@ if [ -f "$PRIVATE_KEY_PATH" ] || [ -f "$PUBLIC_KEY_PATH" ]; then
 fi
 
 log_info "Generating $KEY_SIZE-bit RSA private key..."
-openssl genrsa -out "$PRIVATE_KEY_PATH" "$KEY_SIZE" 2>/dev/null
-
-if [ $? -ne 0 ]; then
+if ! openssl genrsa -out "$PRIVATE_KEY_PATH" "$KEY_SIZE" 2>/dev/null; then
     log_error "Failed to generate private key"
     exit 1
 fi
 
 log_info "Extracting public key..."
-openssl rsa -in "$PRIVATE_KEY_PATH" -pubout -out "$PUBLIC_KEY_PATH" 2>/dev/null
-
-if [ $? -ne 0 ]; then
+if ! openssl rsa -in "$PRIVATE_KEY_PATH" -pubout -out "$PUBLIC_KEY_PATH" 2>/dev/null; then
     log_error "Failed to extract public key"
     rm -f "$PRIVATE_KEY_PATH"
     exit 1

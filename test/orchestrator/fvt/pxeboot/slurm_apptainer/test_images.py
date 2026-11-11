@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Explicitly authorized Apptainer shared-image download verification."""
+
+import pytest
+from library.functions import (
+    TestLogger,
+    check_apptainer_download,
+    check_apptainer_download_idempotency,
+    check_apptainer_download_memory,
+)
+from library.vars import TEST_CASES as TC
+
+from fvt.result import verify_pxeboot
+
+
+@pytest.mark.apptainer
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.image_download
+@pytest.mark.non_disruptive
+@pytest.mark.order(41905)
+def test_apptainer_download(host):
+    """Run the deployed downloader and require at least one usable SIF."""
+    tc = TC["apptainer_download"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_download)
+
+
+@pytest.mark.apptainer
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.image_download
+@pytest.mark.non_disruptive
+@pytest.mark.order(41906)
+def test_apptainer_download_idempotency(host):
+    """Rerun the downloader and verify existing image metadata is unchanged."""
+    tc = TC["apptainer_download_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_download_idempotency)
+
+
+@pytest.mark.apptainer
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.image_download
+@pytest.mark.non_disruptive
+@pytest.mark.order(41907)
+def test_apptainer_download_memory(host):
+    """Run the downloader and enforce a bounded peak resident-memory use."""
+    tc = TC["apptainer_download_memory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_download_memory)

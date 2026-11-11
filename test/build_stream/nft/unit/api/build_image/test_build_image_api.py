@@ -28,53 +28,56 @@ from main import app
 class TestBuildImageAPI:
     """Integration tests for build image API endpoints."""
 
-    def test_create_build_image_success_x86_64(self, client, auth_headers, job_with_completed_parse_catalog):
-        """Test successful build image creation for x86_64."""
+    def test_create_build_image_success(self, client, auth_headers, job_with_completed_parse_catalog):
+        """Trigger the unified build-image stage with an empty body.
+
+        Domain-segregated (Omnia 2.3+): the playbook reads the catalog and
+        builds every architecture, so the response always names the single
+        "build-image" stage and carries no architecture detail.
+        """
         job_id = job_with_completed_parse_catalog
 
-        # Now trigger build image stage
         response = client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image",
-            json={
-                "architecture": "x86_64",
-                "image_key": "test-image",
-                "functional_groups": ["slurm_control_node_x86_64", "slurm_node_x86_64"]
-            },
+            json={},
             headers=auth_headers
         )
 
         assert response.status_code == 202
         data = response.json()
         assert data["job_id"] == job_id
-        assert data["stage"] == "build-image-x86_64"
+        assert data["stage"] == "build-image"
         assert data["status"] == "accepted"
-        assert data["architecture"] == "x86_64"
-        assert data["image_key"] == "test-image"
-        assert data["functional_groups"] == ["slurm_control_node_x86_64", "slurm_node_x86_64"]
+        assert data["architecture"] is None
+        assert data["image_key"] is None
+        assert data["functional_groups"] is None
         assert "correlation_id" in data
         assert "submitted_at" in data
 
-    @pytest.mark.skip(reason="Requires complex config file mocking for aarch64 inventory_host")
-    def test_create_build_image_success_aarch64(self, client, auth_headers, job_with_completed_parse_catalog):
-        """Test successful build image creation for aarch64."""
+    def test_create_build_image_legacy_fields_ignored(
+        self, client, auth_headers, job_with_completed_parse_catalog
+    ):
+        """Legacy arch-specific request fields are accepted but ignored.
+
+        The fields remain on the schema for backward compatibility with
+        pre-2.3 clients; the use case no longer reads them.
+        """
         job_id = job_with_completed_parse_catalog
 
-        # Trigger build image stage with inventory_host parameter
         response = client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image",
             json={
-                "architecture": "aarch64",
+                "architecture": "x86_64",
                 "image_key": "test-image",
-                "functional_groups": ["slurm_control_node_aarch64"],
-                "inventory_host": "172.16.0.100"
+                "functional_groups": ["slurm_control_node_x86_64"],
             },
             headers=auth_headers
         )
 
         assert response.status_code == 202
         data = response.json()
-        assert data["stage"] == "build-image-aarch64"
-        assert data["architecture"] == "aarch64"
+        assert data["stage"] == "build-image"
+        assert data["architecture"] is None
 
     def test_create_build_image_invalid_architecture(self, client, auth_headers, job_with_completed_parse_catalog):
         """Test build image creation with invalid architecture."""
@@ -94,46 +97,6 @@ class TestBuildImageAPI:
         assert response.status_code == 422
         data = response.json()
         assert "detail" in data
-
-    def test_create_build_image_invalid_image_key(self, client, auth_headers, job_with_completed_parse_catalog):
-        """Test build image creation with invalid image key."""
-        job_id = job_with_completed_parse_catalog
-
-        # Try with invalid image key
-        response = client.post(
-            f"/api/v1/jobs/{job_id}/stages/build-image",
-            json={
-                "architecture": "x86_64",
-                "image_key": "invalid@key",
-                "functional_groups": ["group1"]
-            },
-            headers=auth_headers
-        )
-
-        assert response.status_code == 400
-        data = response.json()
-        assert "detail" in data
-
-    def test_create_build_image_aarch64_missing_inventory_host(self, client, auth_headers, job_with_completed_parse_catalog):
-        """Test aarch64 build image creation without inventory host.
-
-        The API accepts the request (202) and validates inventory_host
-        asynchronously in the use case, failing the stage if missing.
-        """
-        job_id = job_with_completed_parse_catalog
-
-        # Try aarch64 without inventory host
-        response = client.post(
-            f"/api/v1/jobs/{job_id}/stages/build-image",
-            json={
-                "architecture": "aarch64",
-                "image_key": "test-image",
-                "functional_groups": ["slurm_control_node_aarch64"]
-            },
-            headers=auth_headers
-        )
-
-        assert response.status_code == 202
 
     def test_create_build_image_unauthorized(self, client):
         """Test build image creation without authorization."""

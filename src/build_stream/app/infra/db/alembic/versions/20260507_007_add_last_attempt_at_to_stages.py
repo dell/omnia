@@ -12,10 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# pylint: disable=C0103,E0401,E1102
+# pylint: disable=C0103,E0401,E1102,E1101
 # C0103: Module name and constant names follow Alembic migration naming conventions
 # E0401: Import errors due to pylint running outside package context
 # E1102: SQLAlchemy func.now() is callable at runtime
+# E1101: Alembic op functions are dynamically added (proxy object)
 
 """Add last_attempt_at column to job_stages table.
 
@@ -40,6 +41,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Apply migration: Add last_attempt_at column to job_stages."""
     op.add_column(
         'job_stages',
         sa.Column('last_attempt_at', sa.DateTime(timezone=True), nullable=True),
@@ -47,4 +49,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revert migration: Drop last_attempt_at column from job_stages."""
     op.drop_column('job_stages', 'last_attempt_at')

@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Standalone OpenLDAP server used by Orchestrator LDAP integration tests.
+# Run from test/orchestrator:
+#   python3 utility/create_ldap_server.py --check
+#   python3 utility/create_ldap_server.py
+#
+# Deployment target:
+#   - Leave openldap_server_ip empty to run Podman on the current host.
+#   - Set it to an IP address or resolvable hostname to run Podman remotely.
+#   - For remote access, configure an SSH private key or provide the SSH
+#     credential when running setup_ldap_server.sh.
+#
+# Administrator and LDAP user details are intentionally absent from this file.
+# setup_ldap_server.sh collects them interactively and writes them to an
+# encrypted, git-ignored credential store.
+openldap_server_ip: ""
+openldap_server_ssh_user: "root"
+openldap_server_ssh_port: 22
+openldap_server_ssh_private_key: ""
+
+# Keep true for normal use. Set false only in an isolated lab when the target
+# host key cannot be provisioned in known_hosts beforehand.
+openldap_server_ssh_strict_host_key_checking: true
+
+# LDAP directory domain. The utility converts this DNS-style value into the
+# directory base DN. For example, omnia.test becomes dc=omnia,dc=test.
+# The configured value is authoritative. Leave it empty only when the target
+# host's FQDN has a usable suffix that should be discovered automatically.
+openldap_domain: "omnia.test"
+
+# Container runtime settings. Normal execution reuses the named container and
+# volume. openldap_pull_image applies only when a new container is created.
+openldap_image: "docker.io/bitnamilegacy/openldap:latest"
+openldap_pull_image: true
+openldap_container_name: "openldap"
+openldap_data_volume: "openldap_data"
+openldap_port: 1389
+openldap_secure_port: 1636
+
+# Safe default: reuse the existing container and preserve its directory data.
+# To delete and recreate both the container and volume, set this to true and
+# also pass --allow-data-reset on the command line.
+openldap_reset_existing: false
+
+# Defaults used only when an individual user does not override the value.
+openldap_default_uid_start: 2000
+openldap_default_login_shell: "/bin/bash"
+
+# Usernames and authentication values are collected by setup_ldap_server.sh.
+# UID and GID values start at openldap_default_uid_start and increment once per
+# user. The default shell and /home/<username> are applied automatically.

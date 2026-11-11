@@ -16,20 +16,19 @@
 - name: Set sample file paths
   ansible.builtin.set_fact:
     _gitlab_example_repo_path: "catalog/{{ catalog_file_relative_path }}"
-    _gitlab_example_hosted_path: >-
-      {{ gitlab_hosted_payload_dir }}/catalog/
-      {{- catalog_file_relative_path }}
+    _gitlab_example_hosted_path: "{{ gitlab_hosted_payload_dir }}/catalog/{{ catalog_file_relative_path }}"
     _gitlab_example_encoded_path: >-
       {{ ('catalog/' ~ catalog_file_relative_path)
          | urlencode
          | replace('/', '%2F') }}
 
+- name: Set sample file API URL
+  ansible.builtin.set_fact:
+    _gitlab_file_url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}"
+
 - name: Check if catalog exists in repository
   ansible.builtin.uri:
-    url: >-
-      {{ gitlab_external_url_computed }}/api/v4/projects/
-      {{- gitlab_project_id }}/repository/files/
-      {{- _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}
+    url: "{{ _gitlab_file_url }}?ref={{ gitlab_default_branch }}"
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -58,10 +57,7 @@
 - name: Create sample file in GitLab repository
   when: gitlab_example_catalog_check.status == 404
   ansible.builtin.uri:
-    url: >-
-      {{ gitlab_external_url_computed }}/api/v4/projects/
-      {{- gitlab_project_id }}/repository/files/
-      {{- _gitlab_example_encoded_path }}
+    url: "{{ _gitlab_file_url }}"
     method: POST
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -82,10 +78,7 @@
       (gitlab_example_catalog_check.json.content | b64decode) !=
       (gitlab_example_catalog_content.content | b64decode)
   ansible.builtin.uri:
-    url: >-
-      {{ gitlab_external_url_computed }}/api/v4/projects/
-      {{- gitlab_project_id }}/repository/files/
-      {{- _gitlab_example_encoded_path }}
+    url: "{{ _gitlab_file_url }}"
     method: PUT
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"

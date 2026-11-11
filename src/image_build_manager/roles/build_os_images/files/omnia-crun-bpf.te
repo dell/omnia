@@ -1,9 +1,11 @@
-module omnia-crun-bpf 1.0;
+module omnia-crun-bpf 1.1;
 
 require {
     type init_t;
+    type unconfined_service_t;
     type container_runtime_t;
     class bpf prog_run;
+    class process2 { nnp_transition nosuid_transition };
 }
 
 #============= init_t ==============
@@ -13,3 +15,6 @@ require {
 #   "crun: systemd failed to install eBPF device filter on cgroup ..."
 # Retire this module once an updated container-selinux ships the fix.
 allow init_t container_runtime_t:bpf prog_run;
+
+#============= unconfined_service_t ==============
+allow unconfined_service_t container_runtime_t:process2 { nnp_transition nosuid_transition };

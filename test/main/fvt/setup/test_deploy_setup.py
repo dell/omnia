@@ -22,12 +22,12 @@ import pytest
 
 from library.vars import TEST_CASES as TC
 
-from library.functions import TestLogger
-from library.functions.omnia_main_func import (
+from library.functions import (
+    TestLogger,
+    check_venv_created,
     resolve_runtime_paths,
     run_omnia_cmd,
 )
-from library.vars import CMDS
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -42,13 +42,12 @@ def test_deploy_setup_venv(host):
     venv_path = resolve_runtime_paths(host)["venv_path"]
 
     # Check if venv already exists - skip deploy if it does
-    venv_exists_cmd = CMDS["dir_exists"].format(path=f"{venv_path}/bin")
-    venv_check = host.run(venv_exists_cmd)
+    venv_check = check_venv_created(host)
 
     tc = TC["deploy_setup_venv"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    if "exists" in venv_check.stdout:
+    if venv_check["success"]:
         tl.skipped_fields("Setup execution is not required", {
             "Virtual environment": venv_path,
             "Reason": "already exists",

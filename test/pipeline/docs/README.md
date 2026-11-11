@@ -28,6 +28,20 @@ Start here → **[Quick Start Guide](QUICKSTART.md)**
 - Real-world deployment scenarios
 - Pipeline stages reference
 
+### 🛠️ **Running Utils Operations?**
+→ **[Utils Pipeline Guide](UTILS_PIPELINE.md)**
+- Collect logs from clusters
+- Install OS on target nodes
+- Run utils validation tests
+- Utils modes and configuration
+
+### 🔄 **Deploying Build Stream?**
+→ **[Build Stream Pipeline Guide](BUILD_STREAM_PIPELINE.md)**
+- Deploy build_stream domain with unified base setup
+- Prepare base infrastructure (repo_manager, image_build_manager, orchestrator)
+- Test base domains and build_stream
+- Build stream pipeline configuration and examples
+
 ### ⚙️ **Configuring Everything?**
 → **[Configuration Reference](CONFIGURATION.md)**
 - Complete `pipeline_config.yml` reference
@@ -88,8 +102,11 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 
 - **Deploy to a single server** → [Quick Start](QUICKSTART.md)
 - **Deploy to multiple servers** → [Configuration Reference](CONFIGURATION.md#multi-cluster-deployment)
+- **Deploy build_stream domain** → [Build Stream Pipeline](BUILD_STREAM_PIPELINE.md)
 - **Redeploy a single domain** → [Pipeline Modes](PIPELINE_MODES.md#scenario-2-redeploy-only-repo_manager-after-changing-pulp-credentials)
 - **Clean up and start fresh** → [Pipeline Modes](PIPELINE_MODES.md#scenario-5-full-cleanup-of-everything-on-the-target)
+- **Collect logs from cluster** → [Utils Pipeline](UTILS_PIPELINE.md#example-1-collect-logs-default)
+- **Install OS on target nodes** → [Utils Pipeline](UTILS_PIPELINE.md#example-2-install-os)
 - **Rotate credentials** → [Configuration Reference](CONFIGURATION.md#rotating-credentials)
 - **Fix SSH connectivity** → [Troubleshooting](TROUBLESHOOTING.md#pipeline-fails-at-initialization)
 - **Fix OpenBao issues** → [Troubleshooting](TROUBLESHOOTING.md#openbao-server-is-not-reachable)
@@ -103,24 +120,40 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 ```
 Parent Pipeline (.gitlab-ci.yml)
     ↓
-    └─→ Child Pipeline 1 (.gitlab-ci-cluster.yml) for cluster1
+    ├─→ Child Pipeline 1 (.gitlab-ci-cluster.yml) for cluster1
     │   ├─ initialization
     │   ├─ setup_environment
     │   ├─ cleanup_<domains>
     │   ├─ deploy_<domains>
+    │   ├─ discovery (if ENABLE_DISCOVERY=true)
     │   ├─ test_<domains>
+    │   ├─ cleanup_discovery
     │   └─ summary
     │
-    └─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
+    ├─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
+    │   └─ (same stages as cluster1)
+    │
+    ├─→ Build Stream Pipeline (.gitlab-ci-build-stream.yml) [if BUILD_STREAM_ENABLE=true]
+    │   ├─ initialization
+    │   ├─ setup_environment
+    │   ├─ cleanup_<domains>
+    │   ├─ prepare_base (repo_manager + image_build_manager + orchestrator setup)
+    │   ├─ test_<domains> (repo_manager, image_build_manager, orchestrator tests)
+    │   ├─ build_stream deploy
+    │   ├─ test_build_stream
+    │   └─ summary
+    │
+    └─→ Utils Pipeline (.gitlab-ci-utils.yml) [if UTILS_ENABLE=true]
         ├─ initialization
         ├─ setup_environment
-        ├─ cleanup_<domains>
-        ├─ deploy_<domains>
-        ├─ test_<domains>
+        ├─ install_os (conditional)
+        ├─ log_collection_cluster (conditional)
+        ├─ log_collection_oim (conditional)
+        ├─ test_utils (conditional)
         └─ summary
 ```
 
-Each cluster runs independently. If cluster1 fails, cluster2 continues.
+Each cluster and utils pipeline runs independently. If cluster1 fails, cluster2 and utils pipelines continue.
 
 ### Credential Flow
 
@@ -150,8 +183,10 @@ No static secrets are stored in GitLab. Each pipeline job gets a short-lived JWT
 
 - **repo_manager** — Pulp-based package and repository management
 - **image_build_manager** — Container image building and registry
+- **discovery** — Network and hardware discovery
 - **orchestrator** — Kubernetes and container orchestration
 - **telemetry** — Monitoring, logging, and observability
+- **build_stream** — Build stream image provisioning and deployment
 
 You can run all domains or select specific ones using regex patterns.
 
@@ -173,10 +208,14 @@ test/pipeline/
 │   ├── QUICKSTART.md                ← Start here for quick setup
 │   ├── OPENBAO_SETUP.md             ← OpenBao configuration
 │   ├── PIPELINE_MODES.md            ← Deployment strategies
+│   ├── UTILS_PIPELINE.md            ← Utils operations (log collection, install_os)
+│   ├── BUILD_STREAM_PIPELINE.md     ← Build stream deployment
 │   ├── CONFIGURATION.md             ← Complete reference
 │   └── TROUBLESHOOTING.md           ← Common issues & solutions
 ├── .gitlab-ci.yml                   ← Parent pipeline (multi-cluster)
 ├── .gitlab-ci-cluster.yml           ← Child pipeline (per-cluster stages)
+├── .gitlab-ci-build-stream.yml      ← Build stream pipeline (per-cluster stages)
+├── .gitlab-ci-utils.yml             ← Utils pipeline (log collection, install_os)
 ├── setup_gitlab_project.py          ← Setup script
 ├── pipeline_config.yml              ← Your configuration (create this)
 └── clusters/
@@ -185,8 +224,9 @@ test/pipeline/
     │   └── inputs/
     │       ├── omnia.env            ← Omnia environment
     │       ├── repo_manager/        ← Domain configs
-    │       ├── orchestrator/
     │       ├── image_build_manager/
+    │       ├── discovery/
+    │       ├── orchestrator/
     │       ├── telemetry/
     │       └── test/                ← Test configs
     └── cluster2/
@@ -206,10 +246,15 @@ test/pipeline/
 ### Step 3: Customize Your Deployment
 → [Pipeline Modes & Domains](PIPELINE_MODES.md)
 
-### Step 4: Reference Configuration
+### Step 4: Choose Your Pipeline
+- **Standard Cluster Pipeline** → [Pipeline Modes & Domains](PIPELINE_MODES.md)
+- **Build Stream Pipeline** → [Build Stream Pipeline Guide](BUILD_STREAM_PIPELINE.md)
+- **Utils Pipeline** → [Utils Pipeline Guide](UTILS_PIPELINE.md)
+
+### Step 5: Reference Configuration
 → [Configuration Reference](CONFIGURATION.md)
 
-### Step 5: Troubleshoot Issues
+### Step 6: Troubleshoot Issues
 → [Troubleshooting Guide](TROUBLESHOOTING.md)
 
 ---
@@ -219,6 +264,8 @@ test/pipeline/
 - **Documentation:** Start with the [Quick Start Guide](QUICKSTART.md)
 - **Configuration Help:** See [Configuration Reference](CONFIGURATION.md)
 - **Deployment Strategies:** Check [Pipeline Modes & Domains](PIPELINE_MODES.md)
+- **Build Stream Deployment:** Visit [Build Stream Pipeline Guide](BUILD_STREAM_PIPELINE.md)
+- **Utils Operations:** Visit [Utils Pipeline Guide](UTILS_PIPELINE.md)
 - **Troubleshooting:** Visit [Troubleshooting Guide](TROUBLESHOOTING.md)
 - **OpenBao Issues:** See [OpenBao Setup Guide](OPENBAO_SETUP.md)
 

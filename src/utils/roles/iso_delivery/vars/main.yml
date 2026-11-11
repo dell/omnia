@@ -28,8 +28,8 @@ ssh_verify_delay: 30
 # SSH private key path (derived from public key path, defaults to id_rsa)
 ssh_private_key_path: >-
   {{
-    (hostvars['localhost']['ssh_public_key_path'] | default('/root/.ssh/id_rsa.pub'))
-    | regex_replace('\\.pub$', '')
+    (hostvars['localhost']['ssh_public_key_path'] | default('/root/.ssh/id_rsa.pub', true))
+    | trim | regex_replace('\.pub$', '')
   }}
 
 # Error messages
@@ -49,14 +49,11 @@ sel_error_warning_msg: >-
 ssh_wait_fail_msg: >-
   OS installation failed - target node {{ target_admin_ip }} did not become reachable via SSH.
   Check the iDRAC virtual console for installation status.
-passwordless_ssh_fail_msg: >-
-  WARNING: Passwordless SSH access failed. The injected SSH public key may not be configured correctly.
+ssh_key_auth_fail_msg: >-
+  SSH access failed. The injected SSH public key may not be configured correctly.
   Verify that ks_ssh_public_key was properly injected into the kickstart file.
-ssh_password_fail_msg: >-
-  WARNING: SSH access using the root password failed.
-  Verify that os_root_password is correct and PasswordAuthentication is permitted on the target node.
 os_install_success_msg: >-
   OS installation completed successfully!
   Hostname: {{ _os_verify.stdout_lines[0] | default('unknown') }},
   OS: {{ _os_verify.stdout_lines[1] | default('unknown') }},
-  Passwordless SSH: verified
+  SSH key authentication: verified

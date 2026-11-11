@@ -119,7 +119,7 @@ The Omnia production venv remains owned by `omnia.sh --setup-venv`.
 | MAIN_FVT_CLI_V008 | `test_force_deps_in_help` | commands/ | sanity | Verify --force-deps flag appears in help output |
 | MAIN_FVT_CLI_V009 | `test_skip_catalog_in_help` | commands/ | sanity | Verify --skip-catalog flag appears in help output |
 | MAIN_FVT_CLI_V010 | `test_force_deps_invalid` | commands/ | regression | Verify --force-deps without -s/-i exits with error |
-| MAIN_FVT_CLI_V011 | `test_check_deps_runs` | commands/ | sanity | Verify --check-deps command runs |
+| MAIN_FVT_CLI_V011 | `test_check_deps_runs` | commands/ | sanity | Verify --check-deps reports aligned dependency versions |
 | MAIN_FVT_CLI_V012 | `test_skip_catalog_accepted` | commands/ | deploy, functional | Verify --setup-venv --skip-catalog --deps-only is accepted |
 | MAIN_FVT_CLI_V013 | `test_skip_omnia_cli_in_help` | commands/ | sanity | Verify --skip-omnia-cli flag appears in help output |
 | MAIN_FVT_CLI_V014 | `test_skip_omnia_cli_accepted` | commands/ | deploy, functional | Verify --setup-venv --skip-omnia-cli --deps-only is accepted |
@@ -148,6 +148,7 @@ The Omnia production venv remains owned by `omnia.sh --setup-venv`.
 | MAIN_FVT_CLI_V032 | `test_prepare_base_dry_run_skip_multiple` | prepare_base/ | sanity | Verify --prepare-base --dry-run --skip with 2 domains leaves only one |
 | MAIN_FVT_CLI_V033 | `test_generic_tags_in_help` | tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
 | MAIN_FVT_CLI_V034 | `test_execution_order_in_help` | tags/ | sanity | Verify execution order in help text |
+| MAIN_FVT_CLI_V035 | `test_list_catalogs_versioned_tree` | commands/ | sanity | Execute `--list-catalogs` and verify default, RHEL 10.0, RHEL 10.2, and hybrid selectors are discovered from the nested catalog tree |
 
 ---
 

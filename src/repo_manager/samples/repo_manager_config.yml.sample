@@ -12,62 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+---
 # =============================================================================
-# REPO MANAGER CONFIGURATION SAMPLE
+# SAMPLE: repo_manager_config.yml -- Repo Manager input
 # =============================================================================
-# This is a sample configuration file for repo_manager.
-# Copy this file to your input directory and modify according to your needs.
+#
+# The catalog selects the OS versions and architectures. Define repository
+# settings only for contexts referenced by that catalog. Empty BaseOS and
+# AppStream entries use the host's RHEL subscription; provide URLs when the
+# host is not entitled.
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# BASIC CONFIGURATION
-# -----------------------------------------------------------------------------
-cluster_os_type: "rhel"
-cluster_os_version: "10.0"
+repo_config: "partial"
+caching_policy: true
 
-# -----------------------------------------------------------------------------
-# REPOSITORY CONFIGURATION
-# -----------------------------------------------------------------------------
+# Public registries do not require entries. Add only private registries or
+# public registries that require custom authentication or TLS configuration.
+registries: null
+
 repositories:
-  x86_64_rhel_10.0_epel:
-    name: "x86_64_rhel_10.0_epel"
-    baseurl: "https://download.fedoraproject.org/pub/epel/10/Everything/x86_64/"
-    enabled: true
-    gpgcheck: false
+  "10.0":
+    x86_64:
+      baseos: {}
+      appstream: {}
+      codeready-builder: {}
+      additional_repos:
+        monitoring:
+          url: "https://packages.example.com/rhel/10.0/x86_64/"
+          gpgkey: "https://packages.example.com/keys/RPM-GPG-KEY-example"
+          policy: "partial"
+          caching: true
+          priority: 99
 
-  x86_64_rhel_10.0_appstream:
-    name: "x86_64_rhel_10.0_appstream"
-    baseurl: "https://cdn.redhat.com/content/dist/rhel10/10/x86_64/appstream/os"
-    enabled: true
-    gpgcheck: true
-
-# -----------------------------------------------------------------------------
-# CUSTOM REPOSITORY URLS (OPTIONAL)
-# -----------------------------------------------------------------------------
-# Add custom repository URLs for specific architectures
-# user_repo_url_x86_64:
-#   - name: "custom_repo_x86_64"
-#     baseurl: "https://your-custom-repo.com/x86_64/"
-#     enabled: true
-#     gpgcheck: false
-
-# user_repo_url_aarch64:
-#   - name: "custom_repo_aarch64"
-#     baseurl: "https://your-custom-repo.com/aarch64/"
-#     enabled: true
-#     gpgcheck: false
-
-# -----------------------------------------------------------------------------
-# ADDITIONAL REPOSITORIES (OPTIONAL)
-# -----------------------------------------------------------------------------
-# additional_repos_x86_64:
-#   - name: "additional_repo_x86_64"
-#     baseurl: "https://additional-repo.com/x86_64/"
-#     enabled: true
-#     gpgcheck: false
-
-# additional_repos_aarch64:
-#   - name: "additional_repo_aarch64"
-#     baseurl: "https://additional-repo.com/aarch64/"
-#     enabled: true
-#     gpgcheck: false
+  "10.2":
+    x86_64:
+      baseos: {}
+      appstream: {}
+      codeready-builder: {}
+      additional_repos:
+        monitoring:
+          url: "https://packages.example.com/rhel/10.2/x86_64/"
+          gpgkey: "https://packages.example.com/keys/RPM-GPG-KEY-example"
+          policy: "partial"
+          caching: true
+          priority: 99

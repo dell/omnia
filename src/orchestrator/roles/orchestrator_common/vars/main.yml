@@ -21,3 +21,10 @@ mapping_file_process_fail_msg: >-
 mapping_file_write_fail_msg: >-
   Failed to write normalized mapping file to {{ normalized_pxe_mapping_path }}.
   Check the destination path, permissions, and available disk space.
+# Centralized failure messages
+s3_config_fail_msg: >-
+  image_build_manager build_status.yml does not contain a usable
+  s3_configurations.endpoint_url. Regenerate the build output before
+  running orchestrator.
+networks_list_fail_msg: "network_spec.yml must define Networks as a non-empty list."
+network_entry_fail_msg: "Every Networks entry must be a mapping."

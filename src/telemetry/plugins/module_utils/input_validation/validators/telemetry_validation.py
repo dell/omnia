@@ -165,7 +165,7 @@ def _check_remote_directory(host, mount_path):
 
 def validate_telemetry_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
+) -> list:
     """
     Validates the telemetry configuration from telemetry_config.yml.
 
@@ -235,7 +235,7 @@ def validate_telemetry_config(
         else:
             # File exists and is a valid file - validation passed
             # Note: cluster_inventory can be an absolute path anywhere on the system
-            # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
+            # (e.g., $OMNIA_DATA_PATH/orchestrator/orchestrator.yml) - no directory restriction
             logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
     else:
         # Empty cluster_inventory is allowed — playbook resolves default from
@@ -369,36 +369,60 @@ def validate_telemetry_config(
     bmc_group_data_path = idrac_configurations.get("bmc_group_data_path", "")
 
     if idrac_telemetry_support:
+        # Resolve default path if bmc_group_data_path is empty
+        # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv
         if not isinstance(bmc_group_data_path, str) or not bmc_group_data_path.strip():
-            errors.append(create_error_msg(
-                "idrac_telemetry_configurations.bmc_group_data_path",
-                bmc_group_data_path,
-                "bmc_group_data_path is required when "
-                "telemetry_sources.idrac.metrics_enabled is true. Provide the path "
-                "to an existing bmc_group_data.csv file."
-            ))
-            logger.error(
-                "bmc_group_data_path is empty while iDRAC telemetry is enabled"
+            # Use default path from orchestrator output
+            omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+            project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+            configured_bmc_path = f"{omnia_data_path}/orchestrator/output/{project_name}/bmc_group_data.csv"
+            logger.info(
+                "bmc_group_data_path is empty, using default: %s", configured_bmc_path
             )
         else:
             configured_bmc_path = bmc_group_data_path.strip()
-            if os.path.isabs(configured_bmc_path):
-                resolved_bmc_path = configured_bmc_path
-            else:
-                resolved_bmc_path = os.path.join(
-                    os.path.dirname(input_file_path), configured_bmc_path
-                )
 
-            if not os.path.isfile(resolved_bmc_path):
-                errors.append(create_error_msg(
-                    "idrac_telemetry_configurations.bmc_group_data_path",
-                    bmc_group_data_path,
-                    f"BMC group data file not found at: {resolved_bmc_path}. "
-                    "Provide the path to an existing bmc_group_data.csv file."
-                ))
-                logger.error(
-                    "bmc_group_data_path does not reference an existing file: %s",
-                    resolved_bmc_path,
+        # Resolve relative paths from the directory containing telemetry_config.yml
+        if os.path.isabs(configured_bmc_path):
+            resolved_bmc_path = configured_bmc_path
+        else:
+            resolved_bmc_path = os.path.join(
+                os.path.dirname(input_file_path), configured_bmc_path
+            )
+
+        if not os.path.isfile(resolved_bmc_path):
+            error_detail = (
+                f"BMC group data file not found at: {resolved_bmc_path}\n\n"
+                f"Solution:\n"
+                f"1. Run the orchestrator to generate bmc_group_data.csv:\n"
+                f"   ansible-playbook orchestrator.yml --tags execute\n"
+                f"   This will create the file at the default location:\n"
+                f"   $OMNIA_DATA_PATH/orchestrator/output/project_default/bmc_group_data.csv\n\n"
+                f"2. OR provide the correct path in telemetry_config.yml:\n"
+                f"   idrac_telemetry_configurations:\n"
+                f"     bmc_group_data_path: \"/path/to/your/bmc_group_data.csv\"\n\n"
+                f"3. OR set OMNIA_DATA_PATH and OMNIA_PROJECT_NAME environment variables:\n"
+                f"   Then ensure the orchestrator has generated the file at:\n"
+                f"   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/bmc_group_data.csv"
+            )
+            errors.append(create_error_msg(
+                "idrac_telemetry_configurations.bmc_group_data_path",
+                bmc_group_data_path if bmc_group_data_path.strip() else "(default)",
+                error_detail
+            ))
+            logger.error(
+                "bmc_group_data_path does not reference an existing file: %s\n%s",
+                resolved_bmc_path,
+                error_detail,
+            )
+        else:
+            # Log when using default path
+            if not bmc_group_data_path.strip():
+                logger.warning(
+                    "⚠️  bmc_group_data_path is empty in telemetry_config.yml\n"
+                    "Using default path: %s\n"
+                    "Proceeding with deployment...",
+                    resolved_bmc_path
                 )
             else:
                 logger.info(
@@ -969,7 +993,7 @@ def validate_telemetry_config(
 
 def validate_telemetry_storage_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
+) -> list:
     """
     Validates the telemetry storage configuration from telemetry_storage_config.yml.
 
@@ -1146,7 +1170,7 @@ def validate_telemetry_storage_config(
 
 def validate_telemetry_packages(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
+) -> list:
     """
     Validates the telemetry packages configuration from telemetry_packages.yml.
 
@@ -1244,7 +1268,7 @@ def validate_telemetry_packages(
                     safe_data_path = _validated_data_path(omnia_data_path)
                     if not safe_data_path:
                         logger.warning(
-                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using /opt/omnia",
+                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using the default data path",
                             omnia_data_path,
                         )
                         safe_data_path = "/opt/omnia"
@@ -1459,8 +1483,8 @@ def validate_telemetry_packages(
         else:
             logger.info(
                 "repo_url is empty in offline mode — will auto-derive from "
-                "SYSTEM_ADMIN_NIC_IPV4 at runtime: "
-                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+                "SYSTEM_ADMIN_NIC_IPV4 and cluster OS version at runtime: "
+                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/<os_version>"
             )
 
     # =========================================================================
@@ -1489,3 +1513,41 @@ def validate_telemetry_packages(
                         logger.info(f"helm_charts.{chart_name}.online_url validation PASSED")
 
     return errors
+
+
+def validate(
+    input_file_path,
+    data,
+    logger,
+    module,
+    omnia_base_dir,
+    module_utils_base,
+    project_name,
+) -> list:
+    """
+    Dispatch L2 validation to the validator matching the telemetry input file.
+
+    Args:
+        input_file_path (str): Path to the telemetry input file.
+        data (dict): Parsed YAML content of the input file.
+        logger (Logger): Logger instance.
+        module (AnsibleModule): Ansible module object.
+        omnia_base_dir (str): Base directory of Omnia.
+        module_utils_base (str): Base directory of module_utils.
+        project_name (str): Name of the project.
+
+    Returns:
+        list: Validation errors (empty if valid or the file is unsupported).
+    """
+    validators = {
+        "telemetry_config.yml": validate_telemetry_config,
+        "telemetry_storage_config.yml": validate_telemetry_storage_config,
+        "telemetry_packages.yml": validate_telemetry_packages,
+    }
+    validator = validators.get(input_file_path.split("/")[-1])
+    if validator is None:
+        logger.error("Unsupported telemetry input file: %s", input_file_path)
+        return []
+    return validator(
+        input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+    )

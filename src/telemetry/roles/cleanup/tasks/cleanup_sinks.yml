@@ -13,6 +13,152 @@
 # limitations under the License.
 ---
 
+# =============================================================================
+# Sink Cleanup — Full or Selective with Dependency Checking
+# =============================================================================
+#
+# Two entry paths:
+#   1. Full cleanup (--tags cleanup):
+#      Sources are drained first; all sinks are cleaned unconditionally.
+#   2. Selective cleanup (--tags cleanup_sinks [-e sinks=...]):
+#      Dependency checks run first. If ANY requested sink is blocked by a
+#      running source, the ENTIRE selective cleanup is aborted — no sink
+#      is cleaned. Blocked sinks and their blocking sources are reported.
+#
+# Supported sinks: kafka, victoria_metrics, victoria_logs
+# Default (no -e sinks): all three sinks
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Resolve effective sinks list
+# ---------------------------------------------------------------------------
+- name: Resolve effective sinks list
+  vars:
+    _is_full: "{{ hostvars['localhost']['_cleanup_all'] | bool }}"
+    _is_selective: "{{ hostvars['localhost']['_cleanup_sinks'] | default(false) | bool }}"
+    _requested: "{{ hostvars['localhost']['_cleanup_sinks_requested'] | default([]) }}"
+  ansible.builtin.set_fact:
+    _cleanup_effective_sinks: >-
+      {%- if _is_full | bool -%}
+        {{ ['kafka', 'victoria_metrics', 'victoria_logs'] }}
+      {%- elif _is_selective | bool and _requested | length > 0 -%}
+        {{ _requested }}
+      {%- else -%}
+        []
+      {%- endif -%}
+  delegate_to: localhost
+  delegate_facts: true
+
+# ---------------------------------------------------------------------------
+# Dependency checking (selective cleanup_sinks only)
+# ---------------------------------------------------------------------------
+- name: Check sink dependencies before selective cleanup
+  ansible.builtin.include_tasks: check_sink_dependencies.yml
+  when:
+    - hostvars['localhost']['_cleanup_sinks'] | default(false) | bool
+    - not (hostvars['localhost']['_cleanup_all'] | bool)
+
+- name: Initialize dependency flags for full cleanup
+  ansible.builtin.set_fact:
+    _kafka_cleanup_blocked: false
+    _kafka_blocking_sources: []
+    _vm_cleanup_blocked: false
+    _vm_blocking_sources: []
+    _vl_cleanup_blocked: false
+    _vl_blocking_sources: []
+    _sink_dependency_check_failed: false
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+# ---------------------------------------------------------------------------
+# Selective cleanup gate: abort ALL sink cleanup if ANY requested sink is
+# blocked by a running source. This prevents partial cleanup that would
+# leave the system in an inconsistent state.
+# ---------------------------------------------------------------------------
+- name: Determine if any requested sink is blocked (selective only)
+  vars:
+    _any_blocked: >-
+      {{
+        (('kafka' in hostvars['localhost']['_cleanup_effective_sinks'])
+          and (hostvars['localhost']['_kafka_cleanup_blocked'] | default(false) | bool))
+        or (('victoria_metrics' in hostvars['localhost']['_cleanup_effective_sinks'])
+          and (hostvars['localhost']['_vm_cleanup_blocked'] | default(false) | bool))
+        or (('victoria_logs' in hostvars['localhost']['_cleanup_effective_sinks'])
+          and (hostvars['localhost']['_vl_cleanup_blocked'] | default(false) | bool))
+      }}
+  ansible.builtin.set_fact:
+    _cleanup_sinks_any_blocked: "{{ _any_blocked }}"
+  delegate_to: localhost
+  delegate_facts: true
+  when:
+    - hostvars['localhost']['_cleanup_sinks'] | default(false) | bool
+    - not (hostvars['localhost']['_cleanup_all'] | bool)
+
+- name: Initialize selective block flag for full cleanup
+  ansible.builtin.set_fact:
+    _cleanup_sinks_any_blocked: false
+  delegate_to: localhost
+  delegate_facts: true
+  when: hostvars['localhost']['_cleanup_all'] | bool
+
+# Mark ALL requested sinks as blocked when any is blocked (selective only)
+- name: Mark all requested sinks as blocked
+  ansible.builtin.set_fact:
+    _cleanup_component_results: >-
+      {%- set _results = hostvars['localhost']['_cleanup_component_results'] -%}
+      {%- set _eff = hostvars['localhost']['_cleanup_effective_sinks'] -%}
+      {%- set _blocked = {} -%}
+      {%- for sink in _eff -%}
+        {%- set _ = _blocked.update({sink: 'blocked'}) -%}
+      {%- endfor -%}
+      {{ _results | combine(_blocked) }}
+  delegate_to: localhost
+  delegate_facts: true
+  when:
+    - hostvars['localhost']['_cleanup_sinks'] | default(false) | bool
+    - not (hostvars['localhost']['_cleanup_all'] | bool)
+    - hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool
+
+- name: Display blocked sinks warning and abort selective cleanup
+  vars:
+    _blocked_report: >-
+      {{
+        ([]
+         + ([{'sink': 'Kafka', 'sources': hostvars['localhost']['_kafka_blocking_sources']}]
+            if ('kafka' in hostvars['localhost']['_cleanup_effective_sinks'])
+               and (hostvars['localhost']['_kafka_cleanup_blocked'] | default(false) | bool)
+            else [])
+         + ([{'sink': 'VictoriaMetrics', 'sources': hostvars['localhost']['_vm_blocking_sources']}]
+            if ('victoria_metrics' in hostvars['localhost']['_cleanup_effective_sinks'])
+               and (hostvars['localhost']['_vm_cleanup_blocked'] | default(false) | bool)
+            else [])
+         + ([{'sink': 'VictoriaLogs', 'sources': hostvars['localhost']['_vl_blocking_sources']}]
+            if ('victoria_logs' in hostvars['localhost']['_cleanup_effective_sinks'])
+               and (hostvars['localhost']['_vl_cleanup_blocked'] | default(false) | bool)
+            else [])
+        )
+      }}
+  ansible.builtin.debug:
+    msg: >-
+      ======================================================
+      Sink Cleanup — ABORTED
+      ======================================================
+      {{ _blocked_report | length }} sink(s) blocked by running sources:
+      {% for b in _blocked_report -%}
+      {{ b.sink }}: {{ b.sources | join(', ') }}
+      {% endfor -%}
+      No sinks were cleaned. Stop or clean up the listed source(s)
+      before retrying.
+      ======================================================
+  when:
+    - hostvars['localhost']['_cleanup_sinks'] | default(false) | bool
+    - not (hostvars['localhost']['_cleanup_all'] | bool)
+    - hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool
+
+# =============================================================================
+# Kafka Cleanup
+# =============================================================================
 - name: Mark Kafka cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: kafka
@@ -23,11 +169,15 @@
       }}
   delegate_to: localhost
   delegate_facts: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'kafka' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
-- name: Cleanup Kafka (full cleanup only)
+- name: Cleanup Kafka
   ansible.builtin.include_tasks: kafka.yml
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'kafka' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
 - name: Mark Kafka cleanup as cleaned
   ansible.builtin.set_fact:
@@ -39,8 +189,13 @@
       }}
   delegate_to: localhost
   delegate_facts: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'kafka' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
+# =============================================================================
+# VictoriaMetrics Cleanup
+# =============================================================================
 - name: Mark VictoriaMetrics cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: victoria_metrics
@@ -51,13 +206,21 @@
       }}
   delegate_to: localhost
   delegate_facts: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'victoria_metrics' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
-- name: Cleanup VictoriaMetrics (full cleanup only)
+- name: Cleanup VictoriaMetrics
   ansible.builtin.include_tasks: victoria_metrics.yml
   vars:
-    _cleanup_defer_victoria_operator: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+    # Defer operator cleanup when both VM and VL are being cleaned (full cleanup)
+    # or when VL is also being cleaned in this selective run — the operator check
+    # inside victoria_metrics.yml will handle the shared operator correctly.
+    _cleanup_defer_victoria_operator: >-
+      {{ 'victoria_logs' in hostvars['localhost']['_cleanup_effective_sinks'] }}
+  when:
+    - "'victoria_metrics' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
 - name: Mark VictoriaMetrics cleanup as cleaned
   ansible.builtin.set_fact:
@@ -69,8 +232,13 @@
       }}
   delegate_to: localhost
   delegate_facts: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'victoria_metrics' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
+# =============================================================================
+# VictoriaLogs Cleanup
+# =============================================================================
 - name: Mark VictoriaLogs cleanup as attempted
   ansible.builtin.set_fact:
     _cleanup_active_component: victoria_logs
@@ -81,11 +249,15 @@
       }}
   delegate_to: localhost
   delegate_facts: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'victoria_logs' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
-- name: Cleanup VictoriaLogs (full cleanup only)
+- name: Cleanup VictoriaLogs
   ansible.builtin.include_tasks: victoria_logs.yml
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'victoria_logs' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)
 
 - name: Mark VictoriaLogs cleanup as cleaned
   ansible.builtin.set_fact:
@@ -97,4 +269,6 @@
       }}
   delegate_to: localhost
   delegate_facts: true
-  when: hostvars['localhost']['_cleanup_all'] | bool
+  when:
+    - "'victoria_logs' in hostvars['localhost']['_cleanup_effective_sinks']"
+    - not (hostvars['localhost']['_cleanup_sinks_any_blocked'] | default(false) | bool)

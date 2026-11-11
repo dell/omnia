@@ -48,6 +48,11 @@
   connection: local
   gather_facts: true
   tasks:
+    - name: Install SELinux policy module for container runtime
+      ansible.builtin.include_role:
+        name: build_os_images
+        tasks_from: preflight_selinux_check.yml
+
     - name: Deploy MinIO S3 storage
       ansible.builtin.include_role:
         name: deploy_minio
@@ -55,8 +60,3 @@
     - name: Deploy local container registry
       ansible.builtin.include_role:
         name: deploy_registry
-
-    - name: Install SELinux policy module for container runtime
-      ansible.builtin.include_role:
-        name: build_os_images
-        tasks_from: preflight_selinux_check.yml

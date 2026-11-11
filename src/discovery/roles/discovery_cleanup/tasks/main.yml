@@ -25,6 +25,10 @@
     discovery_cleanup_remove_output: >-
       {{ discovery_cleanup_selected_tags | length == 0 or
          'cleanup' in discovery_cleanup_selected_tags }}
+    discovery_cleanup_remove_logs: >-
+      {{ (discovery_cleanup_selected_tags | length == 0 or
+          'cleanup' in discovery_cleanup_selected_tags) and
+         cleanup_logs | bool }}
     discovery_cleanup_remove_credentials: >-
       {{ 'cleanup_credentials' in discovery_cleanup_selected_tags or
          cleanup_credentials | bool }}
@@ -32,6 +36,10 @@
 - name: Remove Discovery project outputs
   ansible.builtin.include_tasks: cleanup_output.yml
   when: discovery_cleanup_remove_output | bool
+
+- name: Remove Discovery project logs
+  ansible.builtin.include_tasks: cleanup_logs.yml
+  when: discovery_cleanup_remove_logs | bool
 
 - name: Remove Discovery credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
@@ -51,6 +59,12 @@
         else discovery_cleanup_output_check_mode_msg
         if ansible_check_mode
         else discovery_cleanup_output_removed_msg }}
+      - >-
+        Runtime logs: {{ discovery_cleanup_logs_preserved_msg
+        if not (discovery_cleanup_remove_logs | bool)
+        else discovery_cleanup_logs_check_mode_msg
+        if ansible_check_mode
+        else discovery_cleanup_logs_removed_msg }}
       - >-
         Credentials: {{ discovery_cleanup_credentials_check_mode_msg
         if ansible_check_mode and discovery_cleanup_remove_credentials | bool

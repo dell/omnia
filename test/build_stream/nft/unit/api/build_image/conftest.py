@@ -162,18 +162,10 @@ def job_with_completed_parse_catalog(client, auth_headers, created_job, monkeypa
                 attempt=1
             )
             return stage
-        if stage_name.value == StageType.BUILD_IMAGE_X86_64.value:
+        if stage_name.value == StageType.BUILD_IMAGE.value:
             stage = Stage(
                 job_id=JobId(job_id_str),
-                stage_name=StageName(StageType.BUILD_IMAGE_X86_64.value),
-                stage_state=StageState.PENDING,
-                attempt=1
-            )
-            return stage
-        if stage_name.value == StageType.BUILD_IMAGE_AARCH64.value:
-            stage = Stage(
-                job_id=JobId(job_id_str),
-                stage_name=StageName(StageType.BUILD_IMAGE_AARCH64.value),
+                stage_name=StageName(StageType.BUILD_IMAGE.value),
                 stage_state=StageState.PENDING,
                 attempt=1
             )

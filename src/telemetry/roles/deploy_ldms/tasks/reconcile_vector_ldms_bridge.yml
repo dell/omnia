@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Reconcile Vector-LDMS bridge state
+# =============================================================================
+# telemetry_bridges.vector_ldms.metrics_enabled is an independent on/off
+# switch within an enabled LDMS deployment: LDMS can stay enabled (samplers
+# and aggregator running) while the Vector-LDMS bridge is individually
+# disabled. disable.yml only handles the LDMS-source-level on/off switch, so
+# this bridge-level switch must be reconciled here, every time enable.yml
+# runs:
+#   - bridge enabled  -> deploy/update it (deploy_vector_ldms.yml)
+#   - bridge disabled -> scale any existing deployment to 0 replicas
+# Called from enable.yml, after the LDMS aggregator/store are deployed.
+# =============================================================================
+
+- name: Generate Vector-LDMS manifests
+  ansible.builtin.include_tasks: generate_vector_ldms_manifests.yml
+  when:
+    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
+    - victoria_metrics_support | default(false) | bool
+
+- name: Deploy Vector-LDMS bridge
+  ansible.builtin.include_tasks: deploy_vector_ldms.yml
+  when:
+    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
+    - victoria_metrics_support | default(false) | bool
+
+- name: Scale down Vector-LDMS bridge when individually disabled
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }} --replicas=0
+  register: scale_down_vector_result
+  changed_when: "'scaled' in scale_down_vector_result.stdout"
+  failed_when: false
+  when: not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool)

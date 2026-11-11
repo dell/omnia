@@ -2,7 +2,7 @@
 
 ## Description
 
-Domain setup role for Build Stream — resolves input/output directories, loads OIM metadata, and guards against upgrades
+Domain setup role for Build Stream — resolves input/output directories and loads OIM metadata
 
 ## Requirements
 

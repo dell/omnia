@@ -54,19 +54,20 @@
   changed_when: false
   failed_when: false
 
-- name: Regenerate certificate
+- name: Renew certificate when OpenCHAMI authentication fails
   when:
     - smd_status_result.rc != 0
+    - "'openchami-cert-renewal.service' in ansible_facts.services"
   block:
-    - name: Restart acme-deploy service
+    - name: Run packaged OpenCHAMI certificate renewal service
       block:
-        - name: Restart acme-deploy service
+        - name: Run packaged OpenCHAMI certificate renewal service
           ansible.builtin.systemd_service:
-            name: acme-deploy
-            state: restarted
-          failed_when: false
+            name: openchami-cert-renewal.service
+            state: started
+            daemon_reload: true
       rescue:
-        - name: Failed to restart acme-deploy service
+        - name: Fail when OpenCHAMI certificate renewal fails
           ansible.builtin.fail:
             msg: "{{ cert_restart_fail_msg }}"
 

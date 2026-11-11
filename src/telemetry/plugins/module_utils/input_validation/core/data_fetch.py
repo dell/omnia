@@ -26,7 +26,7 @@ from ansible.module_utils.input_validation.core import config
 
 
 # Function to get all files of a specific type recursively from a directory
-def files_recursively(directory, file_type):
+def files_recursively(directory, file_type) -> list:
     """
     Returns a list of absolute file paths of all files
         of a specific type recursively from a directory.
@@ -45,7 +45,7 @@ def files_recursively(directory, file_type):
     return file_list
 
 
-def file_name_from_path(file_path):
+def file_name_from_path(file_path) -> str:
     """
     Get the file name from a given file path.
     Args:
@@ -56,7 +56,7 @@ def file_name_from_path(file_path):
     return os.path.basename(file_path)
 
 
-def json_line_number(file_path, json_path, module):
+def json_line_number(file_path, json_path, module) -> tuple:
     """
     Get the line number of a specific json_path in a file.
 
@@ -85,7 +85,7 @@ def json_line_number(file_path, json_path, module):
 
 
 # Function to get the line number of a specific yaml_path in a file
-def yml_line_number(file_path, yml_path, omnia_base_dir, project_name):
+def yml_line_number(file_path, yml_path, omnia_base_dir, project_name) -> tuple:
     """
     Get the line number of a specific YAML path in a file.
 
@@ -125,7 +125,7 @@ def yml_line_number(file_path, yml_path, omnia_base_dir, project_name):
 
 
 # Function to load input data from a file based on its extension
-def input_data(input_file_path, omnia_base_dir, project_name, logger, module):
+def input_data(input_file_path, omnia_base_dir, project_name, logger, module) -> tuple:
     """
     Loads input data from a file based on its extension.
 

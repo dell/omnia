@@ -170,7 +170,12 @@ LOG_BUNDLE_PATTERN = r"omnia_logs_\d{8}T\d{6}\.tar\.gz"
 # Metadata file name
 METADATA_FILE = "metadata.json"
 
-# Functional groups for log collection
+# Functional groups for log collection — representative legacy/base names,
+# used for human-readable messages. Actual validation uses
+# FUNCTIONAL_GROUP_NAME_PATTERN below, since Omnia's PXE-mapping naming
+# convention optionally inserts an OS name and version between the role and
+# the architecture (e.g. "slurm_node_rhel_10_0_aarch64"), and the set of OS
+# names/versions is not fixed.
 FUNCTIONAL_GROUPS = [
     "service_kube_control_plane_x86_64",
     "service_kube_node_x86_64",
@@ -178,8 +183,42 @@ FUNCTIONAL_GROUPS = [
     "slurm_node_x86_64",
     "slurm_node_aarch64",
     "login_node_x86_64",
+    "login_compiler_node_x86_64",
     "login_compiler_node_aarch64",
 ]
+
+# Roles supported for log collection, matched independently of OS name/version.
+FUNCTIONAL_GROUP_ROLES = (
+    "service_kube_control_plane_first",
+    "service_kube_control_plane",
+    "service_kube_node",
+    "slurm_control_node",
+    "slurm_node",
+    "login_node",
+    "login_compiler_node",
+)
+
+# Matches "<role>_<arch>" and Omnia's PXE-mapping convention of
+# "<role>_<os>_<version segments>_<arch>" (e.g. "slurm_node_rhel_10_0_aarch64").
+FUNCTIONAL_GROUP_NAME_PATTERN = re.compile(
+    r"^(?:" + "|".join(FUNCTIONAL_GROUP_ROLES) + r")"
+    r"(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?"
+    r"_(?:x86_64|aarch64)$"
+)
+
+# Same OS/version-agnostic matching, scoped to the K8s and Slurm/login role
+# subsets respectively (used to detect which collect_pxe.yml sections are
+# populated without hardcoding a single arch/OS variant).
+K8S_FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r"^(?:service_kube_control_plane_first|service_kube_control_plane|service_kube_node)"
+    r"(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?"
+    r"_(?:x86_64|aarch64)$"
+)
+SLURM_FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r"^(?:slurm_control_node|slurm_node|login_node|login_compiler_node)"
+    r"(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?"
+    r"_(?:x86_64|aarch64)$"
+)
 
 # Install OS constants
 INSTALL_OS_OUTPUT_DIR = "/opt/omnia/utils/output"

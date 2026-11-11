@@ -12,86 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# =============================================================================
-# Test Run Configuration — Orchestrator
-# =============================================================================
-#
-# Configure which test categories to run, execution order, and marker filters.
-#
-# Usage:
-#   1. Edit this file to enable/disable scenarios and set markers
-#   2. Run: ./run_validation.sh --config
-#
-# -----------------------------------------------------------------------------
-# Category Structure
-# -----------------------------------------------------------------------------
-# Top-level categories match the run_validation.sh first argument:
-#
-#   fvt_orchestrator  — Functional Verification Tests (playbook tags)
-#   nft_orchestrator  — Performance, idempotency, and security tests
-#   ut_orchestrator   — Deterministic framework/source-contract tests
-#
-# FVT scenarios (nested under fvt_orchestrator):
-#   Each scenario maps to an Ansible playbook tag.  Fields:
-#     run:          true/false    - Whether to execute this scenario
-#     command:      <string>      - exec, verify, or test (default: test)
-#                                   exec   = Run the playbook only
-#                                   verify = Run verification tests only
-#                                   test   = Exec + Verify (full flow)
-#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
-#     marker:       <expression>  - Marker filter expression (empty = all)
-#     dataset:      <name>        - Override dataset from test_config.yml
-#                                   Must be a valid folder under datasets/
-#     sync_input:   true/false    - Override sync_orchestrator_input
-#     sync_output:  true/false    - Override sync_repo_manager_output
-#     sync_image_output: true/false - Override image-builder output sync
-#
-# -----------------------------------------------------------------------------
-# Marker Expression Syntax
-# -----------------------------------------------------------------------------
-#   Single:   "sanity"                  — tests with @pytest.mark.sanity
-#   OR:       "sanity,functional"       — tests with EITHER marker
-#   AND:      "sanity+functional"       — tests with BOTH markers
-#   Standard: "functional"              — tests with @pytest.mark.functional
-#
-# Available markers:
-#   Quality:       sanity, functional, negative, unit
-#   Execution:     deploy, destructive, recovery
-#   Platform:      slurm, kubernetes, gpu, buildstream
-#   Features:      additional_cloud_init, hpc_benchmarks, apptainer, openldap,
-#                  storage, vast, powervault
-#   NFT:           nft, performance, idempotency, security
-#
-# -----------------------------------------------------------------------------
-# Available FVT Suites (subfolders under fvt/<tag>/)
-# -----------------------------------------------------------------------------
-#   prepare:    openchami, openldap
-#   provision:  slurm, kubernetes
-#   check:      status, kubernetes, slurm
-#               The slurm suite also contains additional_cloud_init,
-#               hpc_benchmarks, apptainer, gpu, platform, vast, and powervault.
-#   cleanup:    status
-#
-# =============================================================================
-
+# Batch execution configuration for migrated Orchestrator lifecycle suites.
+# Run with: ./run_validation.sh --config
 ---
-
-# =============================================================================
-# Execution Options
-# =============================================================================
-# skip_on_failure: Stop the current suite on first test failure.
-#                  When false (default), all tests run regardless of failures.
 skip_on_failure: false
 
-# Optional overrides for every enabled FVT scenario.
-# dataset_override: "data_set_01"
-# sync_input_override: true
-# sync_output_override: false
-# sync_image_output_override: false
-
-# =============================================================================
-# FVT — Functional Verification Tests
-# =============================================================================
 fvt_orchestrator:
   precheck:
     run: false
@@ -102,17 +27,6 @@ fvt_orchestrator:
     sync_input: false
     sync_output: false
     sync_image_output: false
-
-  validate:
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity"
-    dataset: ""
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-
   prepare:
     run: false
     command: "test"
@@ -122,32 +36,11 @@ fvt_orchestrator:
     sync_input: false
     sync_output: false
     sync_image_output: false
-
-  deploy:
+  provision:
     run: false
     command: "test"
     suite: ""
     marker: "sanity"
-    dataset: ""
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-
-  provision:
-    run: false
-    command: "exec"
-    suite: "slurm"
-    marker: ""
-    dataset: "slurm_only"
-    sync_input: true
-    sync_output: true
-    sync_image_output: true
-
-  execute:
-    run: false
-    command: "test"
-    suite: ""
-    marker: "sanity,functional"
     dataset: ""
     sync_input: false
     sync_output: false
@@ -157,45 +50,16 @@ fvt_orchestrator:
     run: false
     command: "test"
     suite: ""
-    marker: "destructive"
+    marker: "sanity"
     dataset: ""
     sync_input: false
     sync_output: false
     sync_image_output: false
-
-  check:
-    run: false
-    command: "verify"
-    suite: "slurm"
-    marker: "sanity,functional"
-    dataset: "slurm_only"
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-
+  # Cleanup is destructive and is never included in an implicit all run.
+  # Enable it only after reviewing the cleanup settings in test_config.yml.
   cleanup:
     run: false
     command: "test"
-    suite: ""
-    marker: "destructive"
-    dataset: ""
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-
-  rollback:
-    run: false
-    command: "exec"
-    suite: ""
-    marker: "destructive"
-    dataset: ""
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-
-  playbooks:
-    run: false
-    command: "verify"
     suite: ""
     marker: "sanity"
     dataset: ""
@@ -203,31 +67,12 @@ fvt_orchestrator:
     sync_output: false
     sync_image_output: false
 
-  negative:
-    run: false
-    command: "verify"
-    suite: ""
-    marker: "negative"
-    dataset: ""
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-
-# =============================================================================
-# NFT — Non-Functional Tests
-# =============================================================================
+# NFT is a separate destructive workflow. A complete run executes prepare and
+# provision, verifies repeat execution and security contracts, and finishes
+# with full cleanup. Do not enable it in the same unattended batch as FVT
+# cleanup. An empty marker runs the complete NFT suite; use performance,
+# idempotency, or security only for an explicitly scoped run.
 nft_orchestrator:
   run: false
   command: "test"
-  marker: "nft"
-  dataset: ""
-  sync_input: false
-  sync_output: false
-
-# =============================================================================
-# UT — Deterministic unit and source-contract tests
-# =============================================================================
-ut_orchestrator:
-  run: false
-  command: "test"
-  marker: "unit"
+  marker: ""

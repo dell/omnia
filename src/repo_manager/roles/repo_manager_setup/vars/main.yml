@@ -40,3 +40,11 @@ repo_manager_setup_validate_catalog_file_is_a_regular_file_msg: >-
 
 
 repo_manager_setup_fail_if_any_required_directory_is_missing_msg: "Required directory does not exist: {{ item.item }}"
+
+repo_manager_setup_invalid_repo_manager_config_msg: >-
+  repo_manager_config.yml is invalid or contains prohibited Jinja template
+  syntax. Runtime configuration must contain literal YAML values.
+
+repo_manager_setup_invalid_oim_metadata_msg: >-
+  oim_metadata.yml is invalid or contains prohibited Jinja template syntax.
+  Runtime metadata must contain literal YAML values.

@@ -1,0 +1,281 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Build BMC inventory
+  block:
+    - name: Resolve inventory source path
+      ansible.builtin.set_fact:
+        pxeboot_inventory_source: >-
+          {{ pxeboot_inventory
+             | default(pxe_mapping_file_path, true) }}
+        pxeboot_using_custom_inventory: >-
+          {{ pxeboot_inventory | default('', true) | length > 0 }}
+        cacheable: true
+
+    - name: Initialize per-run PXE status facts
+      ansible.builtin.set_fact:
+        pxe_boot_failed_bmc_ips: []
+        node_registration_failed_bmc_ips: []
+        node_registration_results_by_bmc: {}
+        failed_nodes_list: []
+        all_nodes_status: []
+        target_node_admin_ips: []
+
+    - name: Log custom inventory usage
+      ansible.builtin.debug:
+        msg: "{{ pxe_boot_inventory_custom_inventory_msg }}"
+      when: pxeboot_using_custom_inventory | bool
+
+    - name: Verify inventory CSV exists
+      ansible.builtin.stat:
+        path: "{{ pxeboot_inventory_source }}"
+      register: _mapping_file_stat
+
+    - name: Fail if inventory CSV is missing
+      ansible.builtin.fail:
+        msg: "{{ pxe_boot_inventory_missing_file_msg }}"
+      when: not _mapping_file_stat.stat.exists
+
+    - name: Read inventory CSV by column name
+      community.general.read_csv:
+        path: "{{ pxeboot_inventory_source }}"
+      register: _pxeboot_csv
+
+    - name: Validate inventory contains node records
+      ansible.builtin.assert:
+        that:
+          - _pxeboot_csv.list | default([]) | length > 0
+        fail_msg: "{{ pxe_boot_inventory_empty_file_msg }}"
+        quiet: true
+
+    - name: Validate required inventory columns
+      ansible.builtin.assert:
+        that:
+          - item in (_pxeboot_csv.list[0].keys() | list)
+        fail_msg: "{{ pxe_boot_inventory_missing_column_msg }}"
+        quiet: true
+      loop: "{{ pxe_boot_inventory_required_columns }}"
+
+    - name: Validate PXE inventory node addresses
+      ansible.builtin.assert:
+        that:
+          - item.BMC_IP | default('') | trim | length > 0
+          - item.ADMIN_IP | default('') | trim | length > 0
+          - "'/' not in (item.BMC_IP | trim)"
+          - "'/' not in (item.ADMIN_IP | trim)"
+          - (item.BMC_IP | trim | ansible.utils.ipv4('address')) is not false
+          - (item.ADMIN_IP | trim | ansible.utils.ipv4('address')) is not false
+        fail_msg: "{{ pxe_boot_inventory_invalid_address_msg }}"
+        quiet: true
+      loop: "{{ _pxeboot_csv.list }}"
+      loop_control:
+        label: "{{ item.HOSTNAME | default('unknown host') }}"
+
+    - name: Validate PXE inventory addresses are unique
+      ansible.builtin.assert:
+        that:
+          - (_pxeboot_csv.list | map(attribute='BMC_IP') | map('trim') | list | unique | length) == (_pxeboot_csv.list | length)
+          - (_pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list | unique | length) == (_pxeboot_csv.list | length)
+        fail_msg: "{{ pxe_boot_inventory_duplicate_address_msg }}"
+        quiet: true
+
+    - name: Generate access token for SMD identity lookup
+      ansible.builtin.command: sudo bash -lc 'gen_access_token'
+      register: _pxeboot_identity_token
+      changed_when: false
+      retries: "{{ pxe_boot_inventory_token_retries }}"
+      delay: "{{ pxe_boot_inventory_token_delay }}"
+      until: >-
+        _pxeboot_identity_token.rc == 0
+        and _pxeboot_identity_token.stdout not in ['', 'null']
+      no_log: true
+
+    - name: Resolve PXE identities from SMD Hardware Inventory
+      openchami_reconcile:
+        action: resolve_identities
+        cluster_uri: >-
+          https://{{ oim_node_name }}.{{ domain_name }}:8443
+        access_token: "{{ _pxeboot_identity_token.stdout }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        nodes: "{{ _pxeboot_csv.list }}"
+      check_mode: true
+      register: _pxeboot_identity_result
+      no_log: true
+
+    - name: Require provisioned SMD Service Tag identities for PXE boot
+      ansible.builtin.assert:
+        that:
+          - _pxeboot_identity_result.planned_inventory_xnames | length == 0
+        fail_msg: "{{ pxe_boot_inventory_missing_identity_msg }}"
+        quiet: true
+
+    - name: Initialize effective PXE node selection
+      ansible.builtin.set_fact:
+        pxeboot_effective_nodes: "{{ _pxeboot_identity_result.nodes }}"
+
+    - name: Select pending nodes for standard Orchestrator PXE
+      when:
+        - not (pxeboot_buildstream_active | default(false) | bool)
+        - not (pxeboot_using_custom_inventory | bool)
+        - pxeboot_scope_effective == 'pending'
+      block:
+        - name: Check for aggregate Orchestrator status
+          ansible.builtin.stat:
+            path: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+          register: _pxeboot_selection_status_stat
+
+        - name: Require aggregate status for pending-node selection
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_selection_status_stat.stat.exists
+            fail_msg: "{{ pxe_boot_inventory_missing_status_msg }}"
+            quiet: true
+
+        - name: Load aggregate Orchestrator status for node selection
+          ansible.builtin.slurp:
+            src: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+          register: _pxeboot_selection_status_raw
+
+        - name: Decode aggregate Orchestrator status for node selection
+          ansible.builtin.set_fact:
+            _pxeboot_selection_status: >-
+              {{ _pxeboot_selection_status_raw.content
+                 | b64decode | from_yaml }}
+
+        - name: Validate aggregate Orchestrator status structure
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_selection_status | type_debug == 'dict'
+              - _pxeboot_selection_status.nodes | default([]) | type_debug == 'list'
+            fail_msg: "{{ pxe_boot_inventory_invalid_status_msg }}"
+            quiet: true
+
+        - name: Index aggregate node status by XNAME
+          ansible.builtin.set_fact:
+            _pxeboot_selection_status_by_xname: >-
+              {% set result = {} -%}
+              {% for node in _pxeboot_selection_status.nodes | default([]) -%}
+              {% if node.xname | default('') | length > 0 -%}
+              {% set _ = result.update({node.xname: node}) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ result }}
+
+        - name: Require lifecycle state for every mapped node
+          ansible.builtin.assert:
+            that:
+              - >-
+                (_pxeboot_identity_result.nodes
+                 | map(attribute='XNAME') | list
+                 | difference(_pxeboot_selection_status_by_xname.keys() | list)
+                 | length) == 0
+            fail_msg: "{{ pxe_boot_inventory_missing_lifecycle_msg }}"
+            quiet: true
+
+        - name: Identify pending nodes blocked by incomplete provisioning
+          ansible.builtin.set_fact:
+            _pxeboot_provisioning_blocked_xnames: >-
+              {% set blocked = [] -%}
+              {% for node in _pxeboot_identity_result.nodes -%}
+              {% set state = _pxeboot_selection_status_by_xname[node.XNAME] -%}
+              {% if state.provisioning_status | default('unknown') != 'success' -%}
+              {% set _ = blocked.append(node.XNAME) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ blocked }}
+
+        - name: Fail before Redfish when provisioning is incomplete
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_provisioning_blocked_xnames | length == 0
+            fail_msg: "{{ pxe_boot_inventory_provisioning_incomplete_msg }}"
+            quiet: true
+
+        - name: Reset effective PXE node list for pending selection
+          ansible.builtin.set_fact:
+            pxeboot_effective_nodes: []
+
+        - name: Add reprovision-required nodes to PXE selection
+          ansible.builtin.set_fact:
+            pxeboot_effective_nodes: "{{ pxeboot_effective_nodes + [item] }}"
+          vars:
+            _node_state: >-
+              {{ _pxeboot_selection_status_by_xname[item.XNAME] }}
+          loop: "{{ _pxeboot_identity_result.nodes }}"
+          loop_control:
+            label: "{{ item.XNAME }}"
+          when:
+            - _node_state.reprovision_required | default(false) | bool
+            - _node_state.provisioning_status | default('unknown') == 'success'
+
+        - name: Report pending-node PXE selection
+          ansible.builtin.debug:
+            msg: "{{ pxe_boot_inventory_selection_msg }}"
+
+        - name: Mark PXE workflow complete when no nodes are pending
+          ansible.builtin.set_fact:
+            pxe_boot_skip: true
+            cacheable: true
+          when: pxeboot_effective_nodes | length == 0
+
+        - name: End inventory build when no nodes are pending
+          ansible.builtin.meta: end_play
+          when: pxeboot_effective_nodes | length == 0
+
+    - name: Build BMC host group from named CSV fields
+      ansible.builtin.add_host:
+        hostname: "{{ item.BMC_IP | trim }}"
+        groups: bmc
+        admin_ip: "{{ item.ADMIN_IP | trim }}"
+        xname: "{{ item.XNAME | default('') | trim }}"
+        hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
+        service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
+      loop: "{{ pxeboot_effective_nodes }}"
+      loop_control:
+        label: "{{ item.BMC_IP | trim }}"
+
+    - name: Build parallel node-registration host group
+      ansible.builtin.add_host:
+        hostname: "{{ item.ADMIN_IP | trim }}"
+        groups: node_registration_targets
+        ansible_user: "{{ pxe_boot_inventory_ssh_user }}"
+        ansible_python_interpreter: "{{ pxe_boot_inventory_python }}"
+        ansible_ssh_timeout: "{{ pxe_boot_inventory_ssh_timeout }}"
+        ansible_ssh_retries: "{{ pxe_boot_inventory_ssh_retries }}"
+        bmc_ip: "{{ item.BMC_IP | trim }}"
+        xname: "{{ item.XNAME | default('') | trim }}"
+        hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
+        service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
+      loop: "{{ pxeboot_effective_nodes }}"
+      loop_control:
+        label: "{{ item.ADMIN_IP | trim }}"
+
+    - name: Validate BMC group has hosts
+      ansible.builtin.fail:
+        msg: "{{ pxe_boot_inventory_no_hosts_msg }}"
+      when: ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
+
+    - name: Capture PXE boot start epoch
+      ansible.builtin.set_fact:
+        pxe_start_epoch: "{{ ansible_date_time.epoch }}"
+        cacheable: true
+      when: enable_node_registration | default(true) | bool
+
+    - name: Build target admin IPs for node-registration verification
+      ansible.builtin.set_fact:
+        target_node_admin_ips: >-
+          {{ pxeboot_effective_nodes
+             | map(attribute='ADMIN_IP') | map('trim') | list }}
+        cacheable: true
+      when: enable_node_registration | default(true) | bool

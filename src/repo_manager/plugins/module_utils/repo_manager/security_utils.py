@@ -304,13 +304,15 @@ def normalize_pulp_distribution_url(  # pylint: disable=too-many-branches
 
 def normalize_managed_python_distribution_url(
         base_url, base_path, trusted_origin):
-    """Normalize a Pulp Python URL without trusting its internal authority.
+    """Normalize a Pulp Python URL to the public content endpoint.
 
     ``pulp_python`` can report its container-internal content authority as
     ``https://pulp``.  Accept that one managed service identity only when its
     path exactly matches the distribution's validated ``base_path``.  The
     public scheme and authority still come exclusively from ``trusted_origin``.
     All other absolute authorities continue through the strict generic check.
+    Accept PyPI and content routes for the exact base path, and emit
+    ``/pulp/content/`` consistently for Repo Manager consumers.
     """
     if not isinstance(base_path, str) or not base_path:
         raise ValueError("Pulp Python distribution base path is missing")
@@ -321,7 +323,9 @@ def normalize_managed_python_distribution_url(
     except (TypeError, ValueError) as error:
         raise ValueError("Pulp distribution URL is malformed") from error
 
-    expected_path = f"/pypi/{base_path.strip('/')}"
+    python_path = f"/pypi/{base_path.strip('/')}"
+    content_path = f"/pulp/content/{base_path.strip('/')}"
+    allowed_paths = (python_path, content_path)
     if distribution.scheme and distribution.hostname == "pulp":
         if (
                 distribution.scheme.lower() != "https"
@@ -336,19 +340,19 @@ def normalize_managed_python_distribution_url(
         ):
             raise ValueError("Pulp distribution URL is not permitted")
 
-        if distribution.path.rstrip('/') != expected_path:
+        if distribution.path.rstrip('/') not in allowed_paths:
             raise ValueError("Pulp Python distribution path is not permitted")
         normalized_url = normalize_pulp_distribution_url(
-            f"{expected_path}/", trusted_origin
+            distribution.path, trusted_origin
         )
     else:
         normalized_url = normalize_pulp_distribution_url(
             base_url, trusted_origin
         )
 
-    if urlsplit(normalized_url).path.rstrip('/') != expected_path:
+    if urlsplit(normalized_url).path.rstrip('/') not in allowed_paths:
         raise ValueError("Pulp Python distribution path is not permitted")
-    return normalized_url
+    return normalize_pulp_distribution_url(f"{content_path}/", trusted_origin)
 
 
 def validate_repository_id(repository_id):

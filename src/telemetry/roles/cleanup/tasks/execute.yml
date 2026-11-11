@@ -16,24 +16,24 @@
 - name: Run selected cleanup components
   when: not (hostvars['localhost']['_cleanup_abort'] | bool)
   block:
+    # Source cleanup — internal guards in cleanup_sources.yml check each
+    # source tag (_cleanup_all, _cleanup_idrac, etc.), so it is safe to
+    # include unconditionally.  For cleanup_sinks-only invocations no
+    # source task fires because no source tag is set.
     - name: Run selected source cleanups
       ansible.builtin.include_tasks: cleanup_sources.yml
 
+    # Drain — waits for source pods to terminate before sink cleanup.
+    # Internal guards ensure this only does real work for full cleanup.
     - name: Verify source pods terminated before sink cleanup
       ansible.builtin.include_tasks: drain_sources.yml
 
+    # Sink cleanup — runs for full cleanup AND selective cleanup_sinks
     - name: Run selected sink cleanups
       ansible.builtin.include_tasks: cleanup_sinks.yml
-
-    # - name: Delete all remaining pods in telemetry namespace
-    #   ansible.builtin.command: >
-    #     kubectl delete pods --all -n {{ telemetry_namespace }}
-    #     --grace-period={{ cleanup_resource_grace_period }}
-    #     --ignore-not-found=true
-    #   register: _cleanup_remaining_pods
-    #   changed_when: _cleanup_remaining_pods.stdout | default('') | length > 0
-    #   failed_when: false
-    #   when: hostvars['localhost']['_cleanup_all'] | bool
+      when: >-
+        hostvars['localhost']['_cleanup_all'] | bool
+        or (hostvars['localhost']['_cleanup_sinks'] | default(false) | bool)
 
   rescue:
     - name: Handle component cleanup failure

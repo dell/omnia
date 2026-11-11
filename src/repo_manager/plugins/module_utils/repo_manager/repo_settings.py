@@ -41,15 +41,27 @@ def load_config():
     Load configuration from vars/default.yml.
 
     Returns:
-        dict: Configuration dictionary, empty dict if file not found or invalid.
+        dict: Configuration dictionary.
+
+    Raises:
+        RuntimeError: If the required defaults cannot be loaded safely.
     """
     try:
-        if os.path.exists(CONFIG_FILE_PATH):
-            with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f) or {}
-    except (OSError, UnicodeError, yaml.YAMLError):
-        pass
-    return {}
+        with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as config_file:
+            config = yaml.safe_load(config_file) or {}
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            "Repo Manager defaults configuration is unavailable"
+        ) from error
+    except (OSError, UnicodeError, yaml.YAMLError) as error:
+        raise RuntimeError(
+            "Repo Manager defaults configuration could not be loaded"
+        ) from error
+    if not isinstance(config, dict):
+        raise RuntimeError(
+            "Repo Manager defaults configuration must be a mapping"
+        )
+    return config
 
 # Load configuration
 _config = load_config()
@@ -71,13 +83,18 @@ def get_config_value(config_key, default_value, env_var=None):
     if env_var and env_var in os.environ:
         value = os.environ[env_var]
         # Convert to appropriate type
+        if isinstance(default_value, bool):
+            normalized = value.strip().casefold()
+            if normalized in ('true', '1', 'yes'):
+                return True
+            if normalized in ('false', '0', 'no'):
+                return False
+            raise ValueError(f"{env_var} must be a boolean value")
         if isinstance(default_value, int):
             try:
                 return int(value)
-            except ValueError:
-                pass
-        elif isinstance(default_value, bool):
-            return value.lower() in ('true', '1', 'yes')
+            except ValueError as error:
+                raise ValueError(f"{env_var} must be an integer") from error
         return value
 
     # Try YAML config
@@ -292,7 +309,7 @@ PULP_DISTRIBUTION_ROOT = _normalize_relative_config_path(
     'pulp_content_paths.distribution_root',
 )
 PULP_DISTRIBUTION_ROOT_PARTS = tuple(PULP_DISTRIBUTION_ROOT.split('/'))
-AGGREGATED_REPO_SUFFIX = "repo_manager-additional"
+AGGREGATED_REPO_SUFFIX = "additional"
 AGGREGATED_BASE_PATH_TEMPLATE = (
     f"{PULP_DISTRIBUTION_ROOT}/"
     "{arch}/{os_type}/{os_version}/rpms/{repo_name}"

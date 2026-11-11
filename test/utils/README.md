@@ -171,16 +171,20 @@ os_root_password: "P@ssw0rd"  # OS root password for install_os
    ```yaml
    ---
    # Kubernetes control plane nodes (x86_64)
+   # Both bare form and OS/version form are accepted
    service_kube_control_plane_x86_64:
      - 192.168.1.10
-   
+   service_kube_control_plane_rhel_10_0_x86_64:
+     - 192.168.1.11
+
    # Slurm controller nodes (x86_64)
    slurm_control_node_x86_64:
      - 182.10.0.50
-   
-   # Slurm compute nodes (x86_64)
+
+   # Slurm compute nodes (mixed OS versions)
    slurm_node_x86_64:
      - 192.168.1.40
+   slurm_node_rhel_10_0_aarch64:
      - 192.168.1.41
    ```
 
@@ -500,8 +504,11 @@ mkdir -p datasets/my_dataset/input
 # Create collect_pxe.yml
 cat > datasets/my_dataset/input/collect_pxe.yml << 'EOF'
 ---
+# Both bare form and OS/version form are accepted
 service_kube_control_plane_x86_64:
   - 192.168.1.10
+service_kube_control_plane_rhel_10_0_x86_64:
+  - 192.168.1.11
 
 slurm_control_node_x86_64:
   - 182.10.0.50
@@ -751,14 +758,29 @@ Invalid functional group found: ['invalid_group_name']
 ```
 
 **Solution:**
-Edit `collect_pxe.yml` and use only valid functional groups:
-- `service_kube_control_plane_x86_64`
-- `service_kube_node_x86_64`
-- `slurm_control_node_x86_64`
-- `slurm_node_x86_64`
-- `slurm_node_aarch64`
-- `login_node_x86_64`
-- `login_compiler_node_aarch64`
+Edit `collect_pxe.yml` and use only valid functional groups. The naming convention
+is `<role>_<os>_<version>_<arch>` where the OS/version segment is optional (e.g.
+`slurm_node_rhel_10_0_x86_64` or the legacy bare form `slurm_node_x86_64`).
+
+**Valid roles:**
+- `service_kube_control_plane` (also accepts `service_kube_control_plane_first`)
+- `service_kube_node`
+- `slurm_control_node`
+- `slurm_node`
+- `login_node`
+- `login_compiler_node`
+
+**Valid architectures:**
+- `x86_64`
+- `aarch64`
+
+**Examples (both forms accepted):**
+- `slurm_node_x86_64` (legacy bare form)
+- `slurm_node_rhel_10_0_x86_64` (with OS/version, matches orchestrator's pxe_mapping_file.csv)
+- `login_compiler_node_aarch64` (legacy bare form)
+- `login_compiler_node_rhel_10_0_aarch64` (with OS/version)
+- `service_kube_control_plane_first_x86_64` (primary control plane variant)
+- `service_kube_control_plane_ubuntu_22_04_x86_64` (with OS/version)
 
 #### 4. Playbook Fails with Invalid Input
 

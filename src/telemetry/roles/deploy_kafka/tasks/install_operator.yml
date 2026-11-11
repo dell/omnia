@@ -44,10 +44,30 @@
   changed_when: false
   failed_when: false
 
+# Build Helm image overrides for Strimzi operator and Kafka bridge
+# When container_registry is set, override the default image registry/repository.
+# Strimzi chart composes images as: {registry}/{repository}/{name}:{tag}
+# e.g. quay.io / strimzi / operator : 1.1.0
+# We only override registry and tag; repository ("strimzi") and name ("operator")
+# stay at their chart defaults since the Pulp mirror preserves the same path structure.
+- name: Set Strimzi image overrides for container_registry
+  ansible.builtin.set_fact:
+    _strimzi_helm_args: >
+      {% set _operator_img = telemetry_registry.images.strimzi.operator | default('quay.io/strimzi/operator:1.1.0') %}
+      {% set _op_tag = _operator_img.split(':')[-1] %}
+      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.0.0') %}
+      {% set _br_tag = _bridge_img.split(':')[-1] %}
+      {% if telemetry_registry.host | default('') %}
+      --set defaultImageRegistry={{ telemetry_registry.host }}
+      --set image.tag={{ _op_tag }}
+      --set kafkaBridge.image.tag={{ _br_tag }}
+      {% endif %}
+
 - name: Install Strimzi Kafka operator
   ansible.builtin.command: >
     helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
     {{ strimzi_kafka_pkg }}
+    {{ _strimzi_helm_args }}
   when: strimzi_status.rc != 0
   changed_when: true
 
@@ -55,6 +75,7 @@
   ansible.builtin.command: >
     helm -n {{ telemetry_namespace }} upgrade strimzi-cluster-operator
     {{ strimzi_kafka_pkg }}
+    {{ _strimzi_helm_args }}
   when: strimzi_status.rc == 0
   changed_when: true
 

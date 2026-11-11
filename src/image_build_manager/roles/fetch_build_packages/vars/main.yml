@@ -25,3 +25,10 @@ functional_group_absent_msg: |
   Failure: No {{ build_arch }} functional groups found.
   Config mode: Ensure package_groups.yml has functional groups with _{{ build_arch }} suffix.
   Catalog mode: Ensure the catalog JSON contains functional layers for {{ build_arch }}.
+
+repo_status_version_missing_fail_msg: >-
+  repo_status.yml has no repositories for {{ build_arch }}
+  RHEL {{ item }}. Available versions in repo_status:
+  {{ rhel_arch_repos_by_version | default({}) | list | join(', ') }}.
+pulp_distributions_missing_fail_msg: >-
+  Pulp has no RPM distributions for {{ build_arch }} RHEL {{ item }}.

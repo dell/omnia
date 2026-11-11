@@ -44,6 +44,12 @@ ks_network_device: ""
 ks_timezone: "UTC"
 ks_install_disk: "sda"
 
+# Build metadata (set during ISO build)
+build_id: ""
+build_timestamp: ""
+iso_checksum: ""
+custom_iso_path: ""
+
 # Error messages
 kickstart_file_not_found_msg: >-
   User-provided Kickstart file not found at '{{ kickstart_file }}'.

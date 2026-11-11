@@ -65,9 +65,6 @@ CATALOG_PATH = os.environ.get('CATALOG_FILE_PATH')
 OMNIA_CREDENTIALS_YAML_PATH = os.path.join(PROJECT_DEFAULT_DIR, "repo_manager_config_credentials.yml")
 OMNIA_CREDENTIALS_VAULT_PATH = os.path.join(PROJECT_DEFAULT_DIR, ".repo_manager_config_credentials_key")
 
-# Used by process_metadata.py
-metadata_rerun_file_path = os.path.join(REPO_MANAGER_OFFLINE_REPO_DIR, ".data", "localrepo_rerun_metadata.yml")
-
 __all__ = [
     "REPO_MANAGER_BASE_DIR",
     "OMNIA_DATA_PATH",
@@ -84,5 +81,4 @@ __all__ = [
     "CATALOG_PATH",
     "OMNIA_CREDENTIALS_YAML_PATH",
     "OMNIA_CREDENTIALS_VAULT_PATH",
-    "metadata_rerun_file_path",
 ]

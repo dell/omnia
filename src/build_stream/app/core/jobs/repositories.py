@@ -37,7 +37,6 @@ class JobIdGenerator(Protocol):
         Raises:
             JobIdExhaustionError: If the generator cannot produce more IDs.
         """
-        ...
 
 
 class JobRepository(Protocol):
@@ -52,7 +51,6 @@ class JobRepository(Protocol):
         Raises:
             OptimisticLockError: If version conflict detected.
         """
-        ...
 
     def find_by_id(self, job_id: JobId) -> Optional[Job]:
         """Retrieve a job by its identifier.
@@ -63,7 +61,6 @@ class JobRepository(Protocol):
         Returns:
             Job entity if found, None otherwise.
         """
-        ...
 
     def exists(self, job_id: JobId) -> bool:
         """Check if a job exists.
@@ -74,7 +71,6 @@ class JobRepository(Protocol):
         Returns:
             True if job exists, False otherwise.
         """
-        ...
 
 
 class StageRepository(Protocol):
@@ -89,7 +85,6 @@ class StageRepository(Protocol):
         Raises:
             OptimisticLockError: If version conflict detected.
         """
-        ...
 
     def save_all(self, stages: List[Stage]) -> None:
         """Persist multiple stages atomically.
@@ -100,7 +95,6 @@ class StageRepository(Protocol):
         Raises:
             OptimisticLockError: If version conflict detected.
         """
-        ...
 
     def find_by_job_and_name(
         self,
@@ -116,7 +110,6 @@ class StageRepository(Protocol):
         Returns:
             Stage entity if found, None otherwise.
         """
-        ...
 
     def find_all_by_job(self, job_id: JobId) -> List[Stage]:
         """Retrieve all stages for a job.
@@ -127,7 +120,6 @@ class StageRepository(Protocol):
         Returns:
             List of stage entities (may be empty).
         """
-        ...
 
 
 class IdempotencyRepository(Protocol):
@@ -139,7 +131,6 @@ class IdempotencyRepository(Protocol):
         Args:
             record: Idempotency record to persist.
         """
-        ...
 
     def find_by_key(self, key: IdempotencyKey) -> Optional[IdempotencyRecord]:
         """Retrieve an idempotency record by key.
@@ -150,7 +141,6 @@ class IdempotencyRepository(Protocol):
         Returns:
             IdempotencyRecord if found, None otherwise.
         """
-        ...
 
 
 class AuditEventRepository(Protocol):
@@ -162,7 +152,6 @@ class AuditEventRepository(Protocol):
         Args:
             event: Audit event to persist.
         """
-        ...
 
     def find_by_job(self, job_id: JobId) -> List[AuditEvent]:
         """Retrieve all audit events for a job.
@@ -173,7 +162,6 @@ class AuditEventRepository(Protocol):
         Returns:
             List of audit events (may be empty).
         """
-        ...
 
 
 class UUIDGenerator:
@@ -185,4 +173,3 @@ class UUIDGenerator:
         Returns:
             uuid.UUID: A UUID object (v4 or v7 format).
         """
-        ...

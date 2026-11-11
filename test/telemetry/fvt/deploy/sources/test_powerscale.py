@@ -33,9 +33,12 @@ Test cases (execution order):
     TEL_FVT_DEPLOY_V033: Verify PowerScale metrics in VictoriaMetrics
     TEL_FVT_DEPLOY_V035: Verify/configure PowerScale syslog forwarding (BEFORE log check)
     TEL_FVT_DEPLOY_V034: Verify PowerScale logs in VictoriaLogs (AFTER syslog config)
+    TEL_FVT_DEPLOY_V039: Verify configured-disabled PowerScale metrics state
 """
 
 from datetime import datetime
+import time
+from uuid import uuid4
 
 import pytest
 
@@ -44,6 +47,7 @@ from library.vars.test_case_vars import TEST_CASES as TC
 from library.vars.common_vars import (
     POWERSCALE_DEPLOY_NAME,
     POWERSCALE_OTEL_DEPLOY_NAME,
+    POWERSCALE_CSI_EXPORTER_DEPLOY_NAME,
     POWERSCALE_EXPECTED_METRICS,
     POWERSCALE_KARAVI_METRICS,
     POWERSCALE_SYSLOG_PORT,
@@ -52,17 +56,19 @@ from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
-from library.functions.k8s_func import verify_deploy_pods_detail
-from library.functions.telemetry_func import (
-    is_source_enabled,
-    is_logs_enabled,
-    is_sink_enabled_for_source,
+from library.functions.k8s_func import (
+    verify_deploy_pods_detail,
+    verify_enabled_shared_sinks,
+    verify_workloads_stopped,
 )
 from library.functions.powerscale_func import (
     decode_isilon_creds,
     verify_powerscale_metrics,
     verify_powerscale_logs,
     verify_powerscale_syslog,
+    query_powerscale_test_event,
+    query_powerscale_vm_samples,
+    trigger_powerscale_test_event,
     configure_powerscale_syslog,
     get_vlagent_endpoint,
     verify_powerscale_deployment,
@@ -83,6 +89,12 @@ from library.functions.powerscale_func import (
     verify_csm_otel_data_flow,
     verify_otel_vm_export,
     verify_cert_manager_tls_certs,
+)
+from library.functions.telemetry_func import (
+    is_source_enabled,
+    is_metrics_enabled,
+    is_logs_enabled,
+    is_sink_enabled_for_source,
 )
 
 
@@ -309,6 +321,9 @@ def test_powerscale_secret_valid(host):
 def test_powerscale_metrics_in_vm(host):
     """Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
+    # Skip if metrics not enabled
+    if not is_metrics_enabled(host, "powerscale"):
+        pytest.skip("PowerScale metrics not enabled in config")
     # Skip if PowerScale does not target VictoriaMetrics sink
     if not is_sink_enabled_for_source(host, "powerscale", "victoria_metrics"):
         pytest.skip("PowerScale source does not target VictoriaMetrics sink")
@@ -616,6 +631,13 @@ def test_powerscale_health_metrics(host):
 
     tl.check("Verifying PowerScale health metrics")
     result = verify_health_metrics(host)
+
+    if result.get("skipped", False):
+        tl.skipped(
+            "CSI volume exporter not deployed",
+            result["skip_reason"],
+        )
+        pytest.skip(result["skip_reason"])
 
     if result["success"]:
         tl.passed(
@@ -1141,3 +1163,162 @@ def test_cert_manager_tls_certs(host):
     assert result["success"], ASSERT_MSGS["cert_manager_tls_failed"].format(
         details=result["details"],
     )
+
+
+# =========================================================================
+# TEL_FVT_DEPLOY_V039: Verify configured-disabled PowerScale metrics state
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.sanity
+@pytest.mark.order(84)
+def test_powerscale_disabled_state(host):
+    """Verify disabled PowerScale metrics workloads and shared sink health."""
+    if is_source_enabled(host, "powerscale"):
+        pytest.skip(
+            "PowerScale metrics source is enabled; disabled-state check is not applicable"
+        )
+
+    tc = TC["powerscale_disabled_state"]
+    tl = TestLogger(tc["title"], tc["id"])
+    tl.check("Verifying the configured-disabled PowerScale metrics state")
+
+    stopped = verify_workloads_stopped(host, [
+        {
+            "kind": "deployment",
+            "name": POWERSCALE_DEPLOY_NAME,
+            "selector": "app.kubernetes.io/name=karavi-metrics-powerscale",
+        },
+        {
+            "kind": "deployment",
+            "name": POWERSCALE_OTEL_DEPLOY_NAME,
+            "selector": "app.kubernetes.io/name=otel-collector",
+        },
+        {
+            "kind": "deployment",
+            "name": POWERSCALE_CSI_EXPORTER_DEPLOY_NAME,
+            "selector": "app=csi-volume-exporter",
+        },
+    ])
+    shared = verify_enabled_shared_sinks(host)
+
+    quiet_started = time.time()
+    logs_disabled = not is_logs_enabled(host, "powerscale")
+    check_metrics = shared["sinks"]["victoria_metrics"]["checked"]
+    check_logs = (
+        logs_disabled and shared["sinks"]["victoria_logs"]["checked"]
+    )
+    log_trigger = {
+        "success": True,
+        "checked": False,
+        "error": "",
+        "reason": "PowerScale logs are enabled or VictoriaLogs is not required",
+    }
+    if check_logs:
+        credentials = decode_isilon_creds(host)
+        if credentials["success"]:
+            marker = f"powerscale-fvt-disabled-{uuid4().hex}"
+            log_trigger = trigger_powerscale_test_event(
+                host, credentials["clusters"][0], marker,
+            )
+            log_trigger["checked"] = True
+        else:
+            marker = ""
+            log_trigger["reason"] = (
+                "PowerScale credentials are not retained; no external log "
+                "source can be exercised"
+            )
+    else:
+        marker = ""
+
+    if check_metrics or log_trigger["checked"]:
+        time.sleep(35)
+    quiet_ended = time.time()
+
+    if check_metrics:
+        vm_quiet = query_powerscale_vm_samples(
+            host, quiet_started, quiet_ended,
+        )
+    else:
+        vm_quiet = {
+            "success": True,
+            "sample_count": 0,
+            "metric_counts": {},
+            "error": "",
+        }
+    metrics_stopped = (
+        vm_quiet["success"] and vm_quiet["sample_count"] == 0
+    )
+
+    if log_trigger["checked"] and log_trigger["success"]:
+        vl_quiet = query_powerscale_test_event(
+            host, marker, log_trigger["triggered_at"],
+        )
+    elif log_trigger["checked"]:
+        vl_quiet = {
+            "success": False,
+            "count": 0,
+            "error": log_trigger["error"],
+        }
+    else:
+        vl_quiet = {"success": True, "count": 0, "error": ""}
+    logs_stopped = vl_quiet["success"] and vl_quiet["count"] == 0
+
+    detail_lines = ["Configured state: metrics_enabled=false"]
+    for state in stopped["workloads"]:
+        detail_lines.append(
+            f"{state['name']}: {'retained' if state['exists'] else 'absent'}, "
+            f"desired={state['replicas']}, active={state['active_replicas']}, "
+            f"pods={len(state['pods'])}"
+        )
+    detail_lines.extend([
+        (
+            f"VictoriaMetrics quiet window ({quiet_ended - quiet_started:.1f}s): "
+            f"new_samples={vm_quiet['sample_count']}, "
+            f"metrics={vm_quiet['metric_counts']}"
+        ),
+        (
+            "VictoriaLogs disabled-channel probe: "
+            + (
+                f"triggered={log_trigger['success']}, matched={vl_quiet['count']}"
+                if log_trigger["checked"] else log_trigger["reason"]
+            )
+        ),
+    ])
+    detail_lines.extend(
+        f"Shared {name}: {result['details']}"
+        for name, result in shared["sinks"].items()
+    )
+    details = "\n".join(detail_lines)
+    success = (
+        stopped["success"]
+        and shared["success"]
+        and metrics_stopped
+        and logs_stopped
+    )
+
+    if success:
+        tl.passed("PowerScale disabled state is correctly reconciled", details)
+    else:
+        data_errors = []
+        if not metrics_stopped:
+            data_errors.append(
+                vm_quiet["error"]
+                or "fresh PowerScale metrics reached VictoriaMetrics while disabled"
+            )
+        if not logs_stopped:
+            data_errors.append(
+                vl_quiet["error"]
+                or "the disabled PowerScale log event reached VictoriaLogs"
+            )
+        tl.failed(
+            "PowerScale disabled-state reconciliation is incorrect",
+            "\n".join(filter(None, [
+                details, stopped["error"], shared["error"], *data_errors,
+            ])),
+        )
+
+    assert success, "; ".join(filter(None, [
+        stopped["error"], shared["error"],
+        *(data_errors if not success else []),
+    ]))

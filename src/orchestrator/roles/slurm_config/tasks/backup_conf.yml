@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Backup Slurm configuration files when changed
+- name: Backup Slurm configuration files before overwrite
   when:
-    - ctld_conf_files is changed
+    - ctld_conf_files.results | selectattr('stat.exists', 'true') | list | length > 0
     - ctld_list is defined
     - ctld_list | length > 0
   block:

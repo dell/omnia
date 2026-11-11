@@ -39,6 +39,61 @@
   changed_when: false
   failed_when: false
 
+# ---------------------------------------------------------------------------
+# Parse operator and config_reloader images from telemetry_registry
+# ---------------------------------------------------------------------------
+# Offline mode with container_registry set:
+#   When telemetry_registry.host is set (e.g., "myregistry:5000"), use that as the registry
+#   and strip the original registry prefix (docker.io/, quay.io/) from the repository.
+#
+# Online mode (or offline without container_registry):
+#   Use the original registry from the image URL in telemetry_packages.yml.
+- name: Parse operator image components from telemetry_registry (VictoriaLogs)
+  vars:
+    _operator_image: "{{ telemetry_registry.images.victoria_operator.operator | default('docker.io/victoriametrics/operator:v0.68.3') }}"
+    _config_reloader_image: >-
+      {{ telemetry_registry.images.victoria_operator.config_reloader |
+      default('docker.io/victoriametrics/operator:config-reloader-v0.68.3') }}
+    _custom_registry: "{{ telemetry_registry.host | default('') }}"
+  ansible.builtin.set_fact:
+    _operator_image_tag: "{{ _operator_image.split(':')[-1] }}"
+    _operator_image_without_tag: "{{ _operator_image | regex_replace(':[^:]+$', '') }}"
+    _config_reloader_image_tag: "{{ _config_reloader_image.split(':')[-1] }}"
+    _config_reloader_image_without_tag: "{{ _config_reloader_image | regex_replace(':[^:]+$', '') }}"
+    _custom_registry: "{{ _custom_registry }}"
+  when: victoria_operator_pkg is defined
+
+- name: Set operator image registry and repository (VictoriaLogs, with custom registry override)
+  vars:
+    _parts: "{{ _operator_image_without_tag.split('/') }}"
+    _repo_without_registry: "{{ '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) }}"
+    _original_registry: "{{ _parts[0] if (_parts | length) > 2 or '.' in _parts[0] else 'docker.io' }}"
+  ansible.builtin.set_fact:
+    _operator_registry: "{{ _custom_registry if _custom_registry else _original_registry }}"
+    _operator_repository: "{{ _repo_without_registry }}"
+  when: victoria_operator_pkg is defined
+
+- name: Set config_reloader image registry and repository (VictoriaLogs, with custom registry override)
+  vars:
+    _parts: "{{ _config_reloader_image_without_tag.split('/') }}"
+    _repo_without_registry: "{{ '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) }}"
+    _original_registry: "{{ _parts[0] if (_parts | length) > 2 or '.' in _parts[0] else 'docker.io' }}"
+  ansible.builtin.set_fact:
+    _config_reloader_registry: "{{ _custom_registry if _custom_registry else _original_registry }}"
+    _config_reloader_repository: "{{ _repo_without_registry }}"
+  when: victoria_operator_pkg is defined
+
+- name: Build Helm image override arguments (VictoriaLogs)
+  ansible.builtin.set_fact:
+    _helm_image_args: >-
+      --set image.registry={{ _operator_registry }}
+      --set image.repository={{ _operator_repository }}
+      --set image.tag={{ _operator_image_tag }}
+      --set configReloader.image.registry={{ _config_reloader_registry }}
+      --set configReloader.image.repository={{ _config_reloader_repository }}
+      --set configReloader.image.tag={{ _config_reloader_image_tag }}
+  when: victoria_operator_pkg is defined
+
 - name: Install VictoriaMetrics operator (required for VictoriaLogs CRDs)
   when:
     - operator_check.rc != 0
@@ -48,6 +103,7 @@
       ansible.builtin.command: >
         helm -n {{ telemetry_namespace }} install victoria-metrics-operator
         {{ victoria_operator_pkg }}
+        {{ _helm_image_args }}
       changed_when: true
 
     - name: Wait for VictoriaMetrics operator deployment (fresh install)

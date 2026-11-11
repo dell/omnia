@@ -84,7 +84,7 @@ The Build Stream domain provides a FastAPI-based RESTful service that orchestrat
 
 ### Output Files
 - `build_stream_status.yml`: API endpoints and status
-- Job logs: Per-job execution logs in `/opt/omnia/log/build_stream/`
+- Job logs: Per-job API and per-attempt stage playbook logs in `${OMNIA_DATA_PATH}/build_stream/log/<job_id>/`
 
 ## Security Considerations
 
@@ -115,14 +115,6 @@ The Build Stream domain is deployed on the Omnia Infrastructure Manager (OIM) no
 - **Metrics**: Job statistics, API performance metrics
 - **Logging**: Structured logging via `log_secure_info`
 - **Audit Trail**: Complete audit trail of all operations
-
-## Upgrade and Rollback
-
-The domain includes upgrade and rollback playbooks for:
-- BSM API container updates
-- PostgreSQL schema migrations
-- GitLab version upgrades
-- Configuration updates
 
 ## Troubleshooting
 

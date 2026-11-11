@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=W2301
+# W2301: Unnecessary ellipsis constant - ABC methods use ... as body (pattern)
+
 """Repository port interfaces for ImageGroup domain.
 
 These define the contracts that infrastructure implementations must satisfy.
@@ -152,6 +155,47 @@ class ImageGroupRepository(ABC):
 
         Returns:
             Number of Image Groups whose status is not ``CLEANED``.
+        """
+        ...
+
+    @abstractmethod
+    def increment_deploy_count(
+        self, image_group_id: ImageGroupId
+    ) -> None:
+        """Atomically increment deploy_count and set last_deployed_at.
+
+        Called by the result poller when a deploy stage completes
+        successfully.  The counter protects the image group from
+        age-based retention (deploy_count > 0 → never auto-pruned).
+
+        Args:
+            image_group_id: Identifier of the ImageGroup.
+        """
+        ...
+
+    @abstractmethod
+    def list_eligible_for_retention(
+        self,
+        max_age_days: int,
+        min_keep_count: int,
+    ) -> List[ImageGroup]:
+        """Return ImageGroups eligible for age-based retention.
+
+        An ImageGroup is eligible when ALL of the following hold:
+        1. ``is_protected`` is False
+        2. ``created_at`` is older than *max_age_days*
+        3. ``deploy_count`` == 0
+        4. Its functional group has more than *min_keep_count* peers
+
+        The caller is responsible for the "not referenced by active
+        catalog" check, which requires cross-domain data.
+
+        Args:
+            max_age_days: Age threshold in days.
+            min_keep_count: Minimum images to keep per functional group.
+
+        Returns:
+            List of ImageGroup entities eligible for deletion.
         """
         ...
 

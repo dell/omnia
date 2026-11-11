@@ -16,6 +16,8 @@
 
 from typing import Dict, Any
 
+from omnia_auto import run_on_host
+
 from ._config_helpers import _get_shared_path, _get_project_name
 from ..vars.common_vars import CMDS, BUILD_LOG_PATH
 
@@ -43,8 +45,8 @@ def collect_build_logs(host, max_lines: int = 100) -> Dict[str, Any]:
     )
 
     # Try to get the latest .log file via ls -t
-    ls_cmd = host.run(
-        f"ls -t {log_dir}*.log 2>/dev/null | head -1"
+    ls_cmd = run_on_host(
+        host, CMDS["latest_build_log"].format(log_dir=log_dir),
     )
     if ls_cmd.rc != 0 or not ls_cmd.stdout.strip():
         return {
@@ -55,10 +57,11 @@ def collect_build_logs(host, max_lines: int = 100) -> Dict[str, Any]:
         }
 
     latest_log = ls_cmd.stdout.strip()
-    tail_cmd = host.run(
+    tail_cmd = run_on_host(
+        host,
         CMDS["cat_build_log"].format(
             lines=max_lines, log_path=latest_log,
-        )
+        ),
     )
 
     return {

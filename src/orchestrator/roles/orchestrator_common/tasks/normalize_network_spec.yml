@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Validate Networks list structure
   ansible.builtin.assert:
     that:
@@ -21,14 +20,14 @@
       - Networks is not mapping
       - Networks is not string
       - Networks | length > 0
-    fail_msg: "network_spec.yml must define Networks as a non-empty list."
+    fail_msg: "{{ networks_list_fail_msg }}"
     quiet: true
 
 - name: Validate each Networks entry is a mapping
   ansible.builtin.assert:
     that:
       - item is mapping
-    fail_msg: "Every Networks entry must be a mapping."
+    fail_msg: "{{ network_entry_fail_msg }}"
     quiet: true
   loop: "{{ Networks }}"
   loop_control:

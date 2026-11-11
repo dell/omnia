@@ -39,7 +39,6 @@ from pathlib import Path
 
 import yaml
 
-
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -97,8 +96,12 @@ def _load_yaml(path):
 def _directory_changes(staging_path: Path, output_dir: Path) -> list[str]:
     """Compare staging and output directories, return list of changed files."""
     changes = []
-    staging_files = {f.relative_to(staging_path): f for f in staging_path.rglob("*") if f.is_file()}
-    output_files = {f.relative_to(output_dir): f for f in output_dir.rglob("*") if f.is_file()}
+    staging_files = {
+        f.relative_to(staging_path): f for f in staging_path.rglob("*") if f.is_file()
+    }
+    output_files = {
+        f.relative_to(output_dir): f for f in output_dir.rglob("*") if f.is_file()
+    }
 
     # Check for new or modified files
     for rel_path, staging_file in staging_files.items():
@@ -106,9 +109,10 @@ def _directory_changes(staging_path: Path, output_dir: Path) -> list[str]:
             changes.append(f"new: {rel_path}")
         else:
             output_file = output_files[rel_path]
-            if staging_file.stat().st_size != output_file.stat().st_size:
-                changes.append(f"modified: {rel_path}")
-            elif staging_file.read_bytes() != output_file.read_bytes():
+            if (
+                staging_file.stat().st_size != output_file.stat().st_size
+                or staging_file.read_bytes() != output_file.read_bytes()
+            ):
                 changes.append(f"modified: {rel_path}")
 
     # Check for deleted files
@@ -155,7 +159,9 @@ def _list_profiles():
         include_files = data.get("include_files", {})
         input_count = len(include_files.get("input", []))
         sample_count = len(include_files.get("samples", []))
-        print(f"  {_CYAN}{name:20s}{_NC} dcgm_enabled={dcgm}, input_files={input_count}, sample_dirs={sample_count}")
+        print(
+            f"  {_CYAN}{name:20s}{_NC} dcgm_enabled={dcgm}, input_files={input_count}, sample_dirs={sample_count}"
+        )
     print()
 
 
@@ -171,12 +177,9 @@ def _resolve_variables(profile_name, cli_vars):
     if profile_name != "defaults":
         profile_path = PROFILES_DIR / f"{profile_name}.yml"
         if not profile_path.exists():
-            available = ", ".join(
-                name for name, _ in _available_profiles()
-            )
+            available = ", ".join(name for name, _ in _available_profiles())
             _fail(
-                f"Profile '{profile_name}' not found. "
-                f"Available: defaults, {available}"
+                f"Profile '{profile_name}' not found. Available: defaults, {available}"
             )
         variables.update(_load_yaml(profile_path))
 
@@ -199,19 +202,21 @@ def _copy_from_src(output_dir, profile_data=None):
     # Determine file filter from profile
     include_input_files = None
     include_samples = None
-    
+
     if profile_data and "include_files" in profile_data:
         include_config = profile_data["include_files"]
         include_input_files = include_config.get("input", [])
         include_samples = include_config.get("samples", [])
-        _info(f"Using profile file filter: {len(include_input_files)} input files, {len(include_samples)} sample dirs")
+        _info(
+            f"Using profile file filter: {len(include_input_files)} input files, {len(include_samples)} sample dirs"
+        )
     else:
         _info("No profile filter - copying all files")
 
     # Copy input files (both .yml and .csv)
     input_dir = output_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
-    
+
     if include_input_files:
         # Filter based on profile
         for filename in include_input_files:
@@ -228,7 +233,7 @@ def _copy_from_src(output_dir, profile_data=None):
             dest = input_dir / src_file.name
             shutil.copy2(src_file, dest)
             _ok(f"Copied: input/{src_file.name}")
-        
+
         for src_file in SRC_INPUT_DIR.glob("*.csv"):
             dest = input_dir / src_file.name
             shutil.copy2(src_file, dest)
@@ -253,7 +258,7 @@ def _copy_from_src(output_dir, profile_data=None):
             if repo_output_dir.exists():
                 shutil.rmtree(repo_output_dir)
             shutil.copytree(SRC_REPO_OUTPUT_DIR, repo_output_dir)
-            _ok(f"Copied: repo_manager_output/")
+            _ok("Copied: repo_manager_output/")
         else:
             _warn(f"repo_manager_output not found: {SRC_REPO_OUTPUT_DIR}")
 
@@ -262,11 +267,15 @@ def _copy_from_src(output_dir, profile_data=None):
             if image_build_output_dir.exists():
                 shutil.rmtree(image_build_output_dir)
                 shutil.copytree(SRC_IMAGE_BUILD_OUTPUT_DIR, image_build_output_dir)
-                _ok(f"Copied: image_build_manager_output/")
+                _ok("Copied: image_build_manager_output/")
         else:
             _warn(f"image_build_manager_output not found: {SRC_IMAGE_BUILD_OUTPUT_DIR}")
 
-    copied = [str(p.relative_to(output_dir)) for p in sorted(output_dir.rglob("*")) if p.is_file()]
+    copied = [
+        str(p.relative_to(output_dir))
+        for p in sorted(output_dir.rglob("*"))
+        if p.is_file()
+    ]
     return copied
 
 
@@ -275,8 +284,10 @@ def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir
     lines = [
         f"# Dataset: {dataset_name}",
         "",
-        f"Generated by `datasets/generator/generate_dataset.py` "
-        f"using profile **{profile_name}**.",
+        (
+            f"Generated by `datasets/generator/generate_dataset.py` "
+            f"using profile **{profile_name}**."
+        ),
         "",
         "---",
         "",
@@ -424,9 +435,7 @@ Examples:
                 _fail(f"Dataset does not exist safely: {output_dir}")
             changes = _directory_changes(staging_path, output_dir)
             if changes:
-                _fail(
-                    "Dataset is stale:\n  - " + "\n  - ".join(changes)
-                )
+                _fail("Dataset is stale:\n  - " + "\n  - ".join(changes))
             _ok(f"Dataset '{dataset_name}' is current")
             return
 
@@ -450,8 +459,7 @@ Examples:
 
     print()
     print(f"{_GREEN}========================================={_NC}")
-    print(f"{_GREEN}  Dataset '{dataset_name}' generated "
-          f"({len(rendered)} files){_NC}")
+    print(f"{_GREEN}  Dataset '{dataset_name}' generated ({len(rendered)} files){_NC}")
     print(f"{_GREEN}========================================={_NC}")
     print()
     print(f"  Output:  {output_dir}")

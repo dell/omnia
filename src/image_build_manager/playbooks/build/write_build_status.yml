@@ -13,7 +13,9 @@
 # limitations under the License.
 ---
 # write_build_status.yml — Write build_status.yml output after image builds.
-# Output: {{ output_project_dir }}/build_status.yml (NFS-shared)
+# Output: catalog mode writes below {{ output_project_dir }}/<catalog-id>-v<version>/;
+# config mode writes {{ output_project_dir }}/build_status.yml. Catalog mode
+# also refreshes the project-level latest compatibility copy.
 # Includes per-functional-group image details with S3 paths for kernel, initrd, image.
 
 - name: Write build_status.yml output

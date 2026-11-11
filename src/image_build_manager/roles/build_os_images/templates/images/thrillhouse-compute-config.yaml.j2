@@ -1,17 +1,19 @@
+{% set _tag = _render_rhel_tag | default(rhel_tag) %}
+{% set _repos = _render_arch_repos | default(rhel_arch_repos) %}
 meta:
   name: '{{ rhel_base_compute_image_name }}'
   tags:
-    - '{{ rhel_tag }}'
-  from: '{{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ rhel_tag }}'
+    - '{{ _tag }}'
+  from: '{{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ _tag }}'
   from-tls-verify: false
 
 layer:
   manager:
     name: dnf
     options:
-      releasever: "{{ rhel_tag }}"
+      releasever: "{{ _tag }}"
   repos:
-{% for repo in rhel_arch_repos %}
+{% for repo in _repos %}
 {% if repo.base_url is defined and repo.base_url | length > 1 %}
     - path: /etc/yum.repos.d/{{ repo.name }}.repo
       content: |

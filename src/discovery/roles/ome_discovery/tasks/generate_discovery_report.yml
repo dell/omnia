@@ -121,8 +121,8 @@
       - ""
       - "5. Review the remaining Orchestrator inputs."
       - ""
-      - "6. Run Orchestrator from the Omnia source root:"
-      - "     ./src/main/omnia.sh --run orchestrator"
+      - "6. Run Orchestrator:"
+      - "     ./omnia.sh --run orchestrator"
       - "============================================================"
 
 - name: Display discovery completion message (with BuildStream)
@@ -161,9 +161,9 @@
         {{ 6 * ' ' }}Review the remaining BuildStream and Orchestrator
         project inputs.
       - "      If the base infrastructure is not prepared, run:"
-      - "        ./src/main/omnia.sh --prepare-base"
+      - "        ./omnia.sh --prepare-base"
       - "      Then deploy BuildStream and GitLab:"
-      - "        ./src/main/omnia.sh --run build_stream"
+      - "        ./omnia.sh --run build_stream"
       - ""
       - "   B. BuildStream GitLab workflow (GitLab is available):"
       - "      Update and commit the reviewed mapping in the GitLab project as:"

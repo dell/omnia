@@ -234,12 +234,12 @@ class TestGetStageResponse:
             "ended_at": "2026-01-25T15:10:00Z",
             "error_code": None,
             "error_summary": None,
-            "log_file_path": "/opt/omnia/log/build_stream/job-123/local_repo_20260125_150000.log",
+            "log_file_path": "/opt/omnia/build_stream/log/job-123/local_repo_20260125_150000.log",
         }
 
         stage = GetStageResponse(**data)
 
-        assert stage.log_file_path == "/opt/omnia/log/build_stream/job-123/local_repo_20260125_150000.log"
+        assert stage.log_file_path == "/opt/omnia/build_stream/log/job-123/local_repo_20260125_150000.log"
 
     def test_get_stage_with_error_and_log_path(self):
         """Test method."""
@@ -250,13 +250,13 @@ class TestGetStageResponse:
             "ended_at": "2026-01-25T15:05:00Z",
             "error_code": "BUILD_FAILED",
             "error_summary": "Build process failed",
-            "log_file_path": "/opt/omnia/log/build_stream/job-123/build_image_x86_64_20260125_150000.log",
+            "log_file_path": "/opt/omnia/build_stream/log/job-123/build_image_x86_64_20260125_150000.log",
         }
 
         stage = GetStageResponse(**data)
 
         assert stage.error_code == "BUILD_FAILED"
-        assert stage.log_file_path == "/opt/omnia/log/build_stream/job-123/build_image_x86_64_20260125_150000.log"
+        assert stage.log_file_path == "/opt/omnia/build_stream/log/job-123/build_image_x86_64_20260125_150000.log"
 
 
 class TestGetJobResponse:

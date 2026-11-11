@@ -36,10 +36,10 @@ def _validate_schema(catalog, schema):
         import jsonschema
         jsonschema.validate(instance=catalog, schema=schema)
     except ImportError:
-        logger.warning("jsonschema not installed, skipping schema validation")
         issues.append({
-            'severity': 'warning',
-            'message': 'jsonschema library not installed, schema validation skipped'
+            'severity': 'error',
+            'message': 'Schema validation requires the jsonschema library; '
+                       'install it in the Python environment running this command and retry'
         })
     except jsonschema.ValidationError as e:
         issues.append({
@@ -261,7 +261,8 @@ def validate_catalog(catalog, schema_path=None):
 
     Args:
         catalog: Catalog dict (with 'catalog' root key).
-        schema_path: Optional path to JSON schema file.
+        schema_path: Optional path to JSON schema file. When supplied, failure
+            to read the schema or load jsonschema is a validation error.
 
     Returns:
         list: List of issue dicts {'severity': 'error'|'warning', 'message': ...}
@@ -276,8 +277,13 @@ def validate_catalog(catalog, schema_path=None):
             issues.extend(_validate_schema(catalog, schema))
         except FileNotFoundError:
             issues.append({
-                'severity': 'warning',
+                'severity': 'error',
                 'message': f"Schema file not found: {schema_path}"
+            })
+        except OSError:
+            issues.append({
+                'severity': 'error',
+                'message': f"Schema file could not be read: {schema_path}"
             })
         except json.JSONDecodeError as e:
             issues.append({
