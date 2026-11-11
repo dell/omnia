@@ -21,7 +21,8 @@
 #   format   yaml (merged key by key) | env (KEY=value lines)
 #            | csv (rows replaced)
 #   out      file name inside an output folder (./generate_dataset.py /abc)
-#   vast     mount | reference - the VAST switch (see dataset_merge.py)
+#   switch   mount - storage_config only: the mounts vast_storage, nfs_slurm and nfs_k8s are
+#                    commented out without a source (see dataset_merge.py)
 # input_dirs copied as a whole into an output folder (credential files excluded)
 # mandatory  user_inputs.yml keys that must not be empty; [x] selects the list
 #            item that has key x, or whose name / cluster_name is x
@@ -56,12 +57,11 @@ targets:
     file: src/orchestrator/input/storage_config.yml
     format: yaml
     out: orchestrator/input/storage_config.yml
-    vast: mount
+    switch: mount
   - section: orchestrator.omnia_config
     file: src/orchestrator/input/omnia_config.yml
     format: yaml
     out: orchestrator/input/omnia_config.yml
-    vast: reference
   - section: orchestrator.pxe_mapping_file
     file: src/orchestrator/input/pxe_mapping_file.csv
     format: csv
