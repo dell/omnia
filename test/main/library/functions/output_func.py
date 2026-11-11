@@ -14,9 +14,12 @@
 
 """Consistent, concise detail fields for Omnia Main test output."""
 
+import re
 from typing import Any, Dict, Mapping, Optional
 
 from omnia_auto import TestLogger as _BaseTestLogger
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def _compact(value: Any, limit: int = 180) -> str:
@@ -25,12 +28,26 @@ def _compact(value: Any, limit: int = 180) -> str:
     return rendered if len(rendered) <= limit else f"{rendered[:limit - 3]}..."
 
 
+def _output_excerpt(output: Any, head: int = 8, tail: int = 4, limit: int = 700) -> str:
+    """Return the start and the end of a failed command's output on one line.
+
+    Commands run with ``2>&1``, so the reason a command refused (omnia.sh --cleanup --all
+    lists the paths that block it) is in the output, not in stderr. Colour codes are
+    removed; a long output keeps its first lines (where errors are printed) and its last.
+    """
+    rows = [line.strip() for line in _ANSI.sub("", str(output or "")).splitlines()
+            if line.strip() and set(line.strip()) - set("=-_*#")]
+    if len(rows) > head + tail:
+        rows = rows[:head] + ["..."] + rows[-tail:]
+    return _compact(" | ".join(rows), limit)
+
+
 def command_result_fields(
     result: Mapping[str, Any],
     expected: str = "",
     context: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Build ordered CLI/report fields without dumping long command output."""
+    """Build ordered CLI/report fields; a failed command also shows an excerpt of its output."""
     expected_result = expected or (
         "non-zero return code" if result.get("expected_error")
         else "return code 0"
@@ -46,6 +63,9 @@ def command_result_fields(
         fields["Duration"] = f"{result['duration']:.1f}s"
     if result.get("error"):
         fields["Error"] = _compact(result["error"])
+    failed = result.get("rc") not in (0, None) and not result.get("expected_error")
+    if failed and result.get("output") and not result.get("streamed"):
+        fields["Output"] = _output_excerpt(result["output"])
     return fields
 
 

@@ -16,8 +16,3 @@
 - name: Reload systemd
   ansible.builtin.systemd_service:
     daemon_reload: true
-
-- name: Restart chronyd
-  ansible.builtin.service:
-    name: chronyd
-    state: restarted

@@ -20,6 +20,7 @@ Checks that containers, services, directories, credentials, and
 volumes are properly removed after running cleanup playbooks.
 """
 
+import re
 from typing import Any, Dict, List
 
 from omnia_auto import read_remote_yaml
@@ -50,6 +51,8 @@ from library.vars.common_vars import (
     BUILD_STREAM_CONFIG_FILE,
     BUILDSTREAM_CLEANUP_DIRECTORIES,
     BUILDSTREAM_HOST_LOG_DIRECTORY,
+    BUILDSTREAM_KEPT_ARTIFACT_PATTERN,
+    BUILDSTREAM_ROOT_DIR,
     BUILDSTREAM_WATCHER_SOURCE,
     PLAYBOOK_WATCHER_SERVICE_FILE,
     PLAYBOOK_WATCHER_SERVICE_NAME,
@@ -85,6 +88,7 @@ __all__ = [
     "check_playbook_watcher_service_stopped",
     "check_postgres_container_removed",
     "check_postgres_container_stopped",
+    "check_job_data_per_backup",
     "check_postgres_data_per_backup",
     "check_postgres_quadlet_files_removed",
     "check_postgres_services_stopped",
@@ -348,6 +352,45 @@ def check_postgres_data_per_backup(host, postgres_backup: bool) -> Dict[str, Any
     return summarize_probes("postgres_data", probes)
 
 
+def check_job_data_per_backup(host, postgres_backup: bool) -> Dict[str, Any]:
+    """Verify build_stream_root follows ``-e postgres_backup=<flag>``.
+
+    With a retained database, only the artifact files that artifact_metadata
+    rows reference (artifact store keys under build_stream_root/artifacts) may
+    remain; restart_state, raw playbook output, validate reports and JWT keys
+    are removed. With the database deleted, build_stream_root is gone.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    omnia_path = resolve_build_stream_data_path(host).rsplit("/build_stream", 1)[0]
+    root = f"{omnia_path}/{BUILDSTREAM_ROOT_DIR}"
+    present = _path_state(host, root)
+    if not postgres_backup:
+        probes = [(f"postgres_backup=false: {root}", "STILL EXISTS" if present else "deleted",
+                   not present)]
+        return summarize_probes("job_data", probes)
+    if not present:
+        return summarize_probes("job_data", [
+            (f"postgres_backup=true: {root}", "absent (no job data to keep)", True),
+        ])
+    listing = run_cmd(host, "list_files_recursive", path=root)
+    if listing.rc != 0:
+        return summarize_probes("job_data", [
+            (f"postgres_backup=true: {root}", f"INSPECTION FAILED (rc={listing.rc})", False),
+        ])
+    kept = re.compile(BUILDSTREAM_KEPT_ARTIFACT_PATTERN)
+    files = sorted(line.strip() for line in listing.stdout.splitlines() if line.strip())
+    probes = [
+        (f"postgres_backup=true: {root}/{name}",
+         "kept (referenced artifact)" if kept.match(name)
+         else "STILL EXISTS (not a referenced artifact)",
+         bool(kept.match(name)))
+        for name in files
+    ] or [(f"postgres_backup=true: {root}", "no files left", True)]
+    return summarize_probes("job_data", probes)
+
+
 def check_credentials_per_flag(host, files, cleanup_credentials: bool) -> Dict[str, Any]:
     """Verify credential files follow ``-e cleanup_credentials=<flag>``.
 
@@ -370,10 +413,37 @@ def check_credentials_per_flag(host, files, cleanup_credentials: bool) -> Dict[s
     return summarize_probes("credentials", probes)
 
 
+SHIPPED_BUILD_STREAM_CONFIG = "src/build_stream/input/build_stream_config.yml"
+
+
+def _api_port_source(host):
+    """Return (port, config path, errors): the installed build_stream_config.yml first, then
+    the one shipped in the checkout.
+
+    Cleanup keeps the installed file, but the input folder is already gone when an earlier
+    run removed it (omnia.sh --cleanup --all, domain-init.sh --cleanup); the port is then the
+    one the checkout ships.
+    """
+    # pylint: disable-next=import-outside-toplevel  # command_func imports this module's helpers
+    from library.functions.command_func import repository_path
+    installed = f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
+    errors = []
+    for path in (installed, repository_path(SHIPPED_BUILD_STREAM_CONFIG)):
+        try:
+            port = (read_remote_yaml(host, path) or {}).get(BSM_PORT_KEY)
+        except (OSError, RuntimeError, ValueError) as exc:
+            errors.append(str(exc))
+            continue
+        if port:
+            return port, path, errors
+    return None, installed, errors
+
+
 def check_buildstream_api_port_closed(host) -> Dict[str, Any]:
     """Verify nothing listens on the BuildStream API port after cleanup.
 
-    The port is read from build_stream_config.yml, which cleanup keeps.
+    The port comes from the installed build_stream_config.yml, or from the one shipped in
+    the checkout when the input folder no longer exists.
 
     Args:
         host: Testinfra host connection.
@@ -381,14 +451,10 @@ def check_buildstream_api_port_closed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: name, success, fields, failures, error.
     """
-    config_path = f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
-    try:
-        port = (read_remote_yaml(host, config_path) or {}).get(BSM_PORT_KEY)
-    except (OSError, RuntimeError, ValueError) as exc:
-        return summarize_probes("api_port", [(BSM_PORT_KEY, f"UNREADABLE ({exc})", False)])
+    port, config_path, errors = _api_port_source(host)
     if not port:
-        return summarize_probes(
-            "api_port", [(f"{BSM_PORT_KEY} in {config_path}", "NOT SET", False)])
+        found = f"UNREADABLE ({'; '.join(errors)})" if errors else "NOT SET"
+        return summarize_probes("api_port", [(f"{BSM_PORT_KEY} in {config_path}", found, False)])
     return summarize_probes("api_port", [
         (f"{BSM_PORT_KEY} in {config_path}", str(port), True),
         port_closed(host, int(port)),

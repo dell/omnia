@@ -97,7 +97,7 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
     "ip_correlation": {
         "id": "DISCOVERY_FVT_EXECUTE_V008",
-        "title": "Verify ADMIN_IP/IB_IP correlation with BMC_IP",
+        "title": "Verify ADMIN_IP/IB_IPV4 correlation with BMC_IP",
     },
     "parent_service_tag": {
         "id": "DISCOVERY_FVT_EXECUTE_V009",

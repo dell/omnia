@@ -1,8 +1,8 @@
-pytest>=7.0
-pytest-order>=1.1.0
-pytest-testinfra>=10.0
-pyyaml>=6.0
-ansible-core>=2.15
-packaging>=22
-pylint>=3.0
+pytest==9.2.0
+pytest-order==1.5.0
+pytest-testinfra==10.2.2
+pyyaml==6.0.3
+ansible-core==2.21.6
+packaging==26.3
+pylint==3.3.9
 ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

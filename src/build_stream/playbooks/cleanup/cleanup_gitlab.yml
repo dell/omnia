@@ -17,8 +17,8 @@
 # Originated from: src/playbooks/gitlab/cleanup_gitlab.yml
 # Usage: ansible-playbook playbooks/cleanup_gitlab.yml  (from src/build_stream/)
 #
-# To preserve build_stream credentials (GitLab root password and OAuth clients
-# stay in build_stream_credentials.yml; default: cleared):
+# To preserve the GitLab root password in build_stream_credentials.yml
+# (default: cleared). The registered OAuth client is always removed:
 #   ansible-playbook playbooks/cleanup/cleanup_gitlab.yml -e cleanup_credentials=false
 
 - name: Set_fact for fetch omnia config credentials
@@ -95,7 +95,22 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Skip GitLab cleanup when credentials are unavailable
+    # OMN-DEF #1428: GitLab cleanup is only reached when it was explicitly
+    # requested (--tags cleanup / --tags cleanup_gitlab, standalone
+    # cleanup_gitlab.yml, or '-e cleanup_gitlab=true'). When credentials are
+    # unavailable we must NOT quietly report success. With
+    # '-e gitlab_cleanup_strict=true' we fail fast so the operator restores
+    # credentials or chooses BuildStream-only cleanup explicitly. By default
+    # (strict disabled) we emit a loud warning and skip, so repeated/combined
+    # cleanup stays idempotent after credentials were already removed.
+    - name: Fail when GitLab cleanup requested but credentials are unavailable (strict)
+      ansible.builtin.fail:
+        msg: "{{ gitlab_cleanup_credentials_required_fail_msg }}"
+      when:
+        - not gitlab_cleanup_credentials_available
+        - gitlab_cleanup_strict | default(false) | bool
+
+    - name: Warn that remote GitLab cleanup is being skipped (credentials unavailable)
       ansible.builtin.debug:
         msg: "{{ gitlab_cleanup_credentials_unavailable_msg }}"
       when: not gitlab_cleanup_credentials_available

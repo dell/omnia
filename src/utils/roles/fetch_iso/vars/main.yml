@@ -16,7 +16,6 @@
 # Default values (overridden by set_fact from validate_install_os_config)
 iso_source_path: "{{ source_iso_path | default('') }}"
 iso_source_checksum: "{{ source_iso_checksum | default('') }}"
-iso_target_directory: "{{ _local_iso_dir | default('/tmp/install_os') }}"
 
 # Required ISO tooling
 required_iso_tools:

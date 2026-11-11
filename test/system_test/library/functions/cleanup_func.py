@@ -1,0 +1,420 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""./setup_env.sh cleanup: remove the previous installation with each suite's own cleanup FVT.
+
+Order: the theme's cleanup_steps (BuildStream when installed), orchestrator, image_build_manager,
+repo_manager, then the Omnia setup (test/main). With cleanup.main.cleanup_all
+the main step is the complete reset: first every src/<domain>/domain-init.sh
+--cleanup (each domain's input and log artifacts, which omnia.sh requires to
+hold no files), then omnia.sh --cleanup --all --skip-approval (test/main),
+which deletes the whole OMNIA_DATA_PATH; the next install then asks nothing.
+"""
+
+import glob
+import os
+import sys
+import time
+from typing import Any, Callable, Dict, List, Sequence, Tuple
+
+from . import nfs_func
+from .config_func import apply_cleanup_flags, apply_report_settings, cleanup_all, cleanup_enabled
+from .fvt_func import describe_step, domain_dir, run_fvt_step
+from .omnia_func import domain_data_root, domain_input_dir, has_deployed_state, omnia_env
+from .process_func import stream_command, tee_command
+from .readiness_func import omnia_venv_path
+from .run_func import load_run
+from .setup_func import current_run, install_requirements, result_row, row, venv_env
+from ..messages.cleanup_msgs import CLEANUP_DRY_MSGS
+from ..messages.nfs_msgs import NFS_MSGS
+from ..messages.svt_msgs import SETUP_MSGS, STAGE_MSGS
+from ..vars.common_vars import (
+    DOMAIN_INIT_CLEANUP_ARG,
+    DOMAIN_INIT_GLOB,
+    FVT_BOOTSTRAP_PYTHON,
+    FVT_SETUP,
+    MODULE_ROOT,
+    OMNIA_DATA_KEY,
+    OMNIA_ENV_FILE,
+    REPO_ROOT,
+    SRC_STORAGE_CONFIG,
+    VIRTUAL_ENV_KEY,
+)
+from ..vars.theme_vars import CLEANUP_FLAGS, OWN_VENV_DOMAINS, THEMES
+
+Emit = Callable[[str], None]
+Rows = List[Dict[str, Any]]
+
+
+def _failed(error: str, rows: Rows) -> Dict[str, Any]:
+    return {"status": "failed", "error": error, "rows": rows}
+
+
+def _venv_ready() -> str:
+    """Return the Omnia venv when its interpreter exists ("" otherwise)."""
+    venv = omnia_venv_path()
+    return venv if venv and os.access(os.path.join(venv, "bin", "python"), os.X_OK) else ""
+
+
+def _own_venv_env(domain: str) -> Dict[str, str]:
+    """Return the environment of a suite that runs from its own .venv (test/main).
+
+    test/main skips omnia.sh --cleanup when VIRTUAL_ENV is the Omnia venv, so
+    an Omnia venv the user activated must not leak into this step.
+    """
+    venv = os.path.dirname(os.path.dirname(os.path.join(domain_dir(domain),
+                                                        FVT_BOOTSTRAP_PYTHON)))
+    return {VIRTUAL_ENV_KEY: venv, "PATH": f"{venv}/bin:{os.environ.get('PATH', '')}"}
+
+
+def _marker_paths(domain: str, markers: Tuple[str, ...]) -> List[str]:
+    """Return the paths a cleanup step looks for ({domain_data} is the domain's data root)."""
+    root = domain_data_root(omnia_env(), domain)
+    return [marker.format(domain_data=root) for marker in markers]
+
+
+def _installed_markers(domain: str, markers: Tuple[str, ...]) -> List[str]:
+    """Return the marker paths that exist (a product that is half installed still has some)."""
+    return [path for path in _marker_paths(domain, markers) if os.path.lexists(path)]
+
+
+def _select_steps(config: Dict[str, Any], venv: str, emit: Emit, rows: Rows) -> List[tuple]:
+    """Return the cleanup steps that apply on this OIM; record why the others are skipped."""
+    steps = []
+    requires = THEMES[config["theme"]].get("cleanup_requires") or {}
+    deployed_only = THEMES[config["theme"]].get("cleanup_when_deployed") or ()
+    for step in THEMES[config["theme"]]["cleanup_steps"]:
+        domain, label = step[0], describe_step(step)
+        if not cleanup_enabled(config, domain):
+            reason = SETUP_MSGS["cleanup_disabled"].format(label=label, domain=domain)
+        elif step in requires and not _installed_markers(domain, requires[step]):
+            reason = STAGE_MSGS["not_installed"].format(
+                path=", ".join(_marker_paths(domain, requires[step])), label=label)
+        elif domain in deployed_only and not has_deployed_state(omnia_env(), domain):
+            reason = SETUP_MSGS["cleanup_not_deployed"].format(
+                label=label, domain=domain, root=domain_data_root(omnia_env(), domain))
+        elif domain not in OWN_VENV_DOMAINS and not venv:
+            reason = STAGE_MSGS["no_omnia_venv"].format(label=label)
+        else:
+            steps.append(step)
+            continue
+        emit(reason)
+        rows.append(row(label, "SKIPPED", details=reason))
+    return steps
+
+
+Share = Tuple[str, str, str]  # (cleanup.nfs flag, storage_config mount name, source)
+
+
+def _nfs_targets(config: Dict[str, Any], emit: Emit) -> List[Share]:
+    """Return the NFS shares to empty: the enabled cleanup.nfs flags whose mount is an NFS
+    source in storage_config.yml (generated by configure from user_inputs.yml).
+
+    Raises:
+        nfs_func.NfsError: A share to empty has an invalid or forbidden source.
+    """
+    wanted = [(flag, name) for flag, name in (THEMES[config["theme"]].get("nfs_shares")
+                                              or {}).items() if config["nfs"].get(flag)]
+    if not wanted:
+        return []
+    sources = nfs_func.configured_sources(SRC_STORAGE_CONFIG, emit)
+    targets = []
+    for flag, name in wanted:
+        if name not in sources:
+            if sources:
+                emit(NFS_MSGS["not_configured"].format(name=name, path=SRC_STORAGE_CONFIG))
+        elif not nfs_func.looks_like_nfs(sources[name]):
+            emit(NFS_MSGS["not_nfs"].format(name=name, source=sources[name],
+                                            path=SRC_STORAGE_CONFIG))
+        else:
+            nfs_func.parse_source(name, sources[name])
+            targets.append((flag, name, sources[name]))
+    return targets
+
+
+def _protected_paths() -> List[str]:
+    """Return the paths an NFS export on this OIM must not contain."""
+    return [path for path in (REPO_ROOT, MODULE_ROOT, omnia_env().get(OMNIA_DATA_KEY, ""),
+                              "/etc/omnia") if path]
+
+
+def _nfs_preflight(shares: List[Share], emit: Emit) -> str:
+    """Mount every share read-only before anything is deleted; return an error or ""."""
+    emit(NFS_MSGS["preflight"])
+    protected = _protected_paths()
+    for flag, name, source in shares:
+        try:
+            nfs_func.check_share(name, flag, source, emit, protected)
+        except nfs_func.NfsError as exc:
+            return str(exc)
+    return ""
+
+
+def _tee(lines: List[str], emit: Emit) -> Emit:
+    """Return an emit function that also keeps every line (for the report item)."""
+    def tee(text: str) -> None:
+        lines.append(text)
+        emit(text)
+    return tee
+
+
+def _nfs_wipe(shares: List[Share], emit: Emit, rows: Rows) -> str:
+    """Empty every share; add one report item each; return the first error or ""."""
+    protected = _protected_paths()
+    for flag, name, source in shares:
+        lines: List[str] = []
+        tee = _tee(lines, emit)
+        started = time.monotonic()
+        error = ""
+        try:
+            nfs_func.wipe_share(name, flag, source, tee, protected)
+        except nfs_func.NfsError as exc:
+            error = str(exc)
+            tee(f"ERROR: {error}")
+        rows.append(result_row(
+            f"NFS share cleanup: {name}",
+            {"success": not error, "rc": 1 if error else 0,
+             "duration": time.monotonic() - started,
+             "command": f"mount -t nfs -- {source} <private folder>; empty it; umount",
+             "output": "\n".join(lines)},
+            details=f"every file and directory inside {source}"))
+        if error:
+            return error
+    return ""
+
+
+def _show_plan(steps: List[tuple], full: bool, emit: Emit, shares: Sequence[Share] = ()) -> None:
+    """Print the steps a cleanup runs, in order, the NFS shares it empties and what a full
+    reset removes."""
+    emit(SETUP_MSGS["cleanup_plan"])
+    for step in steps:
+        if full and step[0] in OWN_VENV_DOMAINS:
+            emit(f"    {SETUP_MSGS['initializer_cleanup_plan']}")
+        emit(f"    {describe_step(step)}")
+    for _, name, source in shares:
+        emit(NFS_MSGS["plan"].format(name=name, source=source))
+    if full:
+        emit(SETUP_MSGS["cleanup_all_warning"].format(data=omnia_env().get(OMNIA_DATA_KEY, "")))
+
+
+def _confirm(steps: List[tuple], full: bool, emit: Emit, assume_yes: bool,
+             shares: Sequence[Share] = ()) -> str:
+    """Show the steps and ask for 'yes'; return an error, or "" when confirmed."""
+    _show_plan(steps, full, emit, shares)
+    if assume_yes:
+        emit(SETUP_MSGS["cleanup_confirmed_yes"])
+        return ""
+    if not sys.stdin.isatty():
+        return SETUP_MSGS["cleanup_needs_yes"]
+    try:
+        answer = input(SETUP_MSGS["cleanup_prompt"])
+    except EOFError:
+        answer = ""
+    return "" if answer.strip() == "yes" else SETUP_MSGS["cleanup_declined"]
+
+
+def _report_inside_data(report_path: str) -> bool:
+    """Return whether the report directory would be deleted with OMNIA_DATA_PATH."""
+    data = omnia_env().get(OMNIA_DATA_KEY, "")
+    if not data:
+        return False
+    data, report = os.path.realpath(data), os.path.realpath(report_path)
+    return report == data or report.startswith(data.rstrip("/") + "/")
+
+
+def _prepare(theme: str, steps: List[tuple], venv: str, emit: Emit, rows: Rows) -> str:
+    """Bootstrap test/main's own .venv and the test requirements in the Omnia venv."""
+    for domain in dict.fromkeys(step[0] for step in steps):
+        if domain in OWN_VENV_DOMAINS:
+            emit(SETUP_MSGS["requirements"].format(domain=domain, venv=f"test/{domain}/.venv"))
+            result = stream_command(["bash", FVT_SETUP, "--venv"], cwd=domain_dir(domain))
+            rows.append(result_row(f"test requirements: {domain} (own .venv)", result))
+            if not result["success"]:
+                return STAGE_MSGS["step_failed"].format(label=f"{domain} {FVT_SETUP} --venv",
+                                                        rc=result["rc"])
+    if not venv:
+        return ""
+    installed = install_requirements(theme, venv, emit, force=False)
+    rows.extend(installed.pop("rows", []))
+    return installed["error"] if installed["status"] == "failed" else ""
+
+
+def _initializer_cleanup(emit: Emit, rows: Rows) -> str:
+    """Run every src/<domain>/domain-init.sh --cleanup; return an error or "".
+
+    omnia.sh --cleanup --all refuses while a domain's log/ or output/ holds a file, and
+    this is what empties them. One report item covers every domain.
+    """
+    env = omnia_env()
+    done, outputs, commands, seconds, error = [], [], [], 0.0, ""
+    for script in sorted(glob.glob(DOMAIN_INIT_GLOB)):
+        domain = os.path.basename(os.path.dirname(script))
+        emit(STAGE_MSGS["step"].format(stage="cleanup",
+                                       label=f"{domain}/domain-init.sh {DOMAIN_INIT_CLEANUP_ARG}"))
+        result = tee_command(["bash", script, DOMAIN_INIT_CLEANUP_ARG],
+                             cwd=os.path.dirname(script), env=env, no_input=True)
+        done.append(domain)
+        commands.append(result.get("command", ""))
+        outputs.append(f"=== {domain} (rc={result['rc']}) ===\n{result.get('output', '')}")
+        seconds += float(result.get("duration") or 0.0)
+        if not result["success"]:
+            error = STAGE_MSGS["step_failed"].format(label=f"{domain}/domain-init.sh --cleanup",
+                                                     rc=result["rc"])
+            break
+    if done:
+        rows.append(result_row(
+            f"domain-init.sh --cleanup ({len(done)} domains)",
+            {"success": not error, "rc": 1 if error else 0, "duration": seconds,
+             "command": "\n".join(commands), "output": "\n".join(outputs)},
+            details=f"input and log artifacts of: {', '.join(done)}"))
+    return error
+
+
+def _kept_credentials(config: Dict[str, Any]) -> List[str]:
+    """Return the suites set to keep their credentials (a full reset deletes them anyway)."""
+    return [suite for suite, flags in config["cleanup"].items()
+            if "cleanup_credentials" in CLEANUP_FLAGS[suite][1]
+            and flags.get("cleanup_credentials") is False]
+
+
+def _restore_input(domain: str, emit: Emit, rows: Rows) -> str:
+    """Stage the domain's input again when it is missing; return an error or "".
+
+    The cleanup tests read the installed input (build_stream_config.yml, ...). A run that
+    failed after its domain-init.sh --cleanup left no input behind, so the next cleanup
+    would fail on a missing file, not on the product. domain-init.sh (what omnia.sh -i runs)
+    copies the shipped input back; the cleanup then removes it again.
+    """
+    env = omnia_env()
+    path = domain_input_dir(env, domain)
+    script = os.path.join(REPO_ROOT, "src", domain, "domain-init.sh")
+    if not env.get(OMNIA_DATA_KEY) or os.path.isdir(path) or not os.path.isfile(script):
+        return ""
+    emit(STAGE_MSGS["input_restore"].format(domain=domain, path=path))
+    result = tee_command(["bash", script], cwd=os.path.dirname(script), env=env, no_input=True)
+    rows.append(result_row(f"{domain}/domain-init.sh (input restored for the cleanup)", result,
+                           details=f"{path} was missing"))
+    return "" if result["success"] else STAGE_MSGS["step_failed"].format(
+        label=f"{domain}/domain-init.sh", rc=result["rc"])
+
+
+def _run_steps(steps: List[tuple], full: bool, venv: str, emit: Emit, rows: Rows) -> str:
+    """Run the cleanup FVT steps in order; return the first error or ""."""
+    for step in steps:
+        own = step[0] in OWN_VENV_DOMAINS
+        if not own:
+            error = _restore_input(step[0], emit, rows)
+            if error:
+                return error
+        if own and full:
+            error = _initializer_cleanup(emit, rows)
+            if error:
+                return error
+        label = describe_step(step)
+        emit(STAGE_MSGS["step"].format(stage="cleanup", label=label))
+        result = run_fvt_step(step, env=_own_venv_env(step[0]) if own else venv_env(venv))
+        rows.append(result_row(label, result, details="--cleanup --all" if own and full else ""))
+        if not result["success"]:
+            return STAGE_MSGS["step_failed"].format(label=label, rc=result["rc"])
+    return ""
+
+
+def _shares_or_stop(config: Dict[str, Any], installed: bool, emit: Emit,
+                    rows: Rows) -> Tuple[List[Share], Dict[str, Any]]:
+    """Return (the NFS shares to empty, {}) or ([], the result that ends the cleanup now).
+
+    A cleanup with no previous installation and no share to empty is skipped; an invalid
+    share fails it before anything is deleted.
+    """
+    try:
+        shares = _nfs_targets(config, emit)
+    except nfs_func.NfsError as exc:
+        return [], _failed(str(exc), rows)
+    if not installed and not shares:
+        return [], {"status": "skipped", "rows": rows,
+                    "error": STAGE_MSGS["no_previous_setup"].format(path=OMNIA_ENV_FILE)}
+    return shares, {}
+
+
+def plan(config: Dict[str, Any], emit: Emit) -> int:
+    """--dry-run: print what ./setup_env.sh --cleanup would run and remove; change nothing.
+
+    It writes no test_config, report, record or run state, takes no lock and mounts nothing;
+    it prints the same steps, NFS shares and warnings the confirmation shows, the domains
+    whose domain-init.sh --cleanup would run, and whether the cleanup would refuse.
+    """
+    installed = os.path.isfile(OMNIA_ENV_FILE)
+    try:
+        shares = _nfs_targets(config, emit)
+    except nfs_func.NfsError as exc:
+        emit(f"ERROR: {exc}")
+        return 1
+    if not installed and not shares:
+        emit(STAGE_MSGS["no_previous_setup"].format(path=OMNIA_ENV_FILE))
+        return 0
+    full = installed and cleanup_all(config)
+    steps = _select_steps(config, _venv_ready(), emit, []) if installed else []
+    if not steps and not shares:
+        emit(SETUP_MSGS["cleanup_nothing"])
+        return 0
+    if full and _kept_credentials(config):
+        emit(SETUP_MSGS["cleanup_all_credentials"].format(
+            suites=", ".join(_kept_credentials(config))))
+    _show_plan(steps, full, emit, shares)
+    if full:
+        domains = [os.path.basename(os.path.dirname(script))
+                   for script in sorted(glob.glob(DOMAIN_INIT_GLOB))]
+        if domains:
+            emit(CLEANUP_DRY_MSGS["domains"].format(domains=", ".join(domains)))
+        report = load_run().get("report_path", "")
+        if report and _report_inside_data(report):
+            emit(CLEANUP_DRY_MSGS["report_inside"].format(path=report))
+    emit(CLEANUP_DRY_MSGS["done"])
+    return 0
+
+
+def cleanup(config: Dict[str, Any], emit: Emit, assume_yes: bool = False) -> Dict[str, Any]:
+    """Remove the previous installation; see the module docstring for the order."""
+    rows: Rows = []
+    installed = os.path.isfile(OMNIA_ENV_FILE)
+    shares, early = _shares_or_stop(config, installed, emit, rows)
+    if early:
+        return early
+    settings = current_run(config)
+    full = installed and cleanup_all(config)
+    if full and _report_inside_data(settings["report_path"]):
+        return _failed(SETUP_MSGS["report_inside_data"].format(path=settings["report_path"]), rows)
+    venv, steps = "", []
+    if installed:
+        apply_cleanup_flags(config, emit)
+        apply_report_settings(settings, emit)
+        venv = _venv_ready()
+        steps = _select_steps(config, venv, emit, rows)
+    if not steps and not shares:
+        return {"status": "skipped", "error": SETUP_MSGS["cleanup_nothing"], "rows": rows}
+    if full and _kept_credentials(config):
+        emit(SETUP_MSGS["cleanup_all_credentials"].format(
+            suites=", ".join(_kept_credentials(config))))
+    refused = _confirm(steps, full, emit, assume_yes, shares)
+    if refused:
+        return _failed(refused, rows)
+    error = (_nfs_preflight(shares, emit) if shares else "") or (
+        _prepare(config["theme"], steps, venv, emit, rows) if steps else "") or (
+            _run_steps(steps, full, venv, emit, rows) if steps else "")
+    error = error or _nfs_wipe(shares, emit, rows)
+    if error:
+        return _failed(error, rows)
+    return {"status": "passed", "error": "", "full": full, "rows": rows,
+            "steps": [describe_step(step) for step in steps],
+            "nfs_shares": [f"{name} ({source})" for _, name, source in shares]}

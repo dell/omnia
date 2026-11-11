@@ -14,48 +14,141 @@
 ---
 # configure_ntp.yml — Configure the OIM as an NTP server for cluster nodes.
 #
+# Ported from v2.2 prepare_oim/roles/deploy_containers/common/tasks/configure_chrony.yml.
+#
 # The OIM acts as the NTP server (cluster_boot_ip) for all cluster nodes.
 # chrony denies incoming NTP queries by default; without explicit allow
 # directives the cluster nodes fail to synchronise time, which breaks Slurm
 # job scheduling, LDAP/Kerberos authentication, and TLS certificate validation.
 #
 # This task file:
-#   1. Assembles allow directives for the primary admin subnet and every
+#   1. Installs the chrony package.
+#   2. Assembles allow directives for the primary admin subnet and every
 #      additional subnet defined in network_spec.yml.
-#   2. Writes /etc/chrony.conf on the OIM with those directives appended to
-#      the existing (or distro-default) configuration so that any upstream NTP
-#      servers configured by the administrator are preserved.
-#   3. Restarts chronyd to apply the changes.
+#   3. Writes the allow block into /etc/chrony.conf using blockinfile with
+#      marker ANSIBLE MANAGED CHRONY ALLOW SUBNETS.
+#   4. Restarts chronyd and verifies sources.
+#   5. If ntp_servers is configured in network_spec.yml, pings each entry,
+#      writes reachable upstream server/pool lines into a managed block
+#      (ANSIBLE MANAGED NTP SERVERS), restarts chronyd, and fails if none
+#      are reachable.
 #
 # UDP 123 (NTP) is opened by firewall.yml via the udp_ports list in vars/main.yml.
 
-- name: Build primary admin network CIDR for chrony allow
-  ansible.builtin.set_fact:
-    _ntp_primary_cidr: "{{ network_data.admin_network.subnet }}/{{ network_data.admin_network.netmask_bits }}"
+- name: Install chrony
+  ansible.builtin.package:
+    name: chrony
+    state: present
 
-- name: Build additional subnet CIDRs for chrony allow
+- name: Build list of additional subnets allowed by chrony
   ansible.builtin.set_fact:
-    _ntp_additional_cidrs: >-
-      {{ network_data.admin_network.additional_subnets | default([])
-         | map(attribute='subnet') | zip(
-             network_data.admin_network.additional_subnets | default([])
-             | map(attribute='netmask_bits') | map('string')
-           )
-         | map('join', '/')
-         | list }}
+    _ntp_additional_cidrs: "{{ _ntp_additional_cidrs | default([]) + [item.subnet + '/' + item.netmask_bits] }}"
+  loop: "{{ network_data.admin_network.additional_subnets | default([]) }}"
 
-- name: Assemble full list of subnets to allow NTP access from
+- name: Build complete list of subnets allowed by chrony
   ansible.builtin.set_fact:
-    _ntp_allow_cidrs: "{{ ([_ntp_primary_cidr] + _ntp_additional_cidrs) | unique | list }}"
+    _ntp_allow_cidrs:
+      - "{{ network_data.admin_network.subnet }}/{{ network_data.admin_network.netmask_bits }}"
+      - "{{ _ntp_additional_cidrs | default([]) }}"
 
-- name: Configure chrony on OIM to serve time to cluster nodes
+- name: Flatten chrony allowed subnets
+  ansible.builtin.set_fact:
+    _ntp_allow_cidrs: "{{ _ntp_allow_cidrs | flatten | select('string') | list }}"
+
+- name: Update chrony.conf with allow directives for cluster subnets
   ansible.builtin.blockinfile:
     path: "{{ chrony_conf_path }}"
-    create: true
-    mode: "0644"
-    marker: "# {mark} OMNIA MANAGED NTP ALLOW BLOCK"
+    marker: "# {mark} ANSIBLE MANAGED CHRONY ALLOW SUBNETS"
     block: |
       {% for cidr in _ntp_allow_cidrs %}
       allow {{ cidr }}
       {% endfor %}
-  notify: Restart chronyd
+    insertafter: "^#allow"
+    state: present
+
+- name: Enable and start chronyd service
+  ansible.builtin.service:
+    name: chronyd
+    enabled: true
+    state: restarted
+
+- name: Verify chronyc sources
+  ansible.builtin.command: chronyc sources
+  changed_when: false
+  register: chronyc_sources
+  until: chronyc_sources is not failed
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+
+- name: Retrieve NTP servers from network_spec
+  ansible.builtin.set_fact:
+    _ntp_servers: "{{ network_data.admin_network.ntp_servers | default([]) }}"
+
+- name: Configure NTP servers in chrony when ntp_servers are provided
+  when:
+    - _ntp_servers is defined
+    - _ntp_servers | length > 0
+  block:
+    - name: Check reachability of configured NTP servers
+      ansible.builtin.command: "ping -c 1 {{ item.address }}"
+      register: ntp_ping_results
+      changed_when: false
+      failed_when: false
+      loop: "{{ _ntp_servers }}"
+
+    - name: Build list of reachable NTP servers
+      ansible.builtin.set_fact:
+        _reachable_ntp_servers: "{{ ntp_ping_results.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list }}"
+
+    - name: Remove existing NTP server and pool entries from chrony.conf
+      ansible.builtin.lineinfile:
+        path: "{{ chrony_conf_path }}"
+        regexp: '^(server|pool)\s+'
+        state: absent
+      when:
+        - _reachable_ntp_servers is defined
+        - _reachable_ntp_servers | length > 0
+
+    - name: Manage NTP server entries in chrony.conf
+      ansible.builtin.blockinfile:
+        path: "{{ chrony_conf_path }}"
+        marker: "# {mark} ANSIBLE MANAGED NTP SERVERS"
+        block: |
+          {% for srv in _reachable_ntp_servers %}
+          {{ srv.type }} {{ srv.address }} iburst
+          {% endfor %}
+      when:
+        - _reachable_ntp_servers is defined
+        - _reachable_ntp_servers | length > 0
+
+    - name: Restart chronyd after NTP server configuration
+      ansible.builtin.service:
+        name: chronyd
+        enabled: true
+        state: restarted
+
+    - name: Verify chronyc sources after NTP server configuration
+      ansible.builtin.command: chronyc sources
+      changed_when: false
+      register: chronyc_sources_ntp
+      until: chronyc_sources_ntp is not failed
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+
+    - name: Check reachable chrony sources
+      ansible.builtin.shell: |
+        set -o pipefail
+        chronyc sources -n | awk 'NR>2 { if ($5+0 > 0) print $2 " " $5 }' | uniq
+      args:
+        executable: /bin/bash
+      register: chrony_reachable_sources
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if no chrony sources are reachable
+      ansible.builtin.fail:
+        msg: "{{ chrony_no_sources_msg }}"
+      when:
+        - _reachable_ntp_servers is defined
+        - _reachable_ntp_servers | length > 0
+        - chrony_reachable_sources.stdout_lines | length == 0

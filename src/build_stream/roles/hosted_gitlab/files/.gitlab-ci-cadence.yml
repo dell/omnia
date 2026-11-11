@@ -978,6 +978,27 @@ validate:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Validate completed successfully"
+            REPORT_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_JSON_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_json_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_HTML_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_html_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            if [ -n "${REPORT_PATH}" ]; then
+              printf "  %-22s %s\n" "Report Path:" "${REPORT_PATH}"
+            fi
+            if [ -n "${REPORT_JSON_PATH}" ]; then
+              printf "  %-22s %s\n" "Report JSON:" "${REPORT_JSON_PATH}"
+            fi
+            if [ -n "${REPORT_HTML_PATH}" ]; then
+              printf "  %-22s %s\n" "Report HTML:" "${REPORT_HTML_PATH}"
+            fi
             print_stage_log_info "validate" status_response.json
             break
             ;;
@@ -1016,6 +1037,27 @@ validate:
             fi
 
             printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
+            REPORT_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_JSON_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_json_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_HTML_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_html_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            if [ -n "${REPORT_PATH}" ]; then
+              printf "  %-22s %s\n" "Report Path:" "${REPORT_PATH}"
+            fi
+            if [ -n "${REPORT_JSON_PATH}" ]; then
+              printf "  %-22s %s\n" "Report JSON:" "${REPORT_JSON_PATH}"
+            fi
+            if [ -n "${REPORT_HTML_PATH}" ]; then
+              printf "  %-22s %s\n" "Report HTML:" "${REPORT_HTML_PATH}"
+            fi
             print_stage_log_info "validate" status_response.json
             exit 1
             ;;

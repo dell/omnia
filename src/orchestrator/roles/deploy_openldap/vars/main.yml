@@ -15,8 +15,27 @@
 
 # Container image
 omnia_auth_image: "docker.io/dellhpcomniaaisolution/omnia_auth"
-omnia_auth_tag: "1.2"
+omnia_auth_tag: "1.3"
 omnia_auth_container_name: "omnia_auth"
+
+# Numeric ids of the unprivileged ldap user inside the omnia_auth image
+# (Containerfile ARG LDAP_UID/LDAP_GID). The container is rootful, so these ids
+# are shared with the OIM; the group gets read access to slapd.conf and the TLS key.
+auth_ldap_uid: 55
+auth_ldap_gid: 55
+auth_ldap_group: "ldap"
+
+# Optional TLS trust inputs for the omnia_auth entrypoint (default: unset).
+# ldap_tls_ca_file: file name of a CA certificate placed in auth/tls_certs; required
+# when ldapserver.crt is issued by a separate CA instead of being self-signed.
+# ldap_tls_cert_sha256: SHA-256 fingerprint the mounted certificate must match.
+ldap_tls_ca_file: ""
+ldap_tls_cert_sha256: ""
+
+# A deployed slapd.conf that proxies to another directory (database meta or ldap)
+# is kept as is. Pass -e openldap_force_reconcile=true to replace it with the
+# local configuration rendered by this role.
+openldap_force_reconcile: false
 
 # Directory paths
 auth_base_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/auth"
@@ -37,6 +56,7 @@ tls_cert_days: 3650
 tls_key_bits: 4096
 tls_cert_file: "ldapserver.crt"
 tls_key_file: "ldapserver.key"
+tls_cert_min_validity_seconds: 86400
 
 # Image pull settings
 pull_retries: 3
@@ -46,6 +66,24 @@ pull_delay: 10
 healthcheck_retries: 10
 healthcheck_delay: 5
 
+# slapd.conf reconciliation for a running container
+slapd_reconcile_tmp_dir: "/dev/shm"
+slapd_candidate_container_path: "/run/openldap/slapd.conf.candidate"
+
 # Error messages
 deploy_openldap_fail_msg: "Failed to deploy OpenLDAP container. Check the logs for details."
 credentials_missing_msg: "OpenLDAP credentials (openldap_db_username, openldap_db_password) are required. Run orchestrator.yml to be prompted for credentials."
+tls_cert_invalid_msg: >-
+  The OpenLDAP TLS certificate under auth/tls_certs is unusable: it must parse, stay valid for at least
+  24 hours, list the LDAP server IP in subjectAltName, and match ldapserver.key. Fix or replace the certificate and key, then rerun.
+slapd_conf_update_failed_msg: >-
+  Updated slapd.conf could not be applied to the running omnia_auth container.
+  The previous slapd.conf was kept or restored. Check slaptest output and journalctl -u omnia_auth.
+slapd_conf_external_proxy_msg: >-
+  The deployed slapd.conf proxies to another LDAP directory, so it was kept and
+  not replaced by the local configuration. Its ownership is still set to root:ldap 0640.
+  To replace it with the local configuration, rerun with -e openldap_force_reconcile=true.
+ldap_tls_ca_missing_msg: >-
+  ldap_tls_ca_file is set but the CA certificate was not found in auth/tls_certs.
+  Place the CA certificate there (file name must match ldap_tls_ca_file), or unset
+  ldap_tls_ca_file when ldapserver.crt is self-signed, then rerun.

@@ -249,12 +249,17 @@ def pxe_mapping_header_contract_msg(
 ) -> str:
     """Return a PXE mapping header-contract error without echoing file content."""
     missing = [column for column in expected if column not in actual]
+    base = [
+        "FUNCTIONAL_GROUP_NAME", "GROUP_NAME", "SERVICE_TAG",
+        "PARENT_SERVICE_TAG", "HOSTNAME", "ADMIN_MAC", "ADMIN_IP",
+        "BMC_MAC", "BMC_IP",
+    ]
     return (
         f"orchestrator_config: Mapping file '{path}' has {len(actual)} "
-        f"column(s) and does not match the required header; missing "
+        f"column(s) and does not match any accepted header format; missing "
         f"columns: {missing or 'none (check order or extra columns)'}. "
-        f"Expected exactly {expected}, in this order, including "
-        "IB_NIC_NAME and IB_IP."
+        f"Accepted formats: {base} (without InfiniBand) or "
+        f"{expected} (with InfiniBand)."
     )
 
 
@@ -365,7 +370,42 @@ def pxe_mapping_ib_pair_msg(row: int) -> str:
     """Return an incomplete InfiniBand mapping pair error message."""
     return (
         f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
-        "and IB_IP, or leave both empty."
+        "and IB_IPV4, or leave both empty."
+    )
+
+
+def pxe_mapping_no_ib_rows_msg(path: str, ib_addr_mode: str) -> str:
+    """Return the error for an InfiniBand mode with no InfiniBand mapping row."""
+    return (
+        f"network_spec.yml: ib_network.ib_addr_mode is '{ib_addr_mode}', which turns the "
+        f"IPoIB pipeline on, but no row of the PXE mapping file {path} has IB_NIC_NAME "
+        "and its InfiniBand address (IB_IPV4 / IB_IPV6). Fill the IB columns of the "
+        "nodes that have InfiniBand, or remove ib_addr_mode from the ib_network entry "
+        "of network_spec.yml when the cluster has no InfiniBand."
+    )
+
+
+def pxe_mapping_ib_ipv6_pair_msg(row: int) -> str:
+    """Return an incomplete InfiniBand IPv6 mapping pair error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
+        "and IB_IPV6 when ib_addr_mode is ipv6-only, or leave both empty."
+    )
+
+
+def pxe_mapping_ib_dual_stack_missing_ipv6_msg(row: int) -> str:
+    """Return a dual-stack row missing IB_IPV6 error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} must set IB_IPV6 when "
+        "ib_addr_mode is dual-stack and IB_NIC_NAME is set."
+    )
+
+
+def pxe_mapping_ib_dual_stack_missing_ipv4_msg(row: int) -> str:
+    """Return a dual-stack row missing IB_IPV4 error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} must set IB_IPV4 when "
+        "ib_addr_mode is dual-stack and IB_NIC_NAME is set."
     )
 
 
@@ -537,6 +577,73 @@ def ib_admin_subnet_overlap_msg(
     return (
         f"network_spec: {ib_label} subnet {ib_network} overlaps "
         f"{admin_label} subnet {admin_network}."
+    )
+
+
+def ib_ipv6_subnet_invalid_msg(label: str) -> str:
+    """Return an invalid IB IPv6 subnet error message."""
+    return (
+        f"network_spec: {label}.ipv6_subnet is not a valid IPv6 network "
+        "address."
+    )
+
+
+def ib_ipv6_netmask_required_msg(label: str) -> str:
+    """Return a missing IB IPv6 netmask error when subnet is set."""
+    return (
+        f"network_spec: {label}.ipv6_netmask_bits is required when "
+        "ipv6_subnet is set."
+    )
+
+
+def ib_ipv6_subnet_required_msg(label: str) -> str:
+    """Return a missing IB IPv6 subnet error when netmask is set."""
+    return (
+        f"network_spec: {label}.ipv6_subnet is required when "
+        "ipv6_netmask_bits is set."
+    )
+
+
+def ib_ipv6_required_for_mode_msg(label: str, mode: str) -> str:
+    """Return an error when IPv6 fields are missing for the active mode."""
+    return (
+        f"network_spec: {label}.ipv6_subnet and ipv6_netmask_bits are "
+        f"required when ib_addr_mode is '{mode}'."
+    )
+
+
+def ib_ipv4_required_for_mode_msg(label: str, mode: str) -> str:
+    """Return an error when IPv4 fields are missing for the active mode."""
+    return (
+        f"network_spec: {label}.ipv4_subnet and ipv4_netmask_bits are "
+        f"required when ib_addr_mode is '{mode}'."
+    )
+
+
+def pxe_mapping_invalid_ipv6_msg(field: str, value: str, row: int) -> str:
+    """Return an invalid IPv6 address in the PXE mapping."""
+    return (
+        f"orchestrator_config: {field} '{value}' at mapping row {row} "
+        "is not a valid IPv6 address."
+    )
+
+
+def pxe_mapping_ib_ipv6_without_nic_msg(row: int) -> str:
+    """Return an IB_IPV6 set without IB_NIC_NAME error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} has IB_IPV6 set but "
+        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv6 "
+        "configuration."
+    )
+
+
+def pxe_mapping_ib_ipv6_outside_prefix_msg(
+    value: str, row: int, prefix: str
+) -> str:
+    """Return an IB_IPV6 address outside the approved prefix message."""
+    return (
+        f"orchestrator_config: IB_IPV6 '{value}' at mapping row {row} "
+        f"is not within the approved prefix {prefix}."
     )
 
 

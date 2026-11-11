@@ -60,7 +60,7 @@
 #     Best for: Mixed hardware environments with different node configurations
 #   - homogeneous: Groups nodes by hardware type for optimized discovery
 #     Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
-#   Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
+#     Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
 #   Default value is heterogeneous
 
 # node_hardware_defaults
@@ -119,7 +119,6 @@
 slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
-    vast_storage_name: vast_storage
 # Optional custom Slurm configuration. Keep skip_merge and config_sources
 # nested under this slurm_cluster entry. Choose one config_sources format
 # and remove only the first '#' from each configuration line in that example.

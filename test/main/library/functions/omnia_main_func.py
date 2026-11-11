@@ -31,6 +31,7 @@ from omnia_auto import (
     read_remote_env,
     run_on_host,
 )
+from omnia_auto.functions.runner_func import _stream_cmd
 from ..vars.common_vars import (
     build_cmd,
     REPO_ROOT,
@@ -178,6 +179,39 @@ def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
         "output": result.stdout.strip(),
         "duration": duration,
         "error": result.stderr.strip() if result.rc != 0 else "",
+    }
+
+
+STREAM_TIMEOUT_SECONDS = 7200
+
+
+def run_omnia_cmd_streamed(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
+    """Run an omnia.sh command and print its output live, line by line.
+
+    Same live ``|`` output as the playbook runs of the other test suites, so a long or
+    failing command (omnia.sh --cleanup --all lists the paths that block it) can be
+    followed while it runs and read afterwards in the log and the report. Local mode
+    streams; remote mode runs the command through ``run_on_host`` (captured; a failure
+    shows an excerpt of the output).
+
+    Returns:
+        Dict with keys: success, rc, output, duration, error, command, streamed.
+    """
+    if not is_local_execution():
+        return run_omnia_cmd(host, cmd_key, **kwargs)
+    kwargs.setdefault("clone_path", _resolve_clone_path())
+    kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
+    cmd = build_cmd(cmd_key, **kwargs)
+    result = _stream_cmd(cmd, cmd, STREAM_TIMEOUT_SECONDS, None, load_test_config(),
+                         "src/main")
+    return {
+        "success": result.get("rc") == 0,
+        "command": cmd,
+        "rc": result.get("rc"),
+        "output": result.get("output", ""),
+        "duration": result.get("duration", 0.0),
+        "error": "",
+        "streamed": True,
     }
 
 

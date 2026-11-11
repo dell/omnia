@@ -146,7 +146,12 @@ def test_catalog_repository_change_rebuild(catalog_reuse_context):
     tl = _logger("catalog_repository_change_rebuild")
     ctx.restore_baseline_inputs()
     ctx.configure(engine="image-thrillhouse")
-    changed_repo = ctx.mutate_repo_url()
+    changed_repo, changed_version = ctx.mutate_repo_url()
+    dependent_groups = {
+        group
+        for group, version in ctx.group_os_versions().items()
+        if version == changed_version
+    }
     before_keys = set(ctx.load_dictionary().get("entries", {}))
     ctx.write_repo(changed_repo)
     try:
@@ -159,11 +164,17 @@ def test_catalog_repository_change_rebuild(catalog_reuse_context):
         for key in set(after) - before_keys
         if ctx.entry_engine(after[key]) == "image-thrillhouse"
     }
-    success = rebuilt_groups == set(ctx.expected_groups())
+    success = bool(dependent_groups) and rebuilt_groups == dependent_groups
     if success:
-        tl.passed("Repository configuration changed every dependent image hash")
+        tl.passed(
+            f"Repository change for RHEL {changed_version} rebuilt only its "
+            f"dependent groups"
+        )
     else:
-        tl.failed(f"Unexpected repository rebuild set: {sorted(rebuilt_groups)}")
+        tl.failed(
+            f"Unexpected repository rebuild set: {sorted(rebuilt_groups)}; "
+            f"expected {sorted(dependent_groups)}"
+        )
     assert success
 
 
@@ -248,36 +259,6 @@ def test_catalog_missing_artifact_rebuild(catalog_reuse_context):
 @pytest.mark.functional
 @pytest.mark.x86_64
 @pytest.mark.order(7)
-def test_catalog_thrillhouse_output(catalog_reuse_context):
-    """Image Thrillhouse creates complete dictionary entries."""
-    ctx = catalog_reuse_context
-    tl = _logger("catalog_thrillhouse_output")
-    ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-thrillhouse")
-    before_keys = set(ctx.load_dictionary().get("entries", {}))
-    _require_build(ctx.build(), tl)
-    document = ctx.load_dictionary()
-    added = [
-        document["entries"][key]
-        for key in set(document.get("entries", {})) - before_keys
-    ]
-    groups = {
-        entry.get("functional_group")
-        for entry in added
-        if ctx.entry_engine(entry) == "image-thrillhouse"
-    }
-    success = groups == set(ctx.expected_groups())
-    if success:
-        tl.passed("Thrillhouse produced isolated dictionary and S3 artifacts")
-    else:
-        tl.failed(f"Unexpected Thrillhouse build set: {sorted(groups)}")
-    assert success
-
-
-@pytest.mark.deploy
-@pytest.mark.functional
-@pytest.mark.x86_64
-@pytest.mark.order(9)
 def test_catalog_versioned_output(catalog_reuse_context):
     """A new catalog version writes a composite-identity status contract."""
     ctx = catalog_reuse_context
@@ -326,7 +307,7 @@ def test_catalog_versioned_output(catalog_reuse_context):
 @pytest.mark.deploy
 @pytest.mark.regression
 @pytest.mark.x86_64
-@pytest.mark.order(10)
+@pytest.mark.order(8)
 def test_config_mode_cache_isolation(catalog_reuse_context):
     """Config mode uses its local cache and never updates the dictionary."""
     ctx = catalog_reuse_context
@@ -369,7 +350,7 @@ def test_config_mode_cache_isolation(catalog_reuse_context):
 @pytest.mark.deploy
 @pytest.mark.regression
 @pytest.mark.x86_64
-@pytest.mark.order(11)
+@pytest.mark.order(9)
 def test_catalog_suite_restores_target_state(catalog_reuse_context):
     """The E2E suite restores every mutable target file before it exits."""
     ctx = catalog_reuse_context

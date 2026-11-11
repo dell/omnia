@@ -114,6 +114,7 @@ from library.functions.cleanup_func import (
     check_buildstream_runtime_caches_removed,
     check_buildstream_api_port_closed,
     check_credentials_per_flag,
+    check_job_data_per_backup,
     check_postgres_data_per_backup,
 )
 
@@ -155,10 +156,44 @@ from library.functions.prepare_func import (
     check_prepare_status_file,
 )
 
-# --- Shared settings, reporting and logging ---
+# --- Execute: build/deploy (automatic + manual), cadence, image cleanup ---
+from library.functions.cadence_toggle_func import (
+    verify_cadence_disable_live,
+    verify_cadence_reenable_live,
+)
 from library.functions.config_func import cleanup_settings, installation_settings
+from library.functions.image_cleanup_func import (
+    build_auto_cleanup_image_step,
+    build_pipeline_cleanup_image_step,
+    precheck_auto_cleanup_step,
+    run_auto_cleanup_step,
+    run_pipeline_cleanup,
+    start_pipeline_cleanup,
+    verify_auto_cleanup_artifacts_step,
+    verify_auto_cleanup_db_step,
+    verify_pipeline_cleanup_db,
+    verify_pipeline_cleanup_nfs,
+    verify_pipeline_cleanup_registry,
+    verify_pipeline_cleanup_s3,
+)
 from library.functions.report_func import report_check, report_tag_playbook
 from library.functions.log_func import failure_fields, run_step, skip_test
+from library.functions.pipeline_steps_func import (
+    run_deploy_stage,
+    run_stage_step,
+    select_deploy_image,
+    start_build_pipeline,
+    start_cadence_pipeline,
+    start_deploy_pipeline,
+    verify_build_result,
+    verify_cadence_result,
+    verify_deploy_result,
+    verify_image_build_artifacts,
+    verify_job_image_group_mapping,
+    verify_oauth_client,
+    verify_repo_manager_status,
+    verify_restart_node_results,
+)
 
 # --- Validation ---
 from library.functions.validation_func import (
@@ -170,6 +205,30 @@ from library.functions.validation_func import (
 # --- Non-functional security (file permissions / ownership) ---
 from library.functions.security_func import (
     check_file_permissions,
+)
+
+# --- Non-functional resilience and security ---
+from library.functions.nft_func import (
+    artifact_path_absent,
+    bsm_request,
+    build_child_pipeline_id,
+    cancel_nft_pipeline,
+    create_disposable_job,
+    forbidden_upload_absent,
+    get_bsm_context,
+    get_bsm_job_details,
+    get_scoped_token,
+    pipeline_status,
+    restart_service,
+    secret_absent_from_bsm_logs,
+    stop_service,
+    trigger_catalog_job,
+    update_job_id_in_config,
+    upload_inline_file,
+    upload_oversized_file,
+    wait_for_pipeline_status,
+    wait_for_queue_claimed,
+    wait_for_queue_entry,
 )
 
 
@@ -205,6 +264,26 @@ __all__ = [
     "build_report_name",
     "record_playbook_failure",
     "run_playbook",
+    "artifact_path_absent",
+    "bsm_request",
+    "build_child_pipeline_id",
+    "cancel_nft_pipeline",
+    "create_disposable_job",
+    "forbidden_upload_absent",
+    "get_bsm_context",
+    "get_bsm_job_details",
+    "get_scoped_token",
+    "pipeline_status",
+    "restart_service",
+    "secret_absent_from_bsm_logs",
+    "stop_service",
+    "trigger_catalog_job",
+    "update_job_id_in_config",
+    "upload_inline_file",
+    "upload_oversized_file",
+    "wait_for_pipeline_status",
+    "wait_for_queue_claimed",
+    "wait_for_queue_entry",
     "check_target_connectivity",
     "sync_build_stream_input",
     "sync_project_to_remote",
@@ -260,6 +339,7 @@ __all__ = [
     "check_buildstream_runtime_caches_removed",
     "check_buildstream_api_port_closed",
     "check_credentials_per_flag",
+    "check_job_data_per_backup",
     "check_postgres_data_per_backup",
     "load_server_credentials",
     # Prepare base
@@ -291,7 +371,35 @@ __all__ = [
     "installation_settings",
     "skip_test",
     "cleanup_settings",
+    "build_auto_cleanup_image_step",
+    "build_pipeline_cleanup_image_step",
+    "precheck_auto_cleanup_step",
+    "run_auto_cleanup_step",
+    "run_pipeline_cleanup",
     "run_step",
+    "start_pipeline_cleanup",
+    "verify_auto_cleanup_artifacts_step",
+    "verify_auto_cleanup_db_step",
+    "verify_pipeline_cleanup_db",
+    "verify_pipeline_cleanup_nfs",
+    "verify_pipeline_cleanup_registry",
+    "verify_pipeline_cleanup_s3",
+    "start_cadence_pipeline",
+    "verify_cadence_result",
+    "verify_cadence_disable_live",
+    "verify_cadence_reenable_live",
+    "run_deploy_stage",
+    "run_stage_step",
+    "select_deploy_image",
+    "start_build_pipeline",
+    "start_deploy_pipeline",
+    "verify_build_result",
+    "verify_deploy_result",
+    "verify_image_build_artifacts",
+    "verify_job_image_group_mapping",
+    "verify_oauth_client",
+    "verify_repo_manager_status",
+    "verify_restart_node_results",
     # Validation
     "validate_test_config",
     "validate_all",

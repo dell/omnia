@@ -575,26 +575,35 @@ class CatalogReuseContext:
         root["groups"][group_name]["components"].append(package_alias)
         return document, target_layer["name"]
 
-    def mutate_repo_url(self) -> dict[str, Any]:
+    def group_os_versions(self) -> dict[str, str]:
+        """Map each expected x86_64 group to its catalog OS version."""
+        root = self.original_catalog["catalog"]
+        groups = root.get("groups", {})
+        versions: dict[str, str] = {}
+        for layer in root.get("functionallayer", []):
+            layer_name = str(layer.get("name", ""))
+            if layer_name not in self.expected_groups():
+                continue
+            for component in layer.get("components", []):
+                group = groups.get(component, {})
+                if isinstance(group, dict) and group.get("type") == "baseos":
+                    versions[layer_name] = str(group.get("os_version", ""))
+                    break
+        return versions
+
+    def mutate_repo_url(self) -> tuple[dict[str, Any], str]:
         document = deepcopy(self.original_repo)
+        for version, arches in document.get("repositories", {}).items():
+            repos = (arches or {}).get("x86_64", {})
+            for repo in repos.values():
+                url = repo.get("url") if isinstance(repo, dict) else ""
+                if url:
+                    repo["url"] = (
+                        url.rstrip("/") if url.endswith("/") else url + "/"
+                    )
+                    return document, str(version)
 
-        def update(value: Any) -> bool:
-            if isinstance(value, dict):
-                for key, child in value.items():
-                    if key == "url" and isinstance(child, str) and child:
-                        value[key] = child.rstrip("/") if child.endswith("/") else child + "/"
-                        return True
-                    if update(child):
-                        return True
-            elif isinstance(value, list):
-                for child in value:
-                    if update(child):
-                        return True
-            return False
-
-        if not update(document):
-            raise RuntimeError("repo_status.yml contains no repository URL")
-        return document
+        raise RuntimeError("repo_status.yml contains no x86_64 repository URL")
 
     def write_catalog(self, document: dict[str, Any]) -> None:
         self.write_text(

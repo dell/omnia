@@ -39,6 +39,7 @@
         state: stopped
         enabled: false
       when:
+        - not (dry_run | default(false) | bool)
         - "'stop_service' in openldap_config.cleanup_operations"
         - >-
           (openldap_config.service_name | default('openldap')) + '.service'
@@ -84,6 +85,7 @@
       register: cleanup_openldap_container_removal
       changed_when: true
       when:
+        - not (dry_run | default(false) | bool)
         - "'remove_container' in openldap_config.cleanup_operations"
         - cleanup_openldap_podman_check.rc == 0
         - cleanup_openldap_container_check.rc == 0
@@ -110,7 +112,9 @@
         path: "{{ openldap_config.quadlet_file | default('/etc/containers/systemd/omnia_auth.container') }}"
         state: absent
       register: cleanup_openldap_quadlet_removal
-      when: "'remove_quadlet' in openldap_config.cleanup_operations"
+      when:
+        - not (dry_run | default(false) | bool)
+        - "'remove_quadlet' in openldap_config.cleanup_operations"
       tags: openldap
 
 - name: Reload systemd after Quadlet removal
@@ -131,7 +135,9 @@
       ansible.builtin.file:
         path: "{{ openldap_config.base_dir }}"
         state: absent
-      when: "'remove_data' in openldap_config.cleanup_operations"
+      when:
+        - not (dry_run | default(false) | bool)
+        - "'remove_data' in openldap_config.cleanup_operations"
       tags: openldap
 
 - name: Display OpenLDAP cleanup completion
