@@ -18,6 +18,7 @@ TEST_LOG_MSGS = {
     "test_ok": "{step} passed",
     "test_failed": "{step} failed (rc={rc})",
     "blocked": "not run: {test} of this stage failed earlier",
+    "resumed": "not run again: it passed in attempt {attempt}; the retry resumes at {point}",
 }
 
 TEST_ASSERT_MSGS = {
@@ -25,8 +26,9 @@ TEST_ASSERT_MSGS = {
         "{step} failed (rc={rc}).\n"
         "HOW TO FIX:\n"
         "  1. Read the output above (also in the SVT report of the run)\n"
-        "  2. Fix the cause, start a new run (./setup_env.sh --theme {theme} --configure), "
-        "then ./run_validation.sh svt_{theme} {stage} (or all)"
+        "  2. Fix the cause, then ./run_validation.sh svt_{theme} {stage} --retry: it resumes at "
+        "this test (the tests that passed are not run again). Or start a new run "
+        "(./setup_env.sh --theme {theme} --configure)"
     ),
 }
 

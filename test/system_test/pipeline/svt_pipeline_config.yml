@@ -17,7 +17,7 @@
 # =============================================================================
 # How it works: setup_svt_project.py reads this file and creates (or updates) one GitLab
 # project. The project holds the CI files it generates (.gitlab-ci.yml and
-# .gitlab-ci-svt.yml), svt_ci.py, and the CI/CD variables below. Every pipeline job runs
+# .gitlab-ci-svt-<theme>.yml), svt_ci.py, and the CI/CD variables below. Every pipeline job runs
 # on the GitLab runner and drives the OIM over SSH:
 #
 #   preflight -> initialization -> <theme stages> -> summary
@@ -56,9 +56,6 @@ gitlab:
 # What the pipeline runs
 # -----------------------------------------------------------------------------
 svt:
-  # The SVT theme (a key of THEMES in ../library/vars/theme_vars.py). Its stages become
-  # the pipeline jobs, so a new theme or stage needs no change here.
-  theme: "build_stream"
   # Seconds between two reads of a running stage's log on the OIM (minimum 5). A short
   # value shows the log sooner; a long one makes fewer SSH calls.
   poll_seconds: "30"
@@ -126,6 +123,15 @@ email:
 # Copy a block and rename it to add a cluster.
 clusters:
   oim1:
+    # The SVT theme of this cluster (required; a key of THEMES in
+    # ../library/vars/theme_vars.py). It becomes the CI/CD variable <CLUSTER>_SVT_THEME and the
+    # pipeline picks the theme from that variable, so it can be changed in GitLab (Settings >
+    # CI/CD > Variables, or per run in Run pipeline) without --update; this value is what
+    # --update and --set-variables write. Its stages become the cluster's pipeline jobs.
+    theme: "build_stream"
+    # "false": leave this cluster out of the default selection (SVT_CLUSTERS). Its trigger job
+    # stays, so a run can still pick it by name (SVT_CLUSTERS=<name> in Run pipeline).
+    # enabled: true
     target:
       # IP or name of the OIM. The runner must reach it on port 22.
       ip: ""
