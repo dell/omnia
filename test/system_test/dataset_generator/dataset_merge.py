@@ -60,8 +60,8 @@ from .dataset_edit import (
 IDENTITY_KEYS = ("name", "cluster_name", "address", "subnet")
 # Keys the product reads as "feature on" when they exist, whatever their value, and whose
 # schema rejects an empty value: an empty value in user_inputs.yml removes them from the file.
-# ib_addr_mode: with it the orchestrator runs the IPoIB pipeline, which needs IB columns on a
-# PXE row; without it the pipeline is skipped (a cluster without InfiniBand).
+# ib_addr_mode: with it the orchestrator runs the IPoIB pipeline for the rows that have an
+# IB_NIC_NAME; without it the pipeline is skipped (a cluster without InfiniBand).
 REMOVE_WHEN_EMPTY = ("ib_addr_mode",)
 VAST_MOUNT = "vast_storage"
 VAST_PREFIX = "# [vast off] "
