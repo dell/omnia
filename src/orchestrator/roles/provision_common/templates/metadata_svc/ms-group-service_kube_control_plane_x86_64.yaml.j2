@@ -651,6 +651,41 @@
             mkdir -p /root/.kube
             cp -f /etc/kubernetes/admin.conf /root/.kube/config
             chown root:root /root/.kube/config
+            export KUBECONFIG=/etc/kubernetes/admin.conf
+            # --- Re-provision consistency guard (non-destructive, fail fast) ---
+            # On a re-provision the node OS/PKI can be regenerated (a new cluster CA
+            # in /etc/kubernetes/pki/ca.crt) while the per-node etcd state from the
+            # previous provisioning is retained on persistent storage. The in-cluster
+            # ServiceAccount CA bundle (configmap kube-root-ca.crt, served out of
+            # etcd) then no longer matches the apiserver serving certificate, so every
+            # in-cluster client (kube-proxy, Calico, CoreDNS) fails apiserver TLS with
+            # "x509: certificate signed by unknown authority", the CNI never installs
+            # and no pod ever becomes Ready. Detect that mismatch and stop with a
+            # clear root cause instead of waiting on a cluster that cannot converge.
+            ondisk_ca="/etc/kubernetes/pki/ca.crt"
+            cluster_ca="$(mktemp)"
+            if kubectl -n kube-system get configmap kube-root-ca.crt \
+                 -o jsonpath='{.data.ca\.crt}' > "$cluster_ca" 2>/dev/null && [ -s "$cluster_ca" ]; then
+              ondisk_fp="$(openssl x509 -noout -fingerprint -sha256 -in "$ondisk_ca" 2>/dev/null | cut -d= -f2)"
+              cluster_fp="$(openssl x509 -noout -fingerprint -sha256 -in "$cluster_ca" 2>/dev/null | cut -d= -f2)"
+              if [ -n "$ondisk_fp" ] && [ -n "$cluster_fp" ] && [ "$ondisk_fp" != "$cluster_fp" ]; then
+                echo "ERROR: Kubernetes PKI/state inconsistency detected after (re)provisioning."
+                echo "  The apiserver CA on disk ($ondisk_ca) does not match the cluster"
+                echo "  ServiceAccount CA persisted in etcd (configmap kube-root-ca.crt)."
+                echo "  on-disk CA   SHA256: $ondisk_fp"
+                echo "  persisted CA SHA256: $cluster_fp"
+                echo "  This node was re-imaged with a new cluster CA while its previous"
+                echo "  etcd/kubernetes state was kept, so in-cluster clients (kube-proxy,"
+                echo "  Calico, CoreDNS) will fail apiserver TLS and no pod will become"
+                echo "  Ready. Clear this node's persisted Kubernetes state (its per-node"
+                echo "  etcd/kubernetes/kubelet directories on the K8s NFS share and the"
+                echo "  local etcd disk) and re-provision so the cluster is rebuilt with a"
+                echo "  single consistent CA."
+                rm -f "$cluster_ca"
+                exit 1
+              fi
+            fi
+            rm -f "$cluster_ca"
             kubectl get nodes -o wide || echo "Cluster not yet fully up"
             kubectl get pods --all-namespaces -o wide || echo "Pods may not be ready yet"
             echo "Rollout and Restart coredns"
@@ -658,18 +693,28 @@
             echo "Waiting for coredns pods to appear.."
             sleep 30
             kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
-            # Wait for all pods in all namespaces to be ready (status=Running or Completed)
+            # Wait for all pods in all namespaces to be ready (status=Running or Completed).
+            # Bounded wait so cloud-init fails fast with diagnostics instead of
+            # blocking forever when the cluster cannot converge (e.g. the CNI
+            # cannot start because of a PKI/ServiceAccount CA mismatch).
             echo "Waiting for all pods to be Ready (Running/Completed)..."
-            while true; do
+            pods_ready=false
+            for attempt in $(seq 1 {{ k8s_pods_ready_max_attempts | default(120) }}); do
               not_ready=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '{ print $4 }' | grep -vE '^(Running|Completed)$' | wc -l)
               if [ "${not_ready}" -eq 0 ]; then
                 echo "All pods are Running or Completed."
+                pods_ready=true
                 break
-              else
-                echo "$not_ready pods not yet ready, waiting 5s ..."
-                sleep 5
               fi
+              echo "$not_ready pods not yet ready (attempt ${attempt}/{{ k8s_pods_ready_max_attempts | default(120) }}), waiting 5s ..."
+              sleep 5
             done
+            if [ "$pods_ready" != "true" ]; then
+              echo "ERROR: Not all pods became Ready within the allotted time."
+              echo "Remaining not-ready pods:"
+              kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '$4 !~ /^(Running|Completed)$/ {print "  - "$1"/"$2": "$4}'
+              exit 1
+            fi
 
             echo "Listing all Kubernetes nodes:"
             kubectl get nodes -o wide
