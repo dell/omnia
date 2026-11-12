@@ -93,3 +93,47 @@ def test_slurm_drain_probe_always_cancels_job_and_resumes_node(monkeypatch):
     assert result["success"]
     assert any("scancel" in command for command in commands)
     assert any("RESUME" in command for command in commands)
+
+
+def _storage_host(monkeypatch, mounts, delete=False):
+    """Return a fake host whose omnia_config references nfs_k8s and nfs_slurm."""
+    from library.functions import cleanup_func  # pylint: disable=import-outside-toplevel
+
+    files = {
+        "omnia_config.yml": {"service_k8s_cluster": [{"nfs_storage_name": "nfs_k8s"}],
+                             "slurm_cluster": [{"nfs_storage_name": "nfs_slurm"}]},
+        "storage_config.yml": {"mounts": mounts},
+    }
+
+    class _File:
+        def __init__(self, path):
+            self.is_file = True
+            self.content_string = __import__("yaml").safe_dump(
+                files[path.rsplit("/", 1)[-1]])
+
+    host = SimpleNamespace(file=_File)
+    monkeypatch.setattr(cleanup_func, "resolve_target_input_project_path", lambda _h: "/in")
+    monkeypatch.setattr(cleanup_func, "load_test_config", lambda: {"cleanup_k8s": delete,
+                                                                   "cleanup_slurm": delete})
+    monkeypatch.setattr(cleanup_func, "run_on_host", lambda *_a, **_k: _result(rc=1))
+    return cleanup_func, host
+
+
+def test_cleanup_storage_without_a_mount_is_not_a_failure(monkeypatch):
+    """ORCH_UT_BC_CLEANUP_001: a referenced storage with no mount (blank source) is skipped."""
+    cleanup_func, host = _storage_host(monkeypatch, [])
+    for check in (cleanup_func.check_cleanup_kubernetes, cleanup_func.check_cleanup_slurm):
+        result = check(host)
+        assert result["success"], result
+        assert any("not configured in storage_config.yml" in str(value)
+                   for _, value in result["fields"])
+
+
+def test_cleanup_storage_still_fails_when_a_mount_is_attached(monkeypatch):
+    """ORCH_UT_BC_CLEANUP_002: a configured mount that is still attached fails the check."""
+    cleanup_func, host = _storage_host(monkeypatch, [
+        {"name": "nfs_k8s", "source": "10.0.0.1:/k8s", "mount_point": "/opt/k8s"}])
+    monkeypatch.setattr(cleanup_func, "run_on_host", lambda *_a, **_k: _result(rc=0))
+    result = cleanup_func.check_cleanup_kubernetes(host)
+    assert not result["success"]
+    assert "nfs_k8s: storage still attached" in result["error"]
