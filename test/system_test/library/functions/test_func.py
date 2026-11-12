@@ -27,10 +27,10 @@ from typing import Any, Dict
 import pytest
 from omnia_auto import TestLogger
 
-from . import run_func, svt_report_func
+from . import catalog_func, run_func, svt_report_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
-from ..messages.svt_msgs import SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
+from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
 from ..vars.common_vars import REPORT_SECTION_ENV
 from ..vars.test_case_vars import TEST_CASES
 
@@ -56,19 +56,34 @@ def run_svt_test(theme: str, name: str) -> None:
     tc = TEST_CASES[f"{theme}_{name}"]
     label = describe_step(tc["step"])
     blocked = _FAILED.get(tc["stage"])
-    if blocked:
+    # "always": a test that runs even after an earlier failure of its stage (cleanup).
+    if blocked and not tc.get("always"):
         reason = TEST_LOG_MSGS["blocked"].format(test=blocked)
         _report(theme, svt_report_func.make_item({
             "id": tc["id"], "name": tc["title"], "status": "Skipped", "details": reason,
             "command": label, "fvt": step_info(tc["step"])}))
         pytest.skip(reason)
     logger = TestLogger(tc["title"], tc["id"])
-    result = run_fvt_step(tc["step"])
+    # "action": an SVT action instead of an FVT step (catalog_build: select or skip a catalog).
+    result = catalog_func.run_action(tc) if tc.get("action") else run_fvt_step(tc["step"])
+    if result.get("skipped"):
+        _report(theme, svt_report_func.make_item({
+            "id": tc["id"], "name": tc["title"], "status": "Skipped",
+            "details": result["skipped"], "fvt": result["fvt"]}))
+        pytest.skip(result["skipped"])
+    note = f"$ {result['command']}"
+    # "stop_leftovers": after a failed exec, stop the playbook workers it left running.
+    if not result["success"] and tc.get("stop_leftovers"):
+        stopped = catalog_func.stop_leftovers(tc["step"][0], print)
+        if stopped:
+            note += "\n" + CATALOG_MSGS["leftovers_stopped"].format(
+                domain=tc["step"][0], pids=", ".join(str(pid) for pid in stopped))
     _report(theme, svt_report_func.make_item({
         "id": tc["id"], "name": tc["title"], "status": "Passed" if result["success"] else "Failed",
         "duration": result["duration"], "command": label, "output": result["output"],
-        "results": result["results"], "fvt": result["fvt"], "details": f"$ {result['command']}",
-        "error": "" if result["success"] else f"{label} failed (rc={result['rc']})"}))
+        "results": result["results"], "fvt": result["fvt"], "details": note,
+        "error": "" if result["success"] else (result.get("error")
+                                               or f"{label} failed (rc={result['rc']})")}))
     fields = [("FVT step", label), ("rc", result["rc"]),
               ("FVT results", len(result["results"]))]
     if result["success"]:

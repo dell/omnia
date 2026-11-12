@@ -253,7 +253,7 @@ def _catalog_selection() -> str:
     return "" if node is None else str(node).strip()
 
 
-def _bundled_catalogs() -> Tuple[Dict[str, str], str]:
+def bundled_catalogs() -> Tuple[Dict[str, str], str]:
     """Return ({number: name} of ./omnia.sh --list-catalogs, error)."""
     try:
         listed = subprocess.run(  # nosec B603  # fixed argument list, no shell
@@ -273,7 +273,7 @@ def resolve_catalog(selection: str) -> Tuple[str, str]:
     The name is what --select-catalog gets, so the choice does not depend on
     the order of the list at install time.
     """
-    catalogs, error = _bundled_catalogs()
+    catalogs, error = bundled_catalogs()
     if error:
         return "", error
     wanted = selection
@@ -306,7 +306,7 @@ def _configure_catalog(emit: Emit, rows: List[Dict[str, Any]]) -> Tuple[str, str
     return name, ""
 
 
-def _select_catalog(name: str, emit: Emit, rows: List[Dict[str, Any]]) -> str:
+def select_catalog(name: str, emit: Emit, rows: List[Dict[str, Any]]) -> str:
     """Run ./omnia.sh --select-catalog ``name`` (replaces the active catalog); return an error."""
     emit(SETUP_MSGS["catalog_select"].format(name=name))
     result = tee_command(["bash", OMNIA_SH, OMNIA_SELECT_CATALOG_ARG, name], cwd=OMNIA_SH_DIR,
@@ -435,7 +435,7 @@ def install(config: Dict[str, Any], emit: Emit, force: bool = False,
         return _failed(SETUP_MSGS["setup_incomplete"] + _problems(problems), rows=rows)
     catalog = record["configure"].get("catalog", "")
     if catalog:
-        error = _select_catalog(catalog, emit, rows)
+        error = select_catalog(catalog, emit, rows)
         if error:
             return _failed(error, rows=rows)
     venv = omnia_venv_path()

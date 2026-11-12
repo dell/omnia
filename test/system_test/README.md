@@ -83,12 +83,49 @@ tests of the stage are skipped (they need what it set up).
 The tests are data in [`library/vars/test_case_vars.py`](library/vars/test_case_vars.py);
 `svt/test_svt.py` generates one pytest test per entry.
 
+## Theme catalog_build
+
+For every catalog, one at a time: `./omnia.sh --select-catalog <catalog>`, then the
+repo_manager and image_build_manager FVT steps (no orchestrator deploy, no PXE boot).
+User guide: [`docs/CATALOG_BUILD.md`](docs/CATALOG_BUILD.md). Settings:
+[`catalog_build_test_config.yml`](catalog_build_test_config.yml); design:
+[`catalog_build_design.md`](catalog_build_design.md).
+
+```bash
+./setup_env.sh --theme catalog_build            # configure (freezes the catalog plan) -> install -> creds
+./setup_env.sh --theme catalog_build --force    # cleanup first (deletes OMNIA_DATA_PATH)
+./run_validation.sh svt_catalog_build list      # the catalog stages and their tests
+./run_validation.sh svt_catalog_build all       # every catalog stage, then summary
+./run_validation.sh svt_catalog_build all --start-stage catalog_02
+./run_validation.sh svt_catalog_build all --retry
+```
+
+`--configure` resolves `catalog_build.catalogs` (`all` = the `./omnia.sh
+--list-catalogs` order) into the plan of the run, `reports/catalog_build_plan.json`.
+The theme's stages (`catalog_01`, `catalog_02` ...) and tests are generated from it
+([`library/vars/catalog_vars.py`](library/vars/catalog_vars.py)) and run like the
+build_stream tests. IDs are `SVT_CATALOG_BUILD_<catalog NN><step NN>`.
+
+| Test of a catalog stage | What it does | Step |
+|---|---|---|
+| `NN00` | Put back the shared runtime inputs, apply `catalog_overrides/<catalog>/<domain>/<file>`, write `repo_config`, `caching_policy`, `repo_policies`, `force_rebuild` and `functional_groups_source: catalog` into `<OMNIA_DATA_PATH>/<domain>/input/<project>/`, then `./omnia.sh --select-catalog` | `svt select <catalog>` |
+| `NN01`... | Every `steps` entry `[domain, tag]` of the theme block, as two tests | `fvt_<domain> <tag> exec`, `fvt_<domain> <tag> verify` |
+| last | `cleanup_between` (`images`, `repos`, `full`); runs even after a failure | `fvt_<domain> cleanup... test` |
+
+A catalog with an aarch64 layer is one skipped test (`NN00`, with the reason) unless
+`include_aarch64: true` (needs `aarch64_inventory_host_ip` in user_inputs.yml). With
+`continue_on_failure: true` every catalog stage is a soft stage: a failed catalog does
+not stop the next one; the summary still fails. After a failed `exec` the orphaned
+`ansible-playbook <domain>.yml` workers (and a running `dnf download`) are stopped, so
+a playbook killed at the FVT timeout cannot overlap the next test.
+
 ## Documentation
 
 | Doc | Contents |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, status), `user_inputs.yml`, the dataset generator |
 | [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, NFS shares ...), the report |
+| [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md) | **User guide of the `catalog_build` theme**: prerequisites, the two files to edit, step by step, every setting, reading the report, failures, troubleshooting |
 | [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | Run the SVT from GitLab: how it works, where each secret goes, setup, **updating an existing pipeline**, troubleshooting |

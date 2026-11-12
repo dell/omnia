@@ -24,6 +24,8 @@ copies FVT logic. The tests of a stage are listed in test_case_vars.py.
 
 from typing import Dict, Tuple
 
+from .catalog_vars import CATALOG_PLAN, catalog_soft_stages, catalog_stage_info, catalog_stages
+
 FvtStep = Tuple[str, Tuple[str, ...]]
 
 # Previous installation, removed in this order before the setup: BuildStream,
@@ -174,6 +176,40 @@ THEMES: Dict[str, Dict] = {
                                       "bool"),
             "debug_mode": ("build_stream", "", "debug_mode", "bool"),
         },
+    },
+    "catalog_build": {
+        "title": "Catalog Build",
+        "description": "Catalog build: for every catalog, ./omnia.sh --select-catalog, then "
+                       "the repo_manager and image_build_manager FVT steps",
+        "profile": "catalog_build",
+        # Same cleanup as build_stream: an earlier BuildStream, telemetry or orchestrator
+        # deployment must not block omnia.sh --cleanup --all.
+        "cleanup_steps": CLEANUP_STEPS,
+        "nfs_shares": {},
+        # orchestrator, telemetry and build_stream: their requirements are installed only
+        # for their cleanup FVT; they get no stage and no credentials.
+        "fvt_domains": ("repo_manager", "image_build_manager", "orchestrator",
+                        "telemetry", "build_stream"),
+        "credential_domains": ("repo_manager", "image_build_manager"),
+        "creds_suite": "build_stream",
+        "cleanup_requires": {
+            ("build_stream", ("cleanup", "test")): (
+                "/etc/containers/systemd/omnia_build_stream.container",
+                "/etc/containers/systemd/omnia_postgres.container",
+                "{domain_data}/postgres",
+                "{domain_data}/build_stream_root",
+            ),
+        },
+        "cleanup_when_deployed": ("telemetry",),
+        # One stage per catalog of the plan --configure wrote (catalog_vars.py); the
+        # stage titles name the catalog. With continue_on_failure every catalog stage is
+        # soft: a failed catalog does not stop the next one, the summary still fails.
+        "stages": catalog_stages(CATALOG_PLAN),
+        "soft_stages": catalog_soft_stages(CATALOG_PLAN),
+        "stage_info": catalog_stage_info(CATALOG_PLAN),
+        # The theme block is the catalog settings (catalog_settings.py), not FVT settings.
+        "catalog_plan": True,
+        "fvt_settings": {},
     },
 }
 # Sections every theme has (title, description); the theme stages come from
