@@ -34,8 +34,9 @@
 # How values are used
 #   MANDATORY  must be filled; the run stops and names every empty one.
 #   optional   "" (or []) is written as empty, so clearing a value here clears
-#              it in the input file too. Exceptions: a blank vast_storage
-#              source turns VAST off, a blank catalog keeps the default one.
+#              it in the input file too. Exceptions: a blank source of the
+#              vast_storage, nfs_slurm or nfs_k8s mount comments that mount out
+#              of storage_config.yml, a blank catalog keeps the default one.
 #   Keep the quotes around IPs, versions and paths.
 #
 # Layout: one block per module, in this order
@@ -329,8 +330,10 @@ orchestrator:
   # |       "ipv4-only"   IPv4 only, IPv6 is ignored                           |
   # |       ""            no InfiniBand: the key is removed and the IPoIB      |
   # |                     pipeline is skipped                                  |
-  # |     With a mode set, at least one PXE row must have IB_NIC_NAME and its  |
-  # |     IB address(es), or the deploy fails ("No IB allocation rows found"). |
+  # |     A row with IB_NIC_NAME needs the addresses of the mode:              |
+  # |     dual-stack IB_IPV4 and IB_IPV6, ipv6-only IB_IPV6,                   |
+  # |     ipv4-only (or no mode) IB_IPV4. A row without IB_NIC_NAME            |
+  # |     is not checked, and an address without it is an error.               |
   # |     The ib_network subnets must not overlap the admin subnet. The Slurm  |
   # |     NodeAddr follows the mode (IPv6 in dual-stack and ipv6-only).        |
   # +--------------------------------------------------------------------------+
@@ -374,9 +377,12 @@ orchestrator:
   # |     mount_point  path where the nodes mount it                           |
   # |   nfs_slurm  share for Slurm                                             |
   # |   nfs_k8s    share for the Kubernetes service cluster                    |
-  # |   vast_storage  optional. Leave source "" when there is no VAST: the     |
-  # |                 generator then turns VAST off (comments out the mount    |
-  # |                 here and vast_storage_name in omnia_config.yml).         |
+  # |   vast_storage  optional.                                                |
+  # |   Leave the source "" of a mount you do not use: the generator           |
+  # |   then comments that mount out here. omnia_config.yml is never           |
+  # |   changed: a nfs_storage_name or vast_storage_name that names a          |
+  # |   mount that is off is reported by the orchestrator validation.          |
+  # |   Give the source again and rerun to turn the mount on.                  |
   # |   The sources below are sample values; point                             |
   # |   them at NFS exports that exist.                                        |
   # +--------------------------------------------------------------------------+

@@ -23,6 +23,7 @@ no change here::
     ./setup_svt_project.py --create --gitlab-url https://gitlab.example.com
     ./setup_svt_project.py --update --gitlab-url ... [--update-inputs] [--set-password]
                            [--scan-host-keys] [--bao-cacert ca.pem]
+    ./setup_svt_project.py --set-variables --gitlab-url ...              # only the CI/CD variables
     ./setup_svt_project.py --validate --gitlab-url ...                   # GitLab CI lint
 
 The GitLab token comes from GITLAB_TOKEN or a prompt, each cluster's OIM SSH
@@ -37,7 +38,7 @@ OpenBao CA certificate as the File variable BAO_CACERT. Both only change the var
 they name and can be repeated.
 
 Files committed: .gitlab-ci.yml (one trigger job per cluster, each holding the
-cluster's resource group), .gitlab-ci-svt.yml (the jobs: the theme's stages
+cluster's resource group), .gitlab-ci-svt-<theme>.yml (the jobs: the theme's stages
 and the configured timeouts), svt_ci.py, the config (reference copy) and, per
 cluster, clusters/<name>/svt/user_inputs.yml and <theme>_test_config.yml
 (copied from test/system_test on --create, or with --update-inputs; edit
@@ -107,6 +108,7 @@ CLUSTER_VARIABLES = {
     ("omnia", "checkout_mode"): "SVT_CHECKOUT_MODE",
     ("svt", "clean_reinstall"): "SVT_CLEAN_REINSTALL",
     ("svt", "skip_stages"): "SVT_SKIP_STAGES",
+    ("", "theme"): "SVT_THEME",
     ("", "secret_path"): "BAO_DATA_PATH",
 }
 
@@ -132,17 +134,45 @@ def openbao_variables() -> Dict[str, str]:
     return values
 
 
+def cluster_theme(config: Dict[str, Any], cluster: str) -> str:
+    """Return the SVT theme of a cluster (``clusters.<name>.theme``)."""
+    block = (config.get("clusters") or {}).get(cluster) or {}
+    return str(block.get("theme") or "")
+
+
+def cluster_enabled(config: Dict[str, Any], cluster: str) -> bool:
+    """Return whether a cluster is in the default selection (``enabled: false`` leaves it out)."""
+    block = (config.get("clusters") or {}).get(cluster) or {}
+    return str(block.get("enabled", True)).strip().lower() not in ("false", "no", "0", "off")
+
+
+def trigger_job(cluster: str, theme: str) -> str:
+    """Return the name of the trigger job of a cluster and theme (the theme only when there are
+    several)."""
+    return f"svt_{cluster}" if len(THEMES) == 1 else f"svt_{cluster}_{theme}"
+
+
+def ci_file(theme: str) -> str:
+    """Return the child pipeline file of a theme (the jobs of one cluster)."""
+    return f".gitlab-ci-svt-{theme}.yml"
+
+
 def load_config(path: Path) -> Dict[str, Any]:
     """Return the checked pipeline config."""
     with open(path, "r", encoding="utf-8") as stream:
         config = yaml.safe_load(stream) or {}
-    theme = str((config.get("svt") or {}).get("theme") or "")
-    if theme not in THEMES:
-        raise SystemExit(f"svt.theme {theme!r} is not a theme of test/system_test "
-                         f"(known: {', '.join(THEMES)})")
     clusters = config.get("clusters") or {}
     if not isinstance(clusters, dict) or not clusters:
         raise SystemExit("clusters: add at least one cluster block (see the comments)")
+    if "theme" in (config.get("svt") or {}):
+        raise SystemExit("svt.theme is not used any more: the theme is set per cluster. Remove "
+                         "it from the svt block and add 'theme: <theme>' to each cluster block")
+    for name in clusters:
+        theme = cluster_theme(config, name)
+        if theme not in THEMES:
+            problem = f"{theme!r} is not a theme of test/system_test" if theme else "is missing"
+            raise SystemExit(f"clusters.{name}.theme {problem} "
+                             f"(set it to one of: {', '.join(THEMES)})")
     bad = [name for name in clusters if not CLUSTER_NAME.fullmatch(str(name))]
     if bad:
         raise SystemExit(f"invalid cluster name(s) {bad}: letters, digits, _ and -")
@@ -168,7 +198,8 @@ def ci_variables(config: Dict[str, Any]) -> Dict[str, str]:
                  else str(_value(config, section, key))
                  for (section, key), name in GLOBAL_VARIABLES.items()}
     variables.update(openbao_variables())
-    variables["SVT_CLUSTERS"] = ",".join(config["clusters"])
+    variables["SVT_CLUSTERS"] = ",".join(name for name in config["clusters"]
+                                         if cluster_enabled(config, name))
     for cluster, block in config["clusters"].items():
         for (section, key), name in CLUSTER_VARIABLES.items():
             value = _value(block or {}, section, key)
@@ -201,58 +232,117 @@ def resource_group(cluster: str) -> str:
     return f"svt-{cluster}"
 
 
+def _select_job(config: Dict[str, Any]) -> List[str]:
+    """Return the ``select_clusters`` job: it prints the clusters of the run with the theme of
+    each (the variable <PREFIX>_SVT_THEME) and fails on a name of SVT_CLUSTERS that is not a
+    cluster of the config (a typo would start nothing), on a selected cluster whose theme is not
+    a known theme, or when nothing is selected. It needs only a shell."""
+    known = " ".join(config["clusters"])
+    themes = " ".join(THEMES)
+    variables = " ".join(f"{name}:{prefix(name)}_SVT_THEME" for name in config["clusters"])
+    return [
+        "# Fails fast on a wrong SVT_CLUSTERS or <CLUSTER>_SVT_THEME and shows the clusters and",
+        "# themes of this run.",
+        "select_clusters:",
+        "  stage: select",
+        "  script:",
+        "    - |",
+        f'      known="{known}"',
+        f'      themes="{themes}"',
+        f'      themevars="{variables}"',
+        '      selected=""; bad=""; badtheme=""',
+        '      for name in $(printf "%s" "$SVT_CLUSTERS" | tr "," " "); do',
+        '        case " $known " in',
+        '          *" $name "*) selected="$selected $name" ;;',
+        '          *) bad="$bad $name" ;;',
+        "        esac",
+        "      done",
+        '      if [ -n "$bad" ]; then',
+        '        echo "ERROR: SVT_CLUSTERS names a cluster that is not in the config:$bad"',
+        '        echo "Known clusters: $known"',
+        "        exit 1",
+        "      fi",
+        '      if [ -z "$selected" ]; then',
+        '        echo "ERROR: SVT_CLUSTERS selects no cluster [$SVT_CLUSTERS]; known: $known"',
+        "        exit 1",
+        "      fi",
+        '      echo "SVT clusters of this run:"',
+        "      for name in $selected; do",
+        '        for item in $themevars; do',
+        '          if [ "${item%%:*}" != "$name" ]; then continue; fi',
+        '          var="${item#*:}"; theme="$(printenv "$var" || true)"',
+        '          case " $themes " in',
+        '            *" $theme "*) echo "  $name (theme $theme)" ;;',
+        "            *) badtheme=\"$badtheme $var=[$theme]\" ;;",
+        "          esac",
+        "        done",
+        "      done",
+        '      if [ -n "$badtheme" ]; then',
+        '        echo "ERROR: theme variable of a selected cluster is not a known theme:$badtheme"',
+        '        echo "Known themes: $themes"',
+        "        exit 1",
+        "      fi",
+        "",
+    ]
+
+
 def render_parent(config: Dict[str, Any]) -> str:
     """Return .gitlab-ci.yml: one trigger job per cluster, each holding its resource group.
 
-    Each cluster's SVT is a child pipeline (.gitlab-ci-svt.yml) with
-    SVT_CLUSTER set; the clusters run at the same time, and a second pipeline
-    for the same OIM waits until the first one ends. SVT_CLUSTERS (default:
-    every cluster) picks the clusters of a run.
+    Each cluster's SVT is a child pipeline (.gitlab-ci-svt-<theme>.yml) with SVT_CLUSTER set.
+    There is one trigger job per cluster and theme; the one whose theme equals the cluster's
+    variable <PREFIX>_SVT_THEME runs, so the theme is changed with a variable, not a new file.
+    The clusters run at the same time, and a second pipeline for the same OIM waits until the
+    first one ends. SVT_CLUSTERS (default: every enabled cluster) picks the clusters of a run.
     """
-    theme = config["svt"]["theme"]
     lines = [
         HEADER.rstrip("\n"),
-        f"# SVT theme {theme}: {theme_title(theme)}. The jobs are in .gitlab-ci-svt.yml.",
-        f"# Clusters: {', '.join(config['clusters'])}",
+        *[f"# SVT theme {theme}: {theme_title(theme)}. The jobs are in {ci_file(theme)}."
+          for theme in THEMES],
+        "# Clusters: " + ", ".join(f"{name} ({cluster_theme(config, name)})"
+                                   for name in config["clusters"]),
         "workflow:",
         "  rules:",
         "    - if: '$CI_PIPELINE_SOURCE =~ /^(web|api|schedule|trigger|pipeline)$/'",
         "",
         "stages:",
+        "  - select",
         "  - svt",
         "",
+        *_select_job(config),
     ]
     for cluster in config["clusters"]:
-        lines += [
-            f"svt_{cluster}:",
-            "  stage: svt",
-            f'  resource_group: "{resource_group(cluster)}"',
-            "  rules:",
-            f"    - if: '$SVT_CLUSTERS =~ /(^|,) *{cluster} *(,|$)/'",
-            "  variables:",
-            f'    SVT_CLUSTER: "{cluster}"',
-            f'    SVT_SKIP_STAGES: "${prefix(cluster)}_SVT_SKIP_STAGES"',
-            "  trigger:",
-            "    include:",
-            "      - local: .gitlab-ci-svt.yml",
-            "    strategy: depend",
-            "    forward:",
-            "      yaml_variables: true",
-            "      pipeline_variables: true",
-            "",
-        ]
+        for theme in THEMES:
+            lines += [
+                f"{trigger_job(cluster, theme)}:",
+                "  stage: svt",
+                f'  resource_group: "{resource_group(cluster)}"',
+                "  rules:",
+                f"    - if: '$SVT_CLUSTERS =~ /(^|,) *{cluster} *(,|$)/ && "
+                f"${prefix(cluster)}_SVT_THEME == \"{theme}\"'",
+                "  variables:",
+                f'    SVT_CLUSTER: "{cluster}"',
+                f'    SVT_SKIP_STAGES: "${prefix(cluster)}_SVT_SKIP_STAGES"',
+                "  trigger:",
+                "    include:",
+                f"      - local: {ci_file(theme)}",
+                "    strategy: depend",
+                "    forward:",
+                "      yaml_variables: true",
+                "      pipeline_variables: true",
+                "",
+            ]
     return "\n".join(lines)
 
 
-def render_ci(config: Dict[str, Any]) -> Tuple[str, int]:
-    """Return (.gitlab-ci-svt.yml text, longest job timeout in seconds)."""
-    theme = config["svt"]["theme"]
+def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
+    """Return (the child pipeline text of ``theme``, longest job timeout in seconds)."""
     jobs = jobs_of(theme)
     bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
         HEADER.rstrip("\n"),
-        f"# SVT theme {theme}: {theme_title(theme)} (child of .gitlab-ci.yml)",
+        f"# SVT theme {theme}: {theme_title(theme)} (child of .gitlab-ci.yml, {ci_file(theme)})",
         "# Jobs: " + " -> ".join(jobs),
         "workflow:",
         "  rules:",
@@ -330,7 +420,7 @@ def _project(client: GitLabClient, config: Dict[str, Any], create: bool) -> Dict
 def _files(config: Dict[str, Any], config_path: Path) -> List[Tuple[str, str]]:
     """Return (repo path, content) of the pipeline files (always committed)."""
     files = [(".gitlab-ci.yml", render_parent(config)),
-             (".gitlab-ci-svt.yml", render_ci(config)[0]),
+             *[(ci_file(theme), render_ci(config, theme)[0]) for theme in THEMES],
              ("svt_pipeline_config.yml", config_path.read_text(encoding="utf-8"))]
     return files + [(repo, (HERE / local).read_text(encoding="utf-8"))
                     for local, repo in PIPELINE_FILES]
@@ -338,7 +428,8 @@ def _files(config: Dict[str, Any], config_path: Path) -> List[Tuple[str, str]]:
 
 def _input_files(config: Dict[str, Any]) -> List[Tuple[str, str]]:
     """Return (repo path, content) of every cluster's SVT inputs, from test/system_test."""
-    names = ("user_inputs.yml", f"{config['svt']['theme']}_test_config.yml")
+    names = ["user_inputs.yml", *[f"{theme}_test_config.yml" for theme in THEMES
+                                  if (SVT_ROOT / f"{theme}_test_config.yml").is_file()]]
     return [(f"clusters/{cluster}/svt/{name}", (SVT_ROOT / name).read_text(encoding="utf-8"))
             for cluster in config["clusters"] for name in names]
 
@@ -440,11 +531,10 @@ def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -
     project = _project(client, config, create=args.create)
     project_id = project["id"]
     branch = str((config.get("gitlab") or {}).get("branch") or "main")
-    _, longest = render_ci(config)
+    longest = max(render_ci(config, theme)[1] for theme in THEMES)
     _commit(client, project_id, branch, _files(config, config_path))
-    if args.create or args.update_inputs:
-        _commit(client, project_id, branch, _input_files(config),
-                only_missing=not args.update_inputs)
+    _commit(client, project_id, branch, _input_files(config),
+            only_missing=not args.update_inputs)
     for name, value in sorted(ci_variables(config).items()):
         print(f"  {client.set_variable(project_id, name, value)} {name} = {value}")
     if args.create or args.set_password:
@@ -460,8 +550,18 @@ def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -
     print(f"  project CI timeout: {longest // 3600}h{(longest % 3600) // 60:02d}m "
           f"(HTTP {response.status_code})")
     print(f"\nProject: {project.get('web_url', '')}\nNext: edit clusters/<name>/svt/"
-          f"user_inputs.yml and {config['svt']['theme']}_test_config.yml in the project, "
+          f"user_inputs.yml and the <theme>_test_config.yml of each cluster in the project, "
           f"then CI/CD > Pipelines > Run pipeline (branch {branch}).")
+    return 0
+
+
+def set_variables(args: argparse.Namespace, config: Dict[str, Any]) -> int:
+    """--set-variables: rewrite the CI/CD variables of the config; commit nothing else."""
+    client = _client(args)
+    project = _project(client, config, create=False)
+    for name, value in sorted(ci_variables(config).items()):
+        print(f"  {client.set_variable(project['id'], name, value)} {name} = {value}")
+    print("Only the CI/CD variables changed; --update is for the CI files, timeouts or a theme.")
     return 0
 
 
@@ -471,7 +571,7 @@ def validate(args: argparse.Namespace, config: Dict[str, Any]) -> int:
     project = _project(client, config, create=False)
     valid = True
     for name, text in ((".gitlab-ci.yml", render_parent(config)),
-                       (".gitlab-ci-svt.yml", render_ci(config)[0])):
+                       *[(ci_file(theme), render_ci(config, theme)[0]) for theme in THEMES]):
         result = client.lint_ci(project["id"], text)
         valid = valid and bool(result.get("valid"))
         print(f"{name}: valid {result.get('valid')}")
@@ -488,6 +588,9 @@ def main(argv: List[str]) -> int:
     command.add_argument("--create", action="store_true", help="create or fill the project")
     command.add_argument("--update", action="store_true", help="update files and variables")
     command.add_argument("--validate", action="store_true", help="GitLab CI lint")
+    command.add_argument("--set-variables", action="store_true",
+                         help="rewrite only the CI/CD variables of the config (email, polling, "
+                              "skip stages, checkout mode, clusters): no file is committed")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
     parser.add_argument("--gitlab-url", help="GitLab URL (all commands but --render)")
     parser.add_argument("--update-inputs", action="store_true",
@@ -506,16 +609,21 @@ def main(argv: List[str]) -> int:
     config_path = Path(args.config).resolve()
     config = load_config(config_path)
     if args.render:
-        print(f"# ===== .gitlab-ci.yml\n{render_parent(config)}\n"
-              f"# ===== .gitlab-ci-svt.yml\n{render_ci(config)[0]}")
+        print(f"# ===== .gitlab-ci.yml\n{render_parent(config)}")
+        for theme in THEMES:
+            print(f"\n# ===== {ci_file(theme)}\n{render_ci(config, theme)[0]}")
         return 0
     if not args.gitlab_url:
         parser.error("--gitlab-url is required")
-    if (args.scan_host_keys or args.bao_cacert) and not (args.create or args.update):
-        parser.error("--scan-host-keys and --bao-cacert go with --create or --update")
+    if (args.scan_host_keys or args.bao_cacert or args.set_password or args.update_inputs) and not (
+            args.create or args.update):
+        parser.error("--scan-host-keys, --bao-cacert, --set-password and --update-inputs go "
+                     "with --create or --update")
     if args.bao_cacert and not Path(args.bao_cacert).is_file():
         parser.error(f"--bao-cacert: {args.bao_cacert} is not a file")
-    return validate(args, config) if args.validate else apply(args, config, config_path)
+    if args.validate:
+        return validate(args, config)
+    return set_variables(args, config) if args.set_variables else apply(args, config, config_path)
 
 
 if __name__ == "__main__":
