@@ -32,6 +32,7 @@ from omnia_auto import read_remote_yaml, run_on_host
 from library.vars.common_vars import (
     CMDS,
     GITLAB_CA_CERT,
+    GITLAB_KNOWN_HOSTS,
     GITLAB_ROOT_TOKEN_FILE,
     GITLAB_SSH_KEY,
 )
@@ -96,6 +97,7 @@ def ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
 
     ssh_cmd = CMDS["ssh_to_gitlab_key"].format(
         key=shlex.quote(GITLAB_SSH_KEY),
+        known_hosts=shlex.quote(GITLAB_KNOWN_HOSTS),
         gitlab_user=shlex.quote(gitlab_user),
         gitlab_host=shlex.quote(gitlab_host),
         cmd=shlex.quote(cmd),

@@ -2,7 +2,7 @@
 
 `pipeline/svt_pipeline_config.yml` describes the GitLab project that runs the SVT and the
 clusters (OIMs) it tests. `./setup_svt_project.py` reads it and writes three things into
-GitLab: the pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-svt.yml`), CI/CD variables, and
+GitLab: the pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-svt-<theme>.yml`), CI/CD variables, and
 a reference copy of the config. **Passwords and tokens are never in this file.**
 
 Change a value, then apply it to an existing project:
@@ -30,10 +30,9 @@ flags are in `build_stream_test_config.yml` ([TEST_CONFIG.md](TEST_CONFIG.md)).
 
 | Key | Default | Meaning | Becomes |
 |---|---|---|---|
-| `theme` | `build_stream` | The SVT theme (`THEMES` in `library/vars/theme_vars.py`). Its stages become the pipeline jobs, so a new theme or stage needs no change here | read at generation time |
 | `poll_seconds` | `30` | Seconds between two reads of a running stage's log on the OIM (minimum 5) | `SVT_POLL_SECONDS` |
 | `log_limit_kb` | `2500` (empty) | How much of the OIM logs one job prints into the GitLab job log, in KB. GitLab Runner stops collecting a job log at 4096 KB (`output_limit` in the runner's `config.toml`) and timestamps every line, so the job hides base64-only lines, cuts lines over 600 characters and stops printing at this budget (shared by all logs of the job). The full logs stay on the OIM under `reports/ci/<pipeline id>/`, and the last 40 lines are printed when the job ends | `SVT_LOG_LIMIT_KB` |
-| `timeouts_hours` | see below | Time limit of each job, in hours | rendered into `.gitlab-ci-svt.yml` (GitLab does not expand variables in `timeout:`); the project's CI timeout is raised to the longest |
+| `timeouts_hours` | see below | Time limit of each job, in hours | rendered into `.gitlab-ci-svt-<theme>.yml` (GitLab does not expand variables in `timeout:`); the project's CI timeout is raised to the longest |
 
 `timeouts_hours` keys are the job names: `preflight` (the checks and the checkout), `initialization`, then the
 theme's stages (`prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cleanup`) and
@@ -76,6 +75,18 @@ One block per cluster (one OIM each). The block name becomes the variable prefix
 resource group `svt-<name>`: two pipelines for the same OIM never run together, the second
 waits. All clusters of the file run at the same time, each on its own OIM.
 
+### `clusters.<name>.theme`
+
+| Key | Default | Meaning | Where it is used |
+|-----|---------|---------|------------------|
+| `theme` | required | The SVT theme of this cluster (`THEMES` in `library/vars/theme_vars.py`). It is the value of the cluster's CI/CD variable `<PREFIX>_SVT_THEME`, and the pipeline picks the theme from that variable: there is one trigger job per cluster and theme, and the one whose theme equals the variable runs (the child pipeline files `.gitlab-ci-svt-<theme>.yml` exist for every theme). So the theme can be changed with the variable (Settings > CI/CD > Variables, or for one run in Run pipeline) without regenerating anything; the first job fails on a theme that is not known. The cluster's inputs are `clusters/<name>/svt/user_inputs.yml` and `<theme>_test_config.yml`. There is no theme in the `svt` block | `<PREFIX>_SVT_THEME` |
+
+### `clusters.<name>.enabled`
+
+| Key | Default | Meaning | Where it is used |
+|-----|---------|---------|------------------|
+| `enabled` | `true` | `false` leaves the cluster out of the default run (`SVT_CLUSTERS` lists the enabled clusters only). Its trigger job stays in the pipeline, so a run can still select it by name | the `SVT_CLUSTERS` variable |
+
 ### `clusters.<name>.target`
 
 | Key | Default | Meaning | Becomes |
@@ -113,7 +124,8 @@ script, secrets are never printed):
 
 | Variable | From | Notes |
 |---|---|---|
-| `SVT_CLUSTERS` | the cluster names | Which clusters a pipeline runs (override per run) |
+| `SVT_CLUSTERS` | the enabled cluster names | Which clusters a pipeline runs, comma separated. Override it per run (Run pipeline, a schedule, the API); a name that is not in the config fails the first job |
+| `<PREFIX>_SVT_THEME` | `clusters.<name>.theme` | The theme the pipeline runs on that cluster; change it here or per run, no `--update` needed |
 | `SVT_POLL_SECONDS`, `SVT_LOG_LIMIT_KB`, `SVT_EMAIL_REQUIRED` | `svt`, `email` | |
 | `EMAIL_*`, `SMTP_SERVER`, `SMTP_PORT` | `email` | |
 | `BAO_AUTH_ROLE` | `openbao.auth_role` | |
