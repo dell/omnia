@@ -50,6 +50,7 @@ from library.vars.test_case_vars import TEST_CASES as TC
 def test_ib_conditional_population(host):
     """DISCOVERY_FVT_EXECUTE_V016: Verify IB columns populated consistently.
 
+    Skips when no IB subnet is configured in network_spec.yml.
     Rows WITH IB_NIC_NAME must have IB_IPV4 (if ib_subnet configured)
     and IB_IPV6 (if ipv6_subnet configured).
     Rows WITHOUT IB_NIC_NAME must have empty IB_IPV4 and IB_IPV6.
@@ -57,6 +58,10 @@ def test_ib_conditional_population(host):
     tc = TC["ib_conditional_population"]
     tl = TestLogger(TEST_NAMES["ib_conditional_population"], tc["id"])
     result = check_ib_conditional_population(host)
+
+    if result.get("skipped"):
+        tl.passed(LOG["ib_conditional_ok"], result["details"])
+        pytest.skip(result["details"])
 
     if result["success"]:
         tl.passed(LOG["ib_conditional_ok"], result["details"])
@@ -74,10 +79,17 @@ def test_ib_conditional_population(host):
 @pytest.mark.functional
 @pytest.mark.order(17)
 def test_ib_ipv4_format(host):
-    """DISCOVERY_FVT_EXECUTE_V017: Verify IB_IPV4 values are valid IPv4."""
+    """DISCOVERY_FVT_EXECUTE_V017: Verify IB_IPV4 values are valid IPv4.
+
+    Skips when no IB IPv4 subnet is configured in network_spec.yml.
+    """
     tc = TC["ib_ipv4_format"]
     tl = TestLogger(TEST_NAMES["ib_ipv4_format"], tc["id"])
     result = check_ib_ipv4_format(host)
+
+    if result.get("skipped"):
+        tl.passed(LOG["ib_ipv4_format_ok"], result["details"])
+        pytest.skip(result["details"])
 
     if result["success"]:
         tl.passed(LOG["ib_ipv4_format_ok"], result["details"])
@@ -95,10 +107,17 @@ def test_ib_ipv4_format(host):
 @pytest.mark.functional
 @pytest.mark.order(18)
 def test_ib_ipv6_format(host):
-    """DISCOVERY_FVT_EXECUTE_V018: Verify IB_IPV6 values are valid IPv6."""
+    """DISCOVERY_FVT_EXECUTE_V018: Verify IB_IPV6 values are valid IPv6.
+
+    Skips when no IB IPv6 subnet is configured in network_spec.yml.
+    """
     tc = TC["ib_ipv6_format"]
     tl = TestLogger(TEST_NAMES["ib_ipv6_format"], tc["id"])
     result = check_ib_ipv6_format(host)
+
+    if result.get("skipped"):
+        tl.passed(LOG["ib_ipv6_format_ok"], result["details"])
+        pytest.skip(result["details"])
 
     if result["success"]:
         tl.passed(LOG["ib_ipv6_format_ok"], result["details"])

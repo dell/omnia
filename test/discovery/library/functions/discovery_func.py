@@ -1137,6 +1137,7 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
     """
     result = {
         "success": False,
+        "skipped": False,
         "valid_count": 0,
         "invalid_rows": [],
         "details": "",
@@ -1151,6 +1152,14 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
     ib_subnet = subnets["ib_subnet"]
     ipv6_subnet = subnets.get("ipv6_subnet", "")
 
+    if not ib_subnet and not ipv6_subnet:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB subnet configured in network_spec.yml — skipping"
+        )
+        return result
+
     mapping = _read_pxe_mapping_raw(host)
     if not mapping["success"]:
         result["error"] = mapping["error"]
@@ -1159,6 +1168,7 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
     headers = mapping["headers"]
     if "IB_NIC_NAME" not in headers:
         result["success"] = True
+        result["skipped"] = True
         result["details"] = "IB_NIC_NAME column not present — nothing to validate"
         return result
 
@@ -1241,21 +1251,37 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
 def check_ib_ipv4_format(host) -> Dict[str, Any]:
     """Verify every non-empty IB_IPV4 is a valid IPv4 address.
 
+    Skips when no IB subnet is configured in network_spec.yml.
+
     Args:
         host: Testinfra host connection.
 
     Returns:
-        Dict with keys: success, valid_count, invalid_rows, details, error.
+        Dict with keys: success, skipped, valid_count, invalid_rows, details, error.
     """
     import ipaddress as _ipaddress
 
     result = {
         "success": False,
+        "skipped": False,
         "valid_count": 0,
         "invalid_rows": [],
         "details": "",
         "error": "",
     }
+
+    subnets = _get_network_spec_subnets(host)
+    if not subnets["success"]:
+        result["error"] = subnets["error"]
+        return result
+
+    if not subnets["ib_subnet"]:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB IPv4 subnet configured in network_spec.yml — skipping"
+        )
+        return result
 
     mapping = _read_pxe_mapping_raw(host)
     if not mapping["success"]:
@@ -1265,6 +1291,7 @@ def check_ib_ipv4_format(host) -> Dict[str, Any]:
     headers = mapping["headers"]
     if "IB_IPV4" not in headers:
         result["success"] = True
+        result["skipped"] = True
         result["details"] = "IB_IPV4 column not present — nothing to validate"
         return result
 
@@ -1321,21 +1348,37 @@ def check_ib_ipv4_format(host) -> Dict[str, Any]:
 def check_ib_ipv6_format(host) -> Dict[str, Any]:
     """Verify every non-empty IB_IPV6 is a valid IPv6 address.
 
+    Skips when no IB IPv6 subnet is configured in network_spec.yml.
+
     Args:
         host: Testinfra host connection.
 
     Returns:
-        Dict with keys: success, valid_count, invalid_rows, details, error.
+        Dict with keys: success, skipped, valid_count, invalid_rows, details, error.
     """
     import ipaddress as _ipaddress
 
     result = {
         "success": False,
+        "skipped": False,
         "valid_count": 0,
         "invalid_rows": [],
         "details": "",
         "error": "",
     }
+
+    subnets = _get_network_spec_subnets(host)
+    if not subnets["success"]:
+        result["error"] = subnets["error"]
+        return result
+
+    if not subnets.get("ipv6_subnet", ""):
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB IPv6 subnet configured in network_spec.yml — skipping"
+        )
+        return result
 
     mapping = _read_pxe_mapping_raw(host)
     if not mapping["success"]:
@@ -1345,6 +1388,7 @@ def check_ib_ipv6_format(host) -> Dict[str, Any]:
     headers = mapping["headers"]
     if "IB_IPV6" not in headers:
         result["success"] = True
+        result["skipped"] = True
         result["details"] = "IB_IPV6 column not present — nothing to validate"
         return result
 
