@@ -228,6 +228,7 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "all_columns_failed": "Missing columns: {missing}",
     "bmc_mac_ok": "All {count} rows have non-empty BMC_MAC",
     "bmc_mac_failed": "{count} rows have empty BMC_MAC",
+    "ib_skipped": "No IB subnet configured — skipping IB validation",
 
     # OME Integration (V010-V013)
     "ome_groups_match_ok": (

@@ -60,7 +60,7 @@ def test_ib_conditional_population(host):
     result = check_ib_conditional_population(host)
 
     if result.get("skipped"):
-        tl.passed(LOG["ib_conditional_ok"], result["details"])
+        tl.skipped(LOG["ib_skipped"], result["details"])
         pytest.skip(result["details"])
 
     if result["success"]:
@@ -88,7 +88,7 @@ def test_ib_ipv4_format(host):
     result = check_ib_ipv4_format(host)
 
     if result.get("skipped"):
-        tl.passed(LOG["ib_ipv4_format_ok"], result["details"])
+        tl.skipped(LOG["ib_skipped"], result["details"])
         pytest.skip(result["details"])
 
     if result["success"]:
@@ -116,7 +116,7 @@ def test_ib_ipv6_format(host):
     result = check_ib_ipv6_format(host)
 
     if result.get("skipped"):
-        tl.passed(LOG["ib_ipv6_format_ok"], result["details"])
+        tl.skipped(LOG["ib_skipped"], result["details"])
         pytest.skip(result["details"])
 
     if result["success"]:
@@ -144,7 +144,7 @@ def test_ib_ip_uniqueness(host):
     result = check_ib_ip_uniqueness(host)
 
     if result.get("skipped"):
-        tl.passed(LOG["ib_uniqueness_ok"], result["details"])
+        tl.skipped(LOG["ib_skipped"], result["details"])
         pytest.skip(result["details"])
 
     if result["success"]:
