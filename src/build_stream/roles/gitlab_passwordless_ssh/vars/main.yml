@@ -82,7 +82,8 @@ gitlab_key_bootstrap_no_password_msg: >-
   the key yourself: ssh-copy-id -i {{ ssh_key_path }}.pub root@{{ gitlab_host }}
 gitlab_key_install_fail_msg: >-
   Could not authorize {{ ssh_key_path }} on {{ gitlab_host }} with the GitLab SSH password
-  (ssh-copy-id rc={{ _gitlab_key_install.rc }}). Check gitlab_ssh_password and that password
-  login is enabled for {{ gitlab_ansible_user | default('root') }} on the GitLab host.
-  Last message: {{ (_gitlab_key_install.stderr_lines | default([''])) | last | default('') }}
-
+  (ssh-copy-id rc={{ _gitlab_key_install.rc | default('unknown') }}). Check gitlab_ssh_password
+  and that password login is enabled for {{ gitlab_ansible_user | default('root') }} on the
+  GitLab host. The output of the command is hidden because it handles the password: run
+  ssh-copy-id -i {{ ssh_key_path }}.pub {{ gitlab_ansible_user | default('root') }}@{{ gitlab_host }}
+  by hand to see it.

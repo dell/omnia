@@ -149,9 +149,12 @@ BUILD_STREAM_CREDENTIALS_KEY = ".build_stream_credentials_key"
 GITLAB_API_VERSION = "v4"
 GITLAB_ROOT_TOKEN_FILE = "/root/.gitlab_root_token"
 # Product contracts of build_stream.yml: the OIM -> GitLab SSH key
-# (gitlab_passwordless_ssh ssh_key_path) and the GitLab CA on the GitLab host
-# (hosted_gitlab gitlab_cert_dir/ca.crt).
+# (gitlab_passwordless_ssh ssh_key_path), the known_hosts file that pin_host_key.yml
+# writes the GitLab host key to (the OMNIA_CLUSTER_SSH block of ~/.ssh/config points the
+# default at /dev/null, so strict checking must name this file) and the GitLab CA on the
+# GitLab host (hosted_gitlab gitlab_cert_dir/ca.crt).
 GITLAB_SSH_KEY = "/root/.ssh/omnia_gitlab"
+GITLAB_KNOWN_HOSTS = "/root/.ssh/known_hosts"
 GITLAB_CA_CERT = "/root/gitlab-certs/ca.crt"
 GITLAB_RUNNER_CONTAINER = "gitlab-runner"
 
@@ -534,6 +537,7 @@ CMDS: Dict[str, str] = {
     # --- SSH to GitLab (key and pinned host key set up by gitlab_passwordless_ssh) ---
     "ssh_to_gitlab_key": (
         "ssh -i {key} -o BatchMode=yes -o StrictHostKeyChecking=yes"
+        " -o UserKnownHostsFile={known_hosts}"
         " -o ConnectTimeout=10 {gitlab_user}@{gitlab_host} {cmd} 2>/dev/null"
     ),
 

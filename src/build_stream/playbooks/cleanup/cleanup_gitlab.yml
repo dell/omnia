@@ -137,6 +137,11 @@
         name: gitlab_passwordless_ssh
         tasks_from: pin_host_key.yml
 
+    - name: Authorize the GitLab key before the first SSH connection
+      ansible.builtin.include_role:
+        name: gitlab_passwordless_ssh
+        tasks_from: bootstrap_key.yml
+
     - name: Register GitLab SSH credentials for cleanup
       ansible.builtin.add_host:
         name: "{{ gitlab_host }}"
@@ -152,11 +157,20 @@
 - name: Comprehensive GitLab Cleanup
   hosts: gitlab_server
   become: true
-  gather_facts: true
+  gather_facts: false
   pre_tasks:
     - name: Skip remote GitLab cleanup when credentials are unavailable
       ansible.builtin.meta: end_play
       when: not hostvars.localhost.gitlab_cleanup_credentials_available
+
+    - name: Wait for the SSH connection to the GitLab host
+      ansible.builtin.wait_for_connection:
+        timeout: 180
+        sleep: 10
+        connect_timeout: 20
+
+    - name: Gather facts
+      ansible.builtin.setup:
 
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
