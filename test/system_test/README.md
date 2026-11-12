@@ -119,13 +119,18 @@ not stop the next one; the summary still fails. After a failed `exec` the orphan
 `ansible-playbook <domain>.yml` workers (and a running `dnf download`) are stopped, so
 a playbook killed at the FVT timeout cannot overlap the next test.
 
+From GitLab (`svt.theme: "catalog_build"` in `pipeline/svt_pipeline_config.yml`) every
+catalog is its own pipeline job, `catalog_01` ...; see
+[docs/PIPELINE_CONFIG.md](docs/PIPELINE_CONFIG.md#theme-catalog_build-one-job-per-catalog).
+How the theme compares with build_stream: [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md).
+
 ## Documentation
 
 | Doc | Contents |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, status), `user_inputs.yml`, the dataset generator |
 | [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, NFS shares ...), the report |
-| [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md) | **User guide of the `catalog_build` theme**: prerequisites, the two files to edit, step by step, every setting, reading the report, failures, troubleshooting |
+| [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md) | **User guide of the `catalog_build` theme**: prerequisites, the two files to edit, step by step, every setting, reading the report, failures, the GitLab pipeline (one job per catalog), how it compares with build_stream, troubleshooting |
 | [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | Run the SVT from GitLab: how it works, where each secret goes, setup, **updating an existing pipeline**, troubleshooting |

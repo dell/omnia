@@ -57,7 +57,9 @@ gitlab:
 # -----------------------------------------------------------------------------
 svt:
   # The SVT theme (a key of THEMES in ../library/vars/theme_vars.py). Its stages become
-  # the pipeline jobs, so a new theme or stage needs no change here.
+  # the pipeline jobs, so a new theme or stage needs no change here. catalog_build: one
+  # job per catalog of ../catalog_build_test_config.yml, resolved when the CI files are
+  # rendered; after changing the catalog list run --update --update-inputs.
   theme: "build_stream"
   # Seconds between two reads of a running stage's log on the OIM (minimum 5). A short
   # value shows the log sooner; a long one makes fewer SSH calls.
@@ -83,6 +85,9 @@ svt:
     build_deploy: 8
     cadence: 8
     automatic_cleanup: 4
+    # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
+    # own entry.
+    catalog_stage: 3
     # Report and email.
     summary: 1
 

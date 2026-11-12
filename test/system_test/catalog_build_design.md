@@ -95,6 +95,7 @@ repository check of its own. The FVT playbook timeout stays the omnia_auto defau
 | `library/functions/setup_func.py` | `bundled_catalogs` and `select_catalog` made public (reused by the plan and the select action) |
 | `_setup.py` | `_configure`: configure, then the plan for catalog themes |
 | `library/vars/theme_vars.py`, `test_case_vars.py` | The catalog_build entry and its generated tests |
+| `pipeline/setup_svt_project.py`, `pipeline/svt_ci.py` | One job per catalog, and the plan check at initialization (section 7) |
 
 New files: `library/vars/catalog_vars.py`, `library/functions/catalog_settings.py`,
 `library/functions/catalog_func.py`, `catalog_build_test_config.yml`,
@@ -116,8 +117,20 @@ New files: `library/vars/catalog_vars.py`, `library/functions/catalog_settings.p
 
 `cleanup` and `report` blocks: as in `build_stream_test_config.yml`.
 
-## 7. Not covered
+## 7. GitLab pipeline
 
-* The GitLab pipeline (`pipeline/setup_svt_project.py`) generates jobs from the
-  theme's stages at generation time; for catalog_build that needs the plan of a
-  configured run on the generating host. The theme targets the manual run.
+The SVT pipeline (`pipeline/`) creates one job per theme stage when the CI files are
+rendered, before any `--configure` on the OIM. For a catalog theme,
+`setup_svt_project.catalog_plan()` therefore resolves the plan on the generating host
+with the same `catalog_func.plan()` (this checkout's `catalog_build_test_config.yml`,
+`user_inputs.yml` and `./omnia.sh --list-catalogs`), and renders:
+
+* one job per catalog (`catalog_01` ...), titled with the catalog, `allow_failure`
+  when `continue_on_failure` is true, timeout `timeouts_hours.catalog_stage`;
+* `SVT_CATALOG_PLAN` = `<stage>=<catalog>,...`.
+
+`svt_ci.py initialization` compares `SVT_CATALOG_PLAN` with the plan `--configure`
+wrote on the OIM, before cleanup and install, and fails when they differ (a catalog list
+edited in the project, or a tested branch with other bundled catalogs), because those
+catalogs would have no job. The fix is `./setup_svt_project.py --update --update-inputs`.
+build_stream's CI files are unchanged (no `SVT_CATALOG_PLAN`).

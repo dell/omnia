@@ -11,7 +11,7 @@ each).
 | `pipeline/setup_svt_project.py` | Creates or updates the project (GitLab client of `test/pipeline/setup_gitlab_project.py`) |
 | `pipeline/cleanup_svt_project.py` | Checks, empties (pipelines, logs, artifacts) or deletes the project, then verifies it: see [pipeline/README.md](../pipeline/README.md) |
 | `pipeline/svt_ci.py` | What every pipeline job runs on the GitLab runner (standard library only) |
-| `build_stream_test_config.yml`, `user_inputs.yml` | What is tested and the cluster values; each cluster gets a copy in the project. Every key: [TEST_CONFIG.md](TEST_CONFIG.md), [SETUP.md](SETUP.md) |
+| `build_stream_test_config.yml` (or `<theme>_test_config.yml`), `user_inputs.yml` | What is tested and the cluster values; each cluster gets a copy in the project. Every key: [TEST_CONFIG.md](TEST_CONFIG.md), [SETUP.md](SETUP.md); theme `catalog_build`: [CATALOG_BUILD.md](CATALOG_BUILD.md) |
 
 Contents: [how it works](#how-it-works-and-where-each-secret-goes) · [what you need](#1-what-you-need) ·
 [OpenBao](#2-openbao-the-domain-credentials) · [fill the configs](#3-fill-the-configs) ·
@@ -72,7 +72,9 @@ use the system CA store.
    [PIPELINE_CONFIG.md](PIPELINE_CONFIG.md).
 2. **`user_inputs.yml`**: the cluster values and the `openbao` block ([SETUP.md](SETUP.md)).
 3. **`build_stream_test_config.yml`**: catalogs, what the cleanup removes (including the NFS
-   shares), the report ([TEST_CONFIG.md](TEST_CONFIG.md)).
+   shares), the report ([TEST_CONFIG.md](TEST_CONFIG.md)). With `svt.theme: "catalog_build"`:
+   **`catalog_build_test_config.yml`** instead ([CATALOG_BUILD.md](CATALOG_BUILD.md)); its
+   catalog list decides the pipeline jobs, so render the files after changing it.
 
 ## 4. Create the project
 
@@ -153,7 +155,11 @@ Also: CI/CD > Schedules (nightly), or the API (`POST /projects/:id/pipeline` wit
    `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. `prepare_build_stream` is a
    hard stage: when it fails, the stages after it do not run. `build_deploy`, `cadence` and
    `automatic_cleanup` are soft stages (`soft_stages` of the theme, `allow_failure: true` in the
-   generated job): when one fails, the next one still runs.
+   generated job): when one fails, the next one still runs. catalog_build: one job per catalog
+   (`catalog_01` ...), resolved from `catalog_build_test_config.yml` when the files are rendered,
+   all soft with `continue_on_failure: true`; the initialization job fails right after configure
+   when the plan on the OIM differs from these jobs
+   ([PIPELINE_CONFIG.md](PIPELINE_CONFIG.md#theme-catalog_build-one-job-per-catalog)).
 4. `summary`: always, last. `./run_validation.sh svt_<theme> summary`, the report collected, the
    email sent, then it **fails when any job or stage failed**.
 

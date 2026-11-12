@@ -13,6 +13,20 @@ for every catalog:
 No orchestrator deploy and no PXE boot: a catalog is done when its images are built
 and verified.
 
+**Compared with the `build_stream` theme.** Both themes use the same SVT framework:
+the same `setup_env.sh` / `run_validation.sh` commands and guards, test cases run by
+`svt/test_svt.py`, the same report, the same cleanup and the same GitLab pipeline. What
+differs comes from the catalog list:
+
+| | `build_stream` | `catalog_build` |
+|---|---|---|
+| Stages | Fixed: `prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cleanup` | One per catalog: `catalog_01` ... `catalog_NN` |
+| When the stages are known | Always | After `--configure` writes the catalog plan (on the OIM), or when the pipeline files are rendered |
+| Theme block | `build_stream:` settings written into the build_stream suite | `catalog_build:` (catalogs, repo/image settings, steps), [section 5](#5-settings-reference) |
+| Soft stages | `build_deploy`, `cadence`, `automatic_cleanup` | Every catalog stage when `continue_on_failure: true` |
+| Extra checks | - | Initialization checks the catalog plan; the pipeline checks that the OIM plan matches its jobs |
+| Pipeline timeouts | One key per stage | `catalog_stage` for every catalog job (a per-job key still wins) |
+
 **Contents**
 
 1. [Before you start](#1-before-you-start)
@@ -480,6 +494,30 @@ git checkout -- src/main/omnia.env src/repo_manager/input/repo_manager_config.ym
 
 Keep cluster-specific values (IPs, mirror URLs) out of `user_inputs.yml` in commits.
 
+### Run it from a GitLab pipeline (one job per catalog)
+
+The SVT pipeline ([PIPELINE.md](PIPELINE.md)) runs this theme too. Set
+`svt.theme: "catalog_build"` in `pipeline/svt_pipeline_config.yml` and render the CI files
+from a checkout whose `catalog_build_test_config.yml` and `user_inputs.yml` hold the
+values to test:
+
+```bash
+cd test/system_test/pipeline
+./setup_svt_project.py --render                                   # one job per catalog
+./setup_svt_project.py --update --gitlab-url https://<gitlab-host> --update-inputs
+```
+
+The pipeline is `preflight -> initialization -> catalog_01 -> catalog_02 -> ... -> summary`:
+each catalog is its own GitLab job (log, status, Retry button), titled with the catalog
+in `.gitlab-ci-svt.yml`. With `continue_on_failure: true` a failed catalog job does not
+stop the next one; the summary still fails. `timeouts_hours.catalog_stage` sets the time
+limit of every catalog job, and `skip_stages: "catalog_03"` leaves a catalog out of a
+run.
+
+The jobs are fixed when the files are rendered. **After changing the catalog list, run
+`--update --update-inputs` again.** If the plan written on the OIM differs from the jobs,
+the initialization job stops right after configure (see [section 9](#9-troubleshooting)).
+
 ---
 
 ## 9. Troubleshooting
@@ -498,6 +536,7 @@ Keep cluster-specific values (IPs, mirror URLs) out of `user_inputs.yml` in comm
 | `Playbook execution timed out ... Timeout: 7200s` | One FVT playbook took more than two hours (often the first sync of a large catalog) | Run again: synced content is kept, so the next attempt is shorter; use faster mirrors |
 | `another SVT step is running on this OIM` | Another `setup_env.sh` / `run_validation.sh` holds the SVT lock | Wait for it; a lock whose process is gone is taken over automatically |
 | `Credentials: <domain> [FAIL]` | A credential store is missing (e.g. after `--force`) | `./setup_env.sh --theme catalog_build --set-domain-creds --domain <domain>` |
+| Pipeline: `the catalog plan of this run on the OIM differs from the pipeline jobs` | The catalog list was edited in the GitLab project, or the tested branch bundles other catalogs than the checkout the CI files were rendered from | Set the list in your checkout, then `./setup_svt_project.py --update --update-inputs` |
 
 More on the shared parts: [SETUP.md](SETUP.md) (setup, credentials, OpenBao),
 [RUNNER.md](RUNNER.md) (the run guard, retry, the report),

@@ -30,7 +30,7 @@ flags are in `build_stream_test_config.yml` ([TEST_CONFIG.md](TEST_CONFIG.md)).
 
 | Key | Default | Meaning | Becomes |
 |---|---|---|---|
-| `theme` | `build_stream` | The SVT theme (`THEMES` in `library/vars/theme_vars.py`). Its stages become the pipeline jobs, so a new theme or stage needs no change here | read at generation time |
+| `theme` | `build_stream` | The SVT theme (`THEMES` in `library/vars/theme_vars.py`). Its stages become the pipeline jobs, so a new theme or stage needs no change here. `catalog_build`: one job per catalog (see below) | read at generation time |
 | `poll_seconds` | `30` | Seconds between two reads of a running stage's log on the OIM (minimum 5) | `SVT_POLL_SECONDS` |
 | `log_limit_kb` | `2500` (empty) | How much of the OIM logs one job prints into the GitLab job log, in KB. GitLab Runner stops collecting a job log at 4096 KB (`output_limit` in the runner's `config.toml`) and timestamps every line, so the job hides base64-only lines, cuts lines over 600 characters and stops printing at this budget (shared by all logs of the job). The full logs stay on the OIM under `reports/ci/<pipeline id>/`, and the last 40 lines are printed when the job ends | `SVT_LOG_LIMIT_KB` |
 | `timeouts_hours` | see below | Time limit of each job, in hours | rendered into `.gitlab-ci-svt.yml` (GitLab does not expand variables in `timeout:`); the project's CI timeout is raised to the longest |
@@ -40,6 +40,27 @@ theme's stages (`prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cl
 `summary`. A job without its own entry uses `default_hours` (6 when that is missing too). The
 shortest allowed limit is 10 minutes. The runner's own maximum timeout still applies, so raise
 that too for long stages.
+
+### Theme `catalog_build`: one job per catalog
+
+With `theme: "catalog_build"` the pipeline has one job per catalog, in run order:
+`preflight -> initialization -> catalog_01 -> catalog_02 -> ... -> summary`. The jobs are
+resolved when the CI files are rendered (`--render`, `--create`, `--update`), from
+`catalog_build_test_config.yml` and `./omnia.sh --list-catalogs` of this checkout, exactly as
+`./setup_env.sh --configure` resolves them on the OIM:
+
+- Each job is titled with its catalog (`# Catalog 2: rhel/10.2/...` in `.gitlab-ci-svt.yml`).
+  A catalog skipped by `include_aarch64: false` still gets a short job that records the skip.
+- With `continue_on_failure: true` every catalog job has `allow_failure`: a failed catalog does
+  not stop the next one, and the summary still fails.
+- A catalog job without its own `timeouts_hours` entry uses `catalog_stage` (then
+  `default_hours`).
+- `skip_stages` (or `SVT_SKIP_STAGES`) takes catalog stages too, e.g. `catalog_03,catalog_07`.
+- The rendered catalog list is the CI/CD variable `SVT_CATALOG_PLAN`. After configure, the
+  initialization job compares it with the plan written on the OIM and fails, before cleanup
+  and install, when they differ (the catalog list was edited in the project, or the tested
+  branch bundles other catalogs). Change the list in this checkout, then
+  `./setup_svt_project.py --update --update-inputs`.
 
 ## `openbao`
 
