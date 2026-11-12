@@ -1,0 +1,147 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Make sure the key the GitLab play logs in with exists and is authorized on the GitLab host.
+#
+# The plays that follow connect with ssh_key_path only (key login, pinned host key, no
+# password). On a first run from a new OIM the key does not exist yet, and every failed login
+# also counts against this OIM in the GitLab host's sshd (OpenSSH 9.8+ PerSourcePenalties),
+# which then resets new connections. So the key is created and installed here, before the
+# first connection of the play.
+#
+# Runs on the control node, after pin_host_key.yml:
+#   - key login already works: nothing to do (the usual case);
+#   - otherwise the public key is installed with ssh-copy-id; the SSH password of the GitLab
+#     host goes through the environment (sshpass -e), never on a command line, and the host
+#     key is checked against the pinned known_hosts file.
+- name: Check that sshpass is available
+  ansible.builtin.command:
+    argv: [sshpass, -V]
+  register: _gitlab_sshpass
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Fail when sshpass is missing
+  ansible.builtin.fail:
+    msg: "{{ gitlab_sshpass_install_fail_msg }}"
+  when: _gitlab_sshpass.rc != 0
+  delegate_to: localhost
+  run_once: true
+
+- name: Create the SSH keypair of the GitLab host if missing
+  ansible.builtin.include_tasks: generate_keypair.yml
+
+- name: Check whether the key already logs in to the GitLab host
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -o
+      - BatchMode=yes
+      - -o
+      - PreferredAuthentications=publickey
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - StrictHostKeyChecking=yes
+      - -o
+      - "UserKnownHostsFile={{ gitlab_known_hosts_file }}"
+      - -o
+      - ConnectTimeout=15
+      - -i
+      - "{{ ssh_key_path }}"
+      - "{{ gitlab_ansible_user | default('root') }}@{{ gitlab_host }}"
+      - "true"
+  register: _gitlab_key_login
+  changed_when: false
+  failed_when: false
+  retries: "{{ gitlab_ssh_retries }}"
+  delay: "{{ gitlab_ssh_retry_delay }}"
+  until: _gitlab_key_login.rc == 0 or 'Permission denied' in _gitlab_key_login.stderr
+  delegate_to: localhost
+  run_once: true
+
+- name: Authorize the key on the GitLab host with its SSH password
+  when: _gitlab_key_login.rc != 0
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Fail when the GitLab SSH password is not available
+      ansible.builtin.fail:
+        msg: "{{ gitlab_key_bootstrap_no_password_msg }}"
+      when: hostvars['localhost']['gitlab_ssh_password'] | default('') | length == 0
+
+    - name: Install the public key on the GitLab host
+      ansible.builtin.command:
+        argv:
+          - sshpass
+          - -e
+          - ssh-copy-id
+          - -f
+          - -i
+          - "{{ ssh_key_path }}.pub"
+          - -o
+          - StrictHostKeyChecking=yes
+          - -o
+          - "UserKnownHostsFile={{ gitlab_known_hosts_file }}"
+          - -o
+          - PreferredAuthentications=password
+          - -o
+          - PubkeyAuthentication=no
+          - -o
+          - ConnectTimeout=15
+          - "{{ gitlab_ansible_user | default('root') }}@{{ gitlab_host }}"
+      environment:
+        SSHPASS: "{{ hostvars['localhost']['gitlab_ssh_password'] }}"
+      register: _gitlab_key_install
+      changed_when: _gitlab_key_install.rc == 0
+      failed_when: false
+      no_log: true
+      retries: "{{ gitlab_ssh_retries }}"
+      delay: "{{ gitlab_ssh_retry_delay }}"
+      until: _gitlab_key_install.rc == 0 or 'Permission denied' in _gitlab_key_install.stderr
+
+    - name: Fail when the key could not be installed
+      ansible.builtin.fail:
+        msg: "{{ gitlab_key_install_fail_msg }}"
+      when: _gitlab_key_install.rc != 0
+
+    - name: Confirm that the key logs in now
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - -o
+          - PreferredAuthentications=publickey
+          - -o
+          - IdentitiesOnly=yes
+          - -o
+          - StrictHostKeyChecking=yes
+          - -o
+          - "UserKnownHostsFile={{ gitlab_known_hosts_file }}"
+          - -o
+          - ConnectTimeout=15
+          - -i
+          - "{{ ssh_key_path }}"
+          - "{{ gitlab_ansible_user | default('root') }}@{{ gitlab_host }}"
+          - "true"
+      register: _gitlab_key_confirm
+      changed_when: false
+      failed_when: _gitlab_key_confirm.rc != 0
+      retries: "{{ gitlab_ssh_retries }}"
+      delay: "{{ gitlab_ssh_retry_delay }}"
+      until: _gitlab_key_confirm.rc == 0
