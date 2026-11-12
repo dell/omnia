@@ -1171,6 +1171,9 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
         result["error"] = f"Required column not found: {e}"
         return result
 
+    ib_with_nic = 0
+    ib_without_nic = 0
+
     for row in mapping["rows"]:
         if len(row) <= max(hostname_idx, ib_nic_idx):
             continue
@@ -1181,6 +1184,7 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
         ib_ipv6 = row[ib_ipv6_idx] if ib_ipv6_idx >= 0 and len(row) > ib_ipv6_idx else ""
 
         if ib_nic:
+            ib_with_nic += 1
             # IB NIC present — IPs should be populated when subnets are configured
             if ib_subnet and not ib_ipv4:
                 result["invalid_rows"].append({
@@ -1197,6 +1201,7 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
                 })
                 continue
         else:
+            ib_without_nic += 1
             # No IB NIC — IPs must be empty
             if ib_ipv4:
                 result["invalid_rows"].append({
@@ -1215,15 +1220,19 @@ def check_ib_conditional_population(host) -> Dict[str, Any]:
 
         result["valid_count"] += 1
 
+    total = ib_with_nic + ib_without_nic
     if result["invalid_rows"]:
         result["details"] = (
-            f"{len(result['invalid_rows'])} rows have IB conditional population issues"
+            f"{len(result['invalid_rows'])} rows have IB conditional population issues "
+            f"(total {total}: {ib_with_nic} with IB_NIC_NAME, {ib_without_nic} without)"
         )
         result["error"] = result["details"]
     else:
         result["success"] = True
         result["details"] = (
-            f"All {result['valid_count']} rows have consistent IB column population"
+            f"All {total} rows consistent: "
+            f"{ib_with_nic} with IB_NIC_NAME (IPs populated), "
+            f"{ib_without_nic} without (IPs empty)"
         )
 
     return result
@@ -1266,6 +1275,9 @@ def check_ib_ipv4_format(host) -> Dict[str, Any]:
         result["error"] = f"Required column not found: {e}"
         return result
 
+    populated = 0
+    empty = 0
+
     for row in mapping["rows"]:
         if len(row) <= max(hostname_idx, ib_ipv4_idx):
             continue
@@ -1274,9 +1286,11 @@ def check_ib_ipv4_format(host) -> Dict[str, Any]:
         ib_ipv4 = row[ib_ipv4_idx]
 
         if not ib_ipv4:
+            empty += 1
             result["valid_count"] += 1
             continue
 
+        populated += 1
         try:
             _ipaddress.IPv4Address(ib_ipv4)
             result["valid_count"] += 1
@@ -1287,15 +1301,18 @@ def check_ib_ipv4_format(host) -> Dict[str, Any]:
                 "reason": f"Invalid IPv4 address: {ib_ipv4}",
             })
 
+    total = populated + empty
     if result["invalid_rows"]:
         result["details"] = (
-            f"{len(result['invalid_rows'])} rows have invalid IB_IPV4 format"
+            f"{len(result['invalid_rows'])} rows have invalid IB_IPV4 format "
+            f"(total {total}: {populated} populated, {empty} empty)"
         )
         result["error"] = result["details"]
     else:
         result["success"] = True
         result["details"] = (
-            f"All {result['valid_count']} rows have valid IB_IPV4 format"
+            f"All {total} rows valid: "
+            f"{populated} populated (valid IPv4), {empty} empty (no IB NIC)"
         )
 
     return result
@@ -1338,6 +1355,9 @@ def check_ib_ipv6_format(host) -> Dict[str, Any]:
         result["error"] = f"Required column not found: {e}"
         return result
 
+    populated = 0
+    empty = 0
+
     for row in mapping["rows"]:
         if len(row) <= max(hostname_idx, ib_ipv6_idx):
             continue
@@ -1346,9 +1366,11 @@ def check_ib_ipv6_format(host) -> Dict[str, Any]:
         ib_ipv6 = row[ib_ipv6_idx]
 
         if not ib_ipv6:
+            empty += 1
             result["valid_count"] += 1
             continue
 
+        populated += 1
         try:
             _ipaddress.IPv6Address(ib_ipv6)
             result["valid_count"] += 1
@@ -1359,15 +1381,18 @@ def check_ib_ipv6_format(host) -> Dict[str, Any]:
                 "reason": f"Invalid IPv6 address: {ib_ipv6}",
             })
 
+    total = populated + empty
     if result["invalid_rows"]:
         result["details"] = (
-            f"{len(result['invalid_rows'])} rows have invalid IB_IPV6 format"
+            f"{len(result['invalid_rows'])} rows have invalid IB_IPV6 format "
+            f"(total {total}: {populated} populated, {empty} empty)"
         )
         result["error"] = result["details"]
     else:
         result["success"] = True
         result["details"] = (
-            f"All {result['valid_count']} rows have valid IB_IPV6 format"
+            f"All {total} rows valid: "
+            f"{populated} populated (valid IPv6), {empty} empty (no IB NIC)"
         )
 
     return result
@@ -1556,15 +1581,20 @@ def check_pxe_mapping_all_columns(host) -> Dict[str, Any]:
     result["present"] = sorted(list(file_headers & expected))
     result["missing"] = sorted(list(expected - file_headers))
 
+    extra = sorted(list(file_headers - expected))
+
     if result["missing"]:
         result["details"] = (
-            f"Missing columns: {', '.join(result['missing'])}"
+            f"Missing {len(result['missing'])} of {len(_PXE_MAPPING_ALL_COLUMNS)} columns: "
+            f"{', '.join(result['missing'])}"
         )
         result["error"] = result["details"]
     else:
         result["success"] = True
+        extra_note = f"; {len(extra)} extra: {', '.join(extra)}" if extra else ""
         result["details"] = (
-            f"All {len(_PXE_MAPPING_ALL_COLUMNS)} output contract columns present"
+            f"All {len(_PXE_MAPPING_ALL_COLUMNS)} output contract columns present: "
+            f"{', '.join(sorted(result['present']))}{extra_note}"
         )
 
     return result
