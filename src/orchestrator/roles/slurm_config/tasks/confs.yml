@@ -237,6 +237,7 @@
   when:
     - node_params | length > 0
     - "'slurm' in conf_files"
+    - hostvars['localhost']['pxe_mapping_file_path'] | default('') | length > 0
 
 - name: Build slurm.conf
   ansible.builtin.include_tasks: build_slurm_conf.yml
