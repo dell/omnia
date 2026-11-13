@@ -39,3 +39,16 @@
         }
     }
 }
+
+{% for node in mapping_nodes | default([]) %}
+{% if node.HOSTNAME is not regex('^nid\\d{3}$') %}
+{{ node.HOSTNAME }}.{{ cluster_domain }}:53 {
+    hosts /dev/null {
+        {{ node.ADMIN_IP }} {{ node.HOSTNAME }}.{{ cluster_domain }}
+        ttl 60
+        no_reverse
+        reload 0
+    }
+}
+{% endif %}
+{% endfor %}

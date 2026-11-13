@@ -151,6 +151,16 @@
     dest: "{{ ochami_dir }}/config.yaml"
     mode: "{{ file_perm_rw }}"
 
+- name: Load PXE mapping file for custom hostname support
+  ansible.builtin.read_csv:
+    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+    key: ADMIN_MAC
+  register: _mapping_nodes
+  delegate_to: localhost
+  when:
+    - hostvars['localhost']['pxe_mapping_file_path'] is defined
+    - hostvars['localhost']['pxe_mapping_file_path'] | length > 0
+
 - name: Drop coredhcp config file
   ansible.builtin.template:
     src: coredhcp/coredhcp.yaml.j2
@@ -158,6 +168,8 @@
     owner: root
     group: root
     mode: "{{ file_perm_rw }}"
+  vars:
+    mapping_nodes: "{{ _mapping_nodes.dict | dict2items | map(attribute='value') | list if _mapping_nodes is defined else [] }}"
 
 - name: Drop coredns Corefile config
   ansible.builtin.template:
@@ -166,3 +178,5 @@
     owner: root
     group: root
     mode: "{{ file_perm_rw }}"
+  vars:
+    mapping_nodes: "{{ _mapping_nodes.dict | dict2items | map(attribute='value') | list if _mapping_nodes is defined else [] }}"
