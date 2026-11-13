@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from core.cleanup.exceptions import (
@@ -43,10 +44,12 @@ from core.jobs.value_objects import (
 )
 from orchestrator.jobs.commands import CreateJobCommand
 from orchestrator.jobs.use_cases import CreateJobUseCase
+from orchestrator.logs.use_cases import StageLogMetadataService
 
 from api.cleanup.dependencies import get_cleanup_job_use_case
 from api.dependencies import verify_token
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
+from api.logs.dependencies import get_stage_log_metadata_service
 from api.jobs.dependencies import (
     get_audit_repo,
     get_correlation_id,
@@ -238,6 +241,7 @@ async def get_job(
     job_repo = Depends(get_job_repo),
     stage_repo = Depends(get_stage_repo),
     audit_repo = Depends(get_audit_repo),
+    stage_log_metadata: StageLogMetadataService = Depends(get_stage_log_metadata_service),
 ) -> GetJobResponse:
     """Return a job if it exists for the requesting client."""
 
@@ -278,7 +282,10 @@ async def get_job(
         # Get stage breakdown — include all stages (architecture filtering
         # is handled by image_build_manager domain playbook directly)
         stages_entities = stage_repo.find_all_by_job(validated_job_id)  # pylint: disable=no-member
-        
+        log_metadata = await run_in_threadpool(
+            lambda: [stage_log_metadata.describe(str(validated_job_id), s) for s in stages_entities]
+        )
+
         stages = [
             GetStageResponse(
                 stage_name=str(s.stage_name),
@@ -290,8 +297,10 @@ async def get_job(
                 attempt=s.attempt,
                 log_file_path=s.log_file_path,
                 result_detail=s.result_detail,
+                has_log=meta.has_log,
+                log_lines=meta.log_lines,
             )
-            for s in stages_entities
+            for s, meta in zip(stages_entities, log_metadata)
         ]
         
         # Get audit events for state change timestamps
