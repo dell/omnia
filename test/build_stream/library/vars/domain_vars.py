@@ -42,7 +42,6 @@ FVT_TAGS: List[str] = [
     "cadence_pipeline",
     "automatic_cleanup",
     "buildstream_cleanup",
-    "log_query",
 ]
 
 # A no-tag FVT command follows this lifecycle.  ``test`` performs
@@ -92,7 +91,6 @@ SUITES: Dict[str, List[str]] = {
     "deploy_pipeline": ["deploy_pipeline", "manual"],
     "cadence_pipeline": ["cadence_pipeline"],
     "automatic_cleanup": ["automatic_cleanup"],
-    "log_query": ["log_query"],
 }
 
 # Explicit manual execution owns its trigger. This prevents the normal sanity

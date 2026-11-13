@@ -176,13 +176,7 @@ nft_allow_watcher_restart: false
 # Allows security NFTs to create one disposable, audit-labelled BSM job and
 # submit invalid path-traversal and oversized-file uploads. These tests verify
 # that rejected uploads leave no file or stage-state changes.
-# The log_query FVT security cases (ER-BSM-003) also use this switch to plant
-# fixture stage logs on one disposable job and to exhaust the rate-limit budget.
 nft_allow_security_mutation: false
-
-# Per-client log query budget configured in build_stream.ini [log_query]
-# rate_limit_per_minute; used by the log_query rate-limit FVT.
-log_query_rate_limit: 60
 
 # Maximum time, in seconds, to wait for a service restart, GitLab cancellation,
 # queue transition, or other recovery condition used by resilience NFTs.
