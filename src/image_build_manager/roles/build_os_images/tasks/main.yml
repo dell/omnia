@@ -227,7 +227,8 @@
           'image_group_id': _catalog_image_group_id,
           's3_paths': _s3_artifacts[fg_name],
           'catalog_identifier': _catalog_id,
-          'catalog_version': _catalog_version
+          'catalog_version': _catalog_version,
+          'os_version': (fg_data.os_version | default(rhel_tag, true))
         }) -%}
       {% endfor -%}
       {{ result }}

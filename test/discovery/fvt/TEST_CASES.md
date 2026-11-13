@@ -63,6 +63,17 @@
 | DISCOVERY_FVT_EXECUTE_V009 | `test_parent_service_tag` | Verify PARENT_SERVICE_TAG rules for slurm_node groups | functional |
 | DISCOVERY_FVT_EXECUTE_V014 | `test_pxe_mapping_orchestrator_contract` | Verify PXE mapping CSV format for Orchestrator | functional, contract |
 
+### IB and Column Validation (`fvt/execute/output/test_ib_validation.py`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| DISCOVERY_FVT_EXECUTE_V016 | `test_ib_conditional_population` | Verify IB columns populated consistently with IB_NIC_NAME | functional |
+| DISCOVERY_FVT_EXECUTE_V017 | `test_ib_ipv4_format` | Verify IB_IPV4 values are valid IPv4 addresses | functional |
+| DISCOVERY_FVT_EXECUTE_V018 | `test_ib_ipv6_format` | Verify IB_IPV6 values are valid IPv6 addresses | functional |
+| DISCOVERY_FVT_EXECUTE_V019 | `test_ib_ip_uniqueness` | Verify IB IP addresses are unique, no collisions with ADMIN/BMC IPs | functional |
+| DISCOVERY_FVT_EXECUTE_V020 | `test_pxe_mapping_all_columns` | Verify all 12 output contract columns present in PXE mapping | functional |
+| DISCOVERY_FVT_EXECUTE_V021 | `test_bmc_mac_populated` | Verify BMC_MAC populated for every row | functional |
+
 ### OME Integration Validation (`fvt/execute/ome/test_ome_validation.py`)
 
 | TC ID | Test Function | Description | Marker |
