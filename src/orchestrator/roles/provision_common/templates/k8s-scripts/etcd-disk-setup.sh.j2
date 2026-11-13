@@ -1,12 +1,20 @@
 #!/bin/bash
-# etcd-fstab-update.sh
-# Wipes BOSS/fallback disk, creates ext4, mounts /var/lib/etcd
+# etcd-disk-setup.sh
+# Prepares the etcd disk: selects a disk (reusing the pinned serial if present),
+# wipes, creates ext4, mounts /var/lib/etcd, strips the etcd_data label from any
+# other disk, and writes the per-node NFS pin (serial+UUID) so later boots mount
+# the same physical disk regardless of how the kernel names it (sdX reorders).
+# This runs ONLY on the cluster-init path (new CA), so a fresh etcd always
+# matches a freshly generated CA.
 # Every command logged with timestamp + exit code using echo only
 set -uo pipefail
 
 MOUNT="/var/lib/etcd"
 LOG="/var/log/etcd-disk-setup.log"
 exec > >(tee -a "$LOG") 2>&1
+
+# Per-node pin location on the shared NFS filesystem (serial resolved at render).
+OIM_IP="{{ k8s_nfs_server_path.split(':')[0] }}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,24 +62,42 @@ echo "$(ts) [STEP] Detecting root disk"
 ROOT_DISK=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1 || true)
 echo "$(ts) [INFO] Root disk: ${ROOT_DISK:-none}"
 
-# ── Scan for BOSS or fallback disk ───────────────────────────────────────────
+# ── Resolve pin path, then select disk ───────────────────────────────────────
+# Prefer the already-pinned serial (re-provision of a known node). Otherwise
+# scan for BOSS first, then fallback. Selection never persists a device name.
 
-echo "$(ts) [STEP] Scanning disks"
+NODE_IP=$(ip -4 -o route get "$OIM_IP" 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')
+CONF="{{ k8s_client_mount_path }}/${NODE_IP}/etcd/etcd-disk.conf"
+
+echo "$(ts) [STEP] Selecting disk"
 DISK=""
-for d in $(lsblk -dn -o NAME | grep -Ev "^(loop|sr|fd|${ROOT_DISK:-NONE})"); do
-    model=$(lsblk -dn -o MODEL "/dev/$d" 2>/dev/null | xargs || true)
-    pci=""
-    case "$d" in nvme*) pci=$(cat "/sys/class/nvme/${d%n*}/address" 2>/dev/null || true) ;; esac
-    sub=""
-    [ -n "$pci" ] && sub=$(lspci -D -s "$pci" -v 2>/dev/null | grep -i Subsystem || true)
-    echo "$(ts) [INFO] Disk /dev/$d model='$model' pci='$pci'"
-    if echo "$model $sub" | grep -qi boss; then
-        DISK="/dev/$d"
-        echo "$(ts) [OK] BOSS disk found: $DISK"
-        break
-    fi
-    [ -z "$DISK" ] && DISK="/dev/$d" && echo "$(ts) [INFO] Fallback candidate: $DISK"
-done
+if [ -r "$CONF" ]; then
+    # shellcheck disable=SC1090
+    . "$CONF"
+    [ -n "${ETCD_DISK_SERIAL:-}" ] || { echo "$(ts) [ERROR] Existing pin $CONF has no ETCD_DISK_SERIAL — refusing to select or wipe a disk"; exit 1; }
+    MATCHES=$(lsblk -dno NAME,SERIAL | awk -v s="$ETCD_DISK_SERIAL" '$2==s{print "/dev/"$1}')
+    [ "$(echo "$MATCHES" | grep -c .)" -eq 1 ] || { echo "$(ts) [ERROR] Pinned serial $ETCD_DISK_SERIAL matched '${MATCHES:-nothing}' — refusing to select or wipe another disk"; exit 1; }
+    DISK=$MATCHES
+    echo "$(ts) [OK] Reusing pinned serial $ETCD_DISK_SERIAL -> $DISK"
+fi
+
+if [ -z "$DISK" ]; then
+    echo "$(ts) [STEP] Scanning disks — BOSS first, then fallback"
+    for d in $(lsblk -dn -o NAME | grep -Ev "^(loop|sr|fd|${ROOT_DISK:-NONE})"); do
+        model=$(lsblk -dn -o MODEL "/dev/$d" 2>/dev/null | xargs || true)
+        pci=""
+        case "$d" in nvme*) pci=$(cat "/sys/class/nvme/${d%n*}/address" 2>/dev/null || true) ;; esac
+        sub=""
+        [ -n "$pci" ] && sub=$(lspci -D -s "$pci" -v 2>/dev/null | grep -i Subsystem || true)
+        echo "$(ts) [INFO] Disk /dev/$d model='$model' pci='$pci'"
+        if echo "$model $sub" | grep -qi boss; then
+            DISK="/dev/$d"
+            echo "$(ts) [OK] BOSS disk found: $DISK"
+            break
+        fi
+        [ -z "$DISK" ] && DISK="/dev/$d" && echo "$(ts) [INFO] Fallback candidate: $DISK"
+    done
+fi
 
 [ -z "$DISK" ] && { echo "$(ts) [ERROR] No disk found"; exit 1; }
 echo "$(ts) [OK] Selected disk: $DISK"
@@ -132,6 +158,16 @@ UUID=$(blkid -s UUID -o value "$PART" 2>/dev/null || true)
 [ -z "$UUID" ] && { echo "$(ts) [ERROR] UUID is empty"; exit 1; }
 echo "$(ts) [OK] UUID=$UUID"
 
+# ── Strip etcd_data label from any other disk ────────────────────────────────
+# Prevents two disks sharing the etcd_data label, which would make label- or
+# scan-based selection ambiguous on later boots.
+echo "$(ts) [STEP] Clearing stale etcd_data labels on other disks"
+for p in $(blkid -o device -t LABEL=etcd_data 2>/dev/null || true); do
+    [ "$p" = "$PART" ] && continue
+    echo "$(ts) [INFO] Clearing stale etcd_data label on $p"
+    runq e2label "$p" ""
+done
+
 # ── Update fstab ─────────────────────────────────────────────────────────────
 
 echo "$(ts) [STEP] Updating /etc/fstab"
@@ -161,6 +197,17 @@ getent group etcd >/dev/null || run groupadd --system etcd
 id etcd >/dev/null 2>&1     || run useradd --system -M -s /sbin/nologin -g etcd etcd
 run chown etcd:etcd "$MOUNT"
 run chmod 700 "$MOUNT"
+
+# ── Persist the pin (serial + UUID) to NFS ───────────────────────────────────
+# Every later boot (etcd-fstab-update.sh) uses this to mount the same physical
+# disk by serial, independent of sdX reordering.
+echo "$(ts) [STEP] Writing etcd disk pin to NFS"
+ETCD_DISK_SERIAL=$(lsblk -dno SERIAL "$DISK" 2>/dev/null | xargs || true)
+[ -n "$ETCD_DISK_SERIAL" ] || { echo "$(ts) [ERROR] No serial found for $DISK — refusing to continue without a persistent pin"; exit 1; }
+mkdir -p "$(dirname "$CONF")" 2>/dev/null || { echo "$(ts) [ERROR] Could not create pin directory $(dirname "$CONF") — refusing to continue"; exit 1; }
+printf 'ETCD_DISK_SERIAL=%s\nETCD_UUID=%s\n' "$ETCD_DISK_SERIAL" "$UUID" > "$CONF" || { echo "$(ts) [ERROR] Could not write etcd pin $CONF — refusing to continue"; exit 1; }
+[ -r "$CONF" ] || { echo "$(ts) [ERROR] Pin $CONF is not readable after write — refusing to continue"; exit 1; }
+echo "$(ts) [OK] Wrote etcd pin: $CONF (serial=$ETCD_DISK_SERIAL uuid=$UUID)"
 
 # ── Final Summary ────────────────────────────────────────────────────────────
 

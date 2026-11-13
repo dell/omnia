@@ -1,6 +1,6 @@
 #!/bin/bash
 # diskless-etcd-mount.sh
-# Diskless: detect BOSS (else fallback), mount /var/lib/etcd, update fstab
+# Mounts the existing etcd disk. Serial from per-node NFS conf if present, else legacy BOSS/fallback.
 # NO wipe, NO format — safe for running clusters, runs every reboot
 set -uo pipefail
 
@@ -10,6 +10,7 @@ exec > >(tee -a "$LOG") 2>&1
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 ts() { date +%F_%T; }
+die() { echo "$(ts) [ERROR] $*"; exit 1; }
 
 run() {
     echo "$(ts) [CMD] $*"
@@ -49,39 +50,60 @@ sleep 20
 
 # ── Detect root disk ─────────────────────────────────────────────────────────
 echo "$(ts) [STEP] Detecting root disk"
-ROOT_DISK=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1 || true)
+ROOT_DISK=$(lsblk -slno NAME,TYPE "$(findmnt -no SOURCE /)" 2>/dev/null | awk '$2=="disk"{print $1; exit}' || true)
 echo "$(ts) [INFO] Root disk: ${ROOT_DISK:-none (diskless)}"
 
-# ── BOSS detection with fallback ─────────────────────────────────────────────
-echo "$(ts) [STEP] Scanning disks — BOSS first, then fallback"
+# ── Select etcd disk: pinned serial (preferred), else adopt existing etcd_data
+# Device names (sdX) reorder across reboots, so selection is by stable serial
+# from the per-node NFS pin. The pin is written by etcd-disk-setup.sh at
+# preparation time (and self-healed below if missing).
+OIM_IP="{{ k8s_nfs_server_path.split(':')[0] }}"
+NODE_IP=$(ip -4 -o route get "$OIM_IP" 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')
+CONF="{{ k8s_client_mount_path }}/${NODE_IP}/etcd/etcd-disk.conf"
 DISK=""
-for d in $(lsblk -dn -o NAME | grep -Ev "^(loop|sr|fd|${ROOT_DISK:-NONE})"); do
-    model=$(lsblk -dn -o MODEL "/dev/$d" 2>/dev/null | xargs || true)
-    pci=""
-    case "$d" in nvme*) pci=$(cat "/sys/class/nvme/${d%n*}/address" 2>/dev/null || true) ;; esac
-    sub=""
-    [ -n "$pci" ] && sub=$(lspci -D -s "$pci" -v 2>/dev/null | grep -i Subsystem || true)
-    echo "$(ts) [INFO] Disk /dev/$d model='$model' pci='$pci'"
-    if echo "$model $sub" | grep -qi boss; then
-        DISK="/dev/$d"
-        echo "$(ts) [OK] BOSS disk found: $DISK"
-        break
-    fi
-    [ -z "$DISK" ] && DISK="/dev/$d" && echo "$(ts) [INFO] Fallback candidate: $DISK"
-done
+PINNED=0
 
-[ -z "$DISK" ] && { echo "$(ts) [ERROR] No disk found"; exit 1; }
-[ "$DISK" = "/dev/$ROOT_DISK" ] && { echo "$(ts) [ERROR] Selected disk is root — refusing"; exit 1; }
+if [ -r "$CONF" ]; then
+    . "$CONF"
+    : "${ETCD_DISK_SERIAL:?missing in $CONF}" "${ETCD_UUID:?missing in $CONF}"
+    echo "$(ts) [STEP] Serial mode: node=$NODE_IP conf=$CONF serial=$ETCD_DISK_SERIAL"
+    MATCHES=$(lsblk -dno NAME,SERIAL | awk -v s="$ETCD_DISK_SERIAL" '$2==s{print "/dev/"$1}')
+    [ "$(echo "$MATCHES" | grep -c .)" -eq 1 ] || die "serial $ETCD_DISK_SERIAL matched: ${MATCHES:-nothing}"
+    DISK=$MATCHES
+    PINNED=1
+else
+    echo "$(ts) [STEP] No pin ($CONF) — adopt mode (no device-name scan)"
+    if mountpoint -q "$MOUNT"; then
+        # Something already mounted etcd (e.g. `mount -av`); adopt that disk.
+        src=$(findmnt -no SOURCE "$MOUNT")
+        DISK="/dev/$(lsblk -no PKNAME "$src" 2>/dev/null | head -1)"
+        echo "$(ts) [INFO] Adopting currently-mounted etcd disk: $DISK ($src)"
+    else
+        # Otherwise require exactly one ext4 partition labelled etcd_data.
+        # Count via grep instead of bash array length, because a brace-hash
+        # sequence is a Jinja comment token and would break templating here.
+        ETCD_PARTS=$(blkid -o device -t LABEL=etcd_data 2>/dev/null || true)
+        ETCD_PARTS_COUNT=$(printf '%s\n' "$ETCD_PARTS" | grep -c .)
+        if [ "$ETCD_PARTS_COUNT" -eq 1 ]; then
+            DISK="/dev/$(lsblk -no PKNAME "$ETCD_PARTS" 2>/dev/null | head -1)"
+            echo "$(ts) [INFO] Found single etcd_data disk: $DISK"
+        elif [ "$ETCD_PARTS_COUNT" -eq 0 ]; then
+            echo "$(ts) [INFO] No etcd_data disk present yet — prepare step will format it. Exiting 0."
+            exit 0
+        else
+            die "Multiple etcd_data partitions ($(printf '%s ' $ETCD_PARTS)) and no pin — refusing to guess; run etcd-disk-setup to pin"
+        fi
+    fi
+fi
+
+[ -z "$DISK" ] && die "No etcd disk selected"
+[ "$DISK" = "/dev/${ROOT_DISK:-}" ] && die "Selected disk is root — refusing"
 echo "$(ts) [OK] Selected disk: $DISK"
 
-# ── Identify partition ───────────────────────────────────────────────────────
+# ── Identify partition (by partition table, never by device-name guess) ──────
 echo "$(ts) [STEP] Identifying partition on $DISK"
-case "$DISK" in
-    *nvme*|*mmcblk*) PART="${DISK}p1" ;;
-    *)               PART="${DISK}1"  ;;
-esac
-
-[ -b "$PART" ] || { echo "$(ts) [ERROR] $PART does not exist — disk must be pre-formatted"; exit 1; }
+PART=$(lsblk -lno NAME,TYPE "$DISK" | awk '$2=="part"{print "/dev/"$1; exit}')
+[ -b "${PART:-}" ] || die "${PART:-no partition} does not exist — disk must be pre-formatted"
 echo "$(ts) [OK] Partition found: $PART"
 
 # ── Get UUID and filesystem type ─────────────────────────────────────────────
@@ -89,18 +111,23 @@ echo "$(ts) [STEP] Reading UUID and filesystem type"
 ping_uuid "$PART"
 UUID=$(blkid -s UUID -o value "$PART" 2>/dev/null || true)
 FSTYPE=$(blkid -s TYPE -o value "$PART" 2>/dev/null || true)
-[ -z "$UUID" ]   && { echo "$(ts) [ERROR] No UUID on $PART — is it formatted?"; exit 1; }
-[ -z "$FSTYPE" ] && { echo "$(ts) [ERROR] No filesystem on $PART"; exit 1; }
+[ -z "$UUID" ]   && die "No UUID on $PART — is it formatted?"
+[ -z "$FSTYPE" ] && die "No filesystem on $PART"
+[ "$FSTYPE" = ext4 ] || die "$PART is $FSTYPE, expected ext4"
+[ -n "${ETCD_UUID:-}" ] && [ "$UUID" != "$ETCD_UUID" ] && die "UUID mismatch on $PART: got $UUID, conf expects $ETCD_UUID"
 echo "$(ts) [OK] UUID=$UUID  FSTYPE=$FSTYPE"
 
 # ── Mount ────────────────────────────────────────────────────────────────────
 echo "$(ts) [STEP] Mounting $MOUNT"
 run mkdir -p "$MOUNT"
 if mountpoint -q "$MOUNT"; then
+    if [ -n "${ETCD_DISK_SERIAL:-}" ] && [ "$(findmnt -no SOURCE "$MOUNT")" != "$PART" ]; then
+        die "$MOUNT already mounted from $(findmnt -no SOURCE "$MOUNT"), expected $PART"
+    fi
     echo "$(ts) [OK] $MOUNT already mounted — skipping"
 else
     run mount -o defaults,noatime "$PART" "$MOUNT"
-    mountpoint -q "$MOUNT" || { echo "$(ts) [ERROR] Mount failed"; exit 1; }
+    mountpoint -q "$MOUNT" || die "Mount failed"
     echo "$(ts) [OK] Mounted: $PART -> $MOUNT"
 fi
 
@@ -113,9 +140,21 @@ echo "$(ts) [OK] fstab entry written: $FSTAB_LINE"
 dump_fstab_entry "$MOUNT"
 runq systemctl daemon-reload
 
+# ── Persist the pin so every later boot mounts by serial, not device name ────
+# Self-heals clusters provisioned before serial pinning existed: once the
+# correct disk is mounted, record its serial+UUID on NFS for future boots.
+if [ "$PINNED" -ne 1 ]; then
+    SERIAL=$(lsblk -dno SERIAL "$DISK" 2>/dev/null | xargs || true)
+    if [ -n "$SERIAL" ] && mkdir -p "$(dirname "$CONF")" 2>/dev/null; then
+        printf 'ETCD_DISK_SERIAL=%s\nETCD_UUID=%s\n' "$SERIAL" "$UUID" > "$CONF"
+        echo "$(ts) [OK] Wrote etcd pin: $CONF (serial=$SERIAL uuid=$UUID)"
+    else
+        echo "$(ts) [WARN] Could not persist pin (serial='${SERIAL:-}', $CONF) — will retry next boot"
+    fi
+fi
+
 # ── etcd permissions ─────────────────────────────────────────────────────────
 echo "$(ts) [STEP] Setting etcd permissions"
-# Ensure etcd user/group exist (may be missing after reboot)
 getent group etcd >/dev/null || run groupadd --system etcd
 id etcd >/dev/null 2>&1     || run useradd --system -M -s /sbin/nologin -g etcd etcd
 
