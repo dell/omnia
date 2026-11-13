@@ -27,6 +27,7 @@ from api.validate.routes import router as validate_router
 from api.images.routes import router as images_router
 from api.deploy.routes import router as deploy_router
 from api.upload.routes import router as upload_router
+from api.logs.routes import router as logs_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -40,3 +41,4 @@ api_router.include_router(validate_router)
 api_router.include_router(images_router)
 api_router.include_router(deploy_router)
 api_router.include_router(upload_router, dependencies=[Depends(require_job_write)])
+api_router.include_router(logs_router)

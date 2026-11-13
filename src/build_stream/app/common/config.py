@@ -16,7 +16,7 @@
 
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -45,12 +45,54 @@ class FileStoreConfig:
     base_path: str
 
 
+MAX_LOG_TAIL_LINES_LIMIT = 10000
+MIN_LOG_RESPONSE_BYTES = 1024
+MAX_LOG_RESPONSE_BYTES_LIMIT = 50 * 1024 * 1024
+
+
+def default_log_root() -> str:
+    """Return the container path of the published job log directory."""
+    return _expand_env("${OMNIA_DATA_PATH}/build_stream/log")
+
+
+@dataclass
+class LogQueryConfig:  # pylint: disable=too-many-instance-attributes
+    """Pipeline log query API configuration (ER-BSM-003)."""
+    log_root: str = field(default_factory=default_log_root)
+    default_tail_lines: int = 50
+    max_tail_lines: int = MAX_LOG_TAIL_LINES_LIMIT
+    max_response_bytes: int = 10 * 1024 * 1024
+    rate_limit_per_minute: int = 60
+    max_concurrent: int = 5
+
+    def __post_init__(self) -> None:
+        """Validate bounds so a bad INI value cannot disable a safety limit."""
+        if not 1 <= self.max_tail_lines <= MAX_LOG_TAIL_LINES_LIMIT:
+            raise ValueError(
+                f"log_query.max_tail_lines must be between 1 and {MAX_LOG_TAIL_LINES_LIMIT}"
+            )
+        if not 1 <= self.default_tail_lines <= self.max_tail_lines:
+            raise ValueError("log_query.default_tail_lines must be between 1 and max_tail_lines")
+        if not MIN_LOG_RESPONSE_BYTES <= self.max_response_bytes <= MAX_LOG_RESPONSE_BYTES_LIMIT:
+            raise ValueError(
+                f"log_query.max_response_bytes must be between {MIN_LOG_RESPONSE_BYTES} "
+                f"and {MAX_LOG_RESPONSE_BYTES_LIMIT}"
+            )
+        if self.rate_limit_per_minute < 1:
+            raise ValueError("log_query.rate_limit_per_minute must be >= 1")
+        if self.max_concurrent < 1:
+            raise ValueError("log_query.max_concurrent must be >= 1")
+        if not os.path.isabs(self.log_root):
+            raise ValueError("log_query.log_root must be an absolute path")
+
+
 @dataclass
 class BuildStreamConfig:
     """BuildStream configuration."""
     paths: PathsConfig
     artifact_store: ArtifactStoreConfig
     file_store: Optional[FileStoreConfig]
+    log_query: LogQueryConfig = field(default_factory=LogQueryConfig)
 
 
 def _expand_env(value: str) -> str:
@@ -165,4 +207,27 @@ def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
         paths=paths,
         artifact_store=artifact_store,
         file_store=file_store,
+        log_query=_load_log_query_config(parser),
+    )
+
+
+def _load_log_query_config(parser: configparser.ConfigParser) -> LogQueryConfig:
+    """Parse the optional ``[log_query]`` section, falling back to defaults."""
+    section = "log_query"
+    defaults = LogQueryConfig()
+    if not parser.has_section(section):
+        return defaults
+    return LogQueryConfig(
+        log_root=_expand_env(parser.get(section, "log_root", fallback=defaults.log_root)),
+        default_tail_lines=parser.getint(
+            section, "default_tail_lines", fallback=defaults.default_tail_lines
+        ),
+        max_tail_lines=parser.getint(section, "max_tail_lines", fallback=defaults.max_tail_lines),
+        max_response_bytes=parser.getint(
+            section, "max_response_bytes", fallback=defaults.max_response_bytes
+        ),
+        rate_limit_per_minute=parser.getint(
+            section, "rate_limit_per_minute", fallback=defaults.rate_limit_per_minute
+        ),
+        max_concurrent=parser.getint(section, "max_concurrent", fallback=defaults.max_concurrent),
     )
