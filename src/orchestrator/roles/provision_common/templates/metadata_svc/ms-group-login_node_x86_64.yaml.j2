@@ -100,7 +100,7 @@
           content: |
             {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
 {% endif %}
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
         - path: /etc/resolv.conf
           owner: root:root
           permissions: '0644'
@@ -112,9 +112,11 @@
         - path: /etc/hosts
           append: true
           content: |
+            # omnia-inventory-begin
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
+            # omnia-inventory-end
 {% endif %}
         - path: /etc/profile.d/create_scratch.sh
           owner: root:root
@@ -155,7 +157,7 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
         - |
           # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
           resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
@@ -288,8 +290,25 @@
           PXE_SUBNET="$NETWORK_IP/$NETMASK_BITS"
           echo "[INFO] Admin IP: $ADMIN_IP, Netmask: /$NETMASK_BITS, PXE Subnet: $PXE_SUBNET"
           firewall-cmd --zone=trusted --add-source="$PXE_SUBNET" --permanent
+{% for extra in hostvars['localhost']['admin_additional_subnets'] | default([]) %}
+          echo "[INFO] Adding additional admin subnet {{ extra.subnet }}/{{ extra.netmask_bits }} to trusted zone"
+          firewall-cmd --zone=trusted --add-source="{{ extra.subnet }}/{{ extra.netmask_bits }}" --permanent
+{% endfor %}
           '
-        
+
+        # Configure MPI OOB port range to match firewall-allowed SrunPortRange.
+        # Uses /etc/profile.d/ environment variables so the setting is picked up
+        # regardless of the OpenMPI installation prefix.
+        #   OMPI_MCA_  — read by OpenMPI 4.x (DOCA / HPC-X)
+        #   PRTE_MCA_  — read by PRRTE (OpenMPI 5.x runtime)
+        - |
+          cat > /etc/profile.d/omnia_mpi_oob.sh <<'MPIEOF'
+          # Restrict MPI OOB TCP to the Slurm SrunPortRange (firewall-allowed)
+          export OMPI_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
+          export PRTE_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
+          MPIEOF
+        - chmod 0644 /etc/profile.d/omnia_mpi_oob.sh
+
         - firewall-cmd --reload
         - systemctl enable sshd
         - systemctl start sshd

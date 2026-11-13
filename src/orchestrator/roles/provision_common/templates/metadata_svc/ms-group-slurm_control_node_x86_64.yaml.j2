@@ -107,7 +107,7 @@
             {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
 {% endif %}
 
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
         - path: /etc/resolv.conf
           owner: root:root
           permissions: '0644'
@@ -119,9 +119,11 @@
         - path: /etc/hosts
           append: true
           content: |
+            # omnia-inventory-begin
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
+            # omnia-inventory-end
 {% endif %}
 
         - path: /root/init_slurm_db.sql
@@ -290,7 +292,7 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
         - |
           # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
           resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)

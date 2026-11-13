@@ -187,3 +187,117 @@ openchami_config_missing_fail_msg: >-
   This file is generated during the deploy stage. Run the orchestrator
   deploy stage first: ansible-playbook orchestrator.yml --tags deploy
 smd_service_fail_msg: "smd service is not running"
+
+# Actionable error messages surfaced (no_log tasks). Printed with no_log: false.
+register_nodes_ensure_mapping_rescue_msg: |
+  The PXE mapping was not loaded on the OIM for this category.
+  What to fix: run the stages in order, starting from validate.
+  Then re-run provisioning.
+
+register_nodes_reread_mapping_rescue_msg: |
+  The PXE mapping CSV could not be re-read.
+  What to fix: check the PXE mapping file exists and has an ADMIN_MAC column.
+  Then re-run provisioning.
+
+register_nodes_set_mapping_rescue_msg: |
+  The PXE mapping could not be applied for this category.
+  What to fix: check the PXE mapping file is valid.
+  Then re-run provisioning.
+
+register_nodes_token_refresh_rescue_msg: |
+  The OpenCHAMI access token could not be refreshed.
+  What to fix: confirm the OpenCHAMI target is running and the token helper works on the OIM.
+  Then re-run provisioning.
+
+register_nodes_update_auth_rescue_msg: |
+  The refreshed OpenCHAMI token could not be applied.
+  What to fix: retry the run. If it repeats, check the token helper output.
+  Then re-run provisioning.
+
+register_nodes_check_apis_rescue_msg: |
+  OpenCHAMI APIs are not reachable, or the CA certificate is not trusted.
+  What to fix: confirm the OpenCHAMI target is up and the CA certificate is in place.
+  Then re-run provisioning.
+
+register_nodes_resolve_identities_rescue_msg: |
+  Node identities could not be resolved in SMD for this category.
+  What to fix: confirm SMD is running and the nodes are present in hardware inventory.
+  Then re-run provisioning.
+
+register_nodes_publish_mapping_rescue_msg: |
+  Resolved node identities could not be published to the provisioning mapping.
+  What to fix: rerun from the registration stage.
+  Then re-run provisioning.
+
+register_nodes_delete_group_rescue_msg: |
+  The old node_registration SMD group could not be removed.
+  What to fix: confirm SMD is running and reachable.
+  Then re-run provisioning.
+
+register_nodes_smd_api_ready_rescue_msg: |
+  The SMD API did not become ready in time.
+  What to fix: check the SMD service status and its logs.
+  Then re-run provisioning.
+
+register_nodes_discover_retry_rescue_msg: |
+  SMD rejected node discovery after the retries.
+  What to fix: check the generated node definitions and the SMD logs.
+  Then re-run provisioning.
+
+register_nodes_verify_components_rescue_msg: |
+  Target nodes did not appear in SMD in time.
+  What to fix: check SMD discovery status and that the nodes are reachable over the BMC network.
+  Then re-run provisioning.
+
+register_nodes_reconcile_instanceinfo_rescue_msg: |
+  Node hostnames could not be updated in the Metadata Service.
+  What to fix: check the Metadata Service status.
+  Then re-run provisioning.
+
+provision_prune_boot_config_rescue_msg: |
+  Stale Boot Service configurations could not be cleaned up.
+  What to fix: confirm the OpenCHAMI target is running.
+  Then re-run provisioning.
+
+provision_list_boot_config_rescue_msg: |
+  Boot Service configurations could not be read.
+  What to fix: confirm the OpenCHAMI target is running.
+  Then re-run provisioning.
+
+provision_read_ssh_key_rescue_msg: |
+  The OIM SSH public key could not be read.
+  What to fix: restore the key file on the OIM, or regenerate the OIM SSH key pair.
+  Then re-run provisioning.
+
+provision_read_ssh_private_key_rescue_msg: |
+  The OIM SSH private key could not be read.
+  What to fix: restore the key file on the OIM, or regenerate the OIM SSH key pair.
+  Then re-run provisioning.
+
+provision_password_salt_rescue_msg: |
+  The password salt could not be derived.
+  What to fix: confirm the project name, cluster name, and cluster domain are set.
+  Then re-run provisioning.
+
+provision_hash_password_rescue_msg: |
+  The provision password could not be hashed.
+  What to fix: confirm openssl is installed and the provision password is set.
+  Then re-run provisioning.
+
+provision_load_ms_defaults_rescue_msg: |
+  The metadata-service defaults file could not be read.
+  What to fix: re-run provisioning so the file is regenerated.
+
+provision_parse_ms_defaults_rescue_msg: |
+  The metadata-service defaults file is not valid YAML.
+  What to fix: re-run provisioning to regenerate it, or fix the template inputs.
+
+provision_reconcile_cluster_defaults_rescue_msg: |
+  Metadata-service cluster defaults could not be updated.
+  What to fix: confirm the Metadata Service is running.
+  Then re-run provisioning.
+
+provision_ci_group_common_template_rescue_msg: |
+  The common cloud-init group template could not be rendered.
+  What to fix: confirm the template exists and all values it uses are defined.
+  Then re-run provisioning.
