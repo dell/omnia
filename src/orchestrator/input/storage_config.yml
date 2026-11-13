@@ -47,6 +47,17 @@
 #                   If specified, takes PRIORITY over mount_params profile
 #   - mount_on_oim: Mount this filesystem on the OIM node as well. Optional. Default: false
 #                   Ensure storage is network-accessible from OIM before enabling
+#   - node_nfs_mnt_opts: Mount options for the per-node NFS sub-mounts that Omnia creates
+#                   from the storage entry referenced by nfs_storage_name in omnia_config.yml.
+#                   Optional. Applies to Kubernetes (/var/lib/kubelet, /var/lib/etcd,
+#                   /etc/kubernetes, /var/log/pods, /var/lib/packages) and Slurm/login
+#                   (/etc/slurm, /etc/munge, /var/spool/slurmd, /var/log/slurm, /cert, ...).
+#                   For Kubernetes it is also passed to the nfs-client provisioner.
+#                   Default: "noatime,nolock" (Kubernetes) and "defaults,_netdev" (Slurm)
+#                   PowerScale with RHEL 10.x clients: if Input/output errors occur with the
+#                   default 1 MiB transfer size, set for example
+#                   "noatime,nolock,rsize=1044480,wsize=1044480" (Kubernetes) or
+#                   "defaults,_netdev,rsize=1044480,wsize=1044480" (Slurm)
 #
 # Node-specific bind mounts (node_key and node_mount_point are paired):
 #   - node_key:         Per-node subdirectory isolation variable. Optional
@@ -124,6 +135,24 @@ mounts:
     mnt_opts: "nosuid,rw,sync,hard,intr"
     mount_on_oim: true
     functional_group_prefix: ["service_kube"]
+
+  # VAST Storage - High-performance NFS for HPC tools and benchmarks
+  # This storage is critical for the Slurm cluster and must be accessible from OIM.
+  # Purpose: Serves as the centralized repository for HPC tools (UCX, OpenMPI, CUDA, benchmarks)
+  #          that are bind-mounted to /hpc_tools on compute and login nodes.
+  # OIM Access: The VAST server (172.16.107.77) must be accessible from OIM to copy hpc_tools
+  #             content during provisioning. OIM mounts this storage to populate the shared
+  #             hpc_tools directory structure before nodes boot.
+  # Configuration: The slurm_cluster section in omnia_config.yml should reference this storage
+  #                to ensure proper integration with cluster provisioning workflows.
+  #                This standard entry is skipped when vast_storage_name is absent or empty.
+  # Note: Uses RDMA mount parameters for optimal performance on InfiniBand networks.
+  - name: "vast_storage"
+    source: "172.16.107.77:/share/vast"
+    mount_point: "/mnt/vast"
+    mount_params: "vast_rdma"
+    mount_on_oim: true
+    functional_group_prefix: ["slurm_node", "login"]
 
 # -----------------------------Mount Params (Profiles)-------------------------------
 # mount_params: Named default profiles for mount configurations.

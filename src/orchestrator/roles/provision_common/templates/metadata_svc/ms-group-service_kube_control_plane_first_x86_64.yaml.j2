@@ -312,30 +312,22 @@
           content: |
             #!/bin/bash
             set -e
-            # Shared mount path where the join commands will be saved
+            # Shared mount path where the control-plane join command will be saved
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
             mkdir -p "$K8S_CLIENT_MOUNT_PATH"
-            echo "Generating Kubernetes join commands..."
-
+            echo "Generating Kubernetes control-plane join command..."
             # Generate certificate key and control plane join command
             CERT_KEY=$(kubeadm init phase upload-certs --upload-certs | tail -1 | tr -d '\r\n ')
             if [ -n "$CERT_KEY" ]; then
-                CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command --certificate-key "$CERT_KEY")
+                CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command --certificate-key "$CERT_KEY")
                 echo "$CONTROL_PLANE_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-                chmod 600 "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-                echo "Saved control-plane join command."
+                chmod 644 "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+                echo "Saved control-plane join command to: ${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
             else
                 echo "ERROR: Certificate key is empty! Cannot generate control-plane join command."
                 exit 1
             fi
-
-            # Worker join command — always refresh alongside control-plane
-            WORKER_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command | sed 's/[[:space:]]*$//')
-            echo "$WORKER_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
-            chmod 600 "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
-            echo "Saved worker join command."
-
-            echo "All join commands refreshed. Nodes may now join the cluster."
+            echo "Control-plane join script is ready. You can rerun this script anytime to refresh the command."
 
         - path: /usr/local/bin/install-helm.sh
           permissions: '0755'
@@ -406,12 +398,12 @@
 {% if etcd_on_local_disk | default(false) %}
         - /usr/local/bin/etcd-fstab-update.sh
 {% else %}
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/etcd      /var/lib/etcd        nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 {% endif %}
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubelet   /var/lib/kubelet     nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubernetes   /etc/kubernetes      nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/pod-logs   /var/log/pods      nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }}     0 0" >> /etc/fstab
         - echo "tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0" >> /etc/fstab
         - sudo swapoff -a
         - sudo sed -i '/ swap / s/^/#/' /etc/fstab
@@ -744,7 +736,7 @@
             # Patch: append nameservers after /etc/resolv.conf using Jinja list "dns"
             sed -i 's|/etc/resolv.conf|/etc/resolv.conf{% for ns in dns | default([], true) %} {{ ns }}{% endfor %}|' "$cfg"
 
-{% if dns_enabled | default(true) | bool %}
+{% if dns_enabled | default(false) | bool %}
             # Forward cluster-internal DNS domain to OIM CoreDNS
             # This allows K8s pods to resolve Slurm/MPI hostnames via CoreDNS
             python3 - "$cfg" << 'PYEOF'
@@ -843,20 +835,18 @@
             # Get the certificate key
             CERT_KEY=$(kubeadm init phase upload-certs --upload-certs | tail -1 | tr -d '\r\n ')
             if [ -n "$CERT_KEY" ]; then
-              CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command --certificate-key "$CERT_KEY")
+              CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command --certificate-key "$CERT_KEY")
               echo "$CONTROL_PLANE_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-              chmod 600 "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-              echo "Saved control-plane join command."
+              echo "Saved control-plane join command to: ${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
             else
               echo "ERROR: Certificate key is empty! Cannot generate control-plane join command."
               exit 1
             fi
 
             # For joining worker nodes (regular join command)
-            WORKER_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command | sed 's/[[:space:]]*$//')
+            WORKER_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command)
             echo "$WORKER_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
-            chmod 600 "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
-            echo "Saved worker join command."
+            echo "Saved worker join command to:       ${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
 
             
             export KUBECONFIG=/etc/kubernetes/admin.conf
@@ -896,6 +886,9 @@
               --namespace default --create-namespace \
               --set nfs.server={{ k8s_nfs_server_path.split(':')[0] }} \
               --set nfs.path={{ k8s_nfs_server_path.split(':')[1] }} \
+{% if k8s_nfs_custom_mnt_opts | default('') | length > 0 %}
+              --set "nfs.mountOptions={{ '{' }}{{ k8s_nfs_custom_mnt_opts }}{{ '}' }}" \
+{% endif %}
               --set storageClass.defaultClass=true \
               --set storageClass.reclaimPolicy=Retain
             echo "Waiting for nfs-subdir-external-provisioner pods to appear..."
@@ -914,25 +907,18 @@
             echo "Installing Metallb"
             kubectl create -f {{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml
             echo "Waiting for MetalLB pods to be ready..."
-            kubectl wait --namespace metallb-system --for=condition=Ready pods --all --timeout=300s || echo "WARNING: Some MetalLB pods are not Ready yet. Continuing initialization."
+            kubectl wait --namespace metallb-system --for=condition=Ready pods --all --timeout=300s
             echo "Waiting for MetalLB webhook to be ready..."
-            METALLB_WEBHOOK_ATTEMPTS=0
-            METALLB_WEBHOOK_MAX=120
             until kubectl get endpoints metallb-webhook-service -n metallb-system \
               -o jsonpath='{.subsets[*].addresses[*].ip}' | grep -qE '[0-9]'; do
-              METALLB_WEBHOOK_ATTEMPTS=$((METALLB_WEBHOOK_ATTEMPTS + 1))
-              if [ "$METALLB_WEBHOOK_ATTEMPTS" -ge "$METALLB_WEBHOOK_MAX" ]; then
-                echo "WARNING: MetalLB webhook not ready after ${METALLB_WEBHOOK_MAX} attempts. Continuing."
-                break
-              fi
-              echo "Webhook endpoints not ready yet (attempt ${METALLB_WEBHOOK_ATTEMPTS}/${METALLB_WEBHOOK_MAX}). Retrying in 5s..."
+              echo "Webhook endpoints not ready yet. Retrying in 5s..."
               sleep 5
             done
-            echo "MetalLB webhook wait completed."
+            echo "MetalLB webhook is ready."
             echo "Deploy ipaddress pool"
-            kubectl create -f {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml || echo "WARNING: Failed to create IP address pool. Continuing."
+            kubectl create -f {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml
             echo "Deploy Layer2 Configuration"
-            kubectl create -f {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml || echo "WARNING: Failed to create L2 advertisement. Continuing."
+            kubectl create -f {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml
 
             #echo "Deploy Multus"
             #kubectl apply -f {{ k8s_client_mount_path }}/multus/{{ multus_package }}.yml
@@ -959,7 +945,7 @@
             kubectl rollout restart deployment coredns -n kube-system
             echo "Waiting for coredns pods to appear.."
             sleep 30
-            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s || echo "WARNING: CoreDNS pods not fully ready. Continuing."
+            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
 
             if [ "{{ hostvars['localhost'].get('enable_powerscale_csi', false) | bool | lower }}" == "true" ]; then
               /usr/local/bin/deploy-powerscale-csi.sh
@@ -972,7 +958,7 @@
             kubectl rollout restart deployment coredns -n kube-system
             sleep 30
             echo "Waiting for coredns pods to appear.."
-            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s || echo "WARNING: CoreDNS pods not fully ready. Continuing."
+            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
             # Mark initialization complete so all of above is skipped on reboot!
             touch "$MARKER"
             echo "Cloud-Init has completed successfully."

@@ -137,7 +137,7 @@
           content: |
             {{ lookup('template', 'templates/hpc_tools/setup_doca_mpi_env.sh.j2') | indent(12) }}
 
-{% if dns_enabled | default(true) | bool %}
+{% if dns_enabled | default(false) | bool %}
         - path: /etc/resolv.conf
           owner: root:root
           permissions: '0644'
@@ -149,11 +149,9 @@
         - path: /etc/hosts
           append: true
           content: |
-            # omnia-inventory-begin
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
-            # omnia-inventory-end
 {% endif %}
         - path: /etc/profile.d/create_scratch.sh
           owner: root:root
@@ -202,7 +200,7 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% if dns_enabled | default(true) | bool %}
+{% if dns_enabled | default(false) | bool %}
         - |
           # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
           resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
@@ -237,7 +235,7 @@
         - /usr/local/bin/configure_vast_installation.sh
 {% endif %}
         - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
-        - echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - mount -av
         - rm -f /etc/slurm/slurm.conf /etc/slurm/slurm.conf.example
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
@@ -274,13 +272,13 @@
         # Add the Slurm SSH child mount after the configured storage root is mounted
         - mkdir -p {{ client_mount_path }}/slurm/ssh
         - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/packages  /var/lib/packages   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
         - mount -av
 
@@ -355,24 +353,7 @@
           PXE_SUBNET="$NETWORK_IP/$NETMASK_BITS"
           echo "[INFO] Admin IP: $ADMIN_IP, Netmask: /$NETMASK_BITS, PXE Subnet: $PXE_SUBNET"
           firewall-cmd --zone=trusted --add-source="$PXE_SUBNET" --permanent
-{% for extra in hostvars['localhost']['admin_additional_subnets'] | default([]) %}
-          echo "[INFO] Adding additional admin subnet {{ extra.subnet }}/{{ extra.netmask_bits }} to trusted zone"
-          firewall-cmd --zone=trusted --add-source="{{ extra.subnet }}/{{ extra.netmask_bits }}" --permanent
-{% endfor %}
           '
-
-        # Configure MPI OOB port range to match firewall-allowed SrunPortRange.
-        # Uses /etc/profile.d/ environment variables so the setting is picked up
-        # regardless of the OpenMPI installation prefix.
-        #   OMPI_MCA_  — read by OpenMPI 4.x (DOCA / HPC-X)
-        #   PRTE_MCA_  — read by PRRTE (OpenMPI 5.x runtime)
-        - |
-          cat > /etc/profile.d/omnia_mpi_oob.sh <<'MPIEOF'
-          # Restrict MPI OOB TCP to the Slurm SrunPortRange (firewall-allowed)
-          export OMPI_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
-          export PRTE_MCA_oob_tcp_dynamic_ipv4_ports="{{ slurm_conf_dict.SrunPortRange }}"
-          MPIEOF
-        - chmod 0644 /etc/profile.d/omnia_mpi_oob.sh
 
         - firewall-cmd --reload
         - systemctl enable sshd
@@ -390,7 +371,7 @@
 {% if hostvars['localhost']['openldap_support'] %}
         - /usr/local/bin/update_ldap_conf.sh
         - mkdir /ldapcerts
-        - echo "{{ metadata_svc_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path_openldap }}/certs                /ldapcerts       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - mkdir -pv {{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home
         - echo "{{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home  none  bind  0  0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
