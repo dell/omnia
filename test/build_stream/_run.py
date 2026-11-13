@@ -134,6 +134,13 @@ def _print_manual_pipeline_help():
     )
     print("  Requires automatic_cleanup_job_id and explicit execution approval.")
     print()
+    print("PIPELINE LOG QUERY API (ER-BSM-003; VERIFY ONLY)")
+    print("  ./run_validation.sh fvt_build_stream log_query verify --marker sanity")
+    print("  ./run_validation.sh fvt_build_stream log_query verify --marker security")
+    print("  verify: reads mandatory job_id of a completed build pipeline")
+    print("  security cases plant fixture logs on one disposable job and need")
+    print("  nft_allow_security_mutation: true")
+    print()
     print("BUILDSTREAM EXPLICIT CLEANUP SUITES")
     print(
         "  ./run_validation.sh fvt_build_stream buildstream_cleanup test "

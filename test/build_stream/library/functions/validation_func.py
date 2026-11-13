@@ -130,6 +130,13 @@ def validate_test_config() -> Dict[str, Any]:
         or pipeline_timeout < 30
     ):
         errors.append("nft_pipeline_timeout_seconds must be an integer >= 30")
+    log_query_limit = config.get("log_query_rate_limit", 60)
+    if (
+        not isinstance(log_query_limit, int)
+        or isinstance(log_query_limit, bool)
+        or log_query_limit < 1
+    ):
+        errors.append("log_query_rate_limit must be an integer >= 1")
 
     dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
     errors.extend(_validate_dataset(dataset))

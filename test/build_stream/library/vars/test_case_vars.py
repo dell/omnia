@@ -727,4 +727,42 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify sidecar manifest uploaded for build artifacts",
     },
 
+    # --- Pipeline log query API (ER-BSM-003) ---
+    "log_query_default_and_custom_tail": {
+        "id": "BSM_FVT_LOG_QUERY_V001",
+        "title": "TC-FVT-013: Log query applies default and custom tail_lines",
+    },
+    "log_query_full_retrieval": {
+        "id": "BSM_FVT_LOG_QUERY_V002",
+        "title": "TC-FVT-014: Log query full=true returns the bounded complete log",
+    },
+    "log_query_stage_filter": {
+        "id": "BSM_FVT_LOG_QUERY_V003",
+        "title": "TC-FVT-015: Log query stage filter returns one stage",
+    },
+    "log_query_error_handling": {
+        "id": "BSM_FVT_LOG_QUERY_V004",
+        "title": "TC-FVT-016: Log query rejects invalid requests",
+    },
+    "log_query_stage_log_metadata": {
+        "id": "BSM_FVT_LOG_QUERY_V005",
+        "title": "TC-FVT-018: GET /jobs/{id} reports has_log and log_lines",
+    },
+    "log_query_missing_log_file": {
+        "id": "BSM_FVT_LOG_QUERY_V006",
+        "title": "TC-FVT-018: Deleted stage log reports has_log=false",
+    },
+    "log_query_response_redaction": {
+        "id": "BSM_FVT_LOG_QUERY_V007",
+        "title": "TC-FVT-020: Log query redacts secrets at response time",
+    },
+    "log_query_path_escape_rejected": {
+        "id": "BSM_FVT_LOG_QUERY_V008",
+        "title": "TC-FVT-016: Log path outside the log root returns 409",
+    },
+    "log_query_rate_limit": {
+        "id": "BSM_FVT_LOG_QUERY_V009",
+        "title": "TC-FVT-017: Log query rate limit returns 429",
+    },
+
 }
