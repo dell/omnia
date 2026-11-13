@@ -78,6 +78,7 @@
             {% set ver_repo_hash = _repo_config_hash_by_version.get(ver,
                                      _repo_config_hash) -%}
             {% set cache_input = (fg_data.packages | sort | join(','))
+              ~ '|os_version:' ~ ver
               ~ '|repos:' ~ ver_repo_hash
               ~ '|image_build_type:' ~ _image_build_type -%}
             {% set _ = result.update({
