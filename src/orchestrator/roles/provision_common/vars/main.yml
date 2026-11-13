@@ -36,6 +36,11 @@ openchami_hostname_vars_path: "{{ nodes_dir }}/hostname.yaml"
 ms_defaults_dest: "{{ metadata_svc_dir }}/ms-defaults.yaml"
 ms_group_common_dest: "{{ metadata_svc_dir }}/ms-group-common.yaml"
 
+# Default options for Omnia-managed per-node NFS sub-mounts.
+# Overridden per storage entry by node_nfs_mnt_opts in storage_config.yml.
+k8s_nfs_default_mnt_opts: "noatime,nolock"
+slurm_nfs_default_mnt_opts: "defaults,_netdev"
+
 # SSH keys
 ssh_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa.pub"
 ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"

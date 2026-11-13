@@ -171,6 +171,9 @@
         "mnt_opts": {
           "$ref": "#/definitions/mountOptions"
         },
+        "node_nfs_mnt_opts": {
+          "$ref": "#/definitions/mountOptions"
+        },
         "dump_freq": {
           "$ref": "#/definitions/dumpFrequency"
         },

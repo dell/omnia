@@ -302,12 +302,12 @@
 {% if etcd_on_local_disk | default(false) %}
         - /usr/local/bin/etcd-fstab-update.sh
 {% else %}
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/etcd      /var/lib/etcd        nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 {% endif %}
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
-        - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubelet   /var/lib/kubelet     nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubernetes   /etc/kubernetes      nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/pod-logs   /var/log/pods      nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }}     0 0" >> /etc/fstab
         - echo "tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0" >> /etc/fstab
         - sudo swapoff -a
         - sudo sed -i '/ swap / s/^/#/' /etc/fstab

@@ -276,6 +276,10 @@
         "csi_powerscale_driver_values_file_path": {
           "$ref": "#/definitions/optionalAbsolutePath"
         },
+        "csi_powerscale_mount_options": {
+          "type": "string",
+          "pattern": "^([A-Za-z0-9,=._@/-]+)?$"
+        },
         "enable_k8s_ha": {
           "type": "boolean"
         },

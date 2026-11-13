@@ -91,6 +91,9 @@
     metadata_svc_nfs_path_openldap: "{{ metadata_slurm_nfs_storage_matches[0].source }}/openldap"
     metadata_svc_slurm_nfs_path: "{{ metadata_slurm_nfs_storage_matches[0].source }}"
     client_mount_path: "{{ metadata_slurm_nfs_storage_matches[0].mount_point }}"
+    slurm_nfs_mnt_opts: >-
+      {{ metadata_slurm_nfs_storage_matches[0].node_nfs_mnt_opts
+         | default(slurm_nfs_default_mnt_opts, true) }}
   when: target_category | default('') == 'slurm'
 
 - name: Set default effective directories for slurm paths
@@ -222,6 +225,11 @@
   ansible.builtin.set_fact:
     k8s_client_mount_path: "{{ metadata_k8s_storage_matches[0].mount_point }}"
     k8s_nfs_server_path: "{{ metadata_k8s_storage_matches[0].source }}"
+    k8s_nfs_mnt_opts: >-
+      {{ metadata_k8s_storage_matches[0].node_nfs_mnt_opts
+         | default(k8s_nfs_default_mnt_opts, true) }}
+    k8s_nfs_custom_mnt_opts: >-
+      {{ metadata_k8s_storage_matches[0].node_nfs_mnt_opts | default('', true) }}
   when: target_category | default('') == 'kubernetes'
 
 - name: Load K8s packages JSON for template variables

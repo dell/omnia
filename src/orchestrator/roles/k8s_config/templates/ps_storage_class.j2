@@ -6,6 +6,12 @@ provisioner: csi-isilon.dellemc.com
 reclaimPolicy: Retain
 allowVolumeExpansion: true
 volumeBindingMode: Immediate
+{% if csi_powerscale_mount_options | default([]) | length > 0 %}
+mountOptions:
+{% for opt in csi_powerscale_mount_options %}
+  - "{{ opt }}"
+{% endfor %}
+{% endif %}
 parameters:
   AccessZone: {{ ps_access_zone }}
   Isipath: {{ ps_isipath }}

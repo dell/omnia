@@ -186,6 +186,10 @@ slurm_cluster:
 # File path for the values.yml file which will contain the Powerscale driver configuration parameters.
 # csi_powerscale_driver_values_file_path: User need to download values.yaml file and fill required data.
 # Provided the path of the values.yaml file here.
+# csi_powerscale_mount_options: Optional comma-separated NFS mount options applied to
+# PowerScale CSI volumes through the ps01 StorageClass mountOptions. Leave empty to use
+# the kernel defaults. For RHEL 10.x clients that report Input/output errors on PowerScale
+# volumes with the default 1 MiB transfer size, use "rsize=1044480,wsize=1044480".
 # mention configurable values
 
 # - k8s_crio_storage_size: Specifies the disk size allocated for CRI-O container storage.
@@ -224,5 +228,6 @@ service_k8s_cluster:
     enable_powerscale_csi: false
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
+    csi_powerscale_mount_options: ""
     enable_k8s_ha: true
     virtual_ip_address: "172.16.107.1"

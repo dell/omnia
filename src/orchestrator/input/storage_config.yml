@@ -47,6 +47,17 @@
 #                   If specified, takes PRIORITY over mount_params profile
 #   - mount_on_oim: Mount this filesystem on the OIM node as well. Optional. Default: false
 #                   Ensure storage is network-accessible from OIM before enabling
+#   - node_nfs_mnt_opts: Mount options for the per-node NFS sub-mounts that Omnia creates
+#                   from the storage entry referenced by nfs_storage_name in omnia_config.yml.
+#                   Optional. Applies to Kubernetes (/var/lib/kubelet, /var/lib/etcd,
+#                   /etc/kubernetes, /var/log/pods, /var/lib/packages) and Slurm/login
+#                   (/etc/slurm, /etc/munge, /var/spool/slurmd, /var/log/slurm, /cert, ...).
+#                   For Kubernetes it is also passed to the nfs-client provisioner.
+#                   Default: "noatime,nolock" (Kubernetes) and "defaults,_netdev" (Slurm)
+#                   PowerScale with RHEL 10.x clients: if Input/output errors occur with the
+#                   default 1 MiB transfer size, set for example
+#                   "noatime,nolock,rsize=1044480,wsize=1044480" (Kubernetes) or
+#                   "defaults,_netdev,rsize=1044480,wsize=1044480" (Slurm)
 #
 # Node-specific bind mounts (node_key and node_mount_point are paired):
 #   - node_key:         Per-node subdirectory isolation variable. Optional
