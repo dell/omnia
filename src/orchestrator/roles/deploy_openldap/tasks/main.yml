@@ -40,8 +40,12 @@
           - openldap_db_username | length > 0
           - openldap_db_password is defined
           - openldap_db_password | length > 0
+          - openldap_bind_username | default('') | length > 0
+          - openldap_bind_password | default('') | length > 0
+          - openldap_bind_password | default('') != openldap_db_password
         fail_msg: "{{ credentials_missing_msg }}"
         quiet: true
+      no_log: true
 
     - name: Set OpenLDAP configuration facts
       ansible.builtin.set_fact:
@@ -242,6 +246,15 @@
       when:
         - not (omnia_auth_needs_deploy | bool)
         - not (omnia_auth_external_proxy | bool)
+
+    - name: Ensure the read-only account that LDAP clients bind with
+      ansible.builtin.include_tasks: ensure_bind_account.yml
+      when: not (omnia_auth_external_proxy | bool)
+
+    - name: Report that the bind account is managed by the external directory
+      ansible.builtin.debug:
+        msg: "{{ bind_account_external_proxy_msg }}"
+      when: omnia_auth_external_proxy | bool
 
   rescue:
     - name: OpenLDAP deployment failed

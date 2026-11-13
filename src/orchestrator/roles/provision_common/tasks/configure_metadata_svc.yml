@@ -24,6 +24,16 @@
       - hostvars['localhost']['cluster_os_type'] | default('') | length > 0
     fail_msg: "{{ repo_config_not_available_msg }}"
 
+- name: Validate the read-only LDAP bind credentials for client configuration
+  ansible.builtin.assert:
+    that:
+      - hostvars['localhost']['openldap_bind_username'] | default('') | length > 0
+      - hostvars['localhost']['openldap_bind_password'] | default('') | length > 0
+    fail_msg: "{{ openldap_bind_credentials_missing_msg }}"
+    quiet: true
+  no_log: true
+  when: hostvars['localhost']['openldap_support'] | default(false) | bool
+
 - name: Publish Slurm metadata context through the role interface
   ansible.builtin.include_role:
     name: slurm_config
@@ -125,9 +135,9 @@
       {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
       | select | map('regex_replace', '^', 'dc=') | join(',') }}
     ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
-    password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+    password: "{{ hostvars['localhost']['openldap_bind_password'] | default('') }}"
     ldap_default_bind_dn: >-
-      cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+      cn={{ hostvars['localhost']['openldap_bind_username'] | default('') }},ou=ServiceAccounts,{{
       (hostvars['localhost']['domain_name'] | default('')).split('.')
       | select | map('regex_replace', '^', 'dc=') | join(',') }}
 
@@ -370,10 +380,10 @@
           {{ (hostvars['localhost']['domain_name'] | default('')).split('.')
           | select | map('regex_replace', '^', 'dc=') | join(',') }}
         ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
-        password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+        password: "{{ hostvars['localhost']['openldap_bind_password'] | default('') }}"
         cuda_toolkit_version: "{{ cuda_toolkit_version | default('13.3.1') }}"
         ldap_default_bind_dn: >-
-          cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
+          cn={{ hostvars['localhost']['openldap_bind_username'] | default('') }},ou=ServiceAccounts,{{
           (hostvars['localhost']['domain_name'] | default('')).split('.')
           | select | map('regex_replace', '^', 'dc=') | join(',') }}
   rescue:

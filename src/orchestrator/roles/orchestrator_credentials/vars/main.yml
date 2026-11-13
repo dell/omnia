@@ -41,6 +41,7 @@ orchestrator_credentials_definitions:
   openldap:
     mandatory:
       - { username: openldap_db_username, password: openldap_db_password }
+      - { username: openldap_bind_username, password: openldap_bind_password }
   csi_driver_powerscale:
     conditional_mandatory:
       - username: csi_username

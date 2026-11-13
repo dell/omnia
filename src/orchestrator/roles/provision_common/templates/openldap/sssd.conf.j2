@@ -36,6 +36,8 @@
       ldap_uri = ldaps://{{ ldap_server_ip }}:636
       ldap_chpass_uri = ldaps://{{ ldap_server_ip }}:636
       ldap_search_base = {{ ldap_search_base }}
+      ldap_default_bind_dn = {{ ldap_default_bind_dn }}
+      ldap_default_authtok = {{ password }}
       ldap_id_use_start_tls = False
       ldap_tls_cacertdir = /etc/openldap/certs
       cache_credentials = True

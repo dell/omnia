@@ -26,6 +26,13 @@ TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
 {% endif %}
 security simple_bind=128
 
+# Root DSE and schema hold server metadata only; clients read them before binding
+access to dn.base=""
+    by * read
+
+access to dn.base="cn=Subschema"
+    by * read
+
 # MDB backend
 database    mdb
 maxsize     1073741824
@@ -43,7 +50,8 @@ index   gidNumber   eq
 index   uidNumber   eq
 index   memberUid   eq
 
-# ACL: allow rootdn full access, users can read/auth
+# ACL: rootdn has full access; anonymous clients may only authenticate.
+# LDAP clients look entries up by binding as the read-only account.
 access to attrs=userPassword
     by self write
     by anonymous auth
@@ -51,4 +59,5 @@ access to attrs=userPassword
 
 access to *
     by self write
-    by * read
+    by users read
+    by * none
