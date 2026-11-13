@@ -82,6 +82,11 @@ from .project_func import (
 
 _BASELINE_ERRORS: dict[str, frozenset[str]] = {}
 
+# Tracks whether this run has written the aggregated validation log yet. The
+# first scratch validation of the session rewrites the active project's log
+# file; later cases append to it, so one run leaves one log with every case.
+_AGGREGATE_LOG_STARTED = False
+
 
 class _NotApplicable(Exception):
     """The active project cannot host this case; reported as a skip."""
@@ -104,6 +109,7 @@ def _read_live(host) -> dict[str, Any]:
         "input_dir": input_dir,
         "input_root": os.path.dirname(input_dir),
         "output_root": os.path.dirname(output_dir),
+        "log_root": os.path.join(os.path.dirname(os.path.dirname(input_dir)), "log"),
         "config": dict(
             read_yaml_mapping(host, os.path.join(input_dir, ORCHESTRATOR_CONFIG_FILE))
         ),
@@ -268,6 +274,48 @@ def _write_remote(host, path: str, text: str) -> None:
     _require(run_on_host(host, IPOIB_COMMANDS["restrict_file"], path), f"restrict {path}")
 
 
+def _append_remote(host, path: str, text: str, truncate: bool) -> None:
+    """Write text to a remote file, truncating on the first write and appending after."""
+    encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    chunks = [
+        encoded[start:start + REMOTE_WRITE_CHUNK]
+        for start in range(0, len(encoded), REMOTE_WRITE_CHUNK)
+    ] or [""]
+    for position, chunk in enumerate(chunks):
+        key = "write_base64_first" if truncate and position == 0 else "write_base64_append"
+        _require(run_on_host(host, IPOIB_COMMANDS[key], chunk, path), f"write {path}")
+
+
+def _fold_scratch_log(host, live, name: str, truncate: bool) -> bool:
+    """Fold a scratch validation log into the active project's single log file.
+
+    The validator writes log/<scratch>/orchestrator_validation_<scratch>.log.
+    Its contents are copied into
+    log/<project>/orchestrator_validation_<project>.log, rewriting that file for
+    the first case of the run and appending for later cases, so one run leaves
+    one validation log under the active project with every case's output.
+    Returns True when a log was written, False when the scratch log was absent.
+    """
+    active_project = os.path.basename(live["input_dir"])
+    scratch_log_file = os.path.join(
+        live["log_root"], name, f"orchestrator_validation_{name}.log"
+    )
+    source = host.file(scratch_log_file)
+    if not source.exists:
+        return False
+    aggregate_dir = os.path.join(live["log_root"], active_project)
+    aggregate_file = os.path.join(
+        aggregate_dir, f"orchestrator_validation_{active_project}.log"
+    )
+    _require(
+        run_on_host(host, IPOIB_COMMANDS["make_parent_dirs"], aggregate_dir),
+        f"create {aggregate_dir}",
+    )
+    header = f"===== IPoIB input case log (scratch project {name}) =====\n"
+    _append_remote(host, aggregate_file, header + source.content_string, truncate)
+    return True
+
+
 def _clone_project(host, live, scratch: str) -> None:
     _require(
         run_on_host(host, IPOIB_COMMANDS["path_absent"], scratch),
@@ -294,12 +342,23 @@ def _clone_project(host, live, scratch: str) -> None:
 
 
 def _run_validate(host, live, network_spec, rows):
-    """Run --tags validate on a scratch clone; return (result, errors, ran)."""
+    """Run --tags validate on a scratch clone; return (result, errors, ran).
+
+    The scratch clone keeps the modified input away from the active project. The
+    validator writes its log under log/<scratch>/; after the run that log is
+    folded into the active project's single validation log
+    (log/<project>/orchestrator_validation_<project>.log) — rewritten for the
+    first case of the run and appended for later cases. The scratch input,
+    output, and log directories are removed, so no per-case directory is left
+    behind under orchestrator/log/.
+    """
     from . import run_playbook  # pylint: disable=import-outside-toplevel
 
+    global _AGGREGATE_LOG_STARTED
     name = f"{SCRATCH_PROJECT_PREFIX}{secrets.token_hex(4)}"
     scratch_input = _scratch_path(live["input_root"], name)
     scratch_output = _scratch_path(live["output_root"], name)
+    scratch_log = _scratch_path(live["log_root"], name)
     try:
         _clone_project(host, live, scratch_input)
         _write_remote(
@@ -320,8 +379,10 @@ def _run_validate(host, live, network_spec, rows):
             extra_vars={PROJECT_EXTRA_VAR: name},
             timeout=VALIDATE_TIMEOUT_SECONDS,
         )
+        if _fold_scratch_log(host, live, name, truncate=not _AGGREGATE_LOG_STARTED):
+            _AGGREGATE_LOG_STARTED = True
     finally:
-        for path in (scratch_input, scratch_output):
+        for path in (scratch_input, scratch_output, scratch_log):
             run_on_host(host, IPOIB_COMMANDS["remove_scratch"], path)
     output = str(result.get("output") or "")
     return result, validation_errors(output), VALIDATION_RAN_MARKER in output
