@@ -69,6 +69,13 @@ from .discovery_func import (
     check_ip_correlation,
     check_parent_service_tag,
     check_pxe_mapping_orchestrator_contract,
+    # IB Validation (V016-V021)
+    check_ib_conditional_population,
+    check_ib_ipv4_format,
+    check_ib_ipv6_format,
+    check_ib_ip_uniqueness,
+    check_pxe_mapping_all_columns,
+    check_bmc_mac_populated,
 )
 
 # --- OME Integration (V010-V013) ---
