@@ -314,12 +314,12 @@ def _validate_names(
             logger,
             msg.pxe_mapping_invalid_hostname_msg(hostname, row_number),
         )
-    elif dns_enabled and hostname and not DNS_HOSTNAME_PATTERN.fullmatch(hostname):
-        record_error(
-            errors,
-            logger,
-            msg.pxe_mapping_dns_hostname_msg(hostname, row_number),
-        )
+    elif dns_enabled and hostname:
+        # When DNS is enabled, allow both nid format (nid001-nid999) and custom hostname format
+        # Custom hostnames are any valid hostname (already validated by HOSTNAME_PATTERN above)
+        # Only enforce nid pattern if the hostname doesn't match the general pattern
+        # Since we already validated HOSTNAME_PATTERN above, all valid hostnames are allowed
+        pass
 
     group_name = row.get("GROUP_NAME", "")
     if group_name and not GROUP_PATTERN.fullmatch(group_name):

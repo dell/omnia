@@ -67,7 +67,7 @@ the feature flags derived by the latest catalog-backed lifecycle phase.
 | `GROUP_NAME` | string | Yes | Scalable Unit / logical group |
 | `SERVICE_TAG` | string | Yes | Unique physical-server identity persisted against its permanent XNAME in SMD Hardware Inventory |
 | `PARENT_SERVICE_TAG` | string | No | Parent service tag used by associated-node workflows; Discovery populates it for Slurm compute nodes when a service worker is available |
-| `HOSTNAME` | string | Yes | Assigned hostname; must match `nid001`-`nid999` when `dns_enabled` is `true` (default) |
+| `HOSTNAME` | string | Yes | Assigned hostname; when `dns_enabled` is `true` (default), must match either `nid001`-`nid999` format or be a valid custom hostname (lowercase letters, numbers, hyphens; must start/end with letter or number). See `docs/custom-hostnames.md` for details on custom hostname support. |
 | `ADMIN_MAC` | string | Yes | Unique admin NIC MAC address |
 | `ADMIN_IP` | string | Yes | Admin network IP |
 | `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for existing-node identity evidence and discovery |

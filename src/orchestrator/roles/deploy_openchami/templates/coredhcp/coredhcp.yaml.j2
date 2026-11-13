@@ -17,6 +17,11 @@ server4:
         rule=subnet:{{ s.subnet }}/{{ s.netmask_bits }},type:Node,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
         rule=subnet:{{ s.subnet }}/{{ s.netmask_bits }},type:NodeBMC,routers:{{ s.router }},cidr:{{ s.netmask_bits }}
 {% endfor %}
+{% for node in mapping_nodes | default([]) %}
+{% if node.HOSTNAME is not regex('^nid\\d{3}$') %}
+        rule=mac:{{ node.ADMIN_MAC }},hostname:{{ node.HOSTNAME }}
+{% endif %}
+{% endfor %}
         rule=type:Node,hostname:nid{{'{'}}04d{{'}'}}
         rule=type:NodeBMC,hostname:bmc{{'{'}}04d{{'}'}}
     - bootloop: |
