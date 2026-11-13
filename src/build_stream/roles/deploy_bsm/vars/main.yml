@@ -24,7 +24,7 @@ build_stream_container_omnia_path: "/opt/omnia"  # opt-omnia-waiver: container-i
 # Build Stream Image (Docker Hub)
 build_stream_dockerhub_registry: "docker.io/dellhpcomniaaisolution"
 build_stream_image_name: "{{ build_stream_dockerhub_registry }}/omnia_build_stream"
-build_stream_image_tag: "1.2"
+build_stream_image_tag: "1.3"
 
 # Ports & Logs — passed as host vars from prepare_build_stream.yml
 build_stream_log_dir: "{{ omnia_path }}/build_stream/log"

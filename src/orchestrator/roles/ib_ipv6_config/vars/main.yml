@@ -14,7 +14,7 @@
 ---
 # Internal variables — not intended for user override
 
-ib_ipv6_validation_start_msg: "[IB-IPv6] Starting IPoIB IPv6 allocation validation"
+ib_ipv6_validation_start_msg: "[IB-IPv6] Starting IPoIB IPv6 configuration"
 ib_ipv6_validation_pass_msg: "[IB-IPv6] Allocation validation passed"
 ib_ipv6_validation_fail_msg: "[IB-IPv6] Allocation validation FAILED"
 ib_ipv6_render_start_msg: "[IB-IPv6] Starting NM/SMD/hosts rendering"

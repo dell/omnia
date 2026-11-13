@@ -162,33 +162,37 @@ def make_item(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------- sections
-def _attempt(section: Dict[str, Any]) -> Dict[str, Any]:
-    """Return the short record of a section that is being run again."""
-    status = section.get("status", "")
-    failed = [item.get("name", "") for item in section.get("items", [])
-              if item.get("status") == "Failed"]
-    return {"attempt": section.get("attempt", 1),
-            "status": "Interrupted" if status == RUNNING else status,
-            "started_at": section.get("started_at", ""),
-            "duration": section.get("duration", 0.0),
-            "steps": len(section.get("items", [])), "failed": failed}
+def _archive_attempt(settings: Dict[str, str], section: Dict[str, Any]) -> None:
+    """Keep a section that a retry replaces as a file of the run folder, not in the report.
+
+    The report shows the latest attempt of a stage only; the earlier attempts (steps, results,
+    output) stay in ``<run folder>/attempts/<stage>-attempt-<n>.json`` with the other artifacts.
+    """
+    directory = os.path.join(os.path.dirname(report_files(settings)["json"]), "attempts")
+    os.makedirs(directory, exist_ok=True)
+    name = f"{section['name']}-attempt-{int(section.get('attempt') or 1)}.json"
+    if section.get("status") == RUNNING:
+        section = {**section, "status": "Interrupted"}
+    write_atomic(os.path.join(directory, name), json.dumps(section, indent=2))
 
 
 def open_section(settings: Dict[str, str], kind: str, name: str) -> str:
     """Start a section (a stage while it runs); return its name.
 
-    A section run again in the same run (a retry) takes the place of the earlier one:
-    the report keeps one section per stage and lists the earlier attempts in it.
+    A section run again in the same run (a retry) takes the place of the earlier one: the
+    report keeps one section per stage, the latest attempt, numbered ``attempt``. The earlier
+    attempt is archived in the run folder (``_archive_attempt``).
     """
     report = _load(settings)
     sections = report["sections"]
     index = next((i for i in range(len(sections) - 1, -1, -1)
                   if sections[i]["name"] == name), None)
-    attempts = [*sections[index].get("attempts", []), _attempt(sections[index])] \
-        if index is not None else []
+    attempt = 1
+    if index is not None:
+        _archive_attempt(settings, sections[index])
+        attempt = int(sections[index].get("attempt") or 1) + 1
     section = {"kind": kind, "name": name, "stage": name, "status": RUNNING,
-               "started_at": _now(), "duration": 0.0, "items": [],
-               "attempt": len(attempts) + 1, "attempts": attempts}
+               "started_at": _now(), "duration": 0.0, "items": [], "attempt": attempt}
     if index is None:
         sections.append(section)
     else:
@@ -197,11 +201,18 @@ def open_section(settings: Dict[str, str], kind: str, name: str) -> str:
     return name
 
 
+def section_attempt(settings: Dict[str, str], name: str) -> int:
+    """Return the attempt number of the latest section called ``name`` (1 when none)."""
+    for section in reversed(_load(settings)["sections"]):
+        if section["name"] == name:
+            return int(section.get("attempt") or 1)
+    return 1
+
+
 def supersede_failed(settings: Dict[str, str], names: List[str]) -> List[str]:
     """Mark the failed sections called ``names`` as replaced by a retry; return their names.
 
-    A superseded section no longer fails the run; the retry's section takes its place and
-    keeps it in its list of earlier attempts.
+    A superseded section no longer fails the run; the retry's section takes its place.
     """
     report = _load(settings)
     done = []

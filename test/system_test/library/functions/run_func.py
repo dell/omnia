@@ -147,7 +147,7 @@ def retry(config: Dict[str, Any], steps: List[str]) -> str:
     ``steps`` are the step names this command runs (``stage <name>``, ``setup <name>``). When
     the run failed (or was interrupted) at one of them, the failure is cleared (and kept
     in ``retries``) and the failed sections of the report are marked as replaced: the new
-    attempt takes their place and lists them as earlier attempts. A run that did not
+    attempt takes their place in the report (the earlier one is archived in the run folder). A run that did not
     fail changes nothing. The run keeps its id, folder and report.
 
     Raises:

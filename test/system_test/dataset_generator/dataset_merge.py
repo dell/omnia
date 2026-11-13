@@ -22,18 +22,20 @@ merge serves every YAML file:
 * list of mappings -> match each item by ``name``, ``cluster_name``, ``address``
   (ntp_servers) or ``subnet`` (additional_subnets) or, for ``- admin_network:``
   style items, by their single key; a new item is appended;
-* scalar or list of scalars -> written when given, typed like the file value.
+* scalar or list of scalars -> written when given, typed like the file value; an empty
+  value removes a key of REMOVE_WHEN_EMPTY (ib_addr_mode) instead of writing "".
 
 An empty value ("" / []) clears the text or plain list in the file, so a value
 removed from user_inputs.yml is removed there too; it never changes a boolean,
 a number, a block or a list of items, and it never adds a new list item.
 
-VAST switch: the product skips the ``vast_storage`` mount when
-``vast_storage_name`` is absent from omnia_config.yml. Without a VAST source in
-user_inputs.yml the whole shipped vast_storage mount and the vast_storage_name
-line are commented out with a reversible marker, and the user's vast_storage
-item is not merged (it would add a mount without a source); giving a source
-later restores them.
+Mount switch (vast_storage, nfs_slurm, nfs_k8s): without a source for the mount in
+user_inputs.yml, the whole shipped mount in storage_config.yml is commented out with a
+reversible marker, and the user's item for it is not merged (it would add a mount without a
+source); giving a source later restores it. omnia_config.yml is never changed: a reference
+to a mount that is off (vast_storage_name, or the nfs_storage_name of the Slurm or the
+Kubernetes cluster) is reported by the orchestrator validation ("storage_config.yml does not
+define referenced storage").
 """
 
 import csv
@@ -57,10 +59,18 @@ from .dataset_edit import (
 )
 
 IDENTITY_KEYS = ("name", "cluster_name", "address", "subnet")
-VAST_MOUNT = "vast_storage"
-VAST_PREFIX = "# [vast off] "
-VAST_NOTE = (f"{VAST_PREFIX.rstrip()} VAST is off: user_inputs.yml gives no vast_storage source; "
-             "fill it and rerun the generator to turn VAST on.")
+# Keys the product reads as "feature on" when they exist, whatever their value, and whose
+# schema rejects an empty value: an empty value in user_inputs.yml removes them from the file.
+# ib_addr_mode: with it the orchestrator runs the IPoIB pipeline for the rows that have an
+# IB_NIC_NAME; without it the pipeline is skipped (a cluster without InfiniBand).
+REMOVE_WHEN_EMPTY = ("ib_addr_mode",)
+# Mounts that are switched off in storage_config.yml when user_inputs.yml gives no source:
+# (mount name, label of the marker, title).
+SWITCHES = (
+    ("vast_storage", "vast", "VAST"),
+    ("nfs_slurm", "nfs_slurm", "nfs_slurm"),
+    ("nfs_k8s", "nfs_k8s", "nfs_k8s"),
+)
 
 
 def typed(value: Any, current: Any) -> Any:
@@ -111,6 +121,9 @@ def merge_yaml(node: Any, wanted: Dict[str, Any], changes: List[Change], label: 
             if not isinstance(current, list):
                 raise EditError(f"{label}: '{here}' is not a list in this file")
             merge_list(current, value, changes, label, here)
+        elif key in REMOVE_WHEN_EMPTY and not has_value(value):
+            del node[file_key]
+            changes.append((label, here, str(current), "(removed)"))
         else:
             set_value(node, file_key, typed(value, current), changes, label, where)
 
@@ -137,21 +150,18 @@ def merge_list(items: List[Any], wanted: List[Dict[str, Any]], changes: List[Cha
             changes.append((label, f"{where}[{ident}]", "(absent)", "added"))
 
 
-def vast_requested(inputs: Dict[str, Any]) -> bool:
-    """Return whether user_inputs.yml gives a source for the vast_storage mount."""
+def mount_requested(inputs: Dict[str, Any], mount: str) -> bool:
+    """Return whether user_inputs.yml gives a source for the ``mount`` of storage_config."""
     mounts = (((inputs.get("orchestrator") or {}).get("storage_config") or {})
               .get("mounts") or [])
-    return any(isinstance(m, dict) and str(m.get("name")) == VAST_MOUNT
+    return any(isinstance(m, dict) and str(m.get("name")) == mount
                and has_value(m.get("source")) for m in mounts)
 
 
-def _vast_block(lines: List[str], kind: str) -> List[int]:
-    """Return the line numbers that belong to VAST in storage_config or omnia_config."""
-    if kind == "reference":
-        return [n for n, line in enumerate(lines)
-                if re.match(r"^\s*vast_storage_name\s*:", line)]
+def _mount_block(lines: List[str], mount: str) -> List[int]:
+    """Return the line numbers of the ``mount`` item of storage_config (empty if absent)."""
     for number, line in enumerate(lines):
-        match = re.match(rf"^(\s*)- name:\s*[\"']?{VAST_MOUNT}[\"']?\s*(#.*)?$", line)
+        match = re.match(rf"^(\s*)- name:\s*[\"']?{mount}[\"']?\s*(#.*)?$", line)
         if match:
             indent = len(match.group(1))
             block = [number]
@@ -166,25 +176,66 @@ def _vast_block(lines: List[str], kind: str) -> List[int]:
     return []
 
 
-def switch_vast(text: str, kind: str, enable: bool, changes: List[Change], label: str) -> str:
-    """Comment VAST lines out (enable=False) or restore them (enable=True)."""
+def switch_mount(text: str, switch: tuple, enable: bool, changes: List[Change],
+                 label: str) -> str:
+    """Comment the lines of a storage_config mount out (enable=False) or restore them."""
+    mount, marker, title = switch
+    prefix = f"# [{marker} off] "
+    note = (f"{prefix.rstrip()} {title} is off: user_inputs.yml gives no {mount} source; "
+            f"fill it and rerun the generator to turn {title} on.")
     lines = text.split("\n")
     if enable:
-        if not any(line.lstrip().startswith(VAST_PREFIX.strip()) for line in lines):
+        if not any(line.lstrip().startswith(prefix.strip()) for line in lines):
             return text
-        restored = [line.replace(VAST_PREFIX, "", 1) for line in lines
-                    if line.strip() != VAST_NOTE]
-        changes.append((label, "VAST", "off", "on"))
+        restored = [line.replace(prefix, "", 1) for line in lines if line.strip() != note]
+        changes.append((label, title, "off", "on"))
         return "\n".join(restored)
-    block = _vast_block(lines, kind)
+    block = _mount_block(lines, mount)
     if not block:
         return text
     indent = lines[block[0]][:len(lines[block[0]]) - len(lines[block[0]].lstrip())]
     for number in block:
-        lines[number] = f"{VAST_PREFIX}{lines[number]}" if lines[number].strip() else lines[number]
-    lines.insert(block[0], f"{indent}{VAST_NOTE}")
-    changes.append((label, "VAST", "on", "off"))
+        lines[number] = f"{prefix}{lines[number]}" if lines[number].strip() else lines[number]
+    lines.insert(block[0], f"{indent}{note}")
+    changes.append((label, title, "on", "off"))
     return "\n".join(lines)
+
+
+MOUNTS_PREFIX = "# [mounts off] "
+MOUNTS_NOTE = (f"{MOUNTS_PREFIX.rstrip()} no mount is configured: every mount has no source in "
+               "user_inputs.yml; fill one and rerun the generator.")
+
+
+def _mounts_have_items(lines: List[str]) -> bool:
+    """Return whether the ``mounts:`` block of storage_config has an item that is not commented."""
+    start = next((n for n, line in enumerate(lines) if re.match(r"^mounts\s*:\s*$", line)), None)
+    if start is None:
+        return False
+    for line in lines[start + 1:]:
+        if line.strip() and not line.startswith((" ", "#")):
+            break
+        if re.match(r"^\s+- name:", line):
+            return True
+    return False
+
+
+def switch_mounts_key(text: str, keep: bool, changes: List[Change], label: str) -> str:
+    """Comment the ``mounts:`` key out when no mount is left (an empty ``mounts:`` is null,
+    which the schema rejects), and restore it when a mount is back."""
+    lines = text.split("\n")
+    if keep or _mounts_have_items(lines):
+        if not any(line.startswith(MOUNTS_PREFIX.strip()) for line in lines):
+            return text
+        restored = [line.replace(MOUNTS_PREFIX, "", 1) for line in lines if line != MOUNTS_NOTE]
+        changes.append((label, "mounts", "off", "on"))
+        return "\n".join(restored)
+    for number, line in enumerate(lines):
+        if re.match(r"^mounts\s*:\s*$", line):
+            lines[number] = f"{MOUNTS_PREFIX}{line}"
+            lines.insert(number, MOUNTS_NOTE)
+            changes.append((label, "mounts", "on", "off"))
+            return "\n".join(lines)
+    return text
 
 
 def render_yaml(text: str, section: Dict[str, Any], changes: List[Change], label: str) -> str:
@@ -241,23 +292,29 @@ def render_target(text: str, target: Dict[str, Any], inputs: Dict[str, Any],
     for key in target["section"].split("."):
         section = (section or {}).get(key) if isinstance(section, dict) else None
     label = target["file"]
-    if target.get("vast"):
-        enable = vast_requested(inputs)
-        text = switch_vast(text, target["vast"], enable, changes, label)
-        if not enable and target["vast"] == "mount":
-            section = _without_vast_mount(section)
+    if target.get("switch") == "mount":
+        off = []
+        for switch in SWITCHES:
+            enable = mount_requested(inputs, switch[0])
+            text = switch_mount(text, switch, enable, changes, label)
+            if not enable:
+                off.append(switch[0])
+        if off:
+            section = _without_mounts(section, off)
+        user_mounts = isinstance(section, dict) and bool(section.get("mounts"))
+        text = switch_mounts_key(text, user_mounts, changes, label)
     return RENDERERS[target["format"]](text, section or {}, changes, label)
 
 
-def _without_vast_mount(section: Any) -> Any:
-    """Return the storage_config section without its vast_storage mount.
+def _without_mounts(section: Any, names: List[str]) -> Any:
+    """Return the storage_config section without the mounts called ``names``.
 
-    With VAST off the whole shipped mount is commented out; merging the user's
-    vast_storage item afterwards would append a new, incomplete one (no source).
+    A switched-off mount is commented out in the file; merging the user's item for it
+    afterwards would append a new, incomplete one (no source).
     """
     if not isinstance(section, dict) or not isinstance(section.get("mounts"), list):
         return section
     mounts = [m for m in section["mounts"]
-              if not (isinstance(m, dict) and str(m.get("name")) == VAST_MOUNT)]
+              if not (isinstance(m, dict) and str(m.get("name")) in names)]
     rest = {k: v for k, v in section.items() if k != "mounts"}
     return {**rest, "mounts": mounts} if mounts else rest

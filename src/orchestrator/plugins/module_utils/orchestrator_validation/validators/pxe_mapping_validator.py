@@ -96,6 +96,14 @@ GROUP_PATTERN = re.compile(
 )
 FUNCTIONAL_GROUP_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 TAG_PATTERN = re.compile(r"^[A-Za-z0-9]+$")
+# IB columns that are mandatory on a row with an IB_NIC_NAME, by ib_addr_mode of network_spec
+# ("" = not set: IPv4, the default).
+IB_REQUIRED_ADDRESSES = {
+    "dual-stack": ("IB_IPV4", "IB_IPV6"),
+    "ipv6-only": ("IB_IPV6",),
+    "ipv4-only": ("IB_IPV4",),
+    "": ("IB_IPV4",),
+}
 IB_NIC_NAME_PATTERN = re.compile(
     r"^(?:(?:InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|"
     r"NIC\.InfiniBand\.)[0-9A-Fa-f]+-[0-9]+|"
@@ -369,53 +377,27 @@ def _validate_ib_pair(
     logger: Logger | None,
     ib_addr_mode: str = "",
 ) -> None:
-    """Require the optional InfiniBand NIC name and IP as a pair.
+    """Require the InfiniBand addresses of the stack on a row that has an IB_NIC_NAME.
 
-    Validation rules depend on ib_addr_mode from network_spec:
-    - ipv6-only: IB_NIC_NAME and IB_IPV6 must both be set or both empty;
-      IB_IPV4 may be empty.
-    - ipv4-only or dual-stack (default): IB_NIC_NAME and IB_IPV4 must both
-      be set or both empty.
+    The check is per row and only starts at IB_NIC_NAME:
+    - IB_NIC_NAME empty: no address is required. An address without a NIC name is an
+      error (it would be silently dropped).
+    - IB_NIC_NAME set: ib_addr_mode dual-stack needs IB_IPV4 and IB_IPV6; ipv6-only needs
+      IB_IPV6; ipv4-only, or no ib_addr_mode (the default), needs IB_IPV4.
     """
     has_nic = bool(row.get("IB_NIC_NAME", ""))
-    has_ipv4 = bool(row.get("IB_IPV4", ""))
-    has_ipv6 = bool(row.get("IB_IPV6", ""))
-
-    if ib_addr_mode == "ipv6-only":
-        if has_nic != has_ipv6:
+    if not has_nic:
+        if row.get("IB_IPV4", ""):
+            record_error(errors, logger, msg.pxe_mapping_ib_ipv4_without_nic_msg(row_number))
+        if row.get("IB_IPV6", ""):
+            record_error(errors, logger, msg.pxe_mapping_ib_ipv6_without_nic_msg(row_number))
+        return
+    for column in IB_REQUIRED_ADDRESSES.get(ib_addr_mode, IB_REQUIRED_ADDRESSES[""]):
+        if not row.get(column, ""):
             record_error(
                 errors, logger,
-                msg.pxe_mapping_ib_ipv6_pair_msg(row_number),
+                msg.pxe_mapping_ib_address_required_msg(row_number, column, ib_addr_mode),
             )
-    elif ib_addr_mode == "dual-stack":
-        if has_nic != has_ipv4:
-            record_error(
-                errors, logger,
-                msg.pxe_mapping_ib_pair_msg(row_number),
-            )
-        if has_nic and not has_ipv6:
-            record_error(
-                errors, logger,
-                msg.pxe_mapping_ib_dual_stack_missing_ipv6_msg(row_number),
-            )
-        if has_nic and not has_ipv4:
-            record_error(
-                errors, logger,
-                msg.pxe_mapping_ib_dual_stack_missing_ipv4_msg(row_number),
-            )
-    else:
-        # ipv4-only or unset (default)
-        if has_nic != has_ipv4:
-            record_error(
-                errors, logger,
-                msg.pxe_mapping_ib_pair_msg(row_number),
-            )
-
-    if has_ipv6 and not has_nic:
-        record_error(
-            errors, logger,
-            msg.pxe_mapping_ib_ipv6_without_nic_msg(row_number),
-        )
 
 
 def _validate_ib_nic_name(

@@ -253,18 +253,6 @@ def _heading(theme: str, group: Dict[str, Any], number: int) -> str:
     return f"Stage {number}: {stage_info(theme, group['stage'])[0]}{group['suffix']}{attempt}"
 
 
-def _attempts_note(section: Dict[str, Any]) -> str:
-    """Return the earlier attempts of a section (a retry replaced them) as a note."""
-    lines = []
-    for old in section.get("attempts") or []:
-        failed = f"; failed: {', '.join(old['failed'])}" if old.get("failed") else ""
-        lines.append(f"attempt {old.get('attempt', '?')}: {old.get('status', '')}, "
-                     f"{old.get('steps', 0)} steps, {format_duration(old.get('duration') or 0)}, "
-                     f"started {old.get('started_at', '')}{failed}")
-    return ('<div class="note">Earlier attempts (replaced by a retry): '
-            f'{_e(" | ".join(lines))}</div>') if lines else ""
-
-
 def _overview(theme: str, groups: List[Dict[str, Any]], planned: List[str]) -> str:
     rows = ""
     for number, group in enumerate(groups, 1):
@@ -435,7 +423,6 @@ def _stage(theme: str, group: Dict[str, Any], number: int, ids: _Ids) -> str:
             body += (f'<div class="phase">{_e(title + suffix)} {_badge(section.get("status", ""))}'
                      f'<span>{_e(desc)} &middot; {format_duration(section.get("duration") or 0)}'
                      f"</span></div>")
-        body += _attempts_note(section)
         body += "".join(_step(item, ids) for item in section.get("items", [])) or (
             '<div class="note">No step recorded yet.</div>')
     outputs = [row for section in group["sections"] for row in section.get("outputs") or []]

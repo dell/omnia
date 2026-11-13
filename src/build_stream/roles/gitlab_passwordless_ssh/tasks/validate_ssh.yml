@@ -14,16 +14,31 @@
 
 ---
 - name: Check ssh connection
-  ansible.builtin.command: >-
-    ssh -o StrictHostKeyChecking=yes -o BatchMode=yes -i {{ ssh_key_path }}
-    root@{{ gitlab_host }} echo ok
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -o
+      - StrictHostKeyChecking=yes
+      - -o
+      - "UserKnownHostsFile={{ gitlab_known_hosts_file }}"
+      - -o
+      - BatchMode=yes
+      - -o
+      - IdentitiesOnly=yes
+      - -i
+      - "{{ ssh_key_path }}"
+      - "root@{{ gitlab_host }}"
+      - echo ok
   delegate_to: localhost
   run_once: true
   changed_when: false
   failed_when: false
   register: ssh_connection
+  retries: "{{ gitlab_ssh_retries }}"
+  delay: "{{ gitlab_ssh_retry_delay }}"
+  until: ssh_connection.rc == 0 or 'Permission denied' in ssh_connection.stderr
 
 - name: SSH connection failed
   ansible.builtin.fail:
     msg: "{{ ssh_connection_failure_msg }}"
-  when: ssh_connection is failed
+  when: ssh_connection.rc != 0 or 'ok' not in ssh_connection.stdout
