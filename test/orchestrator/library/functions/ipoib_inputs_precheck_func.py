@@ -59,6 +59,7 @@ from ..vars.ipoib_vars import (
     SCRATCH_PROJECT_PREFIX,
     VALIDATE_TAG,
     VALIDATE_TIMEOUT_SECONDS,
+    VALIDATION_LOG_EXTRA_VAR,
     VALIDATION_RAN_MARKER,
 )
 from ..vars.provision_vars import DEFAULT_MAPPING_FILE
@@ -300,6 +301,10 @@ def _run_validate(host, live, network_spec, rows):
     name = f"{SCRATCH_PROJECT_PREFIX}{secrets.token_hex(4)}"
     scratch_input = _scratch_path(live["input_root"], name)
     scratch_output = _scratch_path(live["output_root"], name)
+    report_path = str(load_test_config().get("report_path") or "").strip()
+    if not report_path:
+        raise ValueError("test_config.yml report_path is required for validation logs")
+    validation_log_dir = _scratch_path(os.path.join(report_path, EVIDENCE_SUBDIR, "logs"), name)
     try:
         _clone_project(host, live, scratch_input)
         _write_remote(
@@ -317,11 +322,11 @@ def _run_validate(host, live, network_spec, rows):
             )
         result = run_playbook(
             tag=VALIDATE_TAG,
-            extra_vars={PROJECT_EXTRA_VAR: name},
+            extra_vars={PROJECT_EXTRA_VAR: name, VALIDATION_LOG_EXTRA_VAR: validation_log_dir},
             timeout=VALIDATE_TIMEOUT_SECONDS,
         )
     finally:
-        for path in (scratch_input, scratch_output):
+        for path in (scratch_input, scratch_output, validation_log_dir):
             run_on_host(host, IPOIB_COMMANDS["remove_scratch"], path)
     output = str(result.get("output") or "")
     return result, validation_errors(output), VALIDATION_RAN_MARKER in output

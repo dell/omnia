@@ -61,6 +61,7 @@ SCRATCH_PROJECT_PREFIX = "omnia_fvt_ipoib_"
 SCRATCH_PROJECT_PATTERN = re.compile(r"^omnia_fvt_ipoib_[0-9a-f]{8}$")
 VALIDATE_TAG = "validate"
 PROJECT_EXTRA_VAR = "project_name"
+VALIDATION_LOG_EXTRA_VAR = "orchestrator_validation_log_dir"
 VALIDATE_TIMEOUT_SECONDS = 900
 VALIDATION_RAN_MARKER = "Validation log:"
 VALIDATION_ERROR_LABELS: tuple[str, ...] = (

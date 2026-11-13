@@ -45,7 +45,7 @@
   validate_orchestrator_config:
     input_project_dir: "{{ input_dir }}"
     schema_dir: "{{ orchestrator_schema_dir }}"
-    log_dir: "{{ hostvars['localhost']['orchestrator_data_path'] }}/log/{{ hostvars['localhost']['project_name'] }}"
+    log_dir: "{{ orchestrator_validation_log_dir | default(hostvars['localhost']['orchestrator_data_path'] ~ '/log/' ~ hostvars['localhost']['project_name'], true) }}"
   register: validate_orchestrator_input_result
 
 # Report results
