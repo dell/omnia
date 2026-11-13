@@ -298,6 +298,17 @@
           content: |
             #!/bin/bash
             set -e
+            # Safety invariant: kubeadm init generates a NEW cluster CA here, so
+            # etcd MUST be empty. On the init path the disk was just reformatted
+            # (etcd-disk-setup.sh) and purged (kubeadm reset + find -delete).
+            # Refuse to generate a new CA on top of pre-existing etcd data, which
+            # would leave kube-proxy/calico trusting a CA that does not match the
+            # persisted etcd objects. This never triggers on a healthy init and is
+            # not reached on reboot (this script is only run on first boot).
+            if [ -d /var/lib/etcd/member ]; then
+              echo "ERROR: /var/lib/etcd/member exists before kubeadm init — refusing to create a new CA over existing etcd data" >&2
+              exit 1
+            fi
             kubeadm init --kubernetes-version={{ service_k8s_version }} \
               --pod-network-cidr={{ k8s_pod_network_cidr }} \
               --service-cidr={{ k8s_service_addresses }} \
