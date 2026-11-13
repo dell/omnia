@@ -30,6 +30,14 @@
       - "======================================================"
   when: _cleanup_kube_vip_unavailable | default(false) | bool
 
+# Resolve the telemetry data path up front so the log directory removal below
+# can run outside the kube_vip block (local files, no cluster dependency).
+- name: Set telemetry data path for directory cleanup
+  ansible.builtin.set_fact:
+    _cleanup_telemetry_data_path: >-
+      {{ telemetry_data_path
+         | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}
+
 # ---------------------------------------------------------------------------
 # Normal finalize — runs only when kube_vip was available
 # ---------------------------------------------------------------------------
@@ -283,53 +291,56 @@
       when: _cleanup_status == 'failed'
 
     # -----------------------------------------------------------------------
-    # Remove telemetry log, input, and output directories after a successful
-    # full cleanup. Log directory and stray artifacts honour cleanup_logs:
-    #   - cleanup_logs=false preserves logs during cleanup without volume
-    #   - Delete_sinks_volume=true overrides cleanup_logs and deletes all
-    # Input and output directories are only removed during cleanup with
-    # volume (Delete_sinks_volume=true).
-    # If cleanup failed above, execution stops at the fail task and
-    # directories are preserved so the user can inspect input values.
+    # Remove the telemetry input directory after a successful full cleanup.
+    # Only removed during cleanup with volume (Delete_sinks_volume=true). It
+    # stays inside the kube_vip block so local staged input is not deleted
+    # while the sink volumes in the cluster remain. The input directory is
+    # allowed by the omnia.sh cleanup preflight, so leaving it when kube_vip
+    # is unavailable does not block cleanup --all.
+    # If cleanup failed above, execution stops at the fail task and the
+    # directory is preserved so the user can inspect input values.
     # -----------------------------------------------------------------------
-    - name: Set telemetry data path for directory cleanup
-      ansible.builtin.set_fact:
-        _cleanup_telemetry_data_path: >-
-          {{ telemetry_data_path
-             | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}
-
-    # Log directory cleanup honours the cleanup_logs flag. When
-    # cleanup_logs=false the log directory is preserved during cleanup
-    # without volume. Delete_sinks_volume=true overrides the flag.
-    - name: Remove telemetry log directory
+    - name: Remove telemetry input directory
       ansible.builtin.file:
-        path: "{{ _cleanup_telemetry_data_path }}/log"
+        path: "{{ _cleanup_telemetry_data_path }}/input"
         state: absent
-      when:
-        - _cleanup_all | default(false) | bool
-        - >-
-          not (_cleanup_preserve_logs | default(false) | bool)
-          or (_cleanup_delete_sinks_volume | default(false) | bool)
-
-    - name: Remove telemetry input and output directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "{{ _cleanup_telemetry_data_path }}/input"
-        - "{{ _cleanup_telemetry_data_path }}/output"
       when:
         - _cleanup_all | default(false) | bool
         - _cleanup_delete_sinks_volume | default(false) | bool
 
-    - name: Remove stray telemetry artifacts from data path
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "{{ _cleanup_telemetry_data_path }}/idrac_telemetry_report.yml"
-      when:
-        - _cleanup_all | default(false) | bool
-        - >-
-          not (_cleanup_preserve_logs | default(false) | bool)
-          or (_cleanup_delete_sinks_volume | default(false) | bool)
+# Log and output cleanup run outside the kube_vip block so local artifacts are
+# removed even when the cluster is unreachable. Both the validation log under
+# log/ and the generated files under output/ (telemetry_status.yml,
+# idrac_telemetry_report.yml) are flagged by the omnia.sh cleanup preflight, so
+# removing them here keeps cleanup --all unblocked in the kube_vip-down case.
+# A failed cleanup stops the play at the fail task inside the block, so these
+# tasks do not run then.
+- name: Remove telemetry log directory
+  ansible.builtin.file:
+    path: "{{ _cleanup_telemetry_data_path }}/log"
+    state: absent
+  when:
+    - _cleanup_all | default(false) | bool
+    - >-
+      not (_cleanup_preserve_logs | default(false) | bool)
+      or (_cleanup_delete_sinks_volume | default(false) | bool)
+
+- name: Remove telemetry output directory
+  ansible.builtin.file:
+    path: "{{ _cleanup_telemetry_data_path }}/output"
+    state: absent
+  when:
+    - _cleanup_all | default(false) | bool
+    - _cleanup_delete_sinks_volume | default(false) | bool
+
+- name: Remove stray telemetry artifacts from data path
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ _cleanup_telemetry_data_path }}/idrac_telemetry_report.yml"
+  when:
+    - _cleanup_all | default(false) | bool
+    - >-
+      not (_cleanup_preserve_logs | default(false) | bool)
+      or (_cleanup_delete_sinks_volume | default(false) | bool)

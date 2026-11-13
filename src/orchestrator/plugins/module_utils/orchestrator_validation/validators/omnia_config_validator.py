@@ -1085,12 +1085,15 @@ def _validate_kubernetes(
     # pylint: disable-next=import-outside-toplevel
     from .k8s_ha_validator import validate_deployed_cluster_ha
 
+    # Only run HA validation on clusters that have enable_k8s_ha configured;
+    # legacy configs without the field are skipped to preserve backward compat.
     for deployed_cluster in deployed_clusters:
-        errors.extend(
-            validate_deployed_cluster_ha(
-                deployed_cluster, input_project_dir, logger
+        if deployed_cluster.get("enable_k8s_ha") is not None:
+            errors.extend(
+                validate_deployed_cluster_ha(
+                    deployed_cluster, input_project_dir, logger
+                )
             )
-        )
     _validate_storage(
         "service_k8s_cluster",
         deployed_clusters,

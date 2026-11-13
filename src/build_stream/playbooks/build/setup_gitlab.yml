@@ -58,8 +58,17 @@
 - name: Deploy GitLab CE on target host (hosted mode)
   hosts: gitlab_server
   become: true
-  gather_facts: true
+  gather_facts: false
   tasks:
+    - name: Wait for the SSH connection to the GitLab host
+      ansible.builtin.wait_for_connection:
+        timeout: 180
+        sleep: 10
+        connect_timeout: 20
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
     - name: Bootstrap passwordless SSH
       ansible.builtin.include_role:
         name: gitlab_passwordless_ssh

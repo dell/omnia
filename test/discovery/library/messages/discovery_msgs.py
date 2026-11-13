@@ -99,6 +99,26 @@ TEST_NAMES: Dict[str, str] = {
         "Verify PXE mapping CSV format for Orchestrator compatibility"
     ),
 
+    # IB Validation (V016-V021)
+    "ib_conditional_population": (
+        "Verify IB columns populated consistently with IB_NIC_NAME"
+    ),
+    "ib_ipv4_format": (
+        "Verify IB_IPV4 values are valid IPv4 addresses"
+    ),
+    "ib_ipv6_format": (
+        "Verify IB_IPV6 values are valid IPv6 addresses"
+    ),
+    "ib_ip_uniqueness": (
+        "Verify IB IP addresses are unique across PXE mapping"
+    ),
+    "pxe_mapping_all_columns": (
+        "Verify all 12 output contract columns present in PXE mapping"
+    ),
+    "bmc_mac_populated": (
+        "Verify BMC_MAC populated for every row"
+    ),
+
     # OME Integration (V010-V013)
     "ome_static_groups_match": (
         "Verify OME static groups match PXE mapping functional groups"
@@ -192,6 +212,23 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "orchestrator_contract_failed": (
         "Missing required columns for Orchestrator: {missing}"
     ),
+
+    # IB Validation (V016-V021)
+    "ib_conditional_ok": "All rows have consistent IB column population",
+    "ib_conditional_failed": "{count} rows have IB conditional population issues",
+    "ib_ipv4_format_ok": "All rows have valid IB_IPV4 format",
+    "ib_ipv4_format_failed": "{count} rows have invalid IB_IPV4 format",
+    "ib_ipv6_format_ok": "All rows have valid IB_IPV6 format",
+    "ib_ipv6_format_failed": "{count} rows have invalid IB_IPV6 format",
+    "ib_uniqueness_ok": "All IB IPs are unique",
+    "ib_uniqueness_failed": (
+        "{dup_count} duplicates, {col_count} collisions found"
+    ),
+    "all_columns_ok": "All {count} output contract columns present",
+    "all_columns_failed": "Missing columns: {missing}",
+    "bmc_mac_ok": "All {count} rows have non-empty BMC_MAC",
+    "bmc_mac_failed": "{count} rows have empty BMC_MAC",
+    "ib_skipped": "No IB subnet configured — skipping IB validation",
 
     # OME Integration (V010-V013)
     "ome_groups_match_ok": (

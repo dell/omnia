@@ -15,7 +15,7 @@
 
 """GitLab runner side of the SVT pipeline (standard library only).
 
-Every job of the SVT project's .gitlab-ci-svt.yml is one call; the SVT itself
+Every job of the SVT project's .gitlab-ci-svt-<theme>.yml is one call; the SVT itself
 runs on the OIM over SSH, through the same scripts a user runs by hand. With
 SVT_CLUSTER (multi-cluster projects) every variable <PREFIX>_<NAME> of that
 cluster is used as <NAME> and the inputs come from clusters/<name>/svt/::
