@@ -80,15 +80,18 @@ else
         echo "$(ts) [INFO] Adopting currently-mounted etcd disk: $DISK ($src)"
     else
         # Otherwise require exactly one ext4 partition labelled etcd_data.
-        mapfile -t ETCD_PARTS < <(blkid -o device -t LABEL=etcd_data 2>/dev/null || true)
-        if [ "${#ETCD_PARTS[@]}" -eq 1 ]; then
-            DISK="/dev/$(lsblk -no PKNAME "${ETCD_PARTS[0]}" 2>/dev/null | head -1)"
+        # Count via grep instead of bash array length, because a brace-hash
+        # sequence is a Jinja comment token and would break templating here.
+        ETCD_PARTS=$(blkid -o device -t LABEL=etcd_data 2>/dev/null || true)
+        ETCD_PARTS_COUNT=$(printf '%s\n' "$ETCD_PARTS" | grep -c .)
+        if [ "$ETCD_PARTS_COUNT" -eq 1 ]; then
+            DISK="/dev/$(lsblk -no PKNAME "$ETCD_PARTS" 2>/dev/null | head -1)"
             echo "$(ts) [INFO] Found single etcd_data disk: $DISK"
-        elif [ "${#ETCD_PARTS[@]}" -eq 0 ]; then
+        elif [ "$ETCD_PARTS_COUNT" -eq 0 ]; then
             echo "$(ts) [INFO] No etcd_data disk present yet — prepare step will format it. Exiting 0."
             exit 0
         else
-            die "Multiple etcd_data partitions (${ETCD_PARTS[*]}) and no pin — refusing to guess; run etcd-disk-setup to pin"
+            die "Multiple etcd_data partitions ($(printf '%s ' $ETCD_PARTS)) and no pin — refusing to guess; run etcd-disk-setup to pin"
         fi
     fi
 fi
