@@ -61,7 +61,6 @@ SCRATCH_PROJECT_PREFIX = "omnia_fvt_ipoib_"
 SCRATCH_PROJECT_PATTERN = re.compile(r"^omnia_fvt_ipoib_[0-9a-f]{8}$")
 VALIDATE_TAG = "validate"
 PROJECT_EXTRA_VAR = "project_name"
-VALIDATION_LOG_EXTRA_VAR = "orchestrator_validation_log_dir"
 VALIDATE_TIMEOUT_SECONDS = 900
 VALIDATION_RAN_MARKER = "Validation log:"
 VALIDATION_ERROR_LABELS: tuple[str, ...] = (
@@ -223,6 +222,7 @@ NM_PROFILE_FIELDS: tuple[str, ...] = (
 IPOIB_COMMANDS: dict[str, str] = {
     "path_absent": "test ! -e %s",
     "make_private_dir": "mkdir -m 0700 -- %s",
+    "make_parent_dirs": "mkdir -p -- %s",
     "list_input_files": "find %s -maxdepth 1 -type f -printf '%%f\\n'",
     "copy_file": "cp -p -- %s %s",
     "write_base64_first": "printf '%%s' %s | base64 -d > %s",
