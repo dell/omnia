@@ -38,8 +38,14 @@
     - name: Fetch additional images
       ansible.builtin.include_tasks: fetch_additional_images.yml
 
+    # fg_publish_cloud_init gates cloud-init / metadata-service publication. It
+    # defaults to true, so every provisioning caller behaves unchanged; the
+    # configure operation (fg_operation=configure, scope=boot) sets it to false
+    # for a boot-only scope. Skipping this validation leaves the downstream
+    # additional_metadata_svc_*_enabled flags false, disabling that chain.
     - name: Validate additional metadata-service configuration
       ansible.builtin.include_tasks: validate_additional_metadata_svc.yml
+      when: fg_publish_cloud_init | default(true) | bool
 
     - name: Scope additional metadata-service groups to the registered category
       ansible.builtin.set_fact:
@@ -80,45 +86,37 @@
         _category_mac_list: >-
           {{ _category_nodes | map(attribute='ADMIN_MAC') | map('lower') | list }}
 
+    # fg_publish_boot gates Boot Service publication. It defaults to true, so
+    # every provisioning caller behaves unchanged; the configure operation
+    # (fg_operation=configure, scope=cloud_init) sets it to false for a
+    # cloud_init-only scope.
     - name: Prune stale Boot Service configurations for current node MACs
-      block:
-        - name: Prune stale Boot Service configurations for current node MACs
-          openchami_reconcile:
-            action: prune_boot_configurations
-            cluster_uri: "{{ openchami_api_uri }}"
-            access_token: "{{ ochami_env[cluster_env_key] }}"
-            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-            boot_configuration_names: "{{ target_fg_names }}"
-            boot_configuration_macs: "{{ _category_mac_list }}"
-          register: _stale_boot_config_prune
-          no_log: true
-      rescue:
-        - name: Report stale Boot Service configuration prune failure
-          ansible.builtin.fail:
-            msg: "{{ provision_prune_boot_config_rescue_msg }}"
-          no_log: false
+      openchami_reconcile:
+        action: prune_boot_configurations
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        boot_configuration_names: "{{ target_fg_names }}"
+        boot_configuration_macs: "{{ _category_mac_list }}"
+      register: _stale_boot_config_prune
+      no_log: true
+      when: fg_publish_boot | default(true) | bool
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
+      when: fg_publish_boot | default(true) | bool
 
     - name: Read Boot Service configurations through the verified API client
-      block:
-        - name: Read Boot Service configurations through the verified API client
-          openchami_reconcile:
-            action: list_boot_configurations
-            cluster_uri: "{{ openchami_api_uri }}"
-            access_token: "{{ ochami_env[cluster_env_key] }}"
-            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-          register: boot_configs_output
-          no_log: true
-      rescue:
-        - name: Report Boot Service configuration read failure
-          ansible.builtin.fail:
-            msg: "{{ provision_list_boot_config_rescue_msg }}"
-          no_log: false
+      openchami_reconcile:
+        action: list_boot_configurations
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+      register: boot_configs_output
+      no_log: true
 
     - name: Display boot configurations
       ansible.builtin.debug:
@@ -133,72 +131,38 @@
         mode: "0700"
 
     - name: Read SSH public key
-      block:
-        - name: Read SSH public key
-          ansible.builtin.command:
-            argv:
-              - cat
-              - "{{ ssh_key_path }}"
-          changed_when: false
-          register: read_ssh_key
-          no_log: true
-      rescue:
-        - name: Report SSH public key read failure
-          ansible.builtin.fail:
-            msg: "{{ provision_read_ssh_key_rescue_msg }}"
-          no_log: false
+      ansible.builtin.command: cat {{ ssh_key_path }}
+      changed_when: false
+      register: read_ssh_key
+      no_log: true
 
     - name: Read SSH private key
-      block:
-        - name: Read SSH private key
-          ansible.builtin.command:
-            argv:
-              - cat
-              - "{{ ssh_private_key_path }}"
-          changed_when: false
-          register: read_ssh_private_key
-          no_log: true
-      rescue:
-        - name: Report SSH private key read failure
-          ansible.builtin.fail:
-            msg: "{{ provision_read_ssh_private_key_rescue_msg }}"
-          no_log: false
+      ansible.builtin.command: cat {{ ssh_private_key_path }}
+      changed_when: false
+      register: read_ssh_private_key
+      no_log: true
 
     - name: Derive stable project-specific password salt
-      block:
-        - name: Derive stable project-specific password salt
-          ansible.builtin.set_fact:
-            metadata_password_salt: >-
-              {{ ((hostvars['localhost']['project_name'] ~ ':'
-                   ~ cluster_name ~ ':' ~ cluster_domain) | hash('sha256'))[:16] }}
-          no_log: true
-      rescue:
-        - name: Report password salt derivation failure
-          ansible.builtin.fail:
-            msg: "{{ provision_password_salt_rescue_msg }}"
-          no_log: false
+      ansible.builtin.set_fact:
+        metadata_password_salt: >-
+          {{ ((hostvars['localhost']['project_name'] ~ ':'
+               ~ cluster_name ~ ':' ~ cluster_domain) | hash('sha256'))[:16] }}
+      no_log: true
 
     - name: Hash the provision password
-      block:
-        - name: Hash the provision password
-          ansible.builtin.command:
-            argv:
-              - openssl
-              - passwd
-              - "-6"
-              - "-salt"
-              - "{{ metadata_password_salt }}"
-              - "-stdin"
-            stdin: "{{ hostvars['localhost']['provision_password'] }}"
-            stdin_add_newline: true
-          changed_when: false
-          register: hashed_password_output
-          no_log: true
-      rescue:
-        - name: Report provision password hashing failure
-          ansible.builtin.fail:
-            msg: "{{ provision_hash_password_rescue_msg }}"
-          no_log: false
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - passwd
+          - "-6"
+          - "-salt"
+          - "{{ metadata_password_salt }}"
+          - "-stdin"
+        stdin: "{{ hostvars['localhost']['provision_password'] }}"
+        stdin_add_newline: true
+      changed_when: false
+      register: hashed_password_output
+      no_log: true
 
     - name: Render metadata-service defaults template
       ansible.builtin.template:
@@ -207,57 +171,36 @@
         mode: "0600"
 
     - name: Load rendered metadata-service defaults
-      block:
-        - name: Load rendered metadata-service defaults
-          ansible.builtin.slurp:
-            src: "{{ ms_defaults_dest }}"
-          register: ms_defaults_raw
-          no_log: true
-      rescue:
-        - name: Report metadata-service defaults load failure
-          ansible.builtin.fail:
-            msg: "{{ provision_load_ms_defaults_rescue_msg }}"
-          no_log: false
+      ansible.builtin.slurp:
+        src: "{{ ms_defaults_dest }}"
+      register: ms_defaults_raw
+      no_log: true
 
     - name: Parse metadata-service defaults YAML
-      block:
-        - name: Parse metadata-service defaults YAML
-          ansible.builtin.set_fact:
-            ms_defaults_data: "{{ ms_defaults_raw.content | b64decode | from_yaml }}"
-          no_log: true
-      rescue:
-        - name: Report metadata-service defaults parse failure
-          ansible.builtin.fail:
-            msg: "{{ provision_parse_ms_defaults_rescue_msg }}"
-          no_log: false
+      ansible.builtin.set_fact:
+        ms_defaults_data: "{{ ms_defaults_raw.content | b64decode | from_yaml }}"
+      no_log: true
 
     - name: Reconcile metadata-service cluster defaults
-      block:
-        - name: Reconcile metadata-service cluster defaults
-          openchami_reconcile:
-            action: reconcile_cluster_defaults
-            cluster_uri: "{{ openchami_api_uri }}"
-            access_token: "{{ ochami_env[cluster_env_key] }}"
-            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-            project_name: "{{ hostvars['localhost']['project_name'] }}"
-            cluster_defaults:
-              metadata:
-                name: "{{ cluster_name }}-defaults"
-              spec:
-                description: "Cluster defaults for {{ cluster_name }}"
-                base_url: "{{ ms_defaults_data['base_url'] | default('') }}"
-                cluster_name: "{{ ms_defaults_data['cluster_name'] | default(cluster_name) }}"
-                short_name: "{{ ms_defaults_data['short_name'] | default(cluster_shortname) }}"
-                nid_length: "{{ ms_defaults_data['nid_length'] | default(cluster_nidlength) | int }}"
-                public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
-                cloud_provider: "OpenCHAMI"
-          register: _metadata_cluster_defaults_reconcile
-          no_log: true
-      rescue:
-        - name: Report metadata-service cluster defaults reconciliation failure
-          ansible.builtin.fail:
-            msg: "{{ provision_reconcile_cluster_defaults_rescue_msg }}"
-          no_log: false
+      openchami_reconcile:
+        action: reconcile_cluster_defaults
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        project_name: "{{ hostvars['localhost']['project_name'] }}"
+        cluster_defaults:
+          metadata:
+            name: "{{ cluster_name }}-defaults"
+          spec:
+            description: "Cluster defaults for {{ cluster_name }}"
+            base_url: "{{ ms_defaults_data['base_url'] | default('') }}"
+            cluster_name: "{{ ms_defaults_data['cluster_name'] | default(cluster_name) }}"
+            short_name: "{{ ms_defaults_data['short_name'] | default(cluster_shortname) }}"
+            nid_length: "{{ ms_defaults_data['nid_length'] | default(cluster_nidlength) | int }}"
+            public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
+            cloud_provider: "OpenCHAMI"
+      register: _metadata_cluster_defaults_reconcile
+      no_log: true
 
     - name: Mark global metadata change for cluster defaults
       ansible.builtin.set_fact:
@@ -285,6 +228,7 @@
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
+      when: fg_publish_cloud_init | default(true) | bool
 
     - name: Configure additional metadata-service
       ansible.builtin.include_tasks: configure_metadata_svc_additional.yml
@@ -295,7 +239,7 @@
 
     - name: Configure DNS
       ansible.builtin.include_tasks: configure_dns.yml
-      when: dns_enabled | default(true) | bool
+      when: dns_enabled | default(false) | bool
 
     - name: Provisioning complete for '{{ target_category }}'
       ansible.builtin.debug:

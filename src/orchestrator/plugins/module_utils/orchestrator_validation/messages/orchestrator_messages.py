@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=too-many-lines
 """User-facing messages for Orchestrator input validation."""
 
 from typing import Any
@@ -188,31 +187,6 @@ def pxe_mapping_not_found_msg(path: str) -> str:
     return f"orchestrator_config: pxe_mapping_file_path '{path}' does not exist."
 
 
-def pxe_mapping_not_csv_msg(path: str) -> str:
-    """Return the non-CSV PXE mapping file error message."""
-    return (
-        f"orchestrator_config: pxe_mapping_file_path '{path}' must resolve "
-        "to a .csv file."
-    )
-
-
-def pxe_mapping_insecure_permissions_msg(path: str, mode: int) -> str:
-    """Return the insecure PXE mapping file permissions error message."""
-    return (
-        f"orchestrator_config: PXE mapping file '{path}' has insecure mode "
-        f"{mode:04o}. It must not be group-writable or accessible by "
-        f"others; run 'chmod 640 {path}'."
-    )
-
-
-def pxe_mapping_untrusted_owner_msg(path: str, uid: int) -> str:
-    """Return the untrusted PXE mapping file owner error message."""
-    return (
-        f"orchestrator_config: PXE mapping file '{path}' is owned by uid "
-        f"{uid}; it must be owned by root or the invoking user."
-    )
-
-
 def pxe_mapping_read_failed_msg(path: str, detail: str) -> str:
     """Return the PXE mapping read error message."""
     return f"orchestrator_config: Failed to read mapping file '{path}': {detail}"
@@ -247,19 +221,11 @@ def pxe_mapping_noncanonical_headers_msg(
 def pxe_mapping_header_contract_msg(
     path: str, actual: list[str], expected: list[str]
 ) -> str:
-    """Return a PXE mapping header-contract error without echoing file content."""
-    missing = [column for column in expected if column not in actual]
-    base = [
-        "FUNCTIONAL_GROUP_NAME", "GROUP_NAME", "SERVICE_TAG",
-        "PARENT_SERVICE_TAG", "HOSTNAME", "ADMIN_MAC", "ADMIN_IP",
-        "BMC_MAC", "BMC_IP",
-    ]
+    """Return an exact PXE mapping header-contract error message."""
     return (
-        f"orchestrator_config: Mapping file '{path}' has {len(actual)} "
-        f"column(s) and does not match any accepted header format; missing "
-        f"columns: {missing or 'none (check order or extra columns)'}. "
-        f"Accepted formats: {base} (without InfiniBand) or "
-        f"{expected} (with InfiniBand)."
+        f"orchestrator_config: Mapping file '{path}' has header {actual}; "
+        f"expected exactly {expected}. Preserve all columns in this order, "
+        "including IB_NIC_NAME and IB_IP."
     )
 
 
@@ -325,9 +291,7 @@ def pxe_mapping_dns_hostname_msg(value: str, row: int) -> str:
     """Return a DNS-enabled PXE hostname-policy error message."""
     return (
         f"orchestrator_config: HOSTNAME '{value}' at mapping row {row} "
-        "must match nid001-nid999 when dns_enabled is true (the default). "
-        "Set dns_enabled to false in orchestrator_config.yml to use free-form hostnames. "
-        "See examples/pxe_mapping_file_dns_disabled.csv for the expected format."
+        "must match nid001-nid999 when dns_enabled is true."
     )
 
 
@@ -366,21 +330,11 @@ def pxe_mapping_functional_group_architecture_msg(
     )
 
 
-def pxe_mapping_ib_address_required_msg(row: int, column: str, ib_addr_mode: str) -> str:
-    """Return a missing InfiniBand address error for a row that has an IB_NIC_NAME."""
-    stack = ib_addr_mode or "not set (default: ipv4-only)"
+def pxe_mapping_ib_pair_msg(row: int) -> str:
+    """Return an incomplete InfiniBand mapping pair error message."""
     return (
-        f"orchestrator_config: Mapping row {row} has IB_NIC_NAME set, so {column} is "
-        f"required when ib_addr_mode is {stack}."
-    )
-
-
-def pxe_mapping_ib_ipv4_without_nic_msg(row: int) -> str:
-    """Return an IB_IPV4 set without IB_NIC_NAME error message."""
-    return (
-        f"orchestrator_config: Mapping row {row} has IB_IPV4 set but "
-        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv4 "
-        "configuration."
+        f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
+        "and IB_IP, or leave both empty."
     )
 
 
@@ -552,73 +506,6 @@ def ib_admin_subnet_overlap_msg(
     return (
         f"network_spec: {ib_label} subnet {ib_network} overlaps "
         f"{admin_label} subnet {admin_network}."
-    )
-
-
-def ib_ipv6_subnet_invalid_msg(label: str) -> str:
-    """Return an invalid IB IPv6 subnet error message."""
-    return (
-        f"network_spec: {label}.ipv6_subnet is not a valid IPv6 network "
-        "address."
-    )
-
-
-def ib_ipv6_netmask_required_msg(label: str) -> str:
-    """Return a missing IB IPv6 netmask error when subnet is set."""
-    return (
-        f"network_spec: {label}.ipv6_netmask_bits is required when "
-        "ipv6_subnet is set."
-    )
-
-
-def ib_ipv6_subnet_required_msg(label: str) -> str:
-    """Return a missing IB IPv6 subnet error when netmask is set."""
-    return (
-        f"network_spec: {label}.ipv6_subnet is required when "
-        "ipv6_netmask_bits is set."
-    )
-
-
-def ib_ipv6_required_for_mode_msg(label: str, mode: str) -> str:
-    """Return an error when IPv6 fields are missing for the active mode."""
-    return (
-        f"network_spec: {label}.ipv6_subnet and ipv6_netmask_bits are "
-        f"required when ib_addr_mode is '{mode}'."
-    )
-
-
-def ib_ipv4_required_for_mode_msg(label: str, mode: str) -> str:
-    """Return an error when IPv4 fields are missing for the active mode."""
-    return (
-        f"network_spec: {label}.ipv4_subnet and ipv4_netmask_bits are "
-        f"required when ib_addr_mode is '{mode}'."
-    )
-
-
-def pxe_mapping_invalid_ipv6_msg(field: str, value: str, row: int) -> str:
-    """Return an invalid IPv6 address in the PXE mapping."""
-    return (
-        f"orchestrator_config: {field} '{value}' at mapping row {row} "
-        "is not a valid IPv6 address."
-    )
-
-
-def pxe_mapping_ib_ipv6_without_nic_msg(row: int) -> str:
-    """Return an IB_IPV6 set without IB_NIC_NAME error message."""
-    return (
-        f"orchestrator_config: Mapping row {row} has IB_IPV6 set but "
-        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv6 "
-        "configuration."
-    )
-
-
-def pxe_mapping_ib_ipv6_outside_prefix_msg(
-    value: str, row: int, prefix: str
-) -> str:
-    """Return an IB_IPV6 address outside the approved prefix message."""
-    return (
-        f"orchestrator_config: IB_IPV6 '{value}' at mapping row {row} "
-        f"is not within the approved prefix {prefix}."
     )
 
 
@@ -1099,3 +986,208 @@ def validation_counts_msg(valid_count: int, invalid_count: int) -> str:
 def validation_log_msg(path: str) -> str:
     """Return the validation log path message."""
     return f"Log file: {path}"
+
+
+# ── Functional group configuration (functional_group_config.yml) ─────────────
+
+def functional_group_legacy_conflict_msg() -> str:
+    """Return the legacy/new cloud-init conflict error message."""
+    return (
+        "functional_group_config: cloud_init.config_file is set "
+        "while orchestrator_config 'additional_cloud_init_config_file' is also "
+        "set. Move the cloud-init content into functional_group_config.yml and "
+        "clear 'additional_cloud_init_config_file', or clear the new value."
+    )
+
+
+def functional_group_legacy_kernel_conflict_msg() -> str:
+    """Return the legacy/new kernel-parameter conflict error message."""
+    return (
+        "functional_group_config: boot_kernel_params is set while deprecated "
+        "orchestrator_config 'boot_kernel_params' is also set. Move the value "
+        "to functional_group_config.yml common or group scope and remove it "
+        "from orchestrator_config.yml."
+    )
+
+
+def functional_group_removed_boot_kernel_params_msg() -> str:
+    """Return the removed boot_kernel_params migration error message.
+
+    ER-ORCH-009 FR-6.2: boot_kernel_params has been removed from
+    orchestrator_config.yml. If supplied, fail validation before mutation
+    and direct users to functional_group_config.yml.
+    """
+    return (
+        "orchestrator_config.yml contains 'boot_kernel_params', which has been "
+        "removed (ER-ORCH-009). For flexible groups, move the value to "
+        "functional_group_config.yml under 'common' or an exact 'groups.<fg_name>' "
+        "scope. Predefined groups retain Omnia kernel-parameter defaults and do "
+        "not require a project-level override."
+    )
+
+
+def functional_group_image_override_incomplete_msg(
+    group: str, missing: list[str], unknown: list[str]
+) -> str:
+    """Return the partial image-override error message."""
+    details = []
+    if missing:
+        details.append(f"missing {', '.join(missing)}")
+    if unknown:
+        details.append(f"unknown {', '.join(unknown)}")
+    return (
+        f"functional_group_config: groups.{group}.image_override must be empty "
+        "or contain exactly kernel, initrd, and rootfs "
+        f"({'; '.join(details)})."
+    )
+
+
+def functional_group_image_artifact_invalid_msg(
+    group: str, key: str, value: str
+) -> str:
+    """Return the unsafe image artifact reference error message."""
+    return (
+        f"functional_group_config: groups.{group}.image_override.{key} "
+        f"'{value}' must be an object key relative to the image-storage "
+        "endpoint (letters, digits, '.', '_', '-', '/'; no scheme, leading "
+        "'/', or '..')."
+    )
+
+
+def functional_group_file_vault_msg(path: str) -> str:
+    """Return the vault-encrypted cloud-init file error message."""
+    return (
+        f"functional_group_config: cloud-init file '{path}' is "
+        "vault-encrypted. Cloud-init content is published as node metadata and "
+        "must not contain secrets; provide a plaintext file."
+    )
+
+
+def functional_group_file_empty_msg(path: str) -> str:
+    """Return the empty cloud-init file error message."""
+    return (
+        f"functional_group_config: cloud-init file '{path}' is empty. Provide "
+        "content or clear cloud_init.config_file to inherit."
+    )
+
+
+def functional_group_unknown_group_msg(group: str) -> str:
+    """Return the unknown functional-group error message."""
+    return (
+        f"functional_group_config: groups.{group} is not a functional group in "
+        "the PXE mapping. Group keys must be exact "
+        "FUNCTIONAL_GROUP_NAME values from pxe_mapping_file.csv."
+    )
+
+
+def functional_group_type_msg(path: str, actual: str, expected: str) -> str:
+    """Return the functional-group configuration type error message."""
+    return (
+        f"functional_group_config: {path} is {actual}; expected {expected}."
+    )
+
+
+def functional_group_prefix_required_msg(group: str) -> str:
+    """Return the non-flexible group-key rejection message (ER-ORCH-009)."""
+    return (
+        f"functional_group_config: groups.{group} is not a flexible functional "
+        "group. Only groups carrying the mandatory 'fg_' prefix may be "
+        "configured in this file. Predefined groups (service_kube_, slurm_, "
+        "login_node_, login_compiler_node_, os_) are configured through "
+        "omnia_config.yml and storage_config.yml, not here."
+    )
+
+
+def functional_group_file_missing_msg(path: str, referenced_by: str) -> str:
+    """Return the missing referenced cloud-init file error message."""
+    return (
+        f"functional_group_config: {referenced_by} references cloud-init file "
+        f"'{path}', which does not exist or is not a regular file."
+    )
+
+
+def functional_group_file_unreadable_msg(path: str, detail: str) -> str:
+    """Return the unreadable referenced cloud-init file error message."""
+    return (
+        "functional_group_config: cloud-init file "
+        f"'{path}' could not be read ({detail})."
+    )
+
+
+def functional_group_file_outside_allowed_root_msg(
+    path: str, allowed_roots: list[str]
+) -> str:
+    """Return the disallowed cloud-init path error message."""
+    return (
+        "functional_group_config: cloud-init file "
+        f"'{path}' resolves outside the allowed roots: "
+        f"{', '.join(allowed_roots)}."
+    )
+
+
+def functional_group_yaml_parse_failed_msg(path: str, detail: str) -> str:
+    """Return the invalid referenced cloud-init YAML error message."""
+    return (
+        "functional_group_config: Failed to parse cloud-init YAML file "
+        f"'{path}' ({detail})."
+    )
+
+
+def functional_group_protected_param_msg(
+    referenced_by: str, parameter: str
+) -> str:
+    """Return the protected kernel parameter error message."""
+    return (
+        f"functional_group_config: {referenced_by} sets protected kernel "
+        f"parameter '{parameter}'. Provisioning identity parameters cannot be "
+        "overridden per functional group."
+    )
+
+
+def functional_group_kernel_param_format_msg(
+    referenced_by: str, token: str
+) -> str:
+    """Return the malformed kernel parameter error message."""
+    return (
+        f"functional_group_config: {referenced_by} boot_kernel_params token "
+        f"'{token}' is not a valid kernel parameter."
+    )
+
+
+def functional_group_architecture_required_msg(
+    group: str, supported: tuple[str, ...]
+) -> str:
+    """Return the missing/unsupported group architecture suffix message."""
+    return (
+        f"functional_group_config: groups.{group} must end with one of the "
+        f"supported architecture suffixes: {', '.join(supported)}."
+    )
+
+
+def functional_group_reference_architecture_conflict_msg(
+    group: str,
+    group_arch: str,
+    reference_kind: str,
+    referenced_arch: str,
+) -> str:
+    """Return an architecture conflict for a group-scoped reference."""
+    return (
+        f"functional_group_config: groups.{group} targets architecture "
+        f"'{group_arch}' but {reference_kind} names '{referenced_arch}'."
+    )
+
+
+def functional_group_plaintext_secret_msg(referenced_by: str) -> str:
+    """Return the plaintext secret error message."""
+    return (
+        f"functional_group_config: {referenced_by} appears to contain a "
+        "plaintext secret. Use Ansible Vault for credential material."
+    )
+
+
+def functional_group_unsupported_os_msg(group: str, detail: str) -> str:
+    """Return the unsupported OS warning message (non-blocking)."""
+    return (
+        f"functional_group_config: groups.{group} names {detail}, which is "
+        "outside the supported RHEL 10.0/10.2 set. Continuing."
+    )

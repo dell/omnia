@@ -131,6 +131,7 @@
     - prepare
     - provision
     - execute
+    - manage-functional-group
 
 # =========================================================================
 # FLOW: precheck — Generate functional groups, then validate prerequisites
@@ -161,6 +162,7 @@
       when: not _orchestrator_input_validated | default(false) | bool
   tags:
     - validate
+    - manage-functional-group
 
 # =========================================================================
 # FLOW: credentials — Standalone credential collection (idempotent)
@@ -251,19 +253,23 @@
     - execute
     - provision
 
+# Lifecycle integration (ER-ORCH-009 FR-4.4): publish all mapped flexible
+# (fg_) groups idempotently during default, provision, and execute flows.
+# This never removes groups, never runs category bolt-on roles, does not
+# consume omnia_config.yml / storage_config.yml, and does not require
+# repo_status.yml. Per-group failures are isolated and do not abort
+# unrelated flexible groups or predefined categories.
+- name: Publish flexible functional groups
+  ansible.builtin.import_playbook: functional_groups/manage_functional_group.yml
+  tags:
+    - execute
+    - provision
+
 - name: Validate provisioning
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
   tags:
     - execute
     - provision
-
-# IPoIB addressing (runs only when ib_addr_mode is set in network_spec)
-- name: Configure IPoIB addressing
-  ansible.builtin.import_playbook: provision/configure_ib_ipv6.yml
-  tags:
-    - execute
-    - provision
-    - ib_ipv6
 
 # PXE boot (execute + pxeboot tags, conditional on enable_pxe_boot)
 - name: PXE boot on iDRAC nodes
@@ -279,6 +285,37 @@
   tags:
     - never
     - verify_node_registration
+
+# =========================================================================
+# FLOW: manage-functional-group (ER-ORCH-009, HLD v13)
+# Single public tag for all flexible functional-group (fg_) operations:
+# add, remove, and configure. These never invoke category provisioning
+# playbooks (provision_kubernetes/slurm/os/custom) or category bolt-on roles,
+# do not consume omnia_config.yml/storage_config.yml, and do not require
+# repo_status.yml.
+#
+# Lifecycle integration (FR-4.4): flexible-group publication also runs
+# automatically during default (no-tag), provision, and execute flows.
+# Lifecycle runs publish all mapped flexible groups idempotently and never
+# remove groups.
+# =========================================================================
+
+# Shared SSH + OpenCHAMI auth preamble for the dedicated flexible-group tag.
+# Imported again under the flexible tag so this standalone flow obtains the
+# same prerequisites the execute/provision chain relies on.
+- name: Provision preamble for flexible functional-group operations
+  ansible.builtin.import_playbook: provision/provision_preamble.yml
+  tags:
+    - never
+    - manage-functional-group
+
+# Add, remove, or configure one or more flexible (fg_) functional groups'
+# OpenCHAMI/BSS/metadata state; no scheduler, bolt-on, PXE, or reboot.
+- name: Manage targeted functional group
+  ansible.builtin.import_playbook: functional_groups/manage_functional_group.yml
+  tags:
+    - never
+    - manage-functional-group
 
 # =========================================================================
 # FLOW: cleanup — Remove all orchestrator components (opt-in only)
