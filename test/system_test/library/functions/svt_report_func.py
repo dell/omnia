@@ -201,6 +201,14 @@ def open_section(settings: Dict[str, str], kind: str, name: str) -> str:
     return name
 
 
+def section_attempt(settings: Dict[str, str], name: str) -> int:
+    """Return the attempt number of the latest section called ``name`` (1 when none)."""
+    for section in reversed(_load(settings)["sections"]):
+        if section["name"] == name:
+            return int(section.get("attempt") or 1)
+    return 1
+
+
 def supersede_failed(settings: Dict[str, str], names: List[str]) -> List[str]:
     """Mark the failed sections called ``names`` as replaced by a retry; return their names.
 

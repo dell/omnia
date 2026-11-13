@@ -27,7 +27,7 @@ from typing import Any, Dict
 import pytest
 from omnia_auto import TestLogger
 
-from . import run_func, svt_report_func
+from . import run_func, svt_report_func, track_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
 from ..messages.svt_msgs import SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
@@ -51,10 +51,44 @@ def _report(theme: str, item: Dict[str, Any]) -> None:
         print(SETUP_MSGS["report_failed"].format(error=f"{type(exc).__name__}: {exc}"))
 
 
+def _settings(theme: str) -> Dict[str, str]:
+    return run_func.active_run(load_svt_config(theme), allow_failed=True)
+
+
+def _track(theme: str, stage: str, test_id: str, passed: bool) -> None:
+    """Record the result in the stage's track file; never fails the test."""
+    try:
+        track_func.record(_settings(theme), stage, test_id, passed)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(SETUP_MSGS["report_failed"].format(error=f"{type(exc).__name__}: {exc}"))
+
+
+def _resumed(theme: str, tc: Dict[str, Any]) -> str:
+    """Return why a retry does not run this test again (it passed before), or ""."""
+    section = os.environ.get(REPORT_SECTION_ENV, "")
+    if not section:
+        return ""
+    try:
+        settings = _settings(theme)
+        attempt = svt_report_func.section_attempt(settings, section)
+        if tc["id"] not in track_func.resume_ids(settings, tc["stage"], attempt):
+            return ""
+        return TEST_LOG_MSGS["resumed"].format(
+            attempt=attempt - 1, point=track_func.resume_point(settings, tc["stage"]) or "the end")
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+
+
 def run_svt_test(theme: str, name: str) -> None:
     """Run SVT test ``<theme>_<name>`` and assert that its FVT step passed."""
     tc = TEST_CASES[f"{theme}_{name}"]
     label = describe_step(tc["step"])
+    resumed = _resumed(theme, tc)
+    if resumed:
+        _report(theme, svt_report_func.make_item({
+            "id": tc["id"], "name": tc["title"], "status": "Skipped", "details": resumed,
+            "command": label, "fvt": step_info(tc["step"])}))
+        pytest.skip(resumed)
     blocked = _FAILED.get(tc["stage"])
     if blocked:
         reason = TEST_LOG_MSGS["blocked"].format(test=blocked)
@@ -69,6 +103,7 @@ def run_svt_test(theme: str, name: str) -> None:
         "duration": result["duration"], "command": label, "output": result["output"],
         "results": result["results"], "fvt": result["fvt"], "details": f"$ {result['command']}",
         "error": "" if result["success"] else f"{label} failed (rc={result['rc']})"}))
+    _track(theme, tc["stage"], tc["id"], result["success"])
     fields = [("FVT step", label), ("rc", result["rc"]),
               ("FVT results", len(result["results"]))]
     if result["success"]:

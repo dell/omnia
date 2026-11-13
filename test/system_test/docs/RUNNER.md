@@ -121,7 +121,19 @@ step (if any) and the previous run.
     stage**, with `(attempt 2)` in its title and only the latest attempt's steps and
     results (nothing of the earlier attempt is added to them). The earlier attempt is
     archived as `<run folder>/attempts/<stage>-attempt-<n>.json`, and the stage log keeps
-    every attempt (it is appended to). `setup_env.sh --retry` with no action skips
+    every attempt (it is appended to).
+
+    **A retry resumes at the failed test.** Each test of a stage records its result in
+    the stage's **track file**, `<run folder>/track/<stage>.json` (the `passed` tests and
+    the `failed` one). A retry of a stage whose last attempt failed does not run the tests
+    that already passed again: they show as `Skipped` ("not run again: it passed in
+    attempt N; the retry resumes at <test>"), and the retry starts at the test that failed
+    and runs everything after it. A test that fails again stays the resume point and the
+    passes are kept. Resuming is per SVT test (one FVT step): a failed step runs again
+    from its start. `SVT_NO_RESUME=1 ./run_validation.sh svt_<theme> <stage> --retry` runs
+    the whole stage again. A new run (`--configure`) has a new folder, so no track file.
+
+    `setup_env.sh --retry` with no action skips
     configure and the steps this run already passed, so a clean reinstall is
     not repeated.
   - **A new run (`./setup_env.sh --configure`):** a new id and folder. The
