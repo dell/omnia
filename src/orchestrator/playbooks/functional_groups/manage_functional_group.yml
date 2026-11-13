@@ -165,6 +165,7 @@
         - fg_operation in ['add', 'configure']
         - target_functional_groups | length > 0
 
+  tasks:
     # Remove: delete owned records using scoped OpenCHAMI reconciliation
     # primitives (FR-4.2). Order: metadata → BSS → SMD group. Recalculate
     # shared ssh/chrony groups from remaining groups.
