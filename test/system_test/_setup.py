@@ -49,6 +49,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from library.functions import (
+    catalog_func,
     cleanup_func,
     readiness_func,
     run_func,
@@ -172,9 +173,23 @@ def _mark_run(name: str, outcome: Dict[str, Any]) -> None:
             _emit(message)
 
 
+def _configure(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Configure; a catalog theme then freezes its catalog plan for the new run.
+
+    The plan (catalog_func.write_plan) is what the theme's stages and tests are
+    generated from; when it cannot be built, configure fails and says why.
+    """
+    outcome = setup_func.configure(config, _emit)
+    if outcome["status"] != "passed" or not THEMES[config["theme"]].get("catalog_plan"):
+        return outcome
+    rows, error = catalog_func.write_plan(config["catalog"], outcome["run_id"], _emit)
+    outcome["rows"] = [*(outcome.get("rows") or []), *rows]
+    return {**outcome, "status": "failed", "error": error} if error else outcome
+
+
 def _steps(args: argparse.Namespace, config: Dict[str, Any]) -> List[tuple]:
     """Return the (name, step) list of the requested action."""
-    configure = ("configure", lambda: setup_func.configure(config, _emit))
+    configure = ("configure", lambda: _configure(config))
     cleanup = ("cleanup", lambda: cleanup_func.cleanup(config, _emit, args.yes))
     install = ("install", lambda: setup_func.install(config, _emit, args.force, args.yes))
     if args.action == "all":

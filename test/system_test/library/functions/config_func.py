@@ -32,6 +32,7 @@ import yaml
 
 from dataset_generator.dataset_edit import Change, dump_yaml, load_yaml, set_value, split_header
 
+from .catalog_settings import CatalogSettingsError, load_catalog_settings
 from .fvt_func import domain_dir
 from .svt_report_func import fvt_report_settings
 from ..messages.svt_msgs import CONFIG_MSGS
@@ -134,7 +135,17 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
     return {"theme": theme, "path": path, "cleanup": cleanup,
             "nfs": _load_nfs_block(theme, nfs_block, path),
             "report": _load_report_block(data.get("report") or {}, path),
-            "fvt_settings": _load_theme_block(theme, data.get(theme) or {}, path)}
+            **_load_theme_settings(theme, data.get(theme), path)}
+
+
+def _load_theme_settings(theme: str, block: Any, path: str) -> Dict[str, Any]:
+    """Return the checked theme block: FVT settings, plus catalog settings for catalog themes."""
+    if not THEMES[theme].get("catalog_plan"):
+        return {"fvt_settings": _load_theme_block(theme, block or {}, path)}
+    try:
+        return {"fvt_settings": {}, "catalog": load_catalog_settings(block, path)}
+    except CatalogSettingsError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def _check_setting(kind: str, value: Any, where: str, path: str) -> Any:

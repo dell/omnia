@@ -80,6 +80,9 @@ svt:
     build_deploy: 8
     cadence: 8
     automatic_cleanup: 4
+    # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
+    # own entry.
+    catalog_stage: 3
     # Report and email.
     summary: 1
 

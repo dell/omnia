@@ -1,0 +1,128 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# catalog_build_test_config.yml - settings of the SVT theme catalog_build
+# =============================================================================
+# Read by ./setup_env.sh --theme catalog_build and by ./run_validation.sh
+# svt_catalog_build. The cluster values (IPs, names, repository URLs) are in
+# user_inputs.yml; credentials are never written here
+# (./setup_env.sh --theme catalog_build --set-domain-creds).
+# ./setup_env.sh --configure resolves the catalog list below into the plan of the
+# run (reports/catalog_build_plan.json): one stage per catalog (catalog_01,
+# catalog_02 ...). Each stage selects its catalog (./omnia.sh --select-catalog),
+# then runs every step as the domain's FVT "<tag> exec" and "<tag> verify". A
+# change here needs ./setup_env.sh --theme catalog_build --configure (a new run).
+# =============================================================================
+
+# =============================================================================
+# CATALOG_BUILD  (the plan of the run; written into the runtime inputs before
+#                 every catalog, not into the suites' test_config.yml)
+# =============================================================================
+catalog_build:
+  # catalogs: all | a list of names or numbers of ./omnia.sh --list-catalogs.
+  #   all = every bundled catalog in the --list-catalogs order; a list runs in
+  #   the order given, e.g.
+  #     catalogs:
+  #       - rhel/10.2/slurm_x86_64_no_vast.json
+  #       - rhel/10.2/slurm_service_k8s_x86_64_no_vast.json
+  catalogs: all
+  # include_aarch64: false (default) skips every catalog with an aarch64 layer
+  #   (aarch64-only or mixed): its stage holds one skipped test with the reason.
+  #   true runs them; it needs
+  #   image_build_manager.image_build_config.aarch64_inventory_host_ip in
+  #   user_inputs.yml.
+  include_aarch64: false
+  # ---- global for the whole run: written into the runtime inputs
+  #      (<OMNIA_DATA_PATH>/<domain>/input/<project>/) before every catalog ----
+  # repo_config: always | partial   (repo_manager_config.yml repo_config)
+  repo_config: partial
+  # caching_policy: true | false   (repo_manager_config.yml caching_policy)
+  caching_policy: true
+  # repo_policies: per repository "<version>/<arch>/<repo>": {policy, caching}
+  #   policy: always | partial | never; caching: true | false, e.g.
+  #     repo_policies:
+  #       "10.2/x86_64/epel": {policy: always, caching: false}
+  repo_policies: {}
+  # force_rebuild: true (default) builds every image of every catalog from
+  #   scratch; false reuses an image group already built (image build skips it).
+  force_rebuild: true
+  # continue_on_failure: true makes every catalog stage soft: a failed catalog
+  #   does not stop the next one (the summary still fails). false stops the run
+  #   at the first failed catalog.
+  continue_on_failure: true
+  # cleanup_between: none | images | repos | full, after every catalog (runs
+  #   even when a step of the catalog failed):
+  #   images = fvt_image_build_manager cleanup_images test
+  #   repos  = fvt_repo_manager cleanup test (the next catalog prepares again)
+  #   full   = images + image_build_manager cleanup + repos
+  cleanup_between: none
+  # steps: the FVT steps of every catalog, in order: [domain, tag]
+  #   (domain repo_manager | image_build_manager; tag one of its FVT tags).
+  #   Each becomes two SVT tests: "<tag> exec" (the playbook) and "<tag> verify".
+  steps:
+    - [repo_manager, precheck]
+    - [repo_manager, prepare]
+    - [repo_manager, execute]
+    - [repo_manager, status]
+    - [image_build_manager, precheck]
+    - [image_build_manager, validate]
+    - [image_build_manager, prepare]
+    - [image_build_manager, build]
+
+# =============================================================================
+# CLEANUP  (./setup_env.sh --theme catalog_build --cleanup, or --force;
+#           destructive, asks 'yes' unless --yes)
+# =============================================================================
+# The same steps as the build_stream theme, so an earlier BuildStream, telemetry
+# or orchestrator deployment cannot block omnia.sh --cleanup --all: build_stream
+# (when installed), telemetry (when deployed), orchestrator, image_build_manager,
+# repo_manager, main. See build_stream_test_config.yml for every flag.
+cleanup:
+  build_stream:
+    enabled: true
+    postgres_backup: false
+    cleanup_credentials: true
+  telemetry:
+    enabled: true
+    delete_sinks_volume: true
+    cleanup_credentials: true
+    cleanup_logs: true
+  orchestrator:
+    enabled: true
+    cleanup_credentials: true
+    cleanup_slurm: true
+    cleanup_k8s: true
+    cleanup_benchmark_tools: true
+  image_build_manager:
+    enabled: true
+    cleanup_credentials: true
+  repo_manager:
+    enabled: true
+    cleanup_credentials: true
+  main:
+    enabled: true
+    cleanup_all: true
+
+# =============================================================================
+# REPORT  (one folder and one SVT report per run)
+# =============================================================================
+report:
+  # report_path: parent of the run folders (default: "" =
+  #   test/system_test/reports). Keep it outside OMNIA_DATA_PATH.
+  report_path: ""
+  # report_name: (default: "" = svt_catalog_build_report)
+  report_name: ""
+  # run_id: (default: "" = a new svt-<UTC time> at every ./setup_env.sh --configure)
+  run_id: ""

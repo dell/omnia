@@ -41,9 +41,10 @@ SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key; required unless
 SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
 SVT_THEME, SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
-SVT_CREDENTIAL_DOMAINS, SVT_LABEL, BAO_SERVER_URL, BAO_AUTH_ROLE,
-BAO_DATA_PATH, BAO_CACERT (optional file variable: verify OpenBao with this CA;
-BAO_TLS_SKIP_VERIFY=false: verify with the system CA store),
+SVT_CATALOG_PLAN (catalog themes), SVT_CREDENTIAL_DOMAINS, SVT_LABEL,
+BAO_SERVER_URL, BAO_AUTH_ROLE, BAO_DATA_PATH, BAO_CACERT (optional file
+variable: verify OpenBao with this CA; BAO_TLS_SKIP_VERIFY=false: verify with
+the system CA store),
 BAO_TLS_SKIP_VERIFY, VAULT_ID_TOKEN, EMAIL_RECIPIENTS, EMAIL_SENDER,
 SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD. No secret is printed,
 written to a file or passed as an argument.
@@ -533,6 +534,34 @@ def _record_run() -> None:
     _say(f"SVT run {run['run_id']} (report {run.get('report_path')})")
 
 
+def _check_catalog_plan() -> None:
+    """Catalog themes: the plan --configure wrote on the OIM must be the rendered jobs.
+
+    setup_svt_project.py renders one job per catalog (SVT_CATALOG_PLAN,
+    <stage>=<catalog>); a catalog list edited in the project, or a branch with
+    other bundled catalogs, gives another plan, whose catalogs would have no job.
+    """
+    expected = _env("SVT_CATALOG_PLAN")
+    if not expected:
+        return
+    path = _svt_dir() + "/reports/catalog_build_plan.json"
+    rc, out = remote(f"cat {shlex.quote(path)}", capture=True)
+    entries: List[Dict[str, Any]] = []
+    if rc == 0:
+        try:
+            entries = json.loads(out.decode(errors="replace")).get("entries") or []
+        except (ValueError, AttributeError):
+            entries = []
+    actual = ",".join(f"{entry.get('stage')}={entry.get('catalog')}" for entry in entries)
+    if actual != expected:
+        _fail("the catalog plan of this run on the OIM differs from the pipeline jobs:\n"
+              f"  pipeline: {expected.replace(',', ', ')}\n"
+              f"  OIM:      {actual.replace(',', ', ') or '(no plan: ' + path + ')'}\n"
+              "Run ./setup_svt_project.py --update (with --update-inputs when the catalog "
+              "list changed in this checkout) so the jobs match the catalog list.")
+    _say(f"catalog plan matches the pipeline jobs ({len(entries)} catalog(s))")
+
+
 def initialization() -> int:
     """Clean reinstall, credentials, then the initialization stage of the theme.
 
@@ -546,6 +575,7 @@ def initialization() -> int:
     rc = run_detached("configure", f"./setup_env.sh --theme {theme} --configure")
     _record_run()
     if rc == 0:
+        _check_catalog_plan()
         rc = run_detached("install", f"./setup_env.sh --theme {theme} --install --yes"
                           + (" --force" if force else ""))
     if rc == 0 and payload:

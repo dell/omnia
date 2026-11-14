@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ==============================================================================
+# Profile: catalog_build
+# ==============================================================================
+# The inputs the catalog_build theme needs: omnia.env, repo_manager and
+# image_build_manager. The orchestrator and build_stream blocks of
+# user_inputs.yml are not used. See build_stream.yml for the field meanings.
+# ==============================================================================
+name: catalog_build
+description: >-
+  Inputs of the catalog_build system test: omnia.env, repo_manager and
+  image_build_manager.
+
+targets:
+  - section: main.omnia_env
+    file: src/main/omnia.env
+    format: env
+    out: main/omnia.env
+  - section: repo_manager.repo_manager_config
+    file: src/repo_manager/input/repo_manager_config.yml
+    format: yaml
+    out: repo_manager/input/repo_manager_config.yml
+  - section: image_build_manager.image_build_config
+    file: src/image_build_manager/input/image_build_config.yml
+    format: yaml
+    out: image_build_manager/input/image_build_config.yml
+
+input_dirs:
+  - src/repo_manager/input
+  - src/image_build_manager/input
+
+mandatory:
+  - main.omnia_env.SYSTEM_ADMIN_NIC_IPV4
+  - main.omnia_env.SYSTEM_HOSTNAME
+  - main.omnia_env.SYSTEM_DOMAIN_NAME
