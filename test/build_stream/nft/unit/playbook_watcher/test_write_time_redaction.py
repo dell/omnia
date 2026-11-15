@@ -43,8 +43,8 @@ SPEC = importlib.util.spec_from_file_location(
 WATCHER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(WATCHER)
 
-from core.logs.redaction import RedactionService  # noqa: E402
-from core.logs.redaction_patterns import (  # noqa: E402
+from core.logs.redaction import RedactionService  # noqa: E402  pylint: disable=wrong-import-position
+from core.logs.redaction_patterns import (  # noqa: E402  pylint: disable=wrong-import-position
     REDACTED,
     REDACTION_SUPPRESSED_LINE,
 )
@@ -177,7 +177,8 @@ def test_no_ansible_log_path_in_subprocess_env(tmp_path, monkeypatch):
     """execute_playbook must not hand ANSIBLE_LOG_PATH to the subprocess env."""
     captured = {}
 
-    def _fake_run(cmd, playbook_dir, env, timeout_seconds, log_file_path):  # noqa: ARG001
+    def _fake_run(cmd, playbook_dir, env, timeout_seconds, log_file_path):  # pylint: disable=unused-argument
+        """Stand in for _run_playbook_with_redaction, recording the subprocess env."""
         captured["env"] = env
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
         log_file_path.write_text("PLAY RECAP\n", encoding="utf-8")

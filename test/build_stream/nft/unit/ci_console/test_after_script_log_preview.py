@@ -25,7 +25,6 @@ are verified without a live cluster.
 
 import http.server
 import json
-import socket
 import subprocess
 import threading
 from pathlib import Path
