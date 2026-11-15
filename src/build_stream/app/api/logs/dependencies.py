@@ -23,6 +23,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Iterator
 
+import yaml
 from fastapi import Depends, HTTPException, status
 
 from api.dependencies import get_job_repo, get_stage_repo, verify_token
@@ -33,9 +34,10 @@ from api.logs.limiter import (
     RateLimitExceededError,
     SlidingWindowRateLimiter,
 )
-from common.config import LogQueryConfig, load_config
+from common.config import LogQueryConfig, load_config, load_log_query_inputs
 from core.logs.redaction import RedactionService
 from infra.logs.filesystem_adapter import FileSystemLogAdapter
+from orchestrator.cleanup.retention_config import build_stream_config_path
 from orchestrator.logs.use_cases import (
     LogQuerySettings,
     LogQueryUseCase,
@@ -45,16 +47,31 @@ from orchestrator.logs.use_cases import (
 
 @lru_cache(maxsize=1)
 def get_log_query_config() -> LogQueryConfig:
-    """Load ``[log_query]`` from build_stream.ini, using defaults if unavailable."""
+    """Resolve the log query settings.
+
+    Precedence: ``build_stream_config.yml`` operator inputs, then ``[log_query]``
+    in build_stream.ini, then built-in defaults. Invalid operator inputs are
+    rejected as a whole and the ini/default values stay in effect.
+    """
+    base = LogQueryConfig()
     try:
-        return load_config().log_query
+        base = load_config().log_query
     except FileNotFoundError:
         log_secure_info("warning", "build_stream.ini not found; using log query defaults")
     except ValueError:
         log_secure_info(
             "error", "Invalid log query configuration; using safe defaults", exc_info=True
         )
-    return LogQueryConfig()
+    try:
+        return load_log_query_inputs(base, build_stream_config_path())
+    except (OSError, ValueError, yaml.YAMLError):
+        log_secure_info(
+            "error",
+            "Invalid log observability inputs in build_stream_config.yml; "
+            "using ini/default log query settings",
+            exc_info=True,
+        )
+    return base
 
 
 @lru_cache(maxsize=1)

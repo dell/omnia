@@ -16,11 +16,13 @@
 
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Optional
 
 import configparser
+
+import yaml
 
 
 @dataclass
@@ -209,6 +211,47 @@ def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
         file_store=file_store,
         log_query=_load_log_query_config(parser),
     )
+
+
+# Operator inputs in build_stream_config.yml -> LogQueryConfig field.
+LOG_QUERY_INPUT_KEYS = {
+    "log_tail_lines_default": "default_tail_lines",
+    "log_tail_lines_max": "max_tail_lines",
+    "max_log_response_bytes": "max_response_bytes",
+    "log_query_rate_limit": "rate_limit_per_minute",
+    "log_query_max_concurrent": "max_concurrent",
+}
+
+
+def apply_log_query_inputs(base: LogQueryConfig, inputs: dict) -> LogQueryConfig:
+    """Overlay the operator's ``build_stream_config.yml`` log inputs on *base*.
+
+    Keys that are absent keep the value from *base* (``build_stream.ini`` or
+    built-in default).
+
+    Raises:
+        ValueError: If a value is not an integer or violates the safety bounds.
+    """
+    overrides = {}
+    for key, attr in LOG_QUERY_INPUT_KEYS.items():
+        if key not in inputs:
+            continue
+        value = inputs[key]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{key} must be an integer, got {value!r}")
+        overrides[attr] = value
+    return replace(base, **overrides)
+
+
+def load_log_query_inputs(base: LogQueryConfig, yaml_path: Path) -> LogQueryConfig:
+    """Apply the log inputs of ``build_stream_config.yml`` (if present) to *base*."""
+    if not yaml_path.is_file():
+        return base
+    with open(yaml_path, encoding="utf-8") as config_file:
+        raw = yaml.safe_load(config_file) or {}
+    if not isinstance(raw, dict):
+        raise ValueError("build_stream_config.yml is not a mapping")
+    return apply_log_query_inputs(base, raw)
 
 
 def _load_log_query_config(parser: configparser.ConfigParser) -> LogQueryConfig:

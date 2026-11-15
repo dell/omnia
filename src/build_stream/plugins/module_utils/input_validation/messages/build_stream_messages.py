@@ -94,6 +94,14 @@ def same_host_warning_msg() -> str:
     )
 
 
+def log_tail_default_exceeds_max_msg(default, maximum) -> str:
+    """Returns message when log_tail_lines_default is above log_tail_lines_max."""
+    return (
+        f"log_tail_lines_default ({default}) must not exceed "
+        f"log_tail_lines_max ({maximum})."
+    )
+
+
 # =============================================================================
 # CREDENTIAL MESSAGES (L2)
 # =============================================================================
