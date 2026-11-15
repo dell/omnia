@@ -28,6 +28,7 @@ Secret-looking values below are synthetic fixtures, not real credentials.
 import importlib.util
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -201,3 +202,24 @@ def test_no_ansible_log_path_in_subprocess_env(tmp_path, monkeypatch):
     })
     assert result["status"] == "success"
     assert "ANSIBLE_LOG_PATH" not in captured["env"]
+
+
+def test_write_time_redaction_throughput_budget(tmp_path):
+    """TC-NFT-003: redacting 10000 realistic lines stays far below the playbook runtime.
+
+    The HLD budget (<10% added write latency) is measured against Ansible's own
+    output rate, which is unobservable on a file-only baseline. The enforceable
+    local bound is an absolute per-line cost.
+    """
+    body = (
+        "for i in range(10000):\n"
+        "    print(f'TASK [role : step {i}] ok: [10.0.0.{i % 250}] => changed=false "
+        "msg=\"package kernel-5.14.{i} installed\"')\n"
+    )
+    start = time.perf_counter()
+    rc, text = _run(tmp_path, _python_cmd(body), timeout_seconds=60)
+    elapsed = time.perf_counter() - start
+    assert rc == 0
+    assert len(text.splitlines()) == 10000
+    assert "10.0.0.5" in text
+    assert elapsed < 2.0

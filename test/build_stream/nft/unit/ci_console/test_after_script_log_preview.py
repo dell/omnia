@@ -27,6 +27,7 @@ import http.server
 import json
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -216,3 +217,15 @@ def test_all_templates_share_after_script_parity(tmp_path, bsm_server, template_
     assert "Execution Log (last 50 lines)" in proc.stdout
     assert "<TOKEN>" in proc.stdout
     assert "Retrieve complete execution logs through the BSM API" in proc.stdout
+
+
+def test_after_script_overhead_under_two_seconds(tmp_path, bsm_server):
+    """TC-NFT-002: the log preview hook adds < 2 seconds to job teardown."""
+    start = time.perf_counter()
+    proc = _run(tmp_path, "build", {
+        "CI_JOB_STAGE": "build-images",
+        "JOB_ID": "job-1",
+        "BSM_API_URL": bsm_server.url,
+    })
+    assert proc.returncode == 0
+    assert time.perf_counter() - start < 2.0
