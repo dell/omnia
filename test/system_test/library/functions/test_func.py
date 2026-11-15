@@ -27,7 +27,7 @@ from typing import Any, Dict
 import pytest
 from omnia_auto import TestLogger
 
-from . import catalog_func, run_func, svt_report_func
+from . import catalog_func, run_func, svt_report_func, track_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
 from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
