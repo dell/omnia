@@ -102,6 +102,14 @@ def log_tail_default_exceeds_max_msg(default, maximum) -> str:
     )
 
 
+def log_ci_preview_exceeds_max_msg(preview, maximum) -> str:
+    """Returns message when log_ci_preview_lines is above log_tail_lines_max."""
+    return (
+        f"log_ci_preview_lines ({preview}) must not exceed "
+        f"log_tail_lines_max ({maximum}); the CI preview uses the log query API."
+    )
+
+
 # =============================================================================
 # CREDENTIAL MESSAGES (L2)
 # =============================================================================

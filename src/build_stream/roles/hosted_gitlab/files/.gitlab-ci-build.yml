@@ -56,9 +56,8 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
-  # Number of execution-log lines previewed in the job console on completion
-  # (ER-BSM-003 FR-4.1). Operators may override per pipeline run.
-  BSM_LOG_TAIL_LINES: "50"
+  # BSM_LOG_TAIL_LINES (execution-log preview lines) is a project CI/CD variable
+  # set by Omnia from log_ci_preview_lines in build_stream_config.yml (default 50).
   # Defaults — overridden by omnia.env if present in the GitLab repo.
   # OMNIA_DATA_PATH is read from omnia.env where needed (bsm_job_log_dir).
   OMNIA_PROJECT_NAME: "project_default"

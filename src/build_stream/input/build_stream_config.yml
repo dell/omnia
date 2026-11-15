@@ -188,8 +188,8 @@ retention:
 #   Re-run the build_stream playbook (or restart the container) after
 #   changing them. Every parameter is optional; omit it to keep the default.
 #
-#   The number of lines previewed in the GitLab CI job console is controlled
-#   separately by the GitLab CI/CD variable BSM_LOG_TAIL_LINES (default 50).
+#   log_ci_preview_lines (below) controls how many log lines the GitLab CI
+#   job console previews; it is pushed to GitLab as BSM_LOG_TAIL_LINES.
 # ==========================================================================
 
 # Lines returned per stage log when the API caller omits "tail_lines"
@@ -218,3 +218,10 @@ log_query_rate_limit: 60
 # Accepted values: integer >= 1
 # Default: 5
 log_query_max_concurrent: 5
+
+# Execution-log lines previewed in the GitLab CI job console when a
+# playbook stage finishes or fails. Omnia pushes it to the GitLab project as
+# the CI/CD variable BSM_LOG_TAIL_LINES on every build_stream run.
+# Accepted values: integer between 1 and log_tail_lines_max
+# Default: 50
+log_ci_preview_lines: 50

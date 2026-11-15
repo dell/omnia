@@ -158,6 +158,48 @@ class TestSemanticValidation:
         assert validator.validate(_valid_config()) == []
 
 
+class TestCiPreviewInput:
+    """log_ci_preview_lines -> GitLab CI/CD variable BSM_LOG_TAIL_LINES."""
+
+    def test_shipped_default_is_50(self):
+        """GIVEN the shipped YAML THEN the CI preview input defaults to 50."""
+        shipped = yaml.safe_load(CONFIG_YML.read_text(encoding="utf-8"))
+        assert shipped["log_ci_preview_lines"] == 50
+
+    @pytest.mark.parametrize("value", [0, 10001, "50"])
+    def test_schema_rejects_invalid(self, value):
+        """GIVEN an out-of-range or mistyped value THEN the schema rejects it."""
+        schema = json.loads(SCHEMA_JSON.read_text(encoding="utf-8"))
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(_valid_config(log_ci_preview_lines=value), schema)
+
+    def test_preview_above_tail_max_rejected(self, validator):
+        """GIVEN preview > log_tail_lines_max THEN L2 validation reports it."""
+        errors = validator.validate(_valid_config(log_ci_preview_lines=600, log_tail_lines_max=500))
+        assert len(errors) == 1 and "log_ci_preview_lines" in errors[0]
+
+    def test_preview_within_tail_max_accepted(self, validator):
+        """GIVEN preview <= log_tail_lines_max THEN no error is reported."""
+        assert validator.validate(_valid_config(log_ci_preview_lines=100)) == []
+
+    def test_role_pushes_input_as_gitlab_variable(self):
+        """GIVEN the hosted_gitlab role THEN BSM_LOG_TAIL_LINES is sourced from the input."""
+        role_vars = yaml.safe_load(
+            (SRC / "roles" / "hosted_gitlab" / "vars" / "main.yml").read_text(encoding="utf-8")
+        )
+        entry = next(v for v in role_vars["gitlab_pipeline_bs_variables"]
+                     if v["key"] == "BSM_LOG_TAIL_LINES")
+        assert "log_ci_preview_lines" in entry["value"]
+        assert entry["masked"] is False
+
+    @pytest.mark.parametrize("name", [".gitlab-ci-build.yml", ".gitlab-ci-cadence.yml"])
+    def test_ci_templates_do_not_hardcode_preview_lines(self, name):
+        """GIVEN CI templates THEN yml defaults do not shadow the project variable."""
+        text = (SRC / "roles" / "hosted_gitlab" / "files" / name).read_text(encoding="utf-8")
+        assert 'BSM_LOG_TAIL_LINES: "' not in text
+        assert "${BSM_LOG_TAIL_LINES:-50}" in text
+
+
 class TestOverlay:
     """Runtime overlay of the operator inputs on ini/default settings."""
 

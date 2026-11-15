@@ -18,7 +18,7 @@ Validates cross-field constraints that cannot be expressed in JSON Schema:
   - If enable_build_stream is true, build_stream_host_ip and gitlab_host are required
   - Port numbers must be valid
   - Host IP addresses must be non-empty strings
-  - log_tail_lines_default must not exceed log_tail_lines_max
+  - log_tail_lines_default and log_ci_preview_lines must not exceed log_tail_lines_max
 """
 
 from typing import List
@@ -83,6 +83,10 @@ def validate(config_data, logger=None) -> List[str]:
         and tail_default > tail_max
     ):
         errors.append(msg.log_tail_default_exceeds_max_msg(tail_default, tail_max))
+
+    preview = config_data.get("log_ci_preview_lines", 50)
+    if isinstance(preview, int) and isinstance(tail_max, int) and preview > tail_max:
+        errors.append(msg.log_ci_preview_exceeds_max_msg(preview, tail_max))
 
     # Warn if BSM and GitLab on same host
     if host_ip and gitlab_host and str(host_ip).strip() == str(gitlab_host).strip():
