@@ -222,6 +222,7 @@ NM_PROFILE_FIELDS: tuple[str, ...] = (
 IPOIB_COMMANDS: dict[str, str] = {
     "path_absent": "test ! -e %s",
     "make_private_dir": "mkdir -m 0700 -- %s",
+    "make_parent_dirs": "mkdir -p -- %s",
     "list_input_files": "find %s -maxdepth 1 -type f -printf '%%f\\n'",
     "copy_file": "cp -p -- %s %s",
     "write_base64_first": "printf '%%s' %s | base64 -d > %s",
