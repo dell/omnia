@@ -25,6 +25,7 @@ are verified without a live cluster.
 
 import http.server
 import json
+import os
 import subprocess
 import threading
 import time
@@ -76,8 +77,27 @@ class _LogHandler(http.server.BaseHTTPRequestHandler):
         ],
     }
 
+    valid_token = None
+    token_requests = 0
+    issued_token = "fresh-token"
+
+    def do_POST(self):  # noqa: N802
+        """Mock /api/v1/auth/token issuing ``issued_token``."""
+        type(self).token_requests += 1
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"access_token": self.issued_token}).encode("utf-8"))
+
     def do_GET(self):  # noqa: N802
-        """Serve the configured JSON payload and status."""
+        """Serve the configured JSON payload and status (401 for a stale token)."""
+        if self.valid_token and self.headers.get("Authorization") != f"Bearer {self.valid_token}":
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error": "token_expired"}')
+            return
         self.send_response(self.status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -85,6 +105,9 @@ class _LogHandler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, *_args):
         """Silence the default stderr access log."""
+
+
+DEFAULT_PAYLOAD = dict(_LogHandler.payload)
 
 
 @pytest.fixture
@@ -99,12 +122,14 @@ def bsm_server():
         url = f"http://{host}:{port}"
 
         @staticmethod
-        def set(status=200, payload=None):
+        def set(status=200, payload=None, valid_token=None):
             _LogHandler.status = status
+            _LogHandler.valid_token = valid_token
+            _LogHandler.token_requests = 0
             if payload is not None:
                 _LogHandler.payload = payload
 
-    _Ctl.set(200, _LogHandler.payload)
+    _Ctl.set(200, DEFAULT_PAYLOAD)
     yield _Ctl
     server.shutdown()
 
@@ -229,3 +254,62 @@ def test_after_script_overhead_under_two_seconds(tmp_path, bsm_server):
     })
     assert proc.returncode == 0
     assert time.perf_counter() - start < 2.0
+
+
+_REFRESH_ENV = {
+    "CI_JOB_STAGE": "build-images",
+    "JOB_ID": "job-1",
+    "CLIENT_ID": "bsm-client",
+    "CLIENT_SECRET": "super-secret-value",
+}
+
+
+def test_expired_token_is_refreshed_and_preview_shown(tmp_path, bsm_server):
+    """GIVEN a stale ACCESS_TOKEN WHEN the API answers 401 THEN a fresh token is used."""
+    bsm_server.set(valid_token="fresh-token")
+    proc = _run(tmp_path, "build", {
+        **_REFRESH_ENV, "BSM_API_URL": bsm_server.url, "ACCESS_TOKEN": "stale-token",
+    })
+    assert proc.returncode == 0
+    assert "PLAY RECAP ok=3" in proc.stdout
+    assert _LogHandler.token_requests == 1
+    assert "super-secret-value" not in proc.stdout + proc.stderr
+    assert "fresh-token" not in proc.stdout + proc.stderr
+
+
+def test_missing_token_is_minted_from_client_credentials(tmp_path, bsm_server):
+    """GIVEN no saved token and client credentials THEN the hook obtains one itself."""
+    bsm_server.set(valid_token="fresh-token")
+    proc = _run(tmp_path, "build", {
+        **_REFRESH_ENV, "BSM_API_URL": bsm_server.url, "ACCESS_TOKEN": "",
+    })
+    assert proc.returncode == 0
+    assert "PLAY RECAP ok=3" in proc.stdout
+
+
+def test_expired_token_without_credentials_is_non_fatal(tmp_path, bsm_server):
+    """GIVEN a stale token and no client credentials THEN a warning is printed, job unaffected."""
+    bsm_server.set(valid_token="fresh-token")
+    proc = _run(tmp_path, "build", {
+        "CI_JOB_STAGE": "build-images", "JOB_ID": "job-1",
+        "BSM_API_URL": bsm_server.url, "ACCESS_TOKEN": "stale-token",
+    })
+    assert proc.returncode == 0
+    assert "Log preview unavailable (HTTP 401)" in proc.stdout
+    assert "curl -H 'Authorization: Bearer <TOKEN>'" in proc.stdout
+
+
+@pytest.mark.parametrize("template_key", sorted(TEMPLATES))
+def test_hook_never_fails_under_errexit(tmp_path, bsm_server, template_key):
+    """GIVEN a runner that uses 'sh -e' WHEN the API is unreachable THEN the exit code is 0."""
+    script = tmp_path / "errexit.sh"
+    script.write_text(_after_script(TEMPLATES[template_key]), encoding="utf-8")
+    env = {
+        "CI_JOB_STAGE": PLAYBOOK_STAGE[template_key], "JOB_ID": "job-1",
+        "BSM_API_URL": "http://127.0.0.1:9", "ACCESS_TOKEN": "", "CURL_MAX_TIME": "2",
+        "CURL_CONNECT_TIMEOUT": "1", "PATH": os.environ["PATH"],
+    }
+    proc = subprocess.run(["sh", "-e", str(script)], capture_output=True, text=True,
+                          env=env, check=False)
+    assert proc.returncode == 0
+    assert "Retrieve complete execution logs" in proc.stdout
