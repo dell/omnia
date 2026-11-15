@@ -38,6 +38,26 @@ from pathlib import Path
 from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
 
+# Make the shared BuildStream ``app`` package importable when this service runs
+# standalone under systemd. The directory that contains ``core/`` is this
+# file's grandparent in both the source tree (``src/build_stream/app/``) and
+# the deployed tree (``<OMNIA_DATA_PATH>/build_stream/``). Write-time log
+# redaction (ER-BSM-003 FR-3.1, HLD 5.3.4) reuses the same tiered
+# ``RedactionService`` as the API response-time path so there is a single
+# pattern registry.
+_APP_ROOT = str(Path(__file__).resolve().parent.parent)
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
+
+from core.logs.redaction import (  # noqa: E402  pylint: disable=wrong-import-position
+    RedactionService,
+    RedactionTier,
+)
+
+# Shared, thread-safe (stateless across calls) redaction service used for all
+# write-time log sanitization in this process.
+_REDACTION_SERVICE = RedactionService()
+
 
 def _resolve_omnia_env():
     """Read /etc/omnia/omnia.env and resolve variable references.
@@ -1080,6 +1100,103 @@ def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
     ]
 
 
+def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    cmd: List[str],
+    playbook_dir: str,
+    env: Dict[str, str],
+    timeout_seconds: int,
+    log_file_path: Path,
+) -> int:
+    """Run ansible-playbook, capturing output and redacting Tier 1 secrets at write time.
+
+    Implements ER-BSM-003 FR-3.1 (HLD 5.3.4). The previous model set
+    ``ANSIBLE_LOG_PATH`` and used ``subprocess.run(capture_output=False)``,
+    letting Ansible write its own log file and bypassing any stream filtering.
+    This function instead:
+
+    1. Launches ``subprocess.Popen`` with ``stdout=PIPE, stderr=STDOUT`` so the
+       merged stream preserves interleaved task ordering.
+    2. Reads the stream line-by-line in a daemon thread (``errors='replace'``
+       handles non-UTF-8 bytes; the final partial line is flushed on exit).
+    3. Redacts every line through the shared :data:`_REDACTION_SERVICE`
+       (Tier 1 secrets only — operational IPs/host names are preserved) before
+       writing it to ``log_file_path``.
+
+    No unsanitized byte is ever written to disk. Redaction fails closed: a line
+    that cannot be processed is replaced with a suppression marker.
+
+    Args:
+        cmd: Fully built, validated command (``shell=False``).
+        playbook_dir: Working directory (the playbook's parent).
+        env: Subprocess environment; MUST NOT contain ``ANSIBLE_LOG_PATH``.
+        timeout_seconds: Hard wall-clock timeout for the subprocess.
+        log_file_path: Sanitized absolute domain log path to write.
+
+    Returns:
+        The subprocess exit code.
+
+    Raises:
+        subprocess.TimeoutExpired: Execution exceeded ``timeout_seconds``. The
+            output buffered up to the timeout is still redacted and persisted.
+    """
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    state = _REDACTION_SERVICE.new_stream_state()
+    suppressed = {"count": 0}
+
+    with open(log_file_path, "w", encoding="utf-8") as log_file:
+        proc = subprocess.Popen(  # pylint: disable=consider-using-with
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+            cwd=playbook_dir,
+            env=env,
+            start_new_session=True,
+            bufsize=1,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        def _drain() -> None:
+            """Read, redact, and write every line from the merged output stream."""
+            if proc.stdout is None:
+                return
+            for raw_line in proc.stdout:
+                sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
+                    raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
+                )
+                if line_suppressed:
+                    suppressed["count"] += 1
+                log_file.write(f"{sanitized}\n")
+            log_file.flush()
+
+        reader = Thread(target=_drain, name="watcher-log-reader", daemon=True)
+        reader.start()
+        try:
+            proc.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            reader.join()
+            _log_suppressed_lines(suppressed["count"])
+            raise
+        reader.join()
+
+    _log_suppressed_lines(suppressed["count"])
+    return proc.returncode
+
+
+def _log_suppressed_lines(count: int) -> None:
+    """Emit a security event when write-time redaction withheld one or more lines."""
+    if count:
+        log_secure_info(
+            "warning",
+            f"Security event: write-time redaction withheld {count} "
+            f"unsanitizable line(s) from the stage log",
+        )
+
+
 def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute Ansible playbook directly on the host via the shared venv.
 
@@ -1238,9 +1355,11 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         timeout_seconds = timeout_minutes * 60
 
-        # Set ANSIBLE_LOG_PATH as env var so Ansible writes its log there
+        # Write-time redaction (ER-BSM-003 FR-3.1): ANSIBLE_LOG_PATH is NOT set,
+        # so Ansible does not write its own (unsanitized) log file. The watcher
+        # captures stdout/stderr and writes the redacted output itself.
         env = os.environ.copy()
-        env["ANSIBLE_LOG_PATH"] = log_path_str
+        env.pop("ANSIBLE_LOG_PATH", None)
 
         # Expand shell-style variable references in env values.
         # systemd EnvironmentFile does NOT perform shell expansion, so
@@ -1256,21 +1375,12 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             f"ansible-playbook [playbook] in {playbook_dir[:30]}"
         )
 
-        # Execute directly — shell=False, cwd=playbook directory
-        result = subprocess.run(
-            cmd,
-            capture_output=False,
-            timeout=timeout_seconds,
-            check=False,
-            shell=False,
-            text=False,
-            start_new_session=True,
-            cwd=playbook_dir,
-            env=env,
+        # Execute directly — shell=False, cwd=playbook directory. The merged
+        # stdout/stderr stream is redacted line-by-line and written to
+        # log_file_path; no unsanitized byte reaches disk.
+        returncode = _run_playbook_with_redaction(
+            cmd, playbook_dir, env, timeout_seconds, log_file_path
         )
-
-        # Wait briefly for log flush
-        time.sleep(0.5)
 
         if not log_file_path.exists():
             log_secure_info(
@@ -1281,7 +1391,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        status = "success" if result.returncode == 0 else "failed"
+        status = "success" if returncode == 0 else "failed"
 
         dictionary_hits = (
             extract_dictionary_hits(log_file_path)
@@ -1289,7 +1399,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         )
         reported_log = publish_stage_log(log_file_path, job_id, [
             f"stage={stage_name} attempt={attempt} status={status} "
-            f"exit_code={result.returncode} "
+            f"exit_code={returncode} "
             f"duration_seconds={int(duration_seconds)}",
         ])
         log_secure_info(
@@ -1307,7 +1417,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "request_id": request_id_safe,
             "correlation_id": correlation_id,
             "status": status,
-            "exit_code": result.returncode,
+            "exit_code": returncode,
             "attempt": attempt,
             "log_file_path": reported_log,
             "started_at": started_at.isoformat(),
@@ -1323,7 +1433,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         if status == "failed":
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
             result_data["error_summary"] = (
-                f"Playbook exited with code {result.returncode}. "
+                f"Playbook exited with code {returncode}. "
                 f"Check playbook log at {reported_log} for details."
             )
 
@@ -2093,11 +2203,17 @@ def _write_test_output(
             return stream.decode("utf-8", errors="replace")
         return stream or ""
 
+    # Write-time redaction (ER-BSM-003 FR-3.1): the validate stage runs the
+    # Orchestrator test suite, whose captured output is published and queryable
+    # through the log API. Redact Tier 1 secrets before any byte reaches disk,
+    # consistent with the ansible-playbook execution path.
     try:
         with open(log_file_path, "w", encoding="utf-8") as log_file:
             log_file.write(
-                f"STDOUT:\n{_as_text(stdout)}\n\n"
-                f"STDERR:\n{_as_text(stderr)}\n"
+                "STDOUT:\n"
+                f"{_REDACTION_SERVICE.redact(_as_text(stdout), RedactionTier.SECRETS_ONLY)}"
+                "\n\nSTDERR:\n"
+                f"{_REDACTION_SERVICE.redact(_as_text(stderr), RedactionTier.SECRETS_ONLY)}\n"
             )
     except OSError:
         log_secure_info("warning", "Failed to write test output log")

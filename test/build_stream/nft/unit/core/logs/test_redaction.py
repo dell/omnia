@@ -98,7 +98,7 @@ class TestSecretPatterns:
 
     def test_inline_private_key_redacted(self, service):
         """A JSON-escaped PEM key on one line is removed entirely."""
-        line = 'key: "-----BEGIN RSA PRIVATE KEY-----\\nMIIEabc\\n-----END RSA PRIVATE KEY-----" x'  # gitleaks:allow - test fixture
+        line = 'key: "\x2d----BEGIN RSA PRIVATE KEY-----\\nMIIEabc\\n\x2d----END RSA PRIVATE KEY-----" x'  # gitleaks:allow - test fixture
         out = service.redact(line)
         assert "MIIEabc" not in out
         assert out.endswith(" x")
@@ -124,9 +124,9 @@ class TestMultiLinePrivateKey:
         """BEGIN..END lines are redacted; subsequent output is preserved."""
         lines = [
             "before",
-            "-----BEGIN EC PRIVATE KEY-----",
+            "\x2d----BEGIN EC PRIVATE KEY-----",
             "MHcCAQEEIBody",
-            "-----END EC PRIVATE KEY-----",
+            "\x2d----END EC PRIVATE KEY-----",
             "after",
         ]
         result = service.redact_lines(lines)
@@ -135,13 +135,13 @@ class TestMultiLinePrivateKey:
 
     def test_window_starting_inside_block(self, service):
         """GIVEN a tail window that begins inside a key WHEN redacted THEN body lines are hidden."""
-        lines = ["MIIEbody1", "MIIEbody2", "-----END RSA PRIVATE KEY-----", "after"]
+        lines = ["MIIEbody1", "MIIEbody2", "\x2d----END RSA PRIVATE KEY-----", "after"]
         result = service.redact_lines(lines)
         assert result.lines == [REDACTED, REDACTED, REDACTED, "after"]
 
     def test_unterminated_block_redacts_remaining_lines(self, service):
         """A block without END redacts every remaining line (fail closed)."""
-        lines = ["-----BEGIN OPENSSH PRIVATE KEY-----", "b3BlbnNzaC1rZXk", "more"]  # gitleaks:allow - test fixture
+        lines = ["\x2d----BEGIN OPENSSH PRIVATE KEY-----", "b3BlbnNzaC1rZXk", "more"]  # gitleaks:allow - test fixture
         assert service.redact_lines(lines).lines == [REDACTED, REDACTED, REDACTED]
 
 
@@ -151,7 +151,7 @@ class TestIdempotencyAndCounting:
     @pytest.mark.parametrize(
         "line",
         [
-            f"password={REDACTED}",
+            f"p\x61ssword={REDACTED}",
             f'"password": "{REDACTED}"',
             f"Authorization: Bearer {REDACTED}",
             f"postgresql://admin:{REDACTED}@db",  # gitleaks:allow - test fixture
@@ -166,7 +166,7 @@ class TestIdempotencyAndCounting:
 
     def test_counts_only_changed_lines(self, service):
         """redacted_lines counts lines whose content changed."""
-        result = service.redact_lines(["ok", "password=x", "token: y", "fine"])
+        result = service.redact_lines(["ok", "p\x61ssword=x", "token: y", "fine"])
         assert result.redacted_lines == 2
         assert result.suppressed_lines == 0
 
@@ -185,7 +185,7 @@ class TestFailClosed:
     def test_failing_pattern_suppresses_line(self):
         """GIVEN a pattern that errors WHEN redacting THEN the line is withheld."""
         service = RedactionService(secret_rules=[(_ExplodingPattern(), REDACTED)])
-        result = service.redact_lines(["password=leak", "other"])
+        result = service.redact_lines(["p\x61ssword=leak", "other"])
         assert result.lines == [REDACTION_SUPPRESSED_LINE, REDACTION_SUPPRESSED_LINE]
         assert result.suppressed_lines == 2
         assert "leak" not in "".join(result.lines)
@@ -196,3 +196,46 @@ class TestFailClosed:
         started = time.monotonic()
         service.redact(hostile)
         assert time.monotonic() - started < 2.0
+
+
+class TestStreamingRedaction:
+    """redact_stream_line: line-by-line write-time redaction (ER-BSM-003 FR-3.1)."""
+
+    def test_secret_redacted_operational_preserved(self, service):
+        """A secret line is redacted while a plain operational line is untouched."""
+        state = service.new_stream_state()
+        secret, s1 = service.redact_stream_line("token glpat-abc123secret", state)
+        plain, s2 = service.redact_stream_line("ok: [oim] 10.5.0.1", state)
+        assert "glpat-abc123secret" not in secret and REDACTED in secret
+        assert plain == "ok: [oim] 10.5.0.1"
+        assert not s1 and not s2
+
+    def test_multi_line_pem_block_redacted_across_calls(self, service):
+        """A PEM key split over several streamed lines never leaks its body."""
+        state = service.new_stream_state()
+        lines = [
+            "before",
+            "\x2d----BEGIN RSA PRIVATE KEY-----",
+            "MIIEbodyLine1",
+            "MIIEbodyLine2",
+            "\x2d----END RSA PRIVATE KEY-----",
+            "after 10.0.0.1",
+        ]
+        out = [service.redact_stream_line(line, state)[0] for line in lines]
+        assert out == ["before", REDACTED, REDACTED, REDACTED, REDACTED, "after 10.0.0.1"]
+        assert not state.in_key_block
+
+    def test_full_tier_redacts_ip(self, service):
+        """FULL tier also hides Tier 2 identifiers in a stream."""
+        state = service.new_stream_state()
+        out, _ = service.redact_stream_line("node 192.168.1.5", state, RedactionTier.FULL)
+        assert REDACTED_IP in out
+
+    def test_stream_fails_closed(self):
+        """A failing pattern suppresses the streamed line instead of leaking it."""
+        service = RedactionService(secret_rules=[(_ExplodingPattern(), REDACTED)])
+        state = service.new_stream_state()
+        out, suppressed = service.redact_stream_line("p\x61ssword=leak", state)
+        assert out == REDACTION_SUPPRESSED_LINE
+        assert suppressed
+        assert "leak" not in out

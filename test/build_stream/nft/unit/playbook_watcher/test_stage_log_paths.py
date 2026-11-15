@@ -23,6 +23,7 @@ timeout, and system error.
 """
 
 import importlib.util
+import io
 import subprocess
 import uuid
 from datetime import datetime, timezone
@@ -80,11 +81,60 @@ def _request(job_id, attempt=None, stage="build-image"):
     }
 
 
-def _execute(request, run):
+class _FakePopen:
+    """subprocess.Popen stand-in that drives the watcher's redaction reader.
+
+    The watcher now captures ansible output through ``Popen(stdout=PIPE,
+    stderr=STDOUT)``, reads it line-by-line, redacts Tier 1 secrets, and writes
+    the sanitized lines itself (ER-BSM-003 FR-3.1). This fake exposes a
+    ``stdout`` the reader thread can iterate plus the ``wait``/``kill`` surface
+    the watcher uses, and records the environment it was launched with.
+    """
+
+    def __init__(self, cmd, *, output="", returncode=0, timeout=False, **kwargs):
+        self._cmd = cmd
+        self.stdout = io.StringIO(output)
+        self._returncode = returncode
+        self._timeout = timeout
+        self.returncode = None
+        self.killed = False
+        self.env = kwargs.get("env", {})
+
+    def wait(self, timeout=None):
+        """Return the exit code, or raise TimeoutExpired until the process is killed."""
+        if self._timeout and not self.killed:
+            raise subprocess.TimeoutExpired(self._cmd, timeout or 1)
+        if self.returncode is None:
+            self.returncode = self._returncode
+        return self.returncode
+
+    def kill(self):
+        """Mark the process killed so the follow-up wait() resolves."""
+        self.killed = True
+
+
+def _popen_factory(*, output="", returncode=0, timeout=False):
+    """Build a Popen replacement capturing the launch environment for assertions."""
+    captured = {}
+
+    def _make(cmd, **kwargs):
+        captured["env"] = kwargs.get("env", {})
+        captured["cmd"] = cmd
+        return _FakePopen(
+            cmd, output=output, returncode=returncode, timeout=timeout, **kwargs
+        )
+
+    return _make, captured
+
+
+def _execute(request, *, output="", returncode=0, timeout=False, popen=None):
+    make, captured = (popen if popen else _popen_factory(
+        output=output, returncode=returncode, timeout=timeout,
+    ))
     with patch.object(WATCHER, "map_playbook_name_to_path", return_value=PLAYBOOK), \
          patch.object(WATCHER, "validate_command", return_value=True), \
-         patch.object(WATCHER.subprocess, "run", side_effect=run):
-        return WATCHER.execute_playbook(request)
+         patch.object(WATCHER.subprocess, "Popen", side_effect=make):
+        return WATCHER.execute_playbook(request), captured
 
 
 @pytest.mark.parametrize("value,expected", [
@@ -156,40 +206,37 @@ def test_publish_reports_domain_log_when_copy_fails(log_root, domain_root):
 
 
 def test_success_reports_ansible_log_path_with_attempt(log_root, domain_root):
-    """Ansible logs to /var/log/omnia; the reported copy carries the retry attempt."""
+    """The watcher writes captured output itself; the copy carries the retry attempt."""
     job_id = str(uuid.uuid4())
-    seen = {}
 
-    def _run(cmd, **kwargs):
-        seen["env_log"] = kwargs["env"]["ANSIBLE_LOG_PATH"]
-        seen["extra_vars"] = cmd[cmd.index("--extra-vars") + 1]
-        Path(seen["env_log"]).write_text("PLAY RECAP\n", encoding="utf-8")
-        return subprocess.CompletedProcess(cmd, 0)
-
-    result = _execute(_request(job_id, attempt=3), _run)
+    result, captured = _execute(
+        _request(job_id, attempt=3), output="PLAY RECAP\n", returncode=0
+    )
 
     assert result["status"] == "success"
     assert result["attempt"] == 3
+    # Write-time redaction: ANSIBLE_LOG_PATH must NOT be handed to the subprocess.
+    assert "ANSIBLE_LOG_PATH" not in captured["env"]
+    extra_vars = captured["cmd"][captured["cmd"].index("--extra-vars") + 1]
     log_path = Path(result["log_file_path"])
-    assert Path(seen["env_log"]) == _domain_copy(domain_root, log_path)
-    assert Path(seen["env_log"]).is_file()
+    domain_log = _domain_copy(domain_root, log_path)
+    assert domain_log.is_file()
     assert log_path.parent == log_root / job_id
     assert log_path.name.startswith("build-image_image_build_manager.yml_")
     assert log_path.name.endswith("_attempt3.log")
     content = log_path.read_text(encoding="utf-8")
     assert "PLAY RECAP" in content
     assert "attempt=3 status=success" in content
-    assert '"attempt": 3' in seen["extra_vars"]
+    # The watcher wrote the domain log directly (no Ansible-owned file).
+    assert "PLAY RECAP" in domain_log.read_text(encoding="utf-8")
+    assert '"attempt": 3' in extra_vars
 
 
 def test_failure_without_ansible_output_still_reports_existing_log(log_root, domain_root):
-    """A failed run that wrote no log still returns an existing log file."""
+    """A failed run that produced no output still returns an existing log file."""
     job_id = str(uuid.uuid4())
 
-    result = _execute(
-        _request(job_id, attempt=2),
-        lambda cmd, **_: subprocess.CompletedProcess(cmd, 2),
-    )
+    result, _ = _execute(_request(job_id, attempt=2), output="", returncode=2)
 
     log_path = Path(result["log_file_path"])
     assert result["status"] == "failed"
@@ -202,14 +249,12 @@ def test_failure_without_ansible_output_still_reports_existing_log(log_root, dom
 
 
 def test_timeout_reports_log_path(log_root, domain_root):
-    """A timed-out playbook reports the same per-attempt log path."""
+    """A timed-out playbook still persists the redacted output captured so far."""
     job_id = str(uuid.uuid4())
 
-    def _timeout(cmd, **kwargs):
-        Path(kwargs["env"]["ANSIBLE_LOG_PATH"]).write_text("TASK [x]\n", encoding="utf-8")
-        raise subprocess.TimeoutExpired(cmd, 1)
-
-    result = _execute(_request(job_id, attempt=5), _timeout)
+    result, _ = _execute(
+        _request(job_id, attempt=5), output="TASK [x]\n", timeout=True
+    )
 
     log_path = Path(result["log_file_path"])
     assert result["status"] == "failed"
@@ -228,10 +273,10 @@ def test_system_error_reports_log_path(log_root):
     """An OSError launching ansible-playbook still reports the log path."""
     job_id = str(uuid.uuid4())
 
-    def _boom(cmd, **kwargs):
+    def _boom(cmd, **kwargs):  # pylint: disable=unused-argument
         raise OSError("ansible-playbook not found")
 
-    result = _execute(_request(job_id), _boom)
+    result, _ = _execute(_request(job_id), popen=(_boom, {}))
 
     assert result["error_code"] == "SYSTEM_ERROR"
     assert result["attempt"] == 1
@@ -241,10 +286,7 @@ def test_system_error_reports_log_path(log_root):
 
 def test_missing_attempt_defaults_to_one(log_root):
     """Requests without an attempt are logged as attempt 1."""
-    result = _execute(
-        _request(str(uuid.uuid4())),
-        lambda cmd, **_: subprocess.CompletedProcess(cmd, 0),
-    )
+    result, _ = _execute(_request(str(uuid.uuid4())), output="", returncode=0)
 
     assert result["log_file_path"].endswith("_attempt1.log")
 
