@@ -1127,3 +1127,26 @@ class TestDomainFileRouting:
             ),
         )
 
+
+
+class TestUploadDestinationIsolation(TestUploadFilesMultiFileUpload):
+    """Guard: unit tests must never write below the real OMNIA_DATA_PATH."""
+
+    test_single_file_upload = None
+    test_multiple_valid_files_upload = None
+    test_mixed_valid_invalid_fails_fast = None
+    test_partial_change_detection = None
+
+    def test_orchestrator_files_land_in_sandbox(self, isolated_upload_destinations):
+        """Orchestrator inputs are written under the sandbox, not /opt/omnia."""
+        job = self._create_job()
+        use_case = self._create_use_case(job)
+        command = _create_upload_command(
+            job_id=job.id,
+            files=[("network_spec.yml", b"content1"), ("pxe_mapping_file.csv", b"content2")],
+        )
+
+        use_case.execute(command)
+
+        written = {p.name for p in isolated_upload_destinations.rglob("*") if p.is_file()}
+        assert {"network_spec.yml", "pxe_mapping_file.csv"} <= written
