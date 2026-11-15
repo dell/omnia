@@ -39,6 +39,32 @@ must be supplied before running `build_stream.yml`.
 | `gitlab_puma_workers` | int | Optional | `2` | Puma web worker count (1-2 per core). |
 | `gitlab_sidekiq_concurrency` | int | Optional | `10` | Sidekiq background job concurrency. |
 
+### 1.3  Pipeline Log Observability (ER-BSM-003)
+
+Pipeline execution logs are served by the BSM API endpoint
+`GET /api/v1/jobs/{job_id}/logs` and previewed in the GitLab CI job console.
+The following operator-tunable parameters live in the `[log_query]` section of
+`src/build_stream/app/build_stream.ini` (shipped to
+`/opt/omnia/build_stream/build_stream.ini`). All are optional; the defaults
+below are safe and are validated at load time — an out-of-range value fails BSM
+startup rather than silently disabling a safety limit.
+
+| Parameter (`[log_query]`) | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `log_root` | string (abs path) | Optional | `${OMNIA_DATA_PATH}/build_stream/log` | Container path of the published per-job log directory the API reads. |
+| `default_tail_lines` | int (1..`max_tail_lines`) | Optional | `50` | Lines returned per stage when `tail_lines` is omitted. |
+| `max_tail_lines` | int (1..10000) | Optional | `10000` | Upper bound accepted for the `tail_lines` query parameter. |
+| `max_response_bytes` | int (1024..52428800) | Optional | `10485760` | Maximum log bytes returned per stage (`full=true` or tail); 10 MiB. |
+| `rate_limit_per_minute` | int (>=1) | Optional | `60` | Per-OAuth-client log-query requests allowed per minute (429 when exceeded). |
+| `max_concurrent` | int (>=1) | Optional | `5` | Log-query requests served concurrently across all clients (503 + `Retry-After`). |
+
+**CI/CD variable** — the GitLab CI pipelines (`build`, `cadence`, `deploy`)
+preview the last N execution-log lines in the job console on completion:
+
+| CI/CD variable | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `BSM_LOG_TAIL_LINES` | int | Optional | `50` | Number of execution-log lines previewed in the GitLab CI job console (`after_script`). Set as a project/pipeline CI/CD variable to override. |
+
 ---
 
 ## 2  Credentials
