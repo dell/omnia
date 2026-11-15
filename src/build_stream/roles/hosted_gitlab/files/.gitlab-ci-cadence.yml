@@ -260,14 +260,16 @@ default:
           # Access tokens expire (default 60 min). Mint a fresh one when the saved
           # token is missing or rejected; CLIENT_ID/CLIENT_SECRET are never printed.
           _bsm_new_token() {
-            if [ -z "${CLIENT_ID:-}" ] || [ -z "${CLIENT_SECRET:-}" ] || ! command -v jq >/dev/null 2>&1; then
+            _TOK_ID="${CLIENT_ID:-${BSM_CLIENT_ID:-}}"
+            _TOK_SECRET="${CLIENT_SECRET:-${BSM_CLIENT_SECRET:-}}"
+            if [ -z "${_TOK_ID}" ] || [ -z "${_TOK_SECRET}" ] || ! command -v jq >/dev/null 2>&1; then
               return 1
             fi
             curl -s -o /tmp/_bsm_tok.json \
               --connect-timeout "${CURL_CONNECT_TIMEOUT:-15}" --max-time "${CURL_MAX_TIME:-45}" \
               ${_LOG_CA_ARG} -X POST "${BSM_API_URL}/api/v1/auth/token" \
               -H "Content-Type: application/x-www-form-urlencoded" \
-              -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+              -d "grant_type=client_credentials&client_id=${_TOK_ID}&client_secret=${_TOK_SECRET}" \
               >/dev/null 2>&1 || { rm -f /tmp/_bsm_tok.json; return 1; }
             _NEW_TOKEN=$(jq -r '.access_token // empty' /tmp/_bsm_tok.json 2>/dev/null)
             rm -f /tmp/_bsm_tok.json

@@ -1025,6 +1025,17 @@ def build_stage_log_path(  # pylint: disable=too-many-arguments,too-many-positio
     )
 
 
+def _relabel_like_parent(path: Path) -> None:
+    """Give ``path`` the SELinux label of its directory (no-op without SELinux)."""
+    try:
+        subprocess.run(
+            ["chcon", "--reference", str(path.parent), str(path)],
+            check=False, capture_output=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def publish_stage_log(
     domain_log_path: Path, job_id: str, summary_lines: List[str]
 ) -> str:
@@ -1047,7 +1058,11 @@ def publish_stage_log(
     job_log_path = HOST_LOG_BASE_DIR / job_id / domain_log_path.name
     try:
         job_log_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(str(domain_log_path), str(job_log_path))
+        # copyfile (not copy2): copy2 carries over the source SELinux label
+        # (var_log_t) and 0600 mode, which the BSM container cannot read.
+        shutil.copyfile(str(domain_log_path), str(job_log_path))
+        os.chmod(job_log_path, 0o644)
+        _relabel_like_parent(job_log_path)
     except (OSError, shutil.Error):
         log_secure_info(
             "error",

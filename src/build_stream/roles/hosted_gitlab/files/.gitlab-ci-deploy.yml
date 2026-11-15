@@ -230,6 +230,8 @@ list_images:
       lines.append('  BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"')
       lines.append(f'  CURL_CONNECT_TIMEOUT: "{curl_connect_timeout}"')
       lines.append(f'  CURL_MAX_TIME: "{curl_max_time}"')
+      lines.append('  CLIENT_ID: "$BSM_CLIENT_ID"')
+      lines.append('  CLIENT_SECRET: "$BSM_CLIENT_SECRET"')
       lines.append("")
 
       # --- Stages ---
