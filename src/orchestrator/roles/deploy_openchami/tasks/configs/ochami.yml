@@ -18,22 +18,6 @@
     path: "{{ openchami_work_dir }}/{{ openchami_rpm_name }}"
   register: _openchami_rpm_stat
 
-- name: Fetch latest OpenCHAMI release metadata
-  ansible.builtin.uri:
-    url: "{{ openchami_release_api_url }}"
-    return_content: true
-  register: openchami_release_info
-  retries: "{{ max_retries }}"
-  delay: "{{ max_delay }}"
-  until: openchami_release_info.status == 200
-  when: not _openchami_rpm_stat.stat.exists
-
-- name: Determine RPM download URL from release assets
-  ansible.builtin.set_fact:
-    openchami_rpm_url: >-
-      https://github.com/{{ openchami_release_repo }}/releases/download/{{ openchami_release_info.json.tag_name }}/{{ openchami_rpm_name }}
-  when: not _openchami_rpm_stat.stat.exists
-
 - name: Download the OpenCHAMI RPM from GitHub releases
   ansible.builtin.get_url:
     url: "{{ openchami_rpm_url }}"
