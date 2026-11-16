@@ -79,7 +79,7 @@ case $rc in
         # ~4 GB on the rootfs tmpfs, which combined with the ~7.8 GB installed
         # size exceeds the default 50%-of-RAM overlay on most configurations.
         DNF_CACHE_DIR="${LOCK_ROOT}/.dnf-cache/$(hostname -s)"
-        mkdir -p "$DNF_CACHE_DIR"
+        mkdir -p "$DNF_CACHE_DIR" || { echo "[ERROR] Failed to create dnf cache directory on NFS"; "$LOCK_MGR" release; exit 1; }
         # Copy host repository configuration to installroot (only for manual mode)
         if [ "$MANUAL_MODE" = "true" ]; then
             mkdir -p /cuda/etc/yum.repos.d
