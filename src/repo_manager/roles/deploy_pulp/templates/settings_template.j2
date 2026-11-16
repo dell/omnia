@@ -16,6 +16,9 @@ CONTENT_ORIGIN = {{ pulp_base_url | to_json }}
 TOKEN_AUTH_DISABLED = True
 SECRET_KEY = {{ pulp_secret_key | to_json }}
 
+# do not send analytics to pulpproject.org by default.
+ANALYTICS = False
+
 import aiohttp
 aiohttp.client.DEFAULT_TIMEOUT = aiohttp.ClientTimeout(
     total=7200,
