@@ -82,7 +82,7 @@ PLACEHOLDER_INPUTS = ("secret.yaml", "values.yaml")
 POWERSCALE_EXAMPLES = (TEST_ROOT.parent / "src" / "orchestrator" / "examples"
                        / "powerscale_reference_files" / "CSI_driver")
 FIRST_STAGE, LAST_STAGE = "initialization", "summary"
-PASSWORD_VAR = "SVT_TARGET_PASS"
+OIM_LOGIN_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 # Global keys: config section.key -> CI/CD variable.
 GLOBAL_VARIABLES = {
@@ -472,7 +472,7 @@ def _commit(client: GitLabClient, project_id: int, branch: str,
 
 def _set_password(client: GitLabClient, project_id: int, cluster: str) -> None:
     """Store a cluster's OIM SSH password as a masked, protected variable (never printed)."""
-    key = f"{prefix(cluster)}_{PASSWORD_VAR}"
+    key = f"{prefix(cluster)}_{OIM_LOGIN_VAR}"
     value = os.environ.get(key) or getpass.getpass(f"OIM SSH password of {cluster} ({key}): ")
     if not value:
         print(f"  {key} not set (use {prefix(cluster)}_SVT_SSH_KEY, a file variable, instead)")
