@@ -25,6 +25,7 @@
     image_tar: "{{ oci_ingest_pull.tar }}"
     rootfs_dir: "{{ oci_ingest_pull.workdir }}/rootfs"
     scratch_dir: "{{ oci_ingest_pull.workdir }}/scratch"
+    layer_media_types: "{{ oci_ingest_layer_media_types }}"
   register: _oci_flatten
 
 - name: Remove the export archive to reclaim space

@@ -26,6 +26,24 @@
   register: _oci_manifest_result
   changed_when: false
 
+- name: Record layer media types from the platform manifest
+  ansible.builtin.set_fact:
+    oci_ingest_layer_media_types: "{{ (_oci_manifest_result.stdout | from_json).layers | map(attribute='mediaType') | list }}"
+
+- name: Verify the zstd binary when the image has zstd layers
+  ansible.builtin.command: "command -v zstd"
+  register: _oci_zstd_check
+  changed_when: false
+  failed_when: false
+  when: oci_ingest_layer_media_types | select('search', 'zstd') | list | length > 0
+
+- name: Fail when zstd layers need the zstd binary that is not installed
+  ansible.builtin.fail:
+    msg: "{{ zstd_missing_msg }}"
+  when:
+    - oci_ingest_layer_media_types | select('search', 'zstd') | list | length > 0
+    - _oci_zstd_check.rc | default(0) != 0
+
 - name: Check free space (3x compressed layer size) before pulling
   ansible.builtin.command: "df --output=avail -B1 {{ oci_ingest_workdir }}"
   register: _oci_df

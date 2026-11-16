@@ -37,3 +37,6 @@ space_fail_msg: >-
   Insufficient free space (phase: pull) in {{ oci_ingest_workdir }}: required {{ _oci_required_bytes }} bytes
   ({{ oci_ingest_space_factor }}x the {{ _oci_layer_bytes }}-byte compressed layers), available
   {{ _oci_available_bytes }} bytes. No layer was pulled.
+zstd_missing_msg: >-
+  Image '{{ oci_ingest_pull.pinned }}' has zstd-compressed layers, but the zstd binary is not installed
+  on the OIM (phase: pull). Install the zstd package, then retry. Nothing was exported.

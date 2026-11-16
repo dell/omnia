@@ -20,13 +20,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import posixpath
 import shutil
 import subprocess
 import tarfile
-from typing import Iterable
+from typing import Iterable, Iterator
 
 WHITEOUT_PREFIX = ".wh."
 OPAQUE_MARKER = ".wh..wh..opq"
@@ -39,6 +40,13 @@ class UnsafeLayerError(Exception):
 
 class BootSetError(Exception):
     """The image does not hold a usable boot set."""
+
+
+class UnsupportedLayerError(Exception):
+    """A layer uses a media type or compressor this utility cannot read."""
+
+
+TAR_EXTRACT_OPTS = ["--numeric-owner", "--xattrs", "--xattrs-include=*", "--acls", "--exclude=.wh.*"]
 
 
 def _normalize(name: str) -> str:
@@ -131,6 +139,54 @@ def _remove(path: str) -> None:
         shutil.rmtree(path)
 
 
+def compression_for(media_type: str) -> str:
+    """Map a layer media type from the image manifest to a decompression method.
+
+    Returns "zstd" for zstd-compressed tar layers and "auto" for gzip or uncompressed tar
+    layers, which tar detects itself. Any other media type is rejected.
+    """
+    kind = media_type.lower()
+    if "tar" in kind:
+        if kind.endswith("zstd"):
+            return "zstd"
+        if kind.endswith(("gzip", "gz", "tar")):
+            return "auto"
+    raise UnsupportedLayerError(f"unsupported layer media type: {media_type}")
+
+
+@contextlib.contextmanager
+def _open_layer(layer: str, compression: str) -> Iterator[tarfile.TarFile]:
+    """Open one layer for scanning; zstd layers are streamed through the zstd binary."""
+    if compression != "zstd":
+        with tarfile.open(layer, "r:*") as tar:
+            yield tar
+        return
+    proc = subprocess.Popen(["zstd", "-dc", layer], stdout=subprocess.PIPE)
+    try:
+        with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
+            yield tar
+    finally:
+        proc.stdout.close()
+        rc = proc.wait()
+    if rc:
+        raise UnsupportedLayerError(f"zstd failed to decompress a layer (exit {rc})")
+
+
+def _extract_layer(layer: str, root: str, compression: str) -> None:
+    """Apply one layer into root with ownership, xattrs and ACLs preserved."""
+    if compression != "zstd":
+        subprocess.run(["tar", "-xpf", layer, "-C", root, *TAR_EXTRACT_OPTS],
+                       check=True, capture_output=True)
+        return
+    zst = subprocess.Popen(["zstd", "-dc", layer], stdout=subprocess.PIPE)
+    untar = subprocess.run(["tar", "-xpf", "-", "-C", root, *TAR_EXTRACT_OPTS],
+                           stdin=zst.stdout, capture_output=True, check=False)
+    zst.stdout.close()
+    rc = zst.wait()
+    if rc or untar.returncode:
+        raise subprocess.CalledProcessError(untar.returncode or rc, ["tar"], stderr=untar.stderr)
+
+
 def read_layers(image_tar: str, scratch: str) -> list[str]:
     """Extract manifest.json and the layer blobs from the exported archive, in order."""
     os.makedirs(scratch, exist_ok=True)
@@ -151,26 +207,30 @@ def read_layers(image_tar: str, scratch: str) -> list[str]:
         return out
 
 
-def flatten_layers(layer_files: list[str], root: str) -> dict:
-    """Apply layers in order with whiteout semantics into root."""
+def flatten_layers(layer_files: list[str], root: str, media_types: list[str] | None = None) -> dict:
+    """Apply layers in order with whiteout semantics into root.
+
+    media_types, when given, holds the manifest media type of each layer in the same order.
+    """
     os.makedirs(root, exist_ok=True)
+    compressions = [compression_for(m) for m in media_types] if media_types else ["auto"] * len(layer_files)
+    if len(compressions) != len(layer_files):
+        raise UnsupportedLayerError("layer media types do not match the layers in the image")
+    if "zstd" in compressions and shutil.which("zstd") is None:
+        raise UnsupportedLayerError("zstd layers are present but the zstd binary is not installed on the OIM")
     whiteouts = 0
     entries = 0
-    for layer in layer_files:
+    for layer, compression in zip(layer_files, compressions):
         layer_symlinks: set[str] = set()
         markers = []
-        with tarfile.open(layer, "r:*") as tar:
+        with _open_layer(layer, compression) as tar:
             for member in tar:
                 path = check_member(member, root, layer_symlinks)
                 entries += 1
                 if posixpath.basename(path).startswith(WHITEOUT_PREFIX):
                     markers.append(path)
         whiteouts += apply_whiteouts(root, markers)
-        subprocess.run(
-            ["tar", "-xpf", layer, "-C", root, "--numeric-owner", "--xattrs", "--xattrs-include=*",
-             "--acls", "--exclude=.wh.*"],
-            check=True, capture_output=True,
-        )
+        _extract_layer(layer, root, compression)
     return {"layers": len(layer_files), "entries": entries, "whiteouts": whiteouts}
 
 

@@ -37,43 +37,61 @@
     msg: "{{ tool_missing_msg }}"
   when: _oci_missing_prepare_tools | length > 0
 
-- name: Check OS tools
+# OS packages are NOT installed by this utility (ER prerequisites). Missing tools fail the precheck.
+# - name: Check OS tools
+#   ansible.builtin.command: "command -v {{ item.name }}"
+#   loop: "{{ oci_ingest_os_tools }}"
+#   register: _oci_os_tool_check
+#   changed_when: false
+#   failed_when: false
+#
+# - name: Build the list of missing OS packages
+#   ansible.builtin.set_fact:
+#     _oci_missing_os_tools: >-
+#       {{ _oci_os_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
+#
+# - name: Install missing OS packages
+#   ansible.builtin.package:
+#     name: "{{ _oci_missing_os_tools | map(attribute='package') | list }}"
+#     state: present
+#   when: _oci_missing_os_tools | length > 0
+#   become: true
+#
+# - name: Verify OS tools after installation
+#   ansible.builtin.command: "command -v {{ item.name }}"
+#   loop: "{{ _oci_missing_os_tools }}"
+#   register: _oci_os_tool_verify
+#   changed_when: false
+#   failed_when: false
+#   when: _oci_missing_os_tools | length > 0
+#
+# - name: Build the list of OS tools still missing
+#   ansible.builtin.set_fact:
+#     _oci_still_missing: >-
+#       {{ _oci_os_tool_verify.results | default([]) | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0)
+#          | map(attribute='item') | list }}
+#
+# - name: Fail when an OS tool is still missing
+#   ansible.builtin.fail:
+#     msg: "{{ tool_install_fail_msg }}"
+#   when: _oci_still_missing | length > 0
+
+- name: Check OS tools (verify only)
   ansible.builtin.command: "command -v {{ item.name }}"
   loop: "{{ oci_ingest_os_tools }}"
   register: _oci_os_tool_check
   changed_when: false
   failed_when: false
 
-- name: Build the list of missing OS packages
+- name: Build the list of missing OS tools
   ansible.builtin.set_fact:
     _oci_missing_os_tools: >-
       {{ _oci_os_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
 
-- name: Install missing OS packages
-  ansible.builtin.package:
-    name: "{{ _oci_missing_os_tools | map(attribute='package') | list }}"
-    state: present
-  when: _oci_missing_os_tools | length > 0
-  become: true
-
-- name: Verify OS tools after installation
-  ansible.builtin.command: "command -v {{ item.name }}"
-  loop: "{{ _oci_missing_os_tools }}"
-  register: _oci_os_tool_verify
-  changed_when: false
-  failed_when: false
-  when: _oci_missing_os_tools | length > 0
-
-- name: Build the list of OS tools still missing
-  ansible.builtin.set_fact:
-    _oci_still_missing: >-
-      {{ _oci_os_tool_verify.results | default([]) | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0)
-         | map(attribute='item') | list }}
-
-- name: Fail when an OS tool is still missing
+- name: Fail when an OS tool is missing
   ansible.builtin.fail:
-    msg: "{{ tool_install_fail_msg }}"
-  when: _oci_still_missing | length > 0
+    msg: "{{ os_tool_missing_msg }}"
+  when: _oci_missing_os_tools | length > 0
 
 - name: Check S3 configuration file
   ansible.builtin.stat:

@@ -26,7 +26,7 @@ import shutil
 import subprocess
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.oci_rootfs import UnsafeLayerError, flatten_layers, read_layers
+from ansible.module_utils.oci_rootfs import UnsafeLayerError, UnsupportedLayerError, flatten_layers, read_layers
 
 DOCUMENTATION = r"""
 ---
@@ -50,6 +50,11 @@ options:
     description: Directory for extracted layer blobs; removed on completion.
     type: path
     required: true
+  layer_media_types:
+    description: Manifest media type of each layer, in layer order. Selects gzip, zstd or plain tar handling.
+    type: list
+    elements: str
+    default: []
 """
 
 
@@ -58,7 +63,8 @@ def main() -> None:
     module = AnsibleModule(
         argument_spec={"image_tar": {"type": "path", "required": True},
                        "rootfs_dir": {"type": "path", "required": True},
-                       "scratch_dir": {"type": "path", "required": True}},
+                       "scratch_dir": {"type": "path", "required": True},
+                       "layer_media_types": {"type": "list", "elements": "str", "default": []}},
     )
     params = module.params
     if os.geteuid() != 0:
@@ -70,8 +76,8 @@ def main() -> None:
         shutil.rmtree(params["rootfs_dir"])
     try:
         layers = read_layers(params["image_tar"], params["scratch_dir"])
-        result = flatten_layers(layers, params["rootfs_dir"])
-    except UnsafeLayerError as exc:
+        result = flatten_layers(layers, params["rootfs_dir"], params["layer_media_types"] or None)
+    except (UnsafeLayerError, UnsupportedLayerError) as exc:
         shutil.rmtree(params["rootfs_dir"], ignore_errors=True)
         module.fail_json(msg=f"layer extraction rejected (phase: extraction): {exc}")
     except (subprocess.CalledProcessError, OSError) as exc:
