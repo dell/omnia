@@ -40,7 +40,8 @@ they name and can be repeated.
 Files committed: .gitlab-ci.yml (one trigger job per cluster, each holding the
 cluster's resource group), .gitlab-ci-svt-<theme>.yml (the jobs: the theme's stages
 and the configured timeouts), svt_ci.py, the config (reference copy) and, per
-cluster, clusters/<name>/svt/user_inputs.yml and <theme>_test_config.yml
+cluster, clusters/<name>/svt/user_inputs.yml and <theme>_test_config.yml (and header-only
+secret.yaml and values.yaml, which are never replaced: the user pastes the PowerScale CSI files)
 (copied from test/system_test on --create, or with --update-inputs; edit
 them in GitLab). The pipeline never starts on a push: run it from CI/CD >
 Pipelines, the API or a schedule.
@@ -76,6 +77,7 @@ from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
 PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
+PLACEHOLDER_INPUTS = ("secret.yaml", "values.yaml")
 FIRST_STAGE, LAST_STAGE = "initialization", "summary"
 PASSWORD_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
@@ -108,6 +110,7 @@ CLUSTER_VARIABLES = {
     ("omnia", "checkout_mode"): "SVT_CHECKOUT_MODE",
     ("svt", "clean_reinstall"): "SVT_CLEAN_REINSTALL",
     ("svt", "skip_stages"): "SVT_SKIP_STAGES",
+    ("svt", "user_inputs"): "SVT_USER_INPUTS",
     ("", "theme"): "SVT_THEME",
     ("", "secret_path"): "BAO_DATA_PATH",
 }
@@ -434,6 +437,15 @@ def _input_files(config: Dict[str, Any]) -> List[Tuple[str, str]]:
             for cluster in config["clusters"] for name in names]
 
 
+def _placeholder_files(config: Dict[str, Any]) -> List[Tuple[str, str]]:
+    """Return (repo path, content) of the header-only secret.yaml and values.yaml of every
+    cluster. The user pastes the PowerScale CSI files there after the setup, so they are only
+    ever added when missing, never replaced (not even by --update-inputs)."""
+    return [(f"clusters/{cluster}/svt/{name}", (SVT_ROOT / name).read_text(encoding="utf-8"))
+            for cluster in config["clusters"] for name in PLACEHOLDER_INPUTS
+            if (SVT_ROOT / name).is_file()]
+
+
 def _commit(client: GitLabClient, project_id: int, branch: str,
             files: List[Tuple[str, str]], only_missing: bool = False) -> None:
     """Commit ``files``; with ``only_missing`` a file already in the project is kept."""
@@ -535,6 +547,7 @@ def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -
     _commit(client, project_id, branch, _files(config, config_path))
     _commit(client, project_id, branch, _input_files(config),
             only_missing=not args.update_inputs)
+    _commit(client, project_id, branch, _placeholder_files(config), only_missing=True)
     for name, value in sorted(ci_variables(config).items()):
         print(f"  {client.set_variable(project_id, name, value)} {name} = {value}")
     if args.create or args.set_password:

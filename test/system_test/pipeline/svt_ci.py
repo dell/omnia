@@ -24,7 +24,9 @@ cluster is used as <NAME> and the inputs come from clusters/<name>/svt/::
     svt_ci.py checkout           clone / update / keep the Omnia checkout, copy svt/ inputs
     svt_ci.py initialization     ./setup_env.sh --configure, --install --yes [--force]
                                  (cleanup first), --domain-creds-stdin (OpenBao JSON on
-                                 stdin), then ./run_validation.sh svt_<theme> initialization
+                                 stdin), ./setup_env.sh --stage-files (PowerScale CSI files,
+                                 only when enabled), then ./run_validation.sh svt_<theme>
+                                 initialization
     svt_ci.py stage <stage>      ./run_validation.sh svt_<theme> <stage> --retry
     svt_ci.py summary            ./run_validation.sh svt_<theme> summary, the SVT report,
                                  the email; fails when any job or stage failed
@@ -40,7 +42,8 @@ SVT_TARGET_USER, SVT_TARGET_PASS (masked) or SVT_SSH_KEY (file variable),
 SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key; required unless
 SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
-SVT_THEME, SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
+SVT_THEME, SVT_USER_INPUTS (name of the cluster's inputs file in clusters/<name>/svt/,
+default user_inputs.yml), SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
 SVT_CREDENTIAL_DOMAINS, SVT_LABEL, BAO_SERVER_URL, BAO_AUTH_ROLE,
 BAO_DATA_PATH, BAO_CACERT (optional file variable: verify OpenBao with this CA;
 BAO_TLS_SKIP_VERIFY=false: verify with the system CA store),
@@ -105,6 +108,27 @@ def apply_cluster() -> None:
         if key.startswith(head) and value.strip():
             os.environ[key[len(head):]] = value
     os.environ.setdefault("SVT_LABEL", cluster)
+
+
+USER_INPUTS = "user_inputs.yml"
+# PowerScale CSI files of a cluster: clusters/<name>/svt/secret.yaml and values.yaml in the
+# project, copied next to user_inputs.yml. ./setup_env.sh --stage-files then
+# moves them to the paths of omnia_config.yml, but only when enable_powerscale_csi is true.
+POWERSCALE_FILES = ("secret.yaml", "values.yaml")
+USER_INPUTS_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\.ya?ml")
+
+
+def _inputs_name() -> str:
+    """Return the file of the project folder that holds this cluster's inputs.
+
+    SVT_USER_INPUTS (the cluster's variable <PREFIX>_SVT_USER_INPUTS) names it; empty means
+    user_inputs.yml. It is a file name, never a path, so it cannot leave the folder.
+    """
+    name = _env("SVT_USER_INPUTS") or USER_INPUTS
+    if not USER_INPUTS_NAME.fullmatch(name) or ".." in name:
+        _fail(f"SVT_USER_INPUTS must be the name of a .yml/.yaml file (letters, digits, _ . -), "
+              f"no folder, got {name!r}")
+    return name
 
 
 def _inputs_dir() -> str:
@@ -463,6 +487,10 @@ def _deletable(path: str) -> bool:
 def checkout() -> int:
     """Update, recreate or keep the Omnia checkout; copy the svt/ inputs into it."""
     path, mode = _install_path(), _env("SVT_CHECKOUT_MODE", "update")
+    chosen = _inputs_name()
+    if chosen != USER_INPUTS and not os.path.isfile(os.path.join(_inputs_dir(), chosen)):
+        _fail(f"{os.path.join(_inputs_dir(), chosen)} is not in the project: SVT_USER_INPUTS names "
+              f"it; add the file or clear the variable to use {USER_INPUTS}")
     repo, branch = _env("SVT_OMNIA_REPO"), _env("SVT_OMNIA_BRANCH")
     if mode not in CHECKOUT_MODES:
         _fail(f"SVT_CHECKOUT_MODE must be {', '.join(CHECKOUT_MODES)}, got {mode!r}")
@@ -491,8 +519,8 @@ def checkout() -> int:
         stream.write(commit.decode(errors="replace").strip())
     _check_svt_scripts(shlex.quote(_svt_dir()))
     theme = _theme()
-    for name in ("user_inputs.yml", f"{theme}_test_config.yml"):
-        local = os.path.join(_inputs_dir(), name)
+    for source, name in ((chosen, USER_INPUTS), (f"{theme}_test_config.yml",) * 2):
+        local = os.path.join(_inputs_dir(), source)
         if not os.path.isfile(local):
             _say(f"{local} not in the project: the checkout's own file is used")
             continue
@@ -502,7 +530,30 @@ def checkout() -> int:
         if rc != 0:
             _fail(f"could not copy {local} to the OIM")
         _say(f"{local} -> {_svt_dir()}/{name}")
+    _copy_powerscale_files()
     return 0
+
+
+def _copy_powerscale_files() -> None:
+    """Make the PowerScale files on the OIM the ones of the project (plaintext, mode 0600,
+    content on stdin only); a file that is not in the project is removed there.
+
+    Whether they are used is decided on the OIM by ./setup_env.sh --stage-files (only when
+    enable_powerscale_csi is true, then both must exist). They are copied again on every run:
+    the orchestrator encrypts its copy in place with a key a clean reinstall deletes.
+    """
+    for name in POWERSCALE_FILES:
+        local = os.path.join(_inputs_dir(), name)
+        target = shlex.quote(f"{_svt_dir()}/{name}")
+        if not os.path.isfile(local):
+            remote(f"rm -f {target}")
+            continue
+        with open(local, "rb") as stream:
+            content = stream.read()
+        rc, _ = remote(f"umask 077 && cat > {target}", stdin=content)
+        if rc != 0:
+            _fail(f"could not copy {local} to the OIM")
+        _say(f"{local} -> {_svt_dir()}/{name}")
 
 
 def _when(text: str) -> Optional[datetime]:
@@ -534,7 +585,7 @@ def _record_run() -> None:
 
 
 def initialization() -> int:
-    """Clean reinstall, credentials, then the initialization stage of the theme.
+    """Clean reinstall, credentials, the PowerScale files, then the initialization stage.
 
     configure and install (with --force: cleanup first) run detached, so a
     dropped SSH connection does not stop them; only the short credential step
@@ -555,6 +606,10 @@ def initialization() -> int:
                        "--domain-creds-stdin", stdin=payload)
     elif rc == 0:
         _say("BAO_SERVER_URL not set: the credential stores already on the OIM are used")
+    if rc == 0:
+        _say("on the OIM: ./setup_env.sh --stage-files (PowerScale CSI files, only when enabled)")
+        rc, _ = remote(f"cd {shlex.quote(_svt_dir())} && ./setup_env.sh --theme {theme} "
+                       "--stage-files")
     if rc != 0:
         _say(f"./setup_env.sh failed (rc={rc}); the summary still reports the run")
         return rc

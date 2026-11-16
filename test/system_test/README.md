@@ -27,7 +27,7 @@ FVT runner call (`test/<domain>/_run.py fvt_<domain> ...`), defined as data in
 | Owner suite | Used by the SVT for |
 |---|---|
 | `test/main` | `cleanup` (`omnia.sh --cleanup`) |
-| `test/orchestrator`, `test/image_build_manager`, `test/repo_manager` | their `cleanup` tag; their test requirements in the Omnia venv |
+| `test/orchestrator`, `test/discovery`, `test/image_build_manager`, `test/repo_manager`, `test/telemetry` | their `cleanup` tag (discovery and telemetry only when they hold deployed state); their test requirements in the Omnia venv |
 | `test/build_stream` | `prepare_base`, `precheck`, `prepare`, `execute` (exec and verify), `cleanup`; its `setup_env.sh` writes every domain credential store |
 
 ## Quick start (on the OIM, as root)
@@ -41,6 +41,21 @@ ${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipelin
 ./setup_env.sh --status              # the run, the steps and the readiness checks, in a box
 ./run_validation.sh svt_build_stream all
 ```
+
+Optional inputs, all in `user_inputs.yml` (see [docs/SETUP.md](docs/SETUP.md)):
+
+- **PowerVault:** `orchestrator.storage_config.powervault_config`: give `ip` (a list or comma
+  separated), `iscsi_initiator` and `volume_id`; the other keys are defaults. Without an `ip`
+  there is no PowerVault.
+- **PowerScale CSI:** `enable_powerscale_csi: true` in `omnia_config`, with the real content pasted
+  into `secret.yaml` and `values.yaml` next to `user_inputs.yml` (they ship with only the Dell
+  header). They are copied to the paths of `omnia_config.yml`
+  (default: the orchestrator's project input folder, written from `$ORCHESTRATOR_DATA_PATH` and
+  `$OMNIA_PROJECT_NAME`) by the last step of `./setup_env.sh`, or by `./setup_env.sh --stage-files`,
+  only when it is true; then both files must exist.
+- **Another inputs file:** in the GitLab pipeline each cluster picks its file with the variable
+  `<CLUSTER>_SVT_USER_INPUTS` (default `user_inputs.yml`); by hand, `dataset_generator/generate_dataset.py
+  --inputs <file>` fills the `src` inputs from any file with the same syntax.
 
 For a clean installation, remove the previous one first:
 
@@ -87,8 +102,8 @@ The tests are data in [`library/vars/test_case_vars.py`](library/vars/test_case_
 
 | Doc | Contents |
 |---|---|
-| [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, status), `user_inputs.yml`, the dataset generator |
-| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, NFS shares ...), the report |
+| [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, PowerScale files, status), `user_inputs.yml` (PowerVault, PowerScale CSI), the dataset generator |
+| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, discovery, NFS shares ...), the report |
 | [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |
 | [docs/PIPELINE.md](docs/PIPELINE.md) | Run the SVT from GitLab: how it works, where each secret goes, setup, **updating an existing pipeline**, troubleshooting |
@@ -103,10 +118,14 @@ test/system_test/
 │                                PIPELINE_CONFIG.md
 ├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
 ├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
+├── user_inputs.yml              the cluster values
+├── secret.yaml, values.yaml     PowerScale CSI: header-only placeholders, the real content is pasted
+│                                in the cluster's folder of the GitLab project (or here, by hand)
 ├── run_validation.sh, _run.py   SVT runner: svt_<theme> list | <stage> | all
 ├── requirements.txt             SVT .venv: pytest, pytest-order, PyYAML, ruamel.yaml, omnia_auto
 ├── conftest.py, pytest.ini      markers (theme and stage), results for summary
-├── dataset_generator/           dataset_edit.py: the comment-preserving YAML edit of config_func
+├── dataset_generator/           user_inputs.yml -> src inputs (dataset_merge.py: the merge, PowerVault,
+│                                $NAME paths; dataset_edit.py: the comment-preserving YAML edit)
 ├── library/
 │   ├── vars/                    every constant: common_vars (paths, file names, settings keys),
 │   │                            nfs_vars (NFS cleanup), report_vars (the SVT report), theme_vars

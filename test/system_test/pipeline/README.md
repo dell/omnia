@@ -31,6 +31,22 @@ export GITLAB_TOKEN=<token>
 `--update` commits the generated CI files and `svt_ci.py` and sets the CI/CD variables.
 `--update-inputs` also replaces each cluster's `clusters/<name>/svt/` inputs in the project with the
 `user_inputs.yml` and `<theme>_test_config.yml` of this checkout: use it to push new lab values.
+It never replaces the `secret.yaml` and `values.yaml` of a cluster: they hold what the user pasted
+(see the next section).
+
+### Inputs of a cluster
+
+Each cluster has its own folder `clusters/<name>/svt/` in the project; edit the files there in
+GitLab. The checkout job copies them to the OIM's `test/system_test/`:
+
+| File in `clusters/<name>/svt/` | Used for |
+|---|---|
+| `user_inputs.yml` (or the file named by `svt.user_inputs`) | The cluster values. Keep several files with the same syntax (`user_inputs_ib.yml` ...) and choose one by changing the CI/CD variable `<PREFIX>_SVT_USER_INPUTS` (Settings > CI/CD > Variables, or `svt.user_inputs` with `--set-variables`). Empty means `user_inputs.yml`. A plain `.yml`/`.yaml` file name; a name that is not in the project fails the job before the OIM is touched |
+| `<theme>_test_config.yml` | The theme's settings |
+| `secret.yaml`, `values.yaml` | PowerScale CSI. `--create` adds them with only the Dell header; paste the real content after the setup (they are only added when missing, never replaced). Only used when `enable_powerscale_csi` is true in the cluster's inputs: the initialization job runs `./setup_env.sh --stage-files` after the install, which copies them to the paths of `omnia_config.yml` (default: the orchestrator's project input folder, `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/`). When it is true both must exist and have content (the header-only placeholder fails the job and says which file), or the job fails and says which is missing. Keep placeholders for the array user and password: they come from the orchestrator credentials in OpenBao. Templates: `src/orchestrator/examples/powerscale_reference_files/CSI_driver/` |
+
+A `secret.yaml` or `values.yaml` that is not in the project is removed from the OIM's
+`test/system_test/`, so a run never uses a file left by an earlier one.
 
 ### Change the project after it is up
 
@@ -40,7 +56,7 @@ files it started from; start a new one.
 | You change | Run | Notes |
 |---|---|---|
 | The **theme** of a cluster (`clusters.<name>.theme`, in the cluster block only) | change the variable `<PREFIX>_SVT_THEME` | The pipeline picks the theme from this CI/CD variable (one trigger job per cluster and theme; the child files of every theme are committed), so edit it in Settings > CI/CD > Variables or give it in Run pipeline: no `--update`. To make the config say the same: edit `clusters.<name>.theme`, then `--set-variables`. The first job fails on an unknown theme. Not an SVT input (`user_inputs.yml` is for the cluster's values) |
-| The **email** (recipients, SMTP), polling, log limit, a cluster's `skip_stages`, `clean_reinstall`, branch, path, `checkout_mode`, `enabled` | `--set-variables` | Rewrites only the CI/CD variables; no file is committed. One value can also be edited in Settings > CI/CD > Variables (the next `--update`/`--set-variables` writes the config's value again) |
+| The **email** (recipients, SMTP), polling, log limit, a cluster's `skip_stages`, `clean_reinstall`, `user_inputs` (its inputs file), branch, path, `checkout_mode`, `enabled` | `--set-variables` | Rewrites only the CI/CD variables; no file is committed. One value can also be edited in Settings > CI/CD > Variables (the next `--update`/`--set-variables` writes the config's value again) |
 | Timeouts, a new SVT release, the stages | `--update` | They are in the generated CI files |
 | A new cluster | `--create` on the existing project | Adds the cluster; `--scan-host-keys` for its OIM |
 

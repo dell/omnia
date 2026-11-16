@@ -36,7 +36,10 @@
 #   optional   "" (or []) is written as empty, so clearing a value here clears
 #              it in the input file too. Exceptions: a blank source of the
 #              vast_storage, nfs_slurm or nfs_k8s mount comments that mount out
-#              of storage_config.yml, a blank catalog keeps the default one.
+#              of storage_config.yml, a blank catalog keeps the default one, and
+#              a PowerVault without ip, iscsi_initiator and volume_id is not
+#              written to storage_config.yml.
+#   Keep the quotes around IPs, versions and paths.
 #   Keep the quotes around IPs, versions and paths.
 #
 # Layout: one block per module, in this order
@@ -385,6 +388,27 @@ orchestrator:
   # |   Give the source again and rerun to turn the mount on.                  |
   # |   The sources below are sample values; point                             |
   # |   them at NFS exports that exist.                                        |
+  # |                                                                          |
+  # |   powervault_config  optional: a Dell PowerVault volume over iSCSI.      |
+  # |   How it works: each node of functional_group_prefix logs in to the      |
+  # |   array (iSCSI discovery on every ip, port, with iscsi_initiator as the  |
+  # |   host IQN), multipath finds the volume whose WWN is volume_id, formats  |
+  # |   it (fs_type) once, and mounts it on mount_point with mnt_opts. For     |
+  # |   every node_mount_point a per-host folder (node_key, the host name) on  |
+  # |   the volume is bound, e.g. /mnt/slurm/<host>/var/lib/mysql.             |
+  # |   Give the three values of YOUR array:                                   |
+  # |     ip               list of controller addresses, or one string         |
+  # |                      separated by commas                  MANDATORY      |
+  # |     iscsi_initiator  iqn.<date>.<domain>:<identifier>     with an ip     |
+  # |     volume_id        volume WWN, hex digits               with an ip     |
+  # |   Without an ip there is no PowerVault: the item is ignored (and a block |
+  # |   of an earlier run is removed). With an ip the other two are required.  |
+  # |   Everything else is a default (port 3260, mount_point /mnt/slurm, xfs,  |
+  # |   mnt_opts defaults,_netdev,noatime, node_key local_hostname, bound      |
+  # |   /var/lib/mysql and /var/spool/slurm, group slurm_control_node,         |
+  # |   permissions slurm:slurm 0750): not listed here; add a key to the item  |
+  # |   only to change it. Several PowerVaults: add items (name is optional,   |
+  # |   default powervault<N>).                                                |
   # +--------------------------------------------------------------------------+
   storage_config:
     mounts:
@@ -397,6 +421,10 @@ orchestrator:
       - name: "vast_storage"
         source: ""
         mount_point: "/mnt/vast"
+    powervault_config:
+      - ip: []
+        iscsi_initiator: ""
+        volume_id: ""
 
   # +--------------------------------------------------------------------------+
   # | omnia_config.yml - Kubernetes service cluster                            |
@@ -411,8 +439,24 @@ orchestrator:
   # |   Options:                                                               |
   # |     enable_k8s_ha, etcd_on_local_disk   true | false                     |
   # |     k8s_bootstrap_token_ttl             join token lifetime, e.g. "2h"   |
-  # |   PowerScale CSI (optional): enable_powerscale_csi true needs the secret |
-  # |   and values file paths.                                                 |
+  # |   PowerScale CSI (optional): enable_powerscale_csi true needs the two    |
+  # |   files below. secret.yaml and values.yaml sit next to this file with    |
+  # |   only the Dell header: paste the real content (templates: src/          |
+  # |   orchestrator/examples/powerscale_reference_files/CSI_driver/) in the   |
+  # |   GitLab project, clusters/<cluster>/svt/, or by hand in                 |
+  # |   test/system_test/. Only when it is true, ./setup_env.sh (the last step,|
+  # |   or --stage-files) copies them to the two paths, after the install,     |
+  # |   because the clean reinstall deletes that folder; both must exist and   |
+  # |   have content or the step fails and says which. With false nothing is   |
+  # |   copied. The paths may use $NAME of omnia.env (OMNIA_DATA_PATH,         |
+  # |   OMNIA_PROJECT_NAME, ORCHESTRATOR_DATA_PATH): the project folder differs|
+  # |   per installation. The default is the orchestrator's project input      |
+  # |   folder, e.g. /opt/omnia/orchestrator/input/project_default/. The files |
+  # |   stay plaintext: the orchestrator encrypts its copy in place            |
+  # |   (ansible-vault) with a key a clean reinstall deletes, so they are      |
+  # |   copied again each run. The array user and password come from the       |
+  # |   orchestrator credentials (csi_username, csi_password in OpenBao) and   |
+  # |   replace those of secret.yaml: keep placeholders there.                 |
   # +--------------------------------------------------------------------------+
   omnia_config:
     service_k8s_cluster:
@@ -425,8 +469,8 @@ orchestrator:
         etcd_on_local_disk: true
         k8s_bootstrap_token_ttl: "2h"
         enable_powerscale_csi: false
-        csi_powerscale_driver_secret_file_path: ""
-        csi_powerscale_driver_values_file_path: ""
+        csi_powerscale_driver_secret_file_path: "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/secret.yaml"
+        csi_powerscale_driver_values_file_path: "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/values.yaml"
 
   # +--------------------------------------------------------------------------+
   # | pxe_mapping_file.csv - the nodes to provision                            |
