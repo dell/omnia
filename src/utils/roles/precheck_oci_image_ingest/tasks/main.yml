@@ -20,20 +20,60 @@
 # precheck_oci_image_ingest - verify prerequisites, take the per-project lock, create the run workdir.
 # Nothing here contacts the registry or S3.
 
-- name: Check required host tools
-  ansible.builtin.command: "which {{ item.name }}"
-  loop: "{{ oci_ingest_required_tools }}"
+- name: Check tools provided by the Image Build Manager prepare tag
+  ansible.builtin.command: "command -v {{ item.name }}"
+  loop: "{{ oci_ingest_prepare_tools }}"
   register: _oci_tool_check
   changed_when: false
   failed_when: false
 
-- name: Fail when a required tool is missing
+- name: Build the list of missing prepare-provided tools
+  ansible.builtin.set_fact:
+    _oci_missing_prepare_tools: >-
+      {{ _oci_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | map(attribute='name') | list }}
+
+- name: Fail when a prepare-provided tool is missing
   ansible.builtin.fail:
     msg: "{{ tool_missing_msg }}"
-  loop: "{{ _oci_tool_check.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  when: item.rc != 0
+  when: _oci_missing_prepare_tools | length > 0
+
+- name: Check OS tools
+  ansible.builtin.command: "command -v {{ item.name }}"
+  loop: "{{ oci_ingest_os_tools }}"
+  register: _oci_os_tool_check
+  changed_when: false
+  failed_when: false
+
+- name: Build the list of missing OS packages
+  ansible.builtin.set_fact:
+    _oci_missing_os_tools: >-
+      {{ _oci_os_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
+
+- name: Install missing OS packages
+  ansible.builtin.package:
+    name: "{{ _oci_missing_os_tools | map(attribute='package') | list }}"
+    state: present
+  when: _oci_missing_os_tools | length > 0
+  become: true
+
+- name: Verify OS tools after installation
+  ansible.builtin.command: "command -v {{ item.name }}"
+  loop: "{{ _oci_missing_os_tools }}"
+  register: _oci_os_tool_verify
+  changed_when: false
+  failed_when: false
+  when: _oci_missing_os_tools | length > 0
+
+- name: Build the list of OS tools still missing
+  ansible.builtin.set_fact:
+    _oci_still_missing: >-
+      {{ _oci_os_tool_verify.results | default([]) | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0)
+         | map(attribute='item') | list }}
+
+- name: Fail when an OS tool is still missing
+  ansible.builtin.fail:
+    msg: "{{ tool_install_fail_msg }}"
+  when: _oci_still_missing | length > 0
 
 - name: Check S3 configuration file
   ansible.builtin.stat:

@@ -17,12 +17,15 @@
 # ****
 
 ---
-oci_ingest_credential_file: "{{ input_project_dir }}/oci_image_ingest_credentials.yml"
-oci_ingest_vault_key_file: "{{ input_project_dir }}/.oci_image_ingest_credentials_key"
-oci_ingest_credential_mode: "0600"
+oci_ingest_credential_file:
+  credential_type: "OCI Image Ingest"
+  file_path: "{{ input_project_dir }}/oci_image_ingest_credentials.yml"
+  file_mode: "0600"
+  vault_path: "{{ input_project_dir }}/.oci_image_ingest_credentials_key"
 
 credential_empty_msg: "Failed. {{ _oci_cred_field }} is required and cannot be empty."
 credential_mismatch_msg: "Failed. Passwords do not match."
 credential_decrypt_fail_msg: >-
-  Failed to read {{ oci_ingest_credential_file }}. Check the vault key
-  {{ oci_ingest_vault_key_file }} or delete both files to re-enter the credentials.
+  Failed to read the stored OCI image ingest credentials. Check that the vault key matches the
+  credential file, or delete the stored credential file and its vault key from the project input
+  directory to enter the credentials again.

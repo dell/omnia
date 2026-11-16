@@ -17,22 +17,30 @@
 # ****
 
 ---
-oci_ingest_required_tools:
+# Provided by the Image Build Manager prepare tag (verified only, never installed here).
+oci_ingest_prepare_tools:
   - name: regctl
     package: "Image Build Manager --tags prepare"
   - name: s3cmd
     package: "Image Build Manager --tags prepare"
+
+# OS packages installed here when missing (same pattern as fetch_iso).
+oci_ingest_os_tools:
   - name: mksquashfs
-    package: "squashfs-tools"
+    package: squashfs-tools
   - name: tar
-    package: "tar"
+    package: tar
 
 oci_ingest_base_workdir: "{{ omnia_data_path }}/utils/workdir/{{ project_name }}/oci-image-ingest"
 
 prepare_hint: "run Image Build Manager with --tags prepare first"
 tool_missing_msg: >-
-  Precheck failed: '{{ item.item.name }}' was not found on the OIM (package/source: {{ item.item.package }}).
-  For regctl and s3cmd, {{ prepare_hint }}. For mksquashfs install the squashfs-tools package.
+  Precheck failed: {{ _oci_missing_prepare_tools | join(', ') }} not found on the OIM.
+  These are provided by the Image Build Manager prepare tag; {{ prepare_hint }}.
+tool_install_fail_msg: >-
+  Precheck failed: {{ _oci_still_missing | map(attribute='name') | join(', ') }} still missing after installing
+  {{ _oci_still_missing | map(attribute='package') | join(', ') }}. Check that the OS package repositories
+  are reachable from the OIM.
 s3cfg_missing_msg: >-
   Precheck failed: {{ oci_ingest_s3cfg_path }} not found; {{ prepare_hint }}.
 lock_held_msg: >-

@@ -24,7 +24,8 @@
 #       (pull, extract, squashfs, publish) -> build_status.yml -> cleanup (always)
 # Input validation runs earlier in utils.yml (Step 1) for this tag.
 #
-# Catalog derivation is a placeholder: the existing catalog is used as-is by the Orchestrator.
+# Catalog derivation is a reserved hook (role derive_oci_ingest_catalog, not implemented): the
+# existing catalog is used as-is by the Orchestrator.
 
 - name: OCI image ingest
   hosts: localhost
@@ -59,6 +60,10 @@
         - name: Generate build_status.yml
           ansible.builtin.include_role:
             name: generate_build_status
+
+        - name: Catalog derivation hook (reserved, not implemented)
+          ansible.builtin.include_role:
+            name: derive_oci_ingest_catalog
       always:
         - name: Cleanup working directory and release the lock
           ansible.builtin.include_role:

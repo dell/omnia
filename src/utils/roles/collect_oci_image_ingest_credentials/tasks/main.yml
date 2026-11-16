@@ -27,26 +27,30 @@
     state: directory
     mode: "0755"
 
-- name: Check credential file and vault key
+- name: Check whether the stored credentials exist
   ansible.builtin.stat:
-    path: "{{ item }}"
-  loop:
-    - "{{ oci_ingest_credential_file }}"
-    - "{{ oci_ingest_vault_key_file }}"
+    path: "{{ oci_ingest_credential_file.file_path }}"
   register: _oci_cred_stat
+  no_log: true
+
+- name: Check whether the vault key exists
+  ansible.builtin.stat:
+    path: "{{ oci_ingest_credential_file.vault_path }}"
+  register: _oci_vault_stat
+  no_log: true
 
 - name: Create vault key if missing
   ansible.builtin.lineinfile:
-    path: "{{ oci_ingest_vault_key_file }}"
+    path: "{{ oci_ingest_credential_file.vault_path }}"
     line: "{{ '' | secure_random_password(32) }}"
     mode: "0600"
     owner: root
     create: true
   no_log: true
-  when: not _oci_cred_stat.results[1].stat.exists
+  when: not _oci_vault_stat.stat.exists
 
 - name: Collect and store credentials when the file is missing
-  when: not _oci_cred_stat.results[0].stat.exists
+  when: not _oci_cred_stat.stat.exists
   block:
     - name: Prompt for registry username
       ansible.builtin.pause:
@@ -81,20 +85,21 @@
     - name: Encrypt credentials directly from stdin into the credential file
       ansible.builtin.command:
         cmd: >-
-          ansible-vault encrypt --vault-password-file {{ oci_ingest_vault_key_file }}
-          --output {{ oci_ingest_credential_file }} -
+          ansible-vault encrypt --vault-password-file {{ oci_ingest_credential_file.vault_path }}
+          --output {{ oci_ingest_credential_file.file_path }} -
         stdin: "{{ {'registry_username': _oci_user_input.user_input, 'registry_password': _oci_pass_input.user_input} | to_nice_yaml }}"
       changed_when: true
       no_log: true
 
 - name: Restrict credential file permissions
   ansible.builtin.file:
-    path: "{{ oci_ingest_credential_file }}"
-    mode: "{{ oci_ingest_credential_mode }}"
+    path: "{{ oci_ingest_credential_file.file_path }}"
+    mode: "{{ oci_ingest_credential_file.file_mode }}"
+  no_log: true
 
 - name: Read credentials without writing plaintext to disk
   ansible.builtin.command:
-    cmd: "ansible-vault view --vault-password-file {{ oci_ingest_vault_key_file }} {{ oci_ingest_credential_file }}"
+    cmd: "ansible-vault view --vault-password-file {{ oci_ingest_credential_file.vault_path }} {{ oci_ingest_credential_file.file_path }}"
   register: _oci_cred_view
   changed_when: false
   no_log: true

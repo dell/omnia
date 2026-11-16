@@ -19,10 +19,14 @@
 ---
 # prefix.yml - content-addressed release prefix:
 #   <bucket>/<functional_group>/<image_name>-ingest/<tag>-<digest12>  (or sha256-<digest12> for digest refs)
+# <image_name> and the tag part are sanitized to [A-Za-z0-9._-] (every other character becomes '-').
 
 - name: Compute the release prefix
   ansible.builtin.set_fact:
-    _oci_s3_prefix: >-
-      {{ oci_ingest_bucket }}/{{ oci_ingest_mapping.functional_group }}/{{ oci_ingest_pull.repo_name }}-ingest/{{
-         'sha256-' ~ oci_ingest_pull.digest[7:19] if oci_ingest_pull.is_digest_ref
-         else oci_ingest_pull.requested_reference ~ '-' ~ oci_ingest_pull.digest[7:19] }}
+    _oci_release: >-
+      {{ 'sha256-' ~ oci_ingest_pull.digest[7:19] if oci_ingest_pull.is_digest_ref
+         else (oci_ingest_pull.requested_reference | regex_replace('[^A-Za-z0-9._-]', '-')) ~ '-' ~ oci_ingest_pull.digest[7:19] }}
+
+- name: Compute the S3 prefix
+  ansible.builtin.set_fact:
+    _oci_s3_prefix: "{{ oci_ingest_bucket }}/{{ oci_ingest_mapping.functional_group }}/{{ oci_ingest_pull.repo_name }}-ingest/{{ _oci_release }}"

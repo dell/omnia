@@ -25,7 +25,7 @@
   ansible.builtin.command:
     argv: >-
       {{ ['mksquashfs', oci_ingest_boot.rootfs_dir, oci_ingest_pull.workdir ~ '/rootfs.squashfs',
-          '-xattrs', '-noappend', '-no-progress', '-wildcards', '-e'] + oci_ingest_squashfs_excludes }}
+          '-comp', 'gzip', '-xattrs', '-noappend', '-no-progress', '-wildcards', '-e'] + oci_ingest_squashfs_excludes }}
   register: _oci_mksquashfs
   changed_when: true
   failed_when: false
@@ -48,8 +48,10 @@
     remote_src: true
     mode: "0644"
   loop:
-    - { src: "{{ oci_ingest_boot.kernel_path }}", name: "vmlinuz-{{ oci_ingest_boot.kernel_version }}" }
-    - { src: "{{ oci_ingest_boot.initrd_path }}", name: "initramfs-{{ oci_ingest_boot.kernel_version }}.img" }
+    - src: "{{ oci_ingest_boot.kernel_path }}"
+      name: "vmlinuz-{{ oci_ingest_boot.kernel_version }}"
+    - src: "{{ oci_ingest_boot.initrd_path }}"
+      name: "initramfs-{{ oci_ingest_boot.kernel_version }}.img"
 
 - name: Remove the flattened tree
   ansible.builtin.file:

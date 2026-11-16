@@ -76,7 +76,7 @@
     oci_ingest_pull:
       registry: "{{ oci_ingest_registry_refs[oci_ingest_mapping.registry_name] }}"
       repository: "{{ oci_ingest_mapping.namespace_name }}/{{ oci_ingest_mapping.image | regex_replace('[:@].*$', '') }}"
-      repo_name: "{{ oci_ingest_mapping.image | regex_replace('[:@].*$', '') | basename }}"
+      repo_name: "{{ oci_ingest_mapping.image | regex_replace('[:@].*$', '') | regex_replace('[^A-Za-z0-9._-]', '-') }}"
       requested_reference: "{{ _oci_requested_ref }}"
       is_digest_ref: "{{ _oci_is_digest_ref }}"
       digest: "{{ _oci_digest }}"

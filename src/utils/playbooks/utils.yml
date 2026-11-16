@@ -29,6 +29,7 @@
 #   ansible-playbook playbooks/utils.yml --tags cleanup         # Cleanup all utilities
 #   ansible-playbook playbooks/utils.yml --tags cleanup_logs    # Cleanup log collection only
 #   ansible-playbook playbooks/utils.yml --tags cleanup_install_os  # Cleanup OS installation only
+#   ansible-playbook playbooks/utils.yml --tags cleanup_oci_image_ingest  # Cleanup OCI image ingest only
 #   ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs  # Cleanup OIM log backups only
 #   ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_backups  # Cleanup Slurm config backups only
 #   ansible-playbook playbooks/utils.yml --tags upgrade         # Upgrade flow (placeholder)
@@ -48,6 +49,7 @@
 #   cleanup           - Cleanup all utilities, backups, and stored install-OS credentials
 #   cleanup_logs      - Cleanup log collection artifacts only
 #   cleanup_install_os - Cleanup OS installation artifacts only
+#   cleanup_oci_image_ingest - Cleanup OCI image ingest working data and credentials only
 #   cleanup_backup_oim_logs - Cleanup OIM log backup artifacts only
 #   cleanup_slurm_config_backups - Cleanup Slurm config backup artifacts only
 #   upgrade           - Upgrade flow (placeholder)
@@ -206,6 +208,13 @@
     - never
     - cleanup
     - cleanup_install_os
+
+- name: Cleanup OCI image ingest
+  ansible.builtin.import_playbook: cleanup/cleanup_oci_image_ingest.yml
+  tags:
+    - never
+    - cleanup
+    - cleanup_oci_image_ingest
 
 - name: Cleanup OIM log backups
   ansible.builtin.import_playbook: backup_oim_logs/cleanup_backup_oim_logs.yml
