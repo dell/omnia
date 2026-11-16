@@ -180,11 +180,14 @@ def _steps(args: argparse.Namespace, config: Dict[str, Any]) -> List[tuple]:
     if args.action == "all":
         return [configure, *([cleanup] if args.force else []), install,
                 ("creds", lambda: setup_func.auto_creds(
-                    config, _emit, args.yes, args.from_openbao))]
+                    config, _emit, args.yes, args.from_openbao)),
+                ("files", lambda: setup_func.stage_files(config, _emit))]
     if args.action == "install":
         return [*([cleanup] if args.force else []), install]
     if args.action == "creds":
         return [("creds", lambda: setup_func.creds(config, args.flag, args.domain, _emit))]
+    if args.action == "files":
+        return [("files", lambda: setup_func.stage_files(config, _emit))]
     return [{"configure": configure, "cleanup": cleanup}[args.action]]
 
 
