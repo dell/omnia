@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# extract_boot_artifacts - flatten the exported image (OCI whiteouts, safe paths) and select
+# the boot set. Runs as root so ownership and xattrs are preserved.
+
+- name: Flatten the image layers into a root filesystem
+  oci_flatten_image:
+    image_tar: "{{ oci_ingest_pull.tar }}"
+    rootfs_dir: "{{ oci_ingest_pull.workdir }}/rootfs"
+    scratch_dir: "{{ oci_ingest_pull.workdir }}/scratch"
+  register: _oci_flatten
+
+- name: Remove the export archive to reclaim space
+  ansible.builtin.file:
+    path: "{{ oci_ingest_pull.tar }}"
+    state: absent
+
+- name: Select the boot set
+  oci_select_boot_set:
+    rootfs_dir: "{{ oci_ingest_pull.workdir }}/rootfs"
+    kernel_version: "{{ oci_ingest_mapping.kernel_version | default('') }}"
+  register: _oci_boot
+
+- name: Log boot candidates considered
+  ansible.builtin.debug:
+    msg: >-
+      Boot candidates {{ _oci_boot.candidates }}; complete {{ _oci_boot.complete }};
+      selected {{ _oci_boot.kernel_version }} ({{ _oci_flatten.layers }} layers, {{ _oci_flatten.whiteouts }} whiteouts).
+
+- name: Expose the boot set
+  ansible.builtin.set_fact:
+    oci_ingest_boot:
+      kernel_version: "{{ _oci_boot.kernel_version }}"
+      kernel_path: "{{ _oci_boot.kernel_path }}"
+      initrd_path: "{{ _oci_boot.initrd_path }}"
+      rootfs_dir: "{{ oci_ingest_pull.workdir }}/rootfs"

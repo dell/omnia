@@ -1,0 +1,105 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# main.yml - upload kernel, initramfs and rootfs.squashfs to the (new or incomplete) release prefix,
+# verify sizes, write the marker, set public-read on that prefix only, and record the result.
+
+- name: Compute the release prefix
+  ansible.builtin.include_tasks: prefix.yml
+
+- name: Fix the publication timestamp
+  ansible.builtin.set_fact:
+    _oci_published_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+
+- name: Upload artifacts
+  block:
+    - name: Replace an incomplete prefix left by a failed run
+      ansible.builtin.command: "s3cmd del --recursive s3://{{ _oci_s3_prefix }}/"
+      when: _oci_s3_has_objects | default(false) | bool
+      changed_when: true
+
+    - name: Upload each artifact
+      ansible.builtin.command: "s3cmd put --no-progress {{ oci_ingest_pull.workdir }}/{{ item.name }} s3://{{ _oci_s3_prefix }}/{{ item.name }}"
+      loop: "{{ oci_ingest_artifacts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      changed_when: true
+
+    - name: Read back the uploaded object sizes
+      ansible.builtin.command: "s3cmd info s3://{{ _oci_s3_prefix }}/{{ item.name }}"
+      loop: "{{ oci_ingest_artifacts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _oci_s3_verify
+      changed_when: false
+
+    - name: Parse the uploaded object sizes
+      ansible.builtin.set_fact:
+        _oci_s3_uploaded_sizes: "{{ _oci_s3_verify.results | map(attribute='stdout') | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
+        _oci_s3_local_sizes: "{{ oci_ingest_artifacts | map(attribute='size_bytes') | map('int') | list }}"
+
+    - name: Verify uploaded sizes match the local artifacts
+      ansible.builtin.fail:
+        msg: "{{ s3_verify_fail_msg }}"
+      when: _oci_s3_uploaded_sizes != _oci_s3_local_sizes
+
+    - name: Write the ingest marker
+      ansible.builtin.copy:
+        content: "{{ _oci_marker_doc | to_nice_json }}"
+        dest: "{{ oci_ingest_pull.workdir }}/{{ oci_ingest_marker_name }}"
+        mode: "0644"
+      vars:
+        _oci_marker_doc:
+          digest: "{{ oci_ingest_pull.digest }}"
+          kernel_version: "{{ oci_ingest_boot.kernel_version }}"
+          published_at: "{{ _oci_published_at }}"
+          artifacts: "{{ oci_ingest_artifacts }}"
+
+    - name: Upload the marker last
+      ansible.builtin.command: "s3cmd put --no-progress {{ oci_ingest_pull.workdir }}/{{ oci_ingest_marker_name }} s3://{{ _oci_s3_prefix }}/{{ oci_ingest_marker_name }}"
+      changed_when: true
+  rescue:
+    - name: Remove partial objects of the failed mapping
+      ansible.builtin.command: "s3cmd del --recursive s3://{{ _oci_s3_prefix }}/"
+      changed_when: true
+      failed_when: false
+
+    - name: Fail naming the artifact
+      ansible.builtin.fail:
+        msg: "{{ s3_verify_fail_msg if 'Verify' in ansible_failed_task.name else s3_put_fail_msg }}"
+      vars:
+        _oci_s3_failed_item: "{{ ansible_failed_result.item.name | default('unknown') }}"
+
+- name: Set public-read ACL on the release prefix only
+  ansible.builtin.command: "s3cmd setacl --acl-public --recursive s3://{{ _oci_s3_prefix }}/"
+  register: _oci_s3_acl
+  changed_when: true
+  failed_when: false
+
+- name: Fail when the endpoint rejects the ACL operation
+  ansible.builtin.fail:
+    msg: "{{ s3_acl_fail_msg }}"
+  when: _oci_s3_acl.rc != 0
+
+- name: Record the published mapping
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _oci_rec_kernel_version: "{{ oci_ingest_boot.kernel_version }}"
+    _oci_rec_artifacts: "{{ oci_ingest_artifacts }}"
+    _oci_rec_published_at: "{{ _oci_published_at }}"

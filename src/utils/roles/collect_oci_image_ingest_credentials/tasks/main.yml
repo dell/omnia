@@ -1,0 +1,112 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# collect_oci_image_ingest_credentials - Vault-encrypted registry credentials.
+# The file is created encrypted straight from stdin and read with `ansible-vault view`,
+# so no plaintext credential ever touches disk and no secret is passed as an argument.
+
+- name: Ensure input directory exists
+  ansible.builtin.file:
+    path: "{{ input_project_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Check credential file and vault key
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ oci_ingest_credential_file }}"
+    - "{{ oci_ingest_vault_key_file }}"
+  register: _oci_cred_stat
+
+- name: Create vault key if missing
+  ansible.builtin.lineinfile:
+    path: "{{ oci_ingest_vault_key_file }}"
+    line: "{{ '' | secure_random_password(32) }}"
+    mode: "0600"
+    owner: root
+    create: true
+  no_log: true
+  when: not _oci_cred_stat.results[1].stat.exists
+
+- name: Collect and store credentials when the file is missing
+  when: not _oci_cred_stat.results[0].stat.exists
+  block:
+    - name: Prompt for registry username
+      ansible.builtin.pause:
+        prompt: "[OCI Image Ingest] Enter registry username"
+      register: _oci_user_input
+      no_log: true
+
+    - name: Prompt for registry password
+      ansible.builtin.pause:
+        prompt: "[OCI Image Ingest] Enter registry password"
+        echo: false
+      register: _oci_pass_input
+      no_log: true
+
+    - name: Confirm registry password
+      ansible.builtin.pause:
+        prompt: "[OCI Image Ingest] Confirm registry password"
+        echo: false
+      register: _oci_pass_confirm
+      no_log: true
+
+    - name: Validate prompted values
+      ansible.builtin.fail:
+        msg: "{{ credential_mismatch_msg if _oci_pass_input.user_input != _oci_pass_confirm.user_input else credential_empty_msg }}"
+      vars:
+        _oci_cred_field: registry username and password
+      when: >-
+        _oci_user_input.user_input | length == 0 or
+        _oci_pass_input.user_input | length == 0 or
+        _oci_pass_input.user_input != _oci_pass_confirm.user_input
+
+    - name: Encrypt credentials directly from stdin into the credential file
+      ansible.builtin.command:
+        cmd: >-
+          ansible-vault encrypt --vault-password-file {{ oci_ingest_vault_key_file }}
+          --output {{ oci_ingest_credential_file }} -
+        stdin: "{{ {'registry_username': _oci_user_input.user_input, 'registry_password': _oci_pass_input.user_input} | to_nice_yaml }}"
+      changed_when: true
+      no_log: true
+
+- name: Restrict credential file permissions
+  ansible.builtin.file:
+    path: "{{ oci_ingest_credential_file }}"
+    mode: "{{ oci_ingest_credential_mode }}"
+
+- name: Read credentials without writing plaintext to disk
+  ansible.builtin.command:
+    cmd: "ansible-vault view --vault-password-file {{ oci_ingest_vault_key_file }} {{ oci_ingest_credential_file }}"
+  register: _oci_cred_view
+  changed_when: false
+  no_log: true
+
+- name: Expose credentials to later roles
+  ansible.builtin.set_fact:
+    oci_ingest_credentials: "{{ _oci_cred_view.stdout | from_yaml }}"
+  no_log: true
+
+- name: Fail when stored credentials are incomplete
+  ansible.builtin.fail:
+    msg: "{{ credential_decrypt_fail_msg }}"
+  when: >-
+    (oci_ingest_credentials.registry_username | default('') | length == 0) or
+    (oci_ingest_credentials.registry_password | default('') | length == 0)

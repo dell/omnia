@@ -1,0 +1,87 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# pin.yml - resolve the reference, pin the digest for the platform and verify the architecture.
+# Every regctl call after this uses repository@<digest>. Nothing is exported here.
+
+- name: Resolve reference and platform
+  ansible.builtin.set_fact:
+    _oci_arch_key: "{{ 'aarch64' if oci_ingest_mapping.functional_group.endswith('_aarch64') else 'x86_64' }}"
+    _oci_repo_path: >-
+      {{ oci_ingest_registry_refs[oci_ingest_mapping.registry_name] }}/{{ oci_ingest_mapping.namespace_name }}/{{
+         oci_ingest_mapping.image | regex_replace('[:@].*$', '') }}
+    _oci_requested_ref: "{{ oci_ingest_mapping.image | regex_replace('^[^:@]*[:@]', '') }}"
+    _oci_is_digest_ref: "{{ '@' in oci_ingest_mapping.image }}"
+    _oci_map_wd: "{{ oci_ingest_workdir }}/{{ oci_ingest_mapping.mapping_name }}"
+
+- name: Derive platform facts
+  ansible.builtin.set_fact:
+    _oci_platform: "{{ oci_ingest_platforms[_oci_arch_key].platform }}"
+    _oci_arch: "{{ oci_ingest_platforms[_oci_arch_key].arch }}"
+    _oci_ref: "{{ _oci_repo_path }}{{ '@' if _oci_is_digest_ref else ':' }}{{ _oci_requested_ref }}"
+
+- name: Pin the digest for the platform
+  ansible.builtin.command: "regctl image digest {{ _oci_ref }} --platform {{ _oci_platform }}"
+  environment:
+    REGCTL_CONFIG: "{{ oci_ingest_regctl_config }}"
+  register: _oci_digest_result
+  changed_when: false
+  failed_when: false
+
+- name: Fail when the image is missing
+  ansible.builtin.fail:
+    msg: "{{ image_not_found_msg }}"
+  when: _oci_digest_result.rc != 0
+
+- name: Record the pinned digest and reference
+  ansible.builtin.set_fact:
+    _oci_digest: "{{ _oci_digest_result.stdout | trim }}"
+    _oci_pinned: "{{ _oci_repo_path }}@{{ _oci_digest_result.stdout | trim }}"
+
+- name: Verify the image architecture matches the functional group
+  ansible.builtin.command: "regctl image inspect {{ _oci_pinned }} --platform {{ _oci_platform }} --format '{% raw %}{{.Architecture}}{% endraw %}'"
+  environment:
+    REGCTL_CONFIG: "{{ oci_ingest_regctl_config }}"
+  register: _oci_arch_result
+  changed_when: false
+  failed_when: false
+
+- name: Set actual architecture
+  ansible.builtin.set_fact:
+    _oci_actual_arch: "{{ _oci_arch_result.stdout | trim }}"
+
+- name: Fail on architecture mismatch before exporting any layer
+  ansible.builtin.fail:
+    msg: "{{ arch_mismatch_msg }}"
+  when: _oci_actual_arch != _oci_arch
+
+- name: Expose the pinned image
+  ansible.builtin.set_fact:
+    oci_ingest_pull:
+      registry: "{{ oci_ingest_registry_refs[oci_ingest_mapping.registry_name] }}"
+      repository: "{{ oci_ingest_mapping.namespace_name }}/{{ oci_ingest_mapping.image | regex_replace('[:@].*$', '') }}"
+      repo_name: "{{ oci_ingest_mapping.image | regex_replace('[:@].*$', '') | basename }}"
+      requested_reference: "{{ _oci_requested_ref }}"
+      is_digest_ref: "{{ _oci_is_digest_ref }}"
+      digest: "{{ _oci_digest }}"
+      pinned: "{{ _oci_pinned }}"
+      platform: "{{ _oci_platform }}"
+      arch: "{{ _oci_arch_key }}"
+      workdir: "{{ _oci_map_wd }}"
+      tar: "{{ _oci_map_wd }}/image.tar"

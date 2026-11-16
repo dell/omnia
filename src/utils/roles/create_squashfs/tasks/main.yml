@@ -1,0 +1,72 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# create_squashfs - build rootfs.squashfs preserving ownership and xattrs; record size and SHA-256
+# of the three published artifacts. Pseudo-filesystem directories keep their mount points but not
+# their contents.
+
+- name: Build rootfs.squashfs
+  ansible.builtin.command:
+    argv: >-
+      {{ ['mksquashfs', oci_ingest_boot.rootfs_dir, oci_ingest_pull.workdir ~ '/rootfs.squashfs',
+          '-xattrs', '-noappend', '-no-progress', '-wildcards', '-e'] + oci_ingest_squashfs_excludes }}
+  register: _oci_mksquashfs
+  changed_when: true
+  failed_when: false
+
+- name: Remove an incomplete rootfs.squashfs
+  ansible.builtin.file:
+    path: "{{ oci_ingest_pull.workdir }}/rootfs.squashfs"
+    state: absent
+  when: _oci_mksquashfs.rc != 0
+
+- name: Fail when mksquashfs failed
+  ansible.builtin.fail:
+    msg: "{{ mksquashfs_fail_msg }}"
+  when: _oci_mksquashfs.rc != 0
+
+- name: Stage the boot files next to the squashfs
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ oci_ingest_pull.workdir }}/{{ item.name }}"
+    remote_src: true
+    mode: "0644"
+  loop:
+    - { src: "{{ oci_ingest_boot.kernel_path }}", name: "vmlinuz-{{ oci_ingest_boot.kernel_version }}" }
+    - { src: "{{ oci_ingest_boot.initrd_path }}", name: "initramfs-{{ oci_ingest_boot.kernel_version }}.img" }
+
+- name: Remove the flattened tree
+  ansible.builtin.file:
+    path: "{{ oci_ingest_boot.rootfs_dir }}"
+    state: absent
+
+- name: Compute size and SHA-256 of the artifacts
+  ansible.builtin.stat:
+    path: "{{ oci_ingest_pull.workdir }}/{{ item }}"
+    checksum_algorithm: sha256
+  loop:
+    - "vmlinuz-{{ oci_ingest_boot.kernel_version }}"
+    - "initramfs-{{ oci_ingest_boot.kernel_version }}.img"
+    - rootfs.squashfs
+  register: _oci_artifact_stats
+
+- name: Expose artifact metadata
+  ansible.builtin.set_fact:
+    oci_ingest_artifacts: >-
+      {% set out = [] %}{% for r in _oci_artifact_stats.results %}{% set _ = out.append({'name': r.item, 'size_bytes': r.stat.size, 'sha256': r.stat.checksum}) %}{% endfor %}{{ out }}

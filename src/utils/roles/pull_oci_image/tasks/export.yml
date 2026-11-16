@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# export.yml - check free space (3x compressed layers), then export the pinned image to a tar archive.
+
+- name: Read the platform manifest layer sizes
+  ansible.builtin.command: "regctl manifest get {{ oci_ingest_pull.pinned }} --platform {{ oci_ingest_pull.platform }} --format raw-body"
+  environment:
+    REGCTL_CONFIG: "{{ oci_ingest_regctl_config }}"
+  register: _oci_manifest_result
+  changed_when: false
+
+- name: Check free space (3x compressed layer size) before pulling
+  ansible.builtin.command: "df --output=avail -B1 {{ oci_ingest_workdir }}"
+  register: _oci_df
+  changed_when: false
+
+- name: Compute space requirement
+  ansible.builtin.set_fact:
+    _oci_layer_bytes: "{{ (_oci_manifest_result.stdout | from_json).layers | map(attribute='size') | map('int') | sum }}"
+    _oci_available_bytes: "{{ _oci_df.stdout_lines[-1] | trim | int }}"
+
+- name: Fail when free space is insufficient
+  ansible.builtin.fail:
+    msg: "{{ space_fail_msg }}"
+  vars:
+    _oci_required_bytes: "{{ (_oci_layer_bytes | int) * oci_ingest_space_factor }}"
+  when: (_oci_available_bytes | int) < (_oci_layer_bytes | int) * oci_ingest_space_factor
+
+- name: Create the mapping working directory
+  ansible.builtin.file:
+    path: "{{ oci_ingest_pull.workdir }}"
+    state: directory
+    mode: "0700"
+
+- name: Export the image to a tar archive
+  ansible.builtin.command: "regctl image export {{ oci_ingest_pull.pinned }} --platform {{ oci_ingest_pull.platform }} {{ oci_ingest_pull.workdir }}/image.tar"
+  environment:
+    REGCTL_CONFIG: "{{ oci_ingest_regctl_config }}"
+  changed_when: true

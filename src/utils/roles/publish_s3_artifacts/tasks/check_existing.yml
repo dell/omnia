@@ -1,0 +1,96 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# check_existing.yml - run right after the digest is pinned and before anything is exported.
+# When the release prefix already holds a complete publication of this digest (marker ingest.json
+# plus all three objects with the recorded sizes), the mapping is a no-op: nothing is re-pulled,
+# rebuilt or rewritten.
+
+- name: Compute the release prefix
+  ansible.builtin.include_tasks: prefix.yml
+
+- name: List objects under the release prefix
+  ansible.builtin.command: "s3cmd ls s3://{{ _oci_s3_prefix }}/"
+  register: _oci_s3_existing
+  changed_when: false
+  failed_when: false
+
+- name: Fail when S3 is unreachable
+  ansible.builtin.fail:
+    msg: "{{ s3_unreachable_msg }}"
+  when: _oci_s3_existing.rc != 0 and (_oci_s3_existing.stderr | default('')) is not search('(?i)NoSuchBucket|does not exist|not found')
+
+- name: Default the skip flag
+  ansible.builtin.set_fact:
+    oci_ingest_skip: false
+    _oci_s3_has_objects: "{{ (_oci_s3_existing.stdout | default('') | trim | length) > 0 }}"
+
+- name: Verify a previous complete publication
+  when: _oci_s3_has_objects | bool
+  block:
+    - name: Read the ingest marker
+      ansible.builtin.command: "s3cmd get -q --force s3://{{ _oci_s3_prefix }}/{{ oci_ingest_marker_name }} -"
+      register: _oci_marker_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Parse the marker
+      ansible.builtin.set_fact:
+        _oci_marker: "{{ _oci_marker_raw.stdout | from_json }}"
+      when:
+        - _oci_marker_raw.rc == 0
+        - _oci_marker_raw.stdout is search('^\s*\{')
+
+    - name: Check each recorded object size
+      ansible.builtin.command: "s3cmd info s3://{{ _oci_s3_prefix }}/{{ item.name }}"
+      loop: "{{ _oci_marker.artifacts | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _oci_marker_info
+      changed_when: false
+      failed_when: false
+      when: _oci_marker is defined
+
+    - name: Parse the recorded object sizes
+      ansible.builtin.set_fact:
+        _oci_marker_sizes: "{{ _oci_marker_info.results | map(attribute='stdout') | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
+      when: _oci_marker_info.results is defined
+
+    - name: Decide whether the publication is complete
+      ansible.builtin.set_fact:
+        oci_ingest_skip: >-
+          {{ _oci_marker is defined
+             and (_oci_marker.digest | default('')) == oci_ingest_pull.digest
+             and (_oci_marker.artifacts | default([]) | length) == 3
+             and (_oci_marker_info.results | selectattr('rc', 'equalto', 0) | list | length) == 3
+             and (_oci_marker_sizes | default([])) == (_oci_marker.artifacts | map(attribute='size_bytes') | map('int') | list) }}
+
+- name: Reuse the existing publication
+  when: oci_ingest_skip | bool
+  block:
+    - name: Report the no-op
+      ansible.builtin.debug:
+        msg: "s3://{{ _oci_s3_prefix }}/ already holds digest {{ oci_ingest_pull.digest }}; nothing is re-pulled or rewritten."
+
+    - name: Record the existing publication
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _oci_rec_kernel_version: "{{ _oci_marker.kernel_version }}"
+        _oci_rec_artifacts: "{{ _oci_marker.artifacts }}"
+        _oci_rec_published_at: "{{ _oci_marker.published_at }}"

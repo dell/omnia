@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# generate_build_status - merge this run's mappings into the utility-owned build_status.yml
+# (replace entries of the functional groups ingested now, keep the rest), then replace the file
+# atomically (copy writes a temp file and renames) and keep a timestamped audit copy.
+# Runs only after every mapping of the run was published and verified.
+
+- name: Collect the functional groups ingested in this run
+  ansible.builtin.set_fact:
+    _oci_new_fgs: "{{ oci_ingest_results | map(attribute='functional_group') | list }}"
+    _oci_existing_entries: >-
+      {{ (_oci_existing_status.functional_group_images | default([])) | map('dict2items') | flatten | map(attribute='value') | flatten | list }}
+    _oci_existing_sources: "{{ _oci_existing_status.oci_sources | default([]) }}"
+
+- name: Merge by functional group
+  ansible.builtin.set_fact:
+    _oci_status_entries: >-
+      {{ (_oci_existing_entries | rejectattr('functional_group', 'in', _oci_new_fgs) | list)
+         + (oci_ingest_results | community.general.json_query(oci_ingest_status_keys)) }}
+    _oci_status_sources: >-
+      {{ (_oci_existing_sources | rejectattr('functional_group', 'in', _oci_new_fgs) | list)
+         + (oci_ingest_results | community.general.json_query(oci_ingest_source_keys)) }}
+
+- name: Build the status document
+  ansible.builtin.set_fact:
+    _oci_status_doc:
+      overall_status: success
+      image_build_type: "{{ oci_ingest_output_type }}"
+      s3_configurations:
+        endpoint_url: "{{ oci_ingest_s3_endpoint | trim }}"
+        bucket: "{{ oci_ingest_bucket }}"
+      functional_group_images: >-
+        {% set out = [] %}{% for a in oci_ingest_status_arches %}{% set e = _oci_status_entries | selectattr('functional_group', 'match', '.*_' ~ a ~ '$') | list %}{% if e %}{% set _ = out.append({a: e}) %}{% endif %}{% endfor %}{{ out }}
+      oci_sources: "{{ _oci_status_sources }}"
+
+- name: Write build_status.yml atomically
+  ansible.builtin.copy:
+    content: "{{ oci_ingest_status_header }}---\n{{ _oci_status_doc | to_nice_yaml(indent=2) }}"
+    dest: "{{ oci_ingest_status_path }}"
+    mode: "0644"
+
+- name: Write the timestamped audit copy
+  ansible.builtin.copy:
+    src: "{{ oci_ingest_status_path }}"
+    dest: "{{ output_project_dir }}/build_status_{{ oci_ingest_run_id }}.yml"
+    remote_src: true
+    mode: "0644"

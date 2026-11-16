@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# ingest_oci_image.yml - OCI image ingest (ER-UTIL-001): Harbor -> boot artifacts -> S3 -> build_status.yml
+# Imported by utils.yml under the opt-in tag: oci_image_ingest
+#
+# Flow: precheck + project lock -> credentials -> registry validation -> per-mapping
+#       (pull, extract, squashfs, publish) -> build_status.yml -> cleanup (always)
+# Input validation runs earlier in utils.yml (Step 1) for this tag.
+#
+# Catalog derivation is a placeholder: the existing catalog is used as-is by the Orchestrator.
+
+- name: OCI image ingest
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    oci_ingest_bucket: boot-images
+    oci_ingest_output_type: oci-image-ingest
+    oci_ingest_s3cfg_path: "{{ lookup('env', 'HOME') | default('/root', true) }}/.s3cfg"
+  tasks:
+    - name: OCI image ingest pipeline
+      block:
+        - name: Precheck prerequisites and take the project lock
+          ansible.builtin.include_role:
+            name: precheck_oci_image_ingest
+
+        - name: Collect registry credentials
+          ansible.builtin.include_role:
+            name: collect_oci_image_ingest_credentials
+
+        - name: Validate registry connection
+          ansible.builtin.include_role:
+            name: validate_registry_connection
+
+        - name: Ingest each image mapping
+          ansible.builtin.include_tasks: ingest_oci_image_mapping.yml
+          loop: "{{ oci_ingest_config.image_mappings }}"
+          loop_control:
+            loop_var: oci_ingest_mapping
+            label: "{{ oci_ingest_mapping.mapping_name }}"
+
+        - name: Generate build_status.yml
+          ansible.builtin.include_role:
+            name: generate_build_status
+      always:
+        - name: Cleanup working directory and release the lock
+          ansible.builtin.include_role:
+            name: cleanup_oci_image_ingest

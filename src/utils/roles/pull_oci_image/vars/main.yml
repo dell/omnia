@@ -1,0 +1,39 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+oci_ingest_platforms:
+  x86_64:
+    platform: linux/amd64
+    arch: amd64
+  aarch64:
+    platform: linux/arm64
+    arch: arm64
+oci_ingest_space_factor: 3
+
+image_not_found_msg: >-
+  Image '{{ _oci_ref }}' (namespace '{{ oci_ingest_mapping.namespace_name }}') was not found or is not
+  accessible for platform {{ _oci_platform }} (phase: pull). Nothing was exported.
+  regctl: {{ _oci_digest_result.stderr | default('') | trim | regex_replace('(?i)(pass|token)[^ ]*', '***') }}
+arch_mismatch_msg: >-
+  Architecture mismatch (phase: pull): functional group '{{ oci_ingest_mapping.functional_group }}' requires
+  {{ _oci_arch }} but image '{{ _oci_ref }}' is {{ _oci_actual_arch | trim }}. Nothing was exported.
+space_fail_msg: >-
+  Insufficient free space (phase: pull) in {{ oci_ingest_workdir }}: required {{ _oci_required_bytes }} bytes
+  ({{ oci_ingest_space_factor }}x the {{ _oci_layer_bytes }}-byte compressed layers), available
+  {{ _oci_available_bytes }} bytes. No layer was pulled.

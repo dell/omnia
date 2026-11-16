@@ -1,0 +1,38 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+oci_ingest_default_ports:
+  https: 443
+  http: 80
+
+connectivity_fail_msg: >-
+  Registry connection failed (phase: connection): cannot reach {{ _oci_base_url }}
+  within {{ oci_ingest_connect_timeout }} seconds. Check the hostname, port, protocol and network.
+tls_fail_msg: >-
+  Registry connection failed (phase: connection): TLS verification failed for {{ _oci_base_url }}.
+  Trust the registry CA on the OIM, or set oci_ingest_registry_tls=insecure for a self-signed lab registry.
+auth_fail_msg: >-
+  Registry authentication failed (phase: connection) for registry '{{ reg.registry_name }}'.
+  Check registry_username and registry_password in oci_image_ingest_credentials.yml.
+namespace_fail_msg: >-
+  Namespace '{{ _oci_ns }}' is inaccessible or does not exist on registry '{{ reg.registry_name }}'
+  (phase: connection, HTTP {{ _oci_ns_status }}). No image will be pulled.
+unexpected_fail_msg: >-
+  Registry returned unexpected HTTP status {{ _oci_v2_check.status | default('n/a') }}
+  (phase: connection) for registry '{{ reg.registry_name }}'.
