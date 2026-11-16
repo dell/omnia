@@ -52,27 +52,28 @@ jobs:
           python .github/scripts/secure_code_review.py "origin/${BASE_REF}" secure-code-review.md
           cat secure-code-review.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Credential no_log guard (telemetry)
-        if: hashFiles('.github/scripts/check_credential_no_log.py') != ''
-        continue-on-error: true
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -q '^src/telemetry/'; then
-            if python .github/scripts/check_credential_no_log.py src/telemetry > guard.log 2>&1; then
-              R="- [x] PASS **Credential no_log Guard** (src/telemetry)"
-            else
-              R="- [ ] FAIL **Credential no_log Guard** (src/telemetry) - see the 'Credential no_log Guard' workflow log"
-            fi
-            python - "$R" <<'PY'
-          import sys
-          p = "secure-code-review.md"
-          t = open(p, encoding="utf-8").read()
-          t = t.replace("### Checklist\n", "### Checklist\n" + sys.argv[1] + "\n", 1)
-          open(p, "w", encoding="utf-8").write(t)
-          PY
-          fi
-          cat secure-code-review.md > "$GITHUB_STEP_SUMMARY"
+      # TODO: disabled for now; also runs as the standalone 'Credential no_log Guard' workflow.
+      # - name: Credential no_log guard (telemetry)
+      #   if: hashFiles('.github/scripts/check_credential_no_log.py') != ''
+      #   continue-on-error: true
+      #   env:
+      #     BASE_REF: ${{ github.base_ref }}
+      #   run: |
+      #     if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -q '^src/telemetry/'; then
+      #       if python .github/scripts/check_credential_no_log.py src/telemetry > guard.log 2>&1; then
+      #         R="- [x] PASS **Credential no_log Guard** (src/telemetry)"
+      #       else
+      #         R="- [ ] FAIL **Credential no_log Guard** (src/telemetry) - see the 'Credential no_log Guard' workflow log"
+      #       fi
+      #       python - "$R" <<'PY'
+      #     import sys
+      #     p = "secure-code-review.md"
+      #     t = open(p, encoding="utf-8").read()
+      #     t = t.replace("### Checklist\n", "### Checklist\n" + sys.argv[1] + "\n", 1)
+      #     open(p, "w", encoding="utf-8").write(t)
+      #     PY
+      #     fi
+      #     cat secure-code-review.md > "$GITHUB_STEP_SUMMARY"
 
       - name: Post or update PR comment
         continue-on-error: true

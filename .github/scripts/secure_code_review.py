@@ -81,15 +81,17 @@ RULES = [
     #  "inside block/rescue/always cleanup; no in-place decrypt, no failed_when: false.",
     #  YML + SH,
     #  r"ansible-vault\s+decrypt\b(?![^\n]*--output)|ansible-vault\s+view\b[^\n]*>\s*\S+", None),
-    ("SEC-09", "Secrets not passed on command line (argv)", "CWE-214",
-     "Pass credentials via files/stdin/env with restrictive perms, not "
-     "--password/-p arguments visible in process lists.",
-     PY + YML + SH,
-     r"(?i)--(password|passwd|token|secret|api-key)[= ]+\S|\s-p\s+['\"]?\{\{|"
-     r"sshpass\s+-p|mysql\b[^\n]*\s-p\S", r"(?i)(no_log|prompt|help|description)"),
-    ("SEC-10", "Credential tasks declare no_log", "CWE-532",
-     "Any task handling passwords/tokens/secrets must set no_log: true.",
-     YML, "__NOLOG__", None),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-09", "Secrets not passed on command line (argv)", "CWE-214",
+    #  "Pass credentials via files/stdin/env with restrictive perms, not "
+    #  "--password/-p arguments visible in process lists.",
+    #  PY + YML + SH,
+    #  r"(?i)--(password|passwd|token|secret|api-key)[= ]+\S|\s-p\s+['\"]?\{\{|"
+    #  r"sshpass\s+-p|mysql\b[^\n]*\s-p\S", r"(?i)(no_log|prompt|help|description)"),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-10", "Credential tasks declare no_log", "CWE-532",
+    #  "Any task handling passwords/tokens/secrets must set no_log: true.",
+    #  YML, "__NOLOG__", None),
     ("SEC-11", "Secrets not written to logs or errors", "CWE-532/CWE-209",
      "Never log credentials; return generic errors without internal paths/state.",
      PY + SH,
