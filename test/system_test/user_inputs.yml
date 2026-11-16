@@ -440,23 +440,26 @@ orchestrator:
   # |     enable_k8s_ha, etcd_on_local_disk   true | false                     |
   # |     k8s_bootstrap_token_ttl             join token lifetime, e.g. "2h"   |
   # |   PowerScale CSI (optional): enable_powerscale_csi true needs the two    |
-  # |   files below. secret.yaml and values.yaml sit next to this file with    |
-  # |   only the Dell header: paste the real content (templates: src/          |
-  # |   orchestrator/examples/powerscale_reference_files/CSI_driver/) in the   |
-  # |   GitLab project, clusters/<cluster>/svt/, or by hand in                 |
-  # |   test/system_test/. Only when it is true, ./setup_env.sh (the last step,|
-  # |   or --stage-files) copies them to the two paths, after the install,     |
-  # |   because the clean reinstall deletes that folder; both must exist and   |
-  # |   have content or the step fails and says which. With false nothing is   |
-  # |   copied. The paths may use $NAME of omnia.env (OMNIA_DATA_PATH,         |
-  # |   OMNIA_PROJECT_NAME, ORCHESTRATOR_DATA_PATH): the project folder differs|
-  # |   per installation. The default is the orchestrator's project input      |
-  # |   folder, e.g. /opt/omnia/orchestrator/input/project_default/. The files |
-  # |   stay plaintext: the orchestrator encrypts its copy in place            |
-  # |   (ansible-vault) with a key a clean reinstall deletes, so they are      |
-  # |   copied again each run. The array user and password come from the       |
-  # |   orchestrator credentials (csi_username, csi_password in OpenBao) and   |
-  # |   replace those of secret.yaml: keep placeholders there.                 |
+  # |   files below. secret.yaml and values.yaml sit next to this file: in the |
+  # |   GitLab project clusters/<cluster>/svt/ they are seeded from the        |
+  # |   reference examples                                                     |
+  # |   (src/orchestrator/examples/powerscale_reference_files/CSI_driver/);    |
+  # |   edit them for your array (secret.yaml: clusterName, endpoint;          |
+  # |   values.yaml: isiPath, driver settings). Run by hand, copy and edit     |
+  # |   them in test/system_test/. Only when it is true, ./setup_env.sh (the   |
+  # |   last step, or --stage-files) copies them to the two paths, after the   |
+  # |   install, because the clean reinstall deletes that folder. Both must    |
+  # |   exist and differ from the examples or the step fails and says which.   |
+  # |   With false nothing is copied. The paths may use $NAME of omnia.env     |
+  # |   (OMNIA_DATA_PATH, OMNIA_PROJECT_NAME, ORCHESTRATOR_DATA_PATH): the     |
+  # |   project folder differs per installation. The default is the            |
+  # |   orchestrator's project input folder, e.g.                              |
+  # |   /opt/omnia/orchestrator/input/project_default/. The files stay         |
+  # |   plaintext: the orchestrator encrypts its copy in place (ansible-vault) |
+  # |   with a key a clean reinstall deletes, so they are copied again each    |
+  # |   run. The array user and password come from the orchestrator            |
+  # |   credentials (csi_username, csi_password in OpenBao) and replace those  |
+  # |   of secret.yaml: keep placeholders there.                               |
   # +--------------------------------------------------------------------------+
   omnia_config:
     service_k8s_cluster:

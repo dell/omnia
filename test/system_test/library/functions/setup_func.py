@@ -97,6 +97,7 @@ from ..vars.common_vars import (
     OMNIA_SH,
     OMNIA_SH_DIR,
     POWERSCALE_ENABLE_KEY,
+    POWERSCALE_EXAMPLES_DIR,
     POWERSCALE_FILES,
     REPO_ROOT,
     REQUIREMENTS_MARKER,
@@ -609,6 +610,16 @@ def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool,
 
 
 # -------------------------------------------------------------------- files
+def _is_reference_example(path: str, name: str) -> bool:
+    """Return whether ``path`` is still the product's reference ``name`` (never edited)."""
+    try:
+        with open(path, "rb") as staged, open(os.path.join(POWERSCALE_EXAMPLES_DIR, name),
+                                              "rb") as example:
+            return staged.read().strip() == example.read().strip()
+    except OSError:
+        return False
+
+
 def _powerscale_copies(clusters: List[Any]) -> Tuple[Dict[str, str], List[str]]:
     """Return ({target path: source file name}, problems) of the clusters that enable the CSI."""
     copies: Dict[str, str] = {}
@@ -641,9 +652,10 @@ def stage_files(config: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
     Runs after the install: the default paths are in the orchestrator's project input
     folder, which the cleanup deletes and the install creates. Only when a Kubernetes cluster
     has enable_powerscale_csi true; then both files must exist in test/system_test (the
-    pipeline copies them there from the cluster's folder of the project), hold more than the
-    shipped header and be valid YAML, and their folders must exist, or the step fails naming
-    what is wrong. The copies are plaintext, mode 0600,
+    pipeline copies them there from the cluster's folder of the project), have content, be
+    valid YAML and differ from the reference examples they were seeded from (an unedited example
+    would fail at deployment), and their folders must exist, or the step fails naming what is
+    wrong. The copies are plaintext, mode 0600,
     replaced every run: the orchestrator encrypts its copy in place with a key a clean
     reinstall deletes. The array user and password come from the orchestrator credentials.
     """
@@ -672,6 +684,10 @@ def stage_files(config: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
         if not content:
             problems.append(SETUP_MSGS["files_empty"].format(
                 path=path, name=name, folder=MODULE_ROOT))
+        elif _is_reference_example(path, name):
+            problems.append(SETUP_MSGS["files_example"].format(
+                path=path, name=name, folder=MODULE_ROOT,
+                example=os.path.join(POWERSCALE_EXAMPLES_DIR, name)))
     if problems:
         return _failed(_problems(problems))
     for target, name in sorted(copies.items()):

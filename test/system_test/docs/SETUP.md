@@ -287,11 +287,13 @@ in the matching file.
   (templates for the two files: `src/orchestrator/examples/powerscale_reference_files/CSI_driver/`).
   The product needs absolute paths of files that exist, and `domain-init` does not copy them, so
   the SVT does:
-  - `secret.yaml` and `values.yaml` sit next to `user_inputs.yml` and ship with only the Dell
-    header. Paste the real content: in the GitLab project `clusters/<cluster>/svt/` (`--create`
-    adds the placeholders there, `--update-inputs` never replaces them; the checkout job copies
-    them to `test/system_test/`, mode 0600), or by hand in `test/system_test/`. Do not commit
-    the pasted content to the repository.
+  - `secret.yaml` and `values.yaml` sit next to `user_inputs.yml`. In the GitLab project
+    `clusters/<cluster>/svt/` they are seeded from the product's reference examples (`--create`
+    copies `src/orchestrator/examples/powerscale_reference_files/CSI_driver/` there; they are
+    only added when missing and `--update-inputs` never replaces them). Edit them there for your
+    array (`secret.yaml`: `clusterName`, `endpoint`; `values.yaml`: `isiPath` and the driver
+    settings). The checkout job copies them to `test/system_test/` (mode 0600). Run by hand, copy
+    the examples to `test/system_test/` and edit them. Do not commit your edited copies.
   - The paths may use `$NAME` / `${NAME}` of `omnia.env` (`OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`,
     `ORCHESTRATOR_DATA_PATH`), because the project folder differs per installation. The generator
     writes the absolute path. The default,
@@ -302,9 +304,9 @@ in the matching file.
     run by the pipeline's initialization job after the credentials) copies the two files to those
     paths **only when `enable_powerscale_csi` is true**; with `false` nothing is copied. It runs
     after the install because the clean reinstall deletes that folder. When it is true, both
-    files must exist, hold more than the header and be valid YAML, and the paths must be
-    absolute, different and in a folder that exists; the step fails and names what is wrong and
-    how to fix it.
+    files must exist, have content, be valid YAML and differ from the reference examples (an
+    unedited example would fail at deployment), and the paths must be absolute, different and in
+    a folder that exists; the step fails and names what is wrong and how to fix it.
   - The copies are plaintext and replaced on every run: the orchestrator encrypts its copy in
     place (`ansible-vault`) with a key that a clean reinstall deletes. The array user and
     password are not read from `secret.yaml`: the orchestrator replaces them with `csi_username`

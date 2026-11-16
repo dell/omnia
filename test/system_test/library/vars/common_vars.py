@@ -109,6 +109,10 @@ POWERSCALE_FILES = {
     "values": ("csi_powerscale_driver_values_file_path", "values.yaml"),
 }
 POWERSCALE_ENABLE_KEY = "enable_powerscale_csi"
+# The product's reference files: the pipeline seeds each cluster folder with them, and a staged
+# file that is still identical to its reference was never edited.
+POWERSCALE_EXAMPLES_DIR = os.path.join(REPO_ROOT, "src", "orchestrator", "examples",
+                                       "powerscale_reference_files", "CSI_driver")
 STAGED_FILE_MODE = 0o600
 SRC_OMNIA_ENV_FILE = os.path.join(OMNIA_SH_DIR, "omnia.env")
 OMNIA_ENV_FILE = "/etc/omnia/omnia.env"

@@ -40,8 +40,9 @@ they name and can be repeated.
 Files committed: .gitlab-ci.yml (one trigger job per cluster, each holding the
 cluster's resource group), .gitlab-ci-svt-<theme>.yml (the jobs: the theme's stages
 and the configured timeouts), svt_ci.py, the config (reference copy) and, per
-cluster, clusters/<name>/svt/user_inputs.yml and <theme>_test_config.yml (and header-only
-secret.yaml and values.yaml, which are never replaced: the user pastes the PowerScale CSI files)
+cluster, clusters/<name>/svt/user_inputs.yml and <theme>_test_config.yml (and the
+reference secret.yaml and values.yaml of the PowerScale CSI, which are never replaced: the user
+edits them for the array)
 (copied from test/system_test on --create, or with --update-inputs; edit
 them in GitLab). The pipeline never starts on a push: run it from CI/CD >
 Pipelines, the API or a schedule.
@@ -78,6 +79,8 @@ from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
 PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
 PLACEHOLDER_INPUTS = ("secret.yaml", "values.yaml")
+POWERSCALE_EXAMPLES = (TEST_ROOT.parent / "src" / "orchestrator" / "examples"
+                       / "powerscale_reference_files" / "CSI_driver")
 FIRST_STAGE, LAST_STAGE = "initialization", "summary"
 PASSWORD_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
@@ -438,12 +441,14 @@ def _input_files(config: Dict[str, Any]) -> List[Tuple[str, str]]:
 
 
 def _placeholder_files(config: Dict[str, Any]) -> List[Tuple[str, str]]:
-    """Return (repo path, content) of the header-only secret.yaml and values.yaml of every
-    cluster. The user pastes the PowerScale CSI files there after the setup, so they are only
-    ever added when missing, never replaced (not even by --update-inputs)."""
-    return [(f"clusters/{cluster}/svt/{name}", (SVT_ROOT / name).read_text(encoding="utf-8"))
+    """Return (repo path, content) of the PowerScale CSI secret.yaml and values.yaml of every
+    cluster: the product's reference examples. The user edits them in the project for the
+    array, so they are only ever added when missing, never replaced (not even by
+    --update-inputs)."""
+    return [(f"clusters/{cluster}/svt/{name}", (POWERSCALE_EXAMPLES / name).read_text(
+        encoding="utf-8"))
             for cluster in config["clusters"] for name in PLACEHOLDER_INPUTS
-            if (SVT_ROOT / name).is_file()]
+            if (POWERSCALE_EXAMPLES / name).is_file()]
 
 
 def _commit(client: GitLabClient, project_id: int, branch: str,

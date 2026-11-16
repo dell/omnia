@@ -177,6 +177,11 @@ SETUP_MSGS = {
                    "HOW TO FIX: paste the real {name} in the cluster's folder of the GitLab "
                    "project (clusters/<cluster>/svt/{name}) or, run by hand, in {folder}; then "
                    "./setup_env.sh --stage-files",
+    "files_example": "enable_powerscale_csi is true but {path} is still the reference example "
+                     "({example}). HOW TO FIX: edit {name} for your array (secret.yaml: "
+                     "clusterName and endpoint; values.yaml: isiPath and the driver settings) in "
+                     "the cluster's folder of the GitLab project (clusters/<cluster>/svt/{name}) "
+                     "or, run by hand, in {folder}; then ./setup_env.sh --stage-files",
     "files_invalid": "{path} is not valid YAML: {error}. HOW TO FIX: correct {name} where you "
                      "put it, then ./setup_env.sh --stage-files",
     "files_unreadable": "omnia_config.yml is not readable: {error}. HOW TO FIX: "

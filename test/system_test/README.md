@@ -47,9 +47,9 @@ Optional inputs, all in `user_inputs.yml` (see [docs/SETUP.md](docs/SETUP.md)):
 - **PowerVault:** `orchestrator.storage_config.powervault_config`: give `ip` (a list or comma
   separated), `iscsi_initiator` and `volume_id`; the other keys are defaults. Without an `ip`
   there is no PowerVault.
-- **PowerScale CSI:** `enable_powerscale_csi: true` in `omnia_config`, with the real content pasted
-  into `secret.yaml` and `values.yaml` next to `user_inputs.yml` (they ship with only the Dell
-  header). They are copied to the paths of `omnia_config.yml`
+- **PowerScale CSI:** `enable_powerscale_csi: true` in `omnia_config`, with `secret.yaml` and
+  `values.yaml` edited for your array next to `user_inputs.yml` (the pipeline seeds them from the
+  product's reference examples). They are copied to the paths of `omnia_config.yml`
   (default: the orchestrator's project input folder, written from `$ORCHESTRATOR_DATA_PATH` and
   `$OMNIA_PROJECT_NAME`) by the last step of `./setup_env.sh`, or by `./setup_env.sh --stage-files`,
   only when it is true; then both files must exist.
@@ -119,8 +119,9 @@ test/system_test/
 ├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
 ├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
 ├── user_inputs.yml              the cluster values
-├── secret.yaml, values.yaml     PowerScale CSI: header-only placeholders, the real content is pasted
-│                                in the cluster's folder of the GitLab project (or here, by hand)
+├── (secret.yaml, values.yaml)   PowerScale CSI, optional: seeded from src/orchestrator/examples/ into
+│                                the cluster's folder of the GitLab project and edited there (or by
+│                                hand in this folder)
 ├── run_validation.sh, _run.py   SVT runner: svt_<theme> list | <stage> | all
 ├── requirements.txt             SVT .venv: pytest, pytest-order, PyYAML, ruamel.yaml, omnia_auto
 ├── conftest.py, pytest.ini      markers (theme and stage), results for summary
