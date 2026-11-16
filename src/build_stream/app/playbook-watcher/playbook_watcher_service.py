@@ -1028,11 +1028,9 @@ def build_stage_log_path(  # pylint: disable=too-many-arguments,too-many-positio
 def _relabel_like_parent(path: Path) -> None:
     """Give ``path`` the SELinux label of its directory (no-op without SELinux)."""
     try:
-        subprocess.run(
-            ["chcon", "--reference", str(path.parent), str(path)],
-            check=False, capture_output=True, timeout=10,
-        )
-    except (OSError, subprocess.SubprocessError):
+        label = os.getxattr(path.parent, "security.selinux")
+        os.setxattr(path, "security.selinux", label)
+    except (OSError, AttributeError):
         pass
 
 

@@ -199,7 +199,7 @@ def test_publish_reports_domain_log_when_copy_fails(log_root, domain_root):
     domain_log = domain_root / "x" / "a.log"
     domain_log.parent.mkdir(parents=True)
 
-    with patch.object(WATCHER.shutil, "copy2", side_effect=OSError("ro fs")):
+    with patch.object(WATCHER.shutil, "copyfile", side_effect=OSError("ro fs")):
         reported = WATCHER.publish_stage_log(domain_log, "job-9", ["done"])
 
     assert reported == str(domain_log)
@@ -343,11 +343,10 @@ def test_validate_timeout_logs_to_orchestrator_domain_and_copies(
         "attempt": 2,
     }
 
-    def _timeout(cmd, **_kwargs):
-        raise subprocess.TimeoutExpired(cmd, 1, output="partial out", stderr="err")
+    make, _captured = _popen_factory(output="partial out\n", timeout=True)
 
     with patch.object(WATCHER, "_resolve_orchestrator_report_dir", return_value=tmp_path), \
-         patch.object(WATCHER.subprocess, "run", side_effect=_timeout):
+         patch.object(WATCHER.subprocess, "Popen", side_effect=make):
         result = WATCHER.execute_molecule(request)
 
     log_path = Path(result["log_file_path"])
@@ -359,3 +358,33 @@ def test_validate_timeout_logs_to_orchestrator_domain_and_copies(
     original = domain_root / "orchestrator" / log_path.name
     assert original.is_file()
     assert "partial out" in log_path.read_text(encoding="utf-8")
+
+
+def test_publish_tolerates_missing_selinux_support(log_root, domain_root):
+    """Label copying is best effort: no SELinux xattr must not break publishing."""
+    domain_log = domain_root / "x" / "a.log"
+    domain_log.parent.mkdir(parents=True)
+    domain_log.write_text("PLAY\n", encoding="utf-8")
+
+    with patch.object(WATCHER.os, "getxattr", side_effect=OSError("no selinux")):
+        reported = WATCHER.publish_stage_log(domain_log, "job-9", ["done"])
+
+    assert reported == str(log_root / "job-9" / domain_log.name)
+    assert (Path(reported).stat().st_mode & 0o777) == 0o644
+
+
+def test_test_entry_carries_reason_for_failed_and_skipped():
+    """Failed tests report the pytest error lines; skipped tests the skip reason."""
+    failed = WATCHER._build_test_entry({
+        "test_name": "test_b", "status": "FAILED", "tc_id": "ORCH_1",
+        "error": "def f():\n>   assert 1 == 2\nE   assert 1 == 2",
+    })
+    skipped = WATCHER._build_test_entry({
+        "test_name": "test_c", "status": "SKIPPED", "details": "x\nSKIPPED: not enabled",
+    })
+    passed = WATCHER._build_test_entry({"test_name": "test_a", "status": "PASSED"})
+
+    assert failed["tc_id"] == "ORCH_1"
+    assert "assert 1 == 2" in failed["reason"]
+    assert skipped["reason"] == "not enabled"
+    assert "reason" not in passed
