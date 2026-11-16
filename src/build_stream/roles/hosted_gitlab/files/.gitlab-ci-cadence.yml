@@ -225,6 +225,48 @@ default:
         echo "  ------------------------------------------------------------"
       }
 
+      # Print the validate test summary: totals, every test case with its
+      # status, and the reason (as shown by the HTML report View button) for each
+      # failed, errored, or skipped test. Usage: print_test_summary '<json>'
+      print_test_summary() {
+        _PTS_JSON="$1"
+        [ -n "${_PTS_JSON}" ] || return 0
+        echo "  ------------------------------------------------------------"
+        echo "  Test Summary:"
+        printf "  %-12s %s\n" "Total:"   "$(echo "${_PTS_JSON}" | jq -r '.total // 0')"
+        printf "  %-12s %s\n" "Passed:"  "$(echo "${_PTS_JSON}" | jq -r '.passed // 0')"
+        printf "  %-12s %s\n" "Failed:"  "$(echo "${_PTS_JSON}" | jq -r '.failed // 0')"
+        printf "  %-12s %s\n" "Skipped:" "$(echo "${_PTS_JSON}" | jq -r '.skipped // 0')"
+        printf "  %-12s %s\n" "Errors:"  "$(echo "${_PTS_JSON}" | jq -r '.errors // 0')"
+        _PTS_ALL=$(echo "${_PTS_JSON}" | jq -r '.tests[]? | "    [\(.status)] \(.name)"' 2>/dev/null)
+        if [ -n "${_PTS_ALL}" ]; then
+          echo "  ------------------------------------------------------------"
+          echo "  Test Cases:"
+          echo "${_PTS_ALL}"
+        fi
+        _PTS_BAD=$(echo "${_PTS_JSON}" | jq -r '
+          .tests[]?
+          | select((.status | ascii_upcase) == "FAILED" or (.status | ascii_upcase) == "ERROR")
+          | "    - \(.name): \(.status)" + (if .reason then "\n        Reason: \(.reason)" else "" end)
+        ' 2>/dev/null)
+        echo "  ------------------------------------------------------------"
+        echo "  Failed/Error Test Cases:"
+        if [ -n "${_PTS_BAD}" ]; then
+          echo "${_PTS_BAD}"
+        else
+          echo "    None reported"
+        fi
+        _PTS_SKIP=$(echo "${_PTS_JSON}" | jq -r '
+          .tests[]?
+          | select((.status | ascii_upcase) == "SKIPPED" and .reason)
+          | "    - \(.name): \(.reason)"
+        ' 2>/dev/null)
+        if [ -n "${_PTS_SKIP}" ]; then
+          echo "  Skipped Test Cases:"
+          echo "${_PTS_SKIP}"
+        fi
+      }
+
   # -------------------------------------------------------------------------
   # CI console log integration (ER-BSM-003 FR-4.1 / FR-4.2, AC-006 / AC-007)
   #
@@ -1075,30 +1117,7 @@ validate:
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
 
             TEST_SUMMARY=$(jq -c '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
-            if [ -n "${TEST_SUMMARY}" ]; then
-              echo "  ------------------------------------------------------------"
-              echo "  Test Summary:"
-              printf "  %-12s %s\n" "Total:"   "$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')"
-              printf "  %-12s %s\n" "Passed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')"
-              printf "  %-12s %s\n" "Failed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')"
-              printf "  %-12s %s\n" "Skipped:" "$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')"
-              printf "  %-12s %s\n" "Errors:"  "$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')"
-              echo "  ------------------------------------------------------------"
-              echo "  Failed/Error Test Cases:"
-              FAILED_TESTS=$(echo "${TEST_SUMMARY}" | jq -r '
-                .tests[]?
-                | select(
-                    (.status | ascii_upcase) == "FAILED"
-                    or (.status | ascii_upcase) == "ERROR"
-                  )
-                | "    - \(.name): \(.status)"
-              ')
-              if [ -n "${FAILED_TESTS}" ]; then
-                echo "${FAILED_TESTS}"
-              else
-                echo "    None reported"
-              fi
-            fi
+            print_test_summary "${TEST_SUMMARY}"
 
             printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
             print_stage_log_info "validate" status_response.json
@@ -1119,15 +1138,7 @@ validate:
       echo ""
       echo "  [OK] Validate Stage Result: COMPLETED"
       TEST_SUMMARY=$(jq -c '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
-      if [ -n "${TEST_SUMMARY}" ]; then
-        echo "  ------------------------------------------------------------"
-        echo "  Test Summary:"
-        printf "  %-12s %s\n" "Total:"   "$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')"
-        printf "  %-12s %s\n" "Passed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')"
-        printf "  %-12s %s\n" "Failed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')"
-        printf "  %-12s %s\n" "Skipped:" "$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')"
-        printf "  %-12s %s\n" "Errors:"  "$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')"
-      fi
+      print_test_summary "${TEST_SUMMARY}"
 
 # ============================= STAGE 6 ====================================
 # Summary — Report pipeline results

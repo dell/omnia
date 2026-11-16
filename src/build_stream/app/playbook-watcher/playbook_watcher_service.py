@@ -1703,22 +1703,15 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         timeout_seconds = timeout_minutes * 60
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-            shell=False,
-            text=True,
-            env=env,
-            start_new_session=True
+        # Stream the merged test output (every test case as it runs, then the
+        # final summary table) into the per-attempt stage log, redacted line by
+        # line. The log is complete even if the run times out.
+        returncode = _run_playbook_with_redaction(
+            cmd, test_dir, env, timeout_seconds, host_log_file_path
         )
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-
-        # Write test output to the per-attempt stage log
-        _write_test_output(host_log_file_path, result.stdout, result.stderr)
 
         # Copy molecule reports from temp dir to job-specific NFS artifact dir
         try:
@@ -1746,11 +1739,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             artifact_dir, "validate_output.log"
         )
         try:
-            with open(artifact_log_path, 'w') as f:
-                f.write(
-                    f"STDOUT:\n{result.stdout}\n\n"
-                    f"STDERR:\n{result.stderr}\n"
-                )
+            shutil.copyfile(log_file_path, artifact_log_path)
         except OSError:
             log_secure_info(
                 "warning", "Failed to write molecule artifact log", job_id
@@ -1956,10 +1945,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             )
                             results = module_info.get("results", [])
                             tests = [
-                                {
-                                    "name": r.get("test_name"),
-                                    "status": r.get("status")
-                                }
+                                _build_test_entry(r)
                                 for r in results
                                 if r.get("test_name")
                             ]
@@ -2084,15 +2070,15 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         elif test_summary["failed"] > 0 or test_summary["errors"] > 0:
             status = "failed"
             exit_code = 1
-        elif result.returncode == 0:
+        elif returncode == 0:
             status = "success"
             exit_code = 0
-        elif result.returncode == 124:
+        elif returncode == 124:
             status = "failed"
             exit_code = 124
         else:
             status = "failed"
-            exit_code = result.returncode
+            exit_code = returncode
 
         reported_log = publish_stage_log(host_log_file_path, job_id, [
             f"stage={stage_type} attempt={attempt} status={status} "
@@ -2165,7 +2151,6 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         error_summary = (
             f"Test validation timed out after {timeout_minutes} minutes"
         )
-        _write_test_output(host_log_file_path, exc.stdout, exc.stderr)
         log_secure_info(
             "error", "Test validation timed out for job", job_id
         )
@@ -2203,35 +2188,44 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _write_test_output(
-    log_file_path: Path, stdout: Any, stderr: Any
-) -> None:
-    """Write captured test runner output to the stage log.
+MAX_REASON_CHARS = 500
 
-    Args:
-        log_file_path: Stage log file path.
-        stdout: Captured standard output (str, bytes, or None).
-        stderr: Captured standard error (str, bytes, or None).
+
+def _failure_reason(result: Dict[str, Any]) -> str:
+    """Return a short, redacted reason for a failed or skipped test result.
+
+    Uses the same data the HTML report shows behind the View button: the
+    pytest error for failures, or the ``SKIPPED:`` line for skips.
     """
-    def _as_text(stream: Any) -> str:
-        if isinstance(stream, bytes):
-            return stream.decode("utf-8", errors="replace")
-        return stream or ""
+    status = result.get("status")
+    text = ""
+    if status == "FAILED":
+        text = str(result.get("error") or "")
+        if not text:
+            text = str(result.get("details") or "")
+    elif status == "SKIPPED":
+        match = re.search(r"(?m)^SKIPPED:\s*(.+)$", str(result.get("details") or ""))
+        text = match.group(1) if match else ""
+    if not text:
+        return ""
+    text = re.sub(r"\x1B\[[0-?]*[ -/]*[@-~]", "", text)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    error_lines = [ln for ln in lines if ln.startswith(("E ", "E\t")) or "Error" in ln or "assert" in ln]
+    picked = error_lines[:3] or lines[-3:]
+    reason = " | ".join(picked)
+    reason = _REDACTION_SERVICE.redact(reason, RedactionTier.SECRETS_ONLY)
+    return reason[:MAX_REASON_CHARS]
 
-    # Write-time redaction (ER-BSM-003 FR-3.1): the validate stage runs the
-    # Orchestrator test suite, whose captured output is published and queryable
-    # through the log API. Redact Tier 1 secrets before any byte reaches disk,
-    # consistent with the ansible-playbook execution path.
-    try:
-        with open(log_file_path, "w", encoding="utf-8") as log_file:
-            log_file.write(
-                "STDOUT:\n"
-                f"{_REDACTION_SERVICE.redact(_as_text(stdout), RedactionTier.SECRETS_ONLY)}"
-                "\n\nSTDERR:\n"
-                f"{_REDACTION_SERVICE.redact(_as_text(stderr), RedactionTier.SECRETS_ONLY)}\n"
-            )
-    except OSError:
-        log_secure_info("warning", "Failed to write test output log")
+
+def _build_test_entry(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Build one ``test_summary['tests']`` entry from a report result."""
+    entry = {"name": result.get("test_name"), "status": result.get("status")}
+    if result.get("tc_id"):
+        entry["tc_id"] = result.get("tc_id")
+    reason = _failure_reason(result)
+    if reason:
+        entry["reason"] = reason
+    return entry
 
 
 def build_rejected_result(
