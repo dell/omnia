@@ -172,3 +172,56 @@ retention:
   # Accepted values: integer >= 1 (1 hour minimum)
   # Default: 24 (24 hours)
   evaluation_interval_hours: 24
+
+# ==========================================================================
+# Section 5 — Pipeline Log Observability
+#   ER Reference: ER-BSM-003 — AC-004, AC-005, AC-006
+#
+#   Execution logs exist only for pipeline stages that run an Ansible
+#   playbook (e.g. local_repo, build_image, validate, deploy, cadence sync).
+#   Non-playbook stages (e.g. create-job, parse-catalog, upload) have no
+#   execution log. Logs are queried through:
+#       GET /api/v1/jobs/{job_id}/logs?stage=<stage>&tail_lines=<n>
+#   Secrets are redacted when the log is written and again when it is served.
+#
+#   These values are read when the omnia_build_stream container starts.
+#   Re-run the build_stream playbook (or restart the container) after
+#   changing them. Every parameter is optional; omit it to keep the default.
+#
+#   log_ci_preview_lines (below) controls how many log lines the GitLab CI
+#   job console previews; it is pushed to GitLab as BSM_LOG_TAIL_LINES.
+# ==========================================================================
+
+# Lines returned per stage log when the API caller omits "tail_lines"
+# Accepted values: integer between 1 and log_tail_lines_max
+# Default: 50
+log_tail_lines_default: 50
+
+# Largest "tail_lines" value the API accepts
+# Accepted values: integer between 1 and 10000
+# Default: 10000
+log_tail_lines_max: 10000
+
+# Maximum log bytes returned per stage ("full=true" or tail); older content
+# is dropped first and the response is flagged "truncated"
+# Accepted values: integer between 1024 and 52428800 (50 MiB)
+# Default: 10485760 (10 MiB)
+max_log_response_bytes: 10485760
+
+# Log query requests allowed per API client per minute (HTTP 429 above it)
+# Accepted values: integer >= 1
+# Default: 60
+log_query_rate_limit: 60
+
+# Log query requests served at the same time across all clients
+# (HTTP 503 with Retry-After above it)
+# Accepted values: integer >= 1
+# Default: 5
+log_query_max_concurrent: 5
+
+# Execution-log lines previewed in the GitLab CI job console when a
+# playbook stage finishes or fails. Omnia pushes it to the GitLab project as
+# the CI/CD variable BSM_LOG_TAIL_LINES on every build_stream run.
+# Accepted values: integer between 1 and log_tail_lines_max
+# Default: 50
+log_ci_preview_lines: 50

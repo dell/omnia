@@ -73,6 +73,46 @@
             "maximum": 200,
             "description": "Sidekiq background job concurrency"
         },
+        "log_tail_lines_default": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 50,
+            "description": "Lines returned per stage log when tail_lines is omitted"
+        },
+        "log_tail_lines_max": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 10000,
+            "description": "Largest tail_lines value accepted by the log query API"
+        },
+        "max_log_response_bytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 52428800,
+            "default": 10485760,
+            "description": "Maximum log bytes returned per stage by the log query API"
+        },
+        "log_ci_preview_lines": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 50,
+            "description": "Execution-log lines previewed in the GitLab CI job console"
+        },
+        "log_query_rate_limit": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 60,
+            "description": "Log query requests allowed per client per minute"
+        },
+        "log_query_max_concurrent": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 5,
+            "description": "Concurrent log query requests served across all clients"
+        },
         "cadence": {
             "type": "object",
             "description": "Cadence polling configuration for periodic package sync",

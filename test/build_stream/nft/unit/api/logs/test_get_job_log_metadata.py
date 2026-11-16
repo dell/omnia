@@ -32,13 +32,13 @@ class TestJobStageLogMetadata:
     def test_has_log_and_line_counts(self, client, headers, create_job, publish_log):
         """GIVEN published logs for two stages THEN has_log and log_lines are reported."""
         job_id = create_job()
-        publish_log(job_id, "parse-catalog", "x\n" * 245)
+        publish_log(job_id, "create-local-repository", "x\n" * 245)
         publish_log(job_id, "build-image", "y\n" * 1830)
 
         body = client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()
 
-        assert _stage(body, "parse-catalog")["has_log"] is True
-        assert _stage(body, "parse-catalog")["log_lines"] == 245
+        assert _stage(body, "create-local-repository")["has_log"] is True
+        assert _stage(body, "create-local-repository")["log_lines"] == 245
         assert _stage(body, "build-image")["log_lines"] == 1830
         assert _stage(body, "deploy")["has_log"] is False
         assert _stage(body, "deploy")["log_lines"] == 0

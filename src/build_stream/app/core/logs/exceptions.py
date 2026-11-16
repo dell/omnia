@@ -33,6 +33,7 @@ class LogUnavailableReason(str, Enum):
     NOT_PUBLISHED = "NOT_PUBLISHED"
     MISSING = "MISSING"
     NOT_TEXT = "NOT_TEXT"
+    NOT_PLAYBOOK_STAGE = "NOT_PLAYBOOK_STAGE"
 
 
 UNAVAILABLE_MESSAGES = {
@@ -41,6 +42,9 @@ UNAVAILABLE_MESSAGES = {
     LogUnavailableReason.NOT_PUBLISHED: "Log file not available for this stage",
     LogUnavailableReason.MISSING: "Log file not available for this stage",
     LogUnavailableReason.NOT_TEXT: "Stage log is not readable text",
+    LogUnavailableReason.NOT_PLAYBOOK_STAGE: (
+        "Stage does not run an Ansible playbook; no execution log exists"
+    ),
 }
 
 

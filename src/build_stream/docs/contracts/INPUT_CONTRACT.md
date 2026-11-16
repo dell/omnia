@@ -39,6 +39,43 @@ must be supplied before running `build_stream.yml`.
 | `gitlab_puma_workers` | int | Optional | `2` | Puma web worker count (1-2 per core). |
 | `gitlab_sidekiq_concurrency` | int | Optional | `10` | Sidekiq background job concurrency. |
 
+### 1.3  Pipeline Log Observability (ER-BSM-003)
+
+Pipeline execution logs are served by the BSM API endpoint
+`GET /api/v1/jobs/{job_id}/logs` and previewed in the GitLab CI job console.
+Logs exist **only for stages that run an Ansible playbook**; other stages
+(e.g. create-job, parse-catalog, upload) have no execution log.
+
+The operator-tunable parameters live in **Section 5** of
+`build_stream_config.yml` (`$OMNIA_DATA_PATH/build_stream/input/<project>/`).
+All are optional and are read when the `omnia_build_stream` container starts
+(re-run the build_stream playbook after a change; it also refreshes the GitLab CI/CD variable).
+They are validated by `validate_build_stream_config` (JSON schema + L2) and
+again at load time; an invalid value is rejected as a whole and the
+`build_stream.ini` / built-in defaults stay in effect.
+
+| Parameter (`build_stream_config.yml`) | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `log_tail_lines_default` | int (1..`log_tail_lines_max`) | Optional | `50` | Lines returned per stage when `tail_lines` is omitted. |
+| `log_tail_lines_max` | int (1..10000) | Optional | `10000` | Upper bound accepted for the `tail_lines` query parameter. |
+| `max_log_response_bytes` | int (1024..52428800) | Optional | `10485760` | Maximum log bytes returned per stage (`full=true` or tail); 10 MiB. |
+| `log_ci_preview_lines` | int (1..`log_tail_lines_max`) | Optional | `50` | Execution-log lines previewed in the GitLab CI job console. Pushed to the GitLab project as CI/CD variable `BSM_LOG_TAIL_LINES` on each build_stream run. |
+| `log_query_rate_limit` | int (>=1) | Optional | `60` | Per-OAuth-client log-query requests allowed per minute (429 when exceeded). |
+| `log_query_max_concurrent` | int (>=1) | Optional | `5` | Log-query requests served concurrently across all clients (503 + `Retry-After`). |
+
+Precedence: `build_stream_config.yml` > `[log_query]` in
+`build_stream.ini` (advanced; also holds `log_root`, the container path of the
+published per-job logs, default `${OMNIA_DATA_PATH}/build_stream/log`) >
+built-in defaults.
+
+**CI/CD variable** — managed by Omnia, not hand-edited. The GitLab CI pipelines
+(`build`, `cadence`, `deploy`) preview the last N execution-log lines in the job
+console on completion (playbook stages only):
+
+| CI/CD variable | Source | Default | Description |
+|---|---|---|---|
+| `BSM_LOG_TAIL_LINES` | `log_ci_preview_lines` in `build_stream_config.yml` | `50` | Lines previewed in the job console (`after_script`). Set on the GitLab project by `set_pipeline_variables`; a per-pipeline-run variable of the same name still overrides it. |
+
 ---
 
 ## 2  Credentials

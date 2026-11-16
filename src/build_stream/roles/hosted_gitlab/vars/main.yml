@@ -220,6 +220,10 @@ gitlab_pipeline_bs_variables:
     value: "{{ _gitlab_bs_api_cert | default('') }}"
     variable_type: "env_var"
     masked: false
+  - key: "BSM_LOG_TAIL_LINES"
+    value: "{{ log_ci_preview_lines | default(log_tail_lines_default | default(50)) }}"
+    variable_type: "env_var"
+    masked: false
 
 gitlab_sshpass_install_fail_msg: >
   Failed to install sshpass. Ensure AppStream and BaseOS repositories

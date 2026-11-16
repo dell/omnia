@@ -22,7 +22,7 @@
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 from core.logs.redaction_patterns import (
     IDENTIFIER_RULES,
@@ -57,6 +57,24 @@ class RedactionResult:
     suppressed_lines: int
 
 
+@dataclass
+class StreamRedactionState:
+    """Mutable cross-line state for streaming (line-by-line) redaction.
+
+    The watcher redacts Ansible output one line at a time as it is read from
+    the subprocess pipe (ER-BSM-003 HLD 5.3.4). Unlike the window-based
+    ``redact_lines`` used by the API read path, a streaming consumer sees each
+    line exactly once and must remember when it is inside a multi-line PEM
+    private-key block so the key body never leaks.
+
+    Attributes:
+        in_key_block: True while the stream is between a PEM BEGIN marker and
+            its matching END marker.
+    """
+
+    in_key_block: bool = False
+
+
 class RedactionService:
     """Applies the tiered pattern registry to log lines.
 
@@ -80,6 +98,48 @@ class RedactionService:
     def redact(self, text: str, tier: RedactionTier = RedactionTier.SECRETS_ONLY) -> str:
         """Redact a block of text and return it."""
         return "\n".join(self.redact_lines(text.split("\n"), tier).lines)
+
+    @staticmethod
+    def new_stream_state() -> StreamRedactionState:
+        """Create fresh state for a streaming (line-by-line) redaction session."""
+        return StreamRedactionState()
+
+    def redact_stream_line(
+        self,
+        line: str,
+        state: StreamRedactionState,
+        tier: RedactionTier = RedactionTier.SECRETS_ONLY,
+    ) -> Tuple[str, bool]:
+        """Redact a single streamed line, carrying PEM key-block state across calls.
+
+        This is the streaming counterpart of :meth:`redact_lines`, used by the
+        playbook watcher to sanitize Ansible output as each line is read from
+        the subprocess pipe. It fails closed: a line that cannot be processed is
+        replaced with the suppression marker, never passed through unsanitized.
+
+        Args:
+            line: One line of subprocess output (without a trailing newline).
+            state: Mutable state returned by :meth:`new_stream_state`.
+            tier: Which pattern tiers to apply (write-time uses SECRETS_ONLY).
+
+        Returns:
+            A ``(output_line, suppressed)`` tuple where ``suppressed`` is True
+            when the line was withheld because redaction raised.
+        """
+        rules = self._secret_rules
+        if tier == RedactionTier.FULL:
+            rules = rules + self._identifier_rules
+        try:
+            if state.in_key_block:
+                if PRIVATE_KEY_END.search(line):
+                    state.in_key_block = False
+                return REDACTED, False
+            begin = PRIVATE_KEY_BEGIN.search(line)
+            if begin and not PRIVATE_KEY_END.search(line, begin.end()):
+                state.in_key_block = True
+            return _apply_rules(line, rules), False
+        except (re.error, RecursionError, TypeError):
+            return REDACTION_SUPPRESSED_LINE, True
 
     def redact_lines(
         self,

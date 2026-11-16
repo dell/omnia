@@ -63,6 +63,8 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
+  # BSM_LOG_TAIL_LINES (execution-log preview lines) is a project CI/CD variable
+  # set by Omnia from log_ci_preview_lines in build_stream_config.yml (default 50).
   # OMNIA_DATA_PATH is read from omnia.env where needed (bsm_job_log_dir).
   OMNIA_PROJECT_NAME: "project_default"
   PIPELINE_MODE: "cadence"
@@ -222,6 +224,148 @@ default:
         printf "  %-22s %s\n" "Log File Path:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")${JOB_ID:-unknown}.log"
         echo "  ------------------------------------------------------------"
       }
+
+      # Print the validate test summary: totals, every test case with its
+      # status, and the reason (as shown by the HTML report View button) for each
+      # failed, errored, or skipped test. Usage: print_test_summary '<json>'
+      print_test_summary() {
+        _PTS_JSON="$1"
+        [ -n "${_PTS_JSON}" ] || return 0
+        echo "  ------------------------------------------------------------"
+        echo "  Test Summary:"
+        printf "  %-12s %s\n" "Total:"   "$(echo "${_PTS_JSON}" | jq -r '.total // 0')"
+        printf "  %-12s %s\n" "Passed:"  "$(echo "${_PTS_JSON}" | jq -r '.passed // 0')"
+        printf "  %-12s %s\n" "Failed:"  "$(echo "${_PTS_JSON}" | jq -r '.failed // 0')"
+        printf "  %-12s %s\n" "Skipped:" "$(echo "${_PTS_JSON}" | jq -r '.skipped // 0')"
+        printf "  %-12s %s\n" "Errors:"  "$(echo "${_PTS_JSON}" | jq -r '.errors // 0')"
+        _PTS_ALL=$(echo "${_PTS_JSON}" | jq -r '.tests[]? | "    [\(.status)] \(.name)"' 2>/dev/null)
+        if [ -n "${_PTS_ALL}" ]; then
+          echo "  ------------------------------------------------------------"
+          echo "  Test Cases:"
+          echo "${_PTS_ALL}"
+        fi
+        _PTS_BAD=$(echo "${_PTS_JSON}" | jq -r '
+          .tests[]?
+          | select((.status | ascii_upcase) == "FAILED" or (.status | ascii_upcase) == "ERROR")
+          | "    - \(.name): \(.status)" + (if .reason then "\n        Reason: \(.reason)" else "" end)
+        ' 2>/dev/null)
+        echo "  ------------------------------------------------------------"
+        echo "  Failed/Error Test Cases:"
+        if [ -n "${_PTS_BAD}" ]; then
+          echo "${_PTS_BAD}"
+        else
+          echo "    None reported"
+        fi
+        _PTS_SKIP=$(echo "${_PTS_JSON}" | jq -r '
+          .tests[]?
+          | select((.status | ascii_upcase) == "SKIPPED" and .reason)
+          | "    - \(.name): \(.reason)"
+        ' 2>/dev/null)
+        if [ -n "${_PTS_SKIP}" ]; then
+          echo "  Skipped Test Cases:"
+          echo "${_PTS_SKIP}"
+        fi
+      }
+
+  # -------------------------------------------------------------------------
+  # CI console log integration (ER-BSM-003 FR-4.1 / FR-4.2, AC-006 / AC-007)
+  #
+  # after_script runs in its OWN shell on both success and failure, so this
+  # block is fully self-contained. It previews the last N lines of the
+  # execution log for stages that ran an Ansible playbook and prints
+  # authenticated CLI command templates with a <TOKEN> placeholder. It NEVER
+  # echoes a real credential and NEVER changes the job exit status.
+  # -------------------------------------------------------------------------
+  after_script:
+    - |
+      _LOG_TAIL="${BSM_LOG_TAIL_LINES:-50}"
+      _LOG_JOB="${JOB_ID:-}"
+      _LOG_CACERT="${BSM_CERT_FILE:-/tmp/bsm_api_ca.crt}"
+      _LOG_TOKEN=""
+      [ -f /tmp/bsm_access_token ] && _LOG_TOKEN=$(cat /tmp/bsm_access_token)
+      [ -z "${_LOG_TOKEN}" ] && _LOG_TOKEN="${ACCESS_TOKEN:-}"
+      # Only stages that executed an Ansible playbook have an execution log.
+      case "${CI_JOB_STAGE:-}" in
+        configure-local-repository) _LOG_STAGE="create-local-repository" ;;
+        build-images)               _LOG_STAGE="build-image" ;;
+        deploy)                     _LOG_STAGE="deploy" ;;
+        restart)                    _LOG_STAGE="restart" ;;
+        validate)                   _LOG_STAGE="validate" ;;
+        *)                          _LOG_STAGE="" ;;
+      esac
+      if [ -z "${_LOG_JOB}" ]; then
+        echo "  [LOG PREVIEW] No BSM job associated with this stage; skipping execution-log preview."
+      else
+        if [ -n "${_LOG_STAGE}" ] && command -v curl >/dev/null 2>&1; then
+          _LOG_CA_ARG=""
+          [ -f "${_LOG_CACERT}" ] && _LOG_CA_ARG="--cacert ${_LOG_CACERT}"
+          # Access tokens expire (default 60 min). Mint a fresh one when the saved
+          # token is missing or rejected; CLIENT_ID/CLIENT_SECRET are never printed.
+          _bsm_new_token() {
+            _TOK_ID="${CLIENT_ID:-${BSM_CLIENT_ID:-}}"
+            _TOK_SECRET="${CLIENT_SECRET:-${BSM_CLIENT_SECRET:-}}"
+            if [ -z "${_TOK_ID}" ] || [ -z "${_TOK_SECRET}" ] || ! command -v jq >/dev/null 2>&1; then
+              return 1
+            fi
+            curl -s -o /tmp/_bsm_tok.json \
+              --connect-timeout "${CURL_CONNECT_TIMEOUT:-15}" --max-time "${CURL_MAX_TIME:-45}" \
+              ${_LOG_CA_ARG} -X POST "${BSM_API_URL}/api/v1/auth/token" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -d "grant_type=client_credentials&client_id=${_TOK_ID}&client_secret=${_TOK_SECRET}" \
+              >/dev/null 2>&1 || { rm -f /tmp/_bsm_tok.json; return 1; }
+            _NEW_TOKEN=$(jq -r '.access_token // empty' /tmp/_bsm_tok.json 2>/dev/null)
+            rm -f /tmp/_bsm_tok.json
+            if [ -z "${_NEW_TOKEN}" ]; then
+              return 1
+            fi
+            _LOG_TOKEN="${_NEW_TOKEN}"
+          }
+          _bsm_fetch_log() {
+            curl -s -o /tmp/_bsm_logtail.json -w "%{http_code}" \
+              --connect-timeout "${CURL_CONNECT_TIMEOUT:-15}" --max-time "${CURL_MAX_TIME:-45}" \
+              -H "Authorization: Bearer ${_LOG_TOKEN}" ${_LOG_CA_ARG} \
+              "${BSM_API_URL}/api/v1/jobs/${_LOG_JOB}/logs?stage=${_LOG_STAGE}&tail_lines=${_LOG_TAIL}" 2>/dev/null || echo "000"
+          }
+          if [ -z "${_LOG_TOKEN}" ]; then
+            _bsm_new_token || true
+          fi
+          _LOG_CODE="000"
+          if [ -n "${_LOG_TOKEN}" ]; then
+            _LOG_CODE=$(_bsm_fetch_log)
+          fi
+          if [ "${_LOG_CODE}" = "401" ]; then
+            if _bsm_new_token; then
+              _LOG_CODE=$(_bsm_fetch_log)
+            fi
+          fi
+          if [ "${_LOG_CODE}" = "200" ] && command -v jq >/dev/null 2>&1; then
+            echo "  ============================================================"
+            echo "  Execution Log (last ${_LOG_TAIL} lines) - stage ${_LOG_STAGE}"
+            echo "  ============================================================"
+            jq -r '.stages[]? | (.log_content // ("(" + (.unavailable_reason // "no log") + ")"))' \
+              /tmp/_bsm_logtail.json 2>/dev/null || true
+            echo "  ============================================================"
+          elif [ "${_LOG_CODE}" = "404" ]; then
+            echo "  [LOG PREVIEW] Execution log not yet available for stage ${_LOG_STAGE}."
+          else
+            echo "  [LOG PREVIEW] Log preview unavailable (HTTP ${_LOG_CODE}); job result is unaffected."
+          fi
+          rm -f /tmp/_bsm_logtail.json
+        fi
+        echo "  ------------------------------------------------------------"
+        echo "  Retrieve complete execution logs through the BSM API:"
+        echo "    # 1) Obtain an access token:"
+        echo "    curl -X POST ${BSM_API_URL}/api/v1/auth/token \\"
+        echo "      -H 'Content-Type: application/x-www-form-urlencoded' \\"
+        echo "      -d 'grant_type=client_credentials&client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>'"
+        echo "    # 2) Full job log:"
+        echo "    curl -H 'Authorization: Bearer <TOKEN>' '${BSM_API_URL}/api/v1/jobs/${_LOG_JOB}/logs?full=true'"
+        if [ -n "${_LOG_STAGE}" ]; then
+          echo "    # 3) This stage only:"
+          echo "    curl -H 'Authorization: Bearer <TOKEN>' '${BSM_API_URL}/api/v1/jobs/${_LOG_JOB}/logs?stage=${_LOG_STAGE}'"
+        fi
+        echo "  ------------------------------------------------------------"
+      fi
 
 # ============================= STAGE 1 ====================================
 # Initialization — Health Check + Authentication + Job Creation
@@ -973,30 +1117,7 @@ validate:
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
 
             TEST_SUMMARY=$(jq -c '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
-            if [ -n "${TEST_SUMMARY}" ]; then
-              echo "  ------------------------------------------------------------"
-              echo "  Test Summary:"
-              printf "  %-12s %s\n" "Total:"   "$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')"
-              printf "  %-12s %s\n" "Passed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')"
-              printf "  %-12s %s\n" "Failed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')"
-              printf "  %-12s %s\n" "Skipped:" "$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')"
-              printf "  %-12s %s\n" "Errors:"  "$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')"
-              echo "  ------------------------------------------------------------"
-              echo "  Failed/Error Test Cases:"
-              FAILED_TESTS=$(echo "${TEST_SUMMARY}" | jq -r '
-                .tests[]?
-                | select(
-                    (.status | ascii_upcase) == "FAILED"
-                    or (.status | ascii_upcase) == "ERROR"
-                  )
-                | "    - \(.name): \(.status)"
-              ')
-              if [ -n "${FAILED_TESTS}" ]; then
-                echo "${FAILED_TESTS}"
-              else
-                echo "    None reported"
-              fi
-            fi
+            print_test_summary "${TEST_SUMMARY}"
 
             printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
             print_stage_log_info "validate" status_response.json
@@ -1017,15 +1138,7 @@ validate:
       echo ""
       echo "  [OK] Validate Stage Result: COMPLETED"
       TEST_SUMMARY=$(jq -c '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
-      if [ -n "${TEST_SUMMARY}" ]; then
-        echo "  ------------------------------------------------------------"
-        echo "  Test Summary:"
-        printf "  %-12s %s\n" "Total:"   "$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')"
-        printf "  %-12s %s\n" "Passed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')"
-        printf "  %-12s %s\n" "Failed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')"
-        printf "  %-12s %s\n" "Skipped:" "$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')"
-        printf "  %-12s %s\n" "Errors:"  "$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')"
-      fi
+      print_test_summary "${TEST_SUMMARY}"
 
 # ============================= STAGE 6 ====================================
 # Summary — Report pipeline results

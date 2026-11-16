@@ -25,6 +25,7 @@ from api.logging_utils import log_secure_info
 from core.jobs.entities.stage import Stage
 from core.jobs.value_objects import StageState
 from core.logs.exceptions import LogNotAvailableError, LogPathViolationError
+from core.logs.playbook_stages import is_playbook_stage
 from core.logs.services import LogFileService
 
 NO_LOG_STATES = frozenset({StageState.PENDING, StageState.IN_PROGRESS})
@@ -53,6 +54,8 @@ class StageLogMetadataService:  # pylint: disable=too-few-public-methods
 
     def describe(self, job_id: str, stage: Stage) -> StageLogMetadata:
         """Return log metadata for a stage of ``job_id``."""
+        if not is_playbook_stage(stage.stage_name):
+            return NO_LOG
         if not stage.log_file_path or stage.stage_state in NO_LOG_STATES:
             return NO_LOG
         try:

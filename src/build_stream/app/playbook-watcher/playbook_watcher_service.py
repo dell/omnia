@@ -38,6 +38,26 @@ from pathlib import Path
 from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
 
+# Make the shared BuildStream ``app`` package importable when this service runs
+# standalone under systemd. The directory that contains ``core/`` is this
+# file's grandparent in both the source tree (``src/build_stream/app/``) and
+# the deployed tree (``<OMNIA_DATA_PATH>/build_stream/``). Write-time log
+# redaction (ER-BSM-003 FR-3.1, HLD 5.3.4) reuses the same tiered
+# ``RedactionService`` as the API response-time path so there is a single
+# pattern registry.
+_APP_ROOT = str(Path(__file__).resolve().parent.parent)
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
+
+from core.logs.redaction import (  # noqa: E402  pylint: disable=wrong-import-position
+    RedactionService,
+    RedactionTier,
+)
+
+# Shared, thread-safe (stateless across calls) redaction service used for all
+# write-time log sanitization in this process.
+_REDACTION_SERVICE = RedactionService()
+
 
 def _resolve_omnia_env():
     """Read /etc/omnia/omnia.env and resolve variable references.
@@ -1005,6 +1025,15 @@ def build_stage_log_path(  # pylint: disable=too-many-arguments,too-many-positio
     )
 
 
+def _relabel_like_parent(path: Path) -> None:
+    """Give ``path`` the SELinux label of its directory (no-op without SELinux)."""
+    try:
+        label = os.getxattr(path.parent, "security.selinux")
+        os.setxattr(path, "security.selinux", label)
+    except (OSError, AttributeError):
+        pass
+
+
 def publish_stage_log(
     domain_log_path: Path, job_id: str, summary_lines: List[str]
 ) -> str:
@@ -1027,7 +1056,11 @@ def publish_stage_log(
     job_log_path = HOST_LOG_BASE_DIR / job_id / domain_log_path.name
     try:
         job_log_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(str(domain_log_path), str(job_log_path))
+        # copyfile (not copy2): copy2 carries over the source SELinux label
+        # (var_log_t) and 0600 mode, which the BSM container cannot read.
+        shutil.copyfile(str(domain_log_path), str(job_log_path))
+        os.chmod(job_log_path, 0o644)
+        _relabel_like_parent(job_log_path)
     except (OSError, shutil.Error):
         log_secure_info(
             "error",
@@ -1078,6 +1111,103 @@ def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
         }
         for functional_group, image_group_id in dict.fromkeys(matches)
     ]
+
+
+def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    cmd: List[str],
+    playbook_dir: str,
+    env: Dict[str, str],
+    timeout_seconds: int,
+    log_file_path: Path,
+) -> int:
+    """Run ansible-playbook, capturing output and redacting Tier 1 secrets at write time.
+
+    Implements ER-BSM-003 FR-3.1 (HLD 5.3.4). The previous model set
+    ``ANSIBLE_LOG_PATH`` and used ``subprocess.run(capture_output=False)``,
+    letting Ansible write its own log file and bypassing any stream filtering.
+    This function instead:
+
+    1. Launches ``subprocess.Popen`` with ``stdout=PIPE, stderr=STDOUT`` so the
+       merged stream preserves interleaved task ordering.
+    2. Reads the stream line-by-line in a daemon thread (``errors='replace'``
+       handles non-UTF-8 bytes; the final partial line is flushed on exit).
+    3. Redacts every line through the shared :data:`_REDACTION_SERVICE`
+       (Tier 1 secrets only — operational IPs/host names are preserved) before
+       writing it to ``log_file_path``.
+
+    No unsanitized byte is ever written to disk. Redaction fails closed: a line
+    that cannot be processed is replaced with a suppression marker.
+
+    Args:
+        cmd: Fully built, validated command (``shell=False``).
+        playbook_dir: Working directory (the playbook's parent).
+        env: Subprocess environment; MUST NOT contain ``ANSIBLE_LOG_PATH``.
+        timeout_seconds: Hard wall-clock timeout for the subprocess.
+        log_file_path: Sanitized absolute domain log path to write.
+
+    Returns:
+        The subprocess exit code.
+
+    Raises:
+        subprocess.TimeoutExpired: Execution exceeded ``timeout_seconds``. The
+            output buffered up to the timeout is still redacted and persisted.
+    """
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    state = _REDACTION_SERVICE.new_stream_state()
+    suppressed = {"count": 0}
+
+    with open(log_file_path, "w", encoding="utf-8") as log_file:
+        proc = subprocess.Popen(  # pylint: disable=consider-using-with
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+            cwd=playbook_dir,
+            env=env,
+            start_new_session=True,
+            bufsize=1,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        def _drain() -> None:
+            """Read, redact, and write every line from the merged output stream."""
+            if proc.stdout is None:
+                return
+            for raw_line in proc.stdout:
+                sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
+                    raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
+                )
+                if line_suppressed:
+                    suppressed["count"] += 1
+                log_file.write(f"{sanitized}\n")
+            log_file.flush()
+
+        reader = Thread(target=_drain, name="watcher-log-reader", daemon=True)
+        reader.start()
+        try:
+            proc.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            reader.join()
+            _log_suppressed_lines(suppressed["count"])
+            raise
+        reader.join()
+
+    _log_suppressed_lines(suppressed["count"])
+    return proc.returncode
+
+
+def _log_suppressed_lines(count: int) -> None:
+    """Emit a security event when write-time redaction withheld one or more lines."""
+    if count:
+        log_secure_info(
+            "warning",
+            f"Security event: write-time redaction withheld {count} "
+            f"unsanitizable line(s) from the stage log",
+        )
 
 
 def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -1238,9 +1368,11 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         timeout_seconds = timeout_minutes * 60
 
-        # Set ANSIBLE_LOG_PATH as env var so Ansible writes its log there
+        # Write-time redaction (ER-BSM-003 FR-3.1): ANSIBLE_LOG_PATH is NOT set,
+        # so Ansible does not write its own (unsanitized) log file. The watcher
+        # captures stdout/stderr and writes the redacted output itself.
         env = os.environ.copy()
-        env["ANSIBLE_LOG_PATH"] = log_path_str
+        env.pop("ANSIBLE_LOG_PATH", None)
 
         # Expand shell-style variable references in env values.
         # systemd EnvironmentFile does NOT perform shell expansion, so
@@ -1256,21 +1388,12 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             f"ansible-playbook [playbook] in {playbook_dir[:30]}"
         )
 
-        # Execute directly — shell=False, cwd=playbook directory
-        result = subprocess.run(
-            cmd,
-            capture_output=False,
-            timeout=timeout_seconds,
-            check=False,
-            shell=False,
-            text=False,
-            start_new_session=True,
-            cwd=playbook_dir,
-            env=env,
+        # Execute directly — shell=False, cwd=playbook directory. The merged
+        # stdout/stderr stream is redacted line-by-line and written to
+        # log_file_path; no unsanitized byte reaches disk.
+        returncode = _run_playbook_with_redaction(
+            cmd, playbook_dir, env, timeout_seconds, log_file_path
         )
-
-        # Wait briefly for log flush
-        time.sleep(0.5)
 
         if not log_file_path.exists():
             log_secure_info(
@@ -1281,7 +1404,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        status = "success" if result.returncode == 0 else "failed"
+        status = "success" if returncode == 0 else "failed"
 
         dictionary_hits = (
             extract_dictionary_hits(log_file_path)
@@ -1289,7 +1412,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         )
         reported_log = publish_stage_log(log_file_path, job_id, [
             f"stage={stage_name} attempt={attempt} status={status} "
-            f"exit_code={result.returncode} "
+            f"exit_code={returncode} "
             f"duration_seconds={int(duration_seconds)}",
         ])
         log_secure_info(
@@ -1307,7 +1430,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "request_id": request_id_safe,
             "correlation_id": correlation_id,
             "status": status,
-            "exit_code": result.returncode,
+            "exit_code": returncode,
             "attempt": attempt,
             "log_file_path": reported_log,
             "started_at": started_at.isoformat(),
@@ -1323,7 +1446,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         if status == "failed":
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
             result_data["error_summary"] = (
-                f"Playbook exited with code {result.returncode}. "
+                f"Playbook exited with code {returncode}. "
                 f"Check playbook log at {reported_log} for details."
             )
 
@@ -1578,22 +1701,15 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         timeout_seconds = timeout_minutes * 60
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-            shell=False,
-            text=True,
-            env=env,
-            start_new_session=True
+        # Stream the merged test output (every test case as it runs, then the
+        # final summary table) into the per-attempt stage log, redacted line by
+        # line. The log is complete even if the run times out.
+        returncode = _run_playbook_with_redaction(
+            cmd, test_dir, env, timeout_seconds, host_log_file_path
         )
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-
-        # Write test output to the per-attempt stage log
-        _write_test_output(host_log_file_path, result.stdout, result.stderr)
 
         # Copy molecule reports from temp dir to job-specific NFS artifact dir
         try:
@@ -1621,11 +1737,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             artifact_dir, "validate_output.log"
         )
         try:
-            with open(artifact_log_path, 'w') as f:
-                f.write(
-                    f"STDOUT:\n{result.stdout}\n\n"
-                    f"STDERR:\n{result.stderr}\n"
-                )
+            shutil.copyfile(log_file_path, artifact_log_path)
         except OSError:
             log_secure_info(
                 "warning", "Failed to write molecule artifact log", job_id
@@ -1831,10 +1943,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             )
                             results = module_info.get("results", [])
                             tests = [
-                                {
-                                    "name": r.get("test_name"),
-                                    "status": r.get("status")
-                                }
+                                _build_test_entry(r)
                                 for r in results
                                 if r.get("test_name")
                             ]
@@ -1959,15 +2068,15 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         elif test_summary["failed"] > 0 or test_summary["errors"] > 0:
             status = "failed"
             exit_code = 1
-        elif result.returncode == 0:
+        elif returncode == 0:
             status = "success"
             exit_code = 0
-        elif result.returncode == 124:
+        elif returncode == 124:
             status = "failed"
             exit_code = 124
         else:
             status = "failed"
-            exit_code = result.returncode
+            exit_code = returncode
 
         reported_log = publish_stage_log(host_log_file_path, job_id, [
             f"stage={stage_type} attempt={attempt} status={status} "
@@ -2040,7 +2149,6 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         error_summary = (
             f"Test validation timed out after {timeout_minutes} minutes"
         )
-        _write_test_output(host_log_file_path, exc.stdout, exc.stderr)
         log_secure_info(
             "error", "Test validation timed out for job", job_id
         )
@@ -2078,29 +2186,44 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _write_test_output(
-    log_file_path: Path, stdout: Any, stderr: Any
-) -> None:
-    """Write captured test runner output to the stage log.
+MAX_REASON_CHARS = 500
 
-    Args:
-        log_file_path: Stage log file path.
-        stdout: Captured standard output (str, bytes, or None).
-        stderr: Captured standard error (str, bytes, or None).
+
+def _failure_reason(result: Dict[str, Any]) -> str:
+    """Return a short, redacted reason for a failed or skipped test result.
+
+    Uses the same data the HTML report shows behind the View button: the
+    pytest error for failures, or the ``SKIPPED:`` line for skips.
     """
-    def _as_text(stream: Any) -> str:
-        if isinstance(stream, bytes):
-            return stream.decode("utf-8", errors="replace")
-        return stream or ""
+    status = result.get("status")
+    text = ""
+    if status == "FAILED":
+        text = str(result.get("error") or "")
+        if not text:
+            text = str(result.get("details") or "")
+    elif status == "SKIPPED":
+        match = re.search(r"(?m)^SKIPPED:\s*(.+)$", str(result.get("details") or ""))
+        text = match.group(1) if match else ""
+    if not text:
+        return ""
+    text = re.sub(r"\x1B\[[0-?]*[ -/]*[@-~]", "", text)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    error_lines = [ln for ln in lines if ln.startswith(("E ", "E\t")) or "Error" in ln or "assert" in ln]
+    picked = error_lines[:3] or lines[-3:]
+    reason = " | ".join(picked)
+    reason = _REDACTION_SERVICE.redact(reason, RedactionTier.SECRETS_ONLY)
+    return reason[:MAX_REASON_CHARS]
 
-    try:
-        with open(log_file_path, "w", encoding="utf-8") as log_file:
-            log_file.write(
-                f"STDOUT:\n{_as_text(stdout)}\n\n"
-                f"STDERR:\n{_as_text(stderr)}\n"
-            )
-    except OSError:
-        log_secure_info("warning", "Failed to write test output log")
+
+def _build_test_entry(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Build one ``test_summary['tests']`` entry from a report result."""
+    entry = {"name": result.get("test_name"), "status": result.get("status")}
+    if result.get("tc_id"):
+        entry["tc_id"] = result.get("tc_id")
+    reason = _failure_reason(result)
+    if reason:
+        entry["reason"] = reason
+    return entry
 
 
 def build_rejected_result(

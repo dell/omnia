@@ -35,6 +35,7 @@ from core.logs.exceptions import (
     LogUnavailableReason,
     StageNotFoundForJobError,
 )
+from core.logs.playbook_stages import is_playbook_stage
 from core.logs.redaction import RedactionService, RedactionTier
 from core.logs.services import LogFileService, LogReadResult
 
@@ -111,7 +112,8 @@ class LogQueryUseCase:  # pylint: disable=too-few-public-methods
             InvalidLogQueryError: Parameters are out of range or conflicting.
             JobNotFoundError: Job is missing, tombstoned, or owned by another client.
             StageNotFoundForJobError: The requested stage does not exist for the job.
-            LogNotAvailableError: A single requested stage has no servable log.
+            LogNotAvailableError: The requested stage is not a playbook stage or has no
+                servable log. Unfiltered queries list playbook stages only.
             LogPathViolationError: A stored path escapes the log root.
         """
         tail_lines = self._effective_tail_lines(command)
@@ -124,6 +126,10 @@ class LogQueryUseCase:  # pylint: disable=too-few-public-methods
             stages = [s for s in stages if str(s.stage_name) == command.stage]
             if not stages:
                 raise StageNotFoundForJobError()
+            if not is_playbook_stage(command.stage):
+                raise LogNotAvailableError(LogUnavailableReason.NOT_PLAYBOOK_STAGE)
+        else:
+            stages = [s for s in stages if is_playbook_stage(s.stage_name)]
 
         results = [self._read_stage(command, stage, tail_lines) for stage in stages]
         if command.stage is not None and not results[0].has_log:

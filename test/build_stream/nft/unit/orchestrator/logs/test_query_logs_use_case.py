@@ -31,6 +31,7 @@ from core.logs.exceptions import (
     LogUnavailableReason,
     StageNotFoundForJobError,
 )
+from core.logs.playbook_stages import is_playbook_stage
 from core.logs.redaction import RedactionService
 from core.logs.redaction_patterns import REDACTED
 from core.logs.services import LogReadResult
@@ -63,7 +64,7 @@ def _host(name: str) -> str:
 def stages_fixture():
     """Three stages: two with published logs, one still running."""
     return [
-        _stage("parse-catalog", StageState.COMPLETED, _host("parse")),
+        _stage("create-local-repository", StageState.COMPLETED, _host("parse")),
         _stage("build-image", StageState.COMPLETED, _host("build")),
         _stage("deploy", StageState.IN_PROGRESS),
     ]
@@ -145,7 +146,7 @@ class TestTailSemantics:
         """All stages are listed; the running stage reports NOT_YET_AVAILABLE."""
         result = use_case.execute(_cmd())
         by_name = {s.stage_name: s for s in result.stages}
-        assert set(by_name) == {"parse-catalog", "build-image", "deploy"}
+        assert set(by_name) == {"create-local-repository", "build-image", "deploy"}
         assert by_name["build-image"].has_log is True
         assert by_name["build-image"].total_lines == 500
         assert by_name["deploy"].has_log is False
@@ -234,3 +235,55 @@ class TestStageFilterAndErrors:
             use_case.execute(_cmd(stage="build-image"))
         messages = [c.args[1] for c in log.call_args_list]
         assert any("lines_suppressed=1" in m for m in messages)
+
+
+class TestPlaybookStagesOnly:
+    """Execution logs exist only for stages that run an Ansible playbook."""
+
+    @pytest.fixture(name="mixed_stages")
+    def mixed_stages_fixture(self, stages):
+        """Add the two non-playbook stages (with a stray recorded path)."""
+        return stages + [
+            _stage("parse-catalog", StageState.COMPLETED, _host("parse")),
+            _stage("upload", StageState.COMPLETED, _host("upload")),
+        ]
+
+    def test_unfiltered_query_lists_playbook_stages_only(self, mixed_stages, log_files):
+        """GIVEN non-playbook stages THEN an unfiltered query omits them."""
+        job_repo = MagicMock()
+        job_repo.find_by_id.return_value = SimpleNamespace(client_id=CLIENT_A, tombstoned=False)
+        stage_repo = MagicMock()
+        stage_repo.find_all_by_job.return_value = mixed_stages
+        use_case = LogQueryUseCase(
+            job_repo, stage_repo, log_files, RedactionService(), LogQuerySettings()
+        )
+        names = {s.stage_name for s in use_case.execute(_cmd()).stages}
+        assert names == {"create-local-repository", "build-image", "deploy"}
+
+    @pytest.mark.parametrize("stage_name", ["parse-catalog", "upload"])
+    def test_non_playbook_stage_filter_is_404_not_playbook(
+        self, mixed_stages, log_files, stage_name
+    ):
+        """GIVEN stage=<non-playbook> THEN NOT_PLAYBOOK_STAGE is raised and no file is read."""
+        job_repo = MagicMock()
+        job_repo.find_by_id.return_value = SimpleNamespace(client_id=CLIENT_A, tombstoned=False)
+        stage_repo = MagicMock()
+        stage_repo.find_all_by_job.return_value = mixed_stages
+        use_case = LogQueryUseCase(
+            job_repo, stage_repo, log_files, RedactionService(), LogQuerySettings()
+        )
+        with pytest.raises(LogNotAvailableError) as exc:
+            use_case.execute(_cmd(stage=stage_name))
+        assert exc.value.reason == LogUnavailableReason.NOT_PLAYBOOK_STAGE
+        log_files.read_tail.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            ("create-local-repository", True), ("build-image", True), ("validate", True),
+            ("restart", True), ("deploy", True), ("parse-catalog", False), ("upload", False),
+        ],
+    )
+    def test_playbook_stage_registry(self, name, expected):
+        """The registry matches the stages the watcher runs playbooks for."""
+        assert is_playbook_stage(name) is expected
