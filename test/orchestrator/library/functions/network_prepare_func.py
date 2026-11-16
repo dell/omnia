@@ -23,6 +23,7 @@ from omnia_auto import run_on_host
 
 from ..vars.prepare_vars import (
     DEFAULT_DNS_FORWARDERS,
+    FIREWALL_PODMAN_ZONE_PORTS,
     FIREWALL_PORTS,
     PODMAN_INTERFACES,
     PREPARE_COMMANDS,
@@ -57,6 +58,13 @@ def check_prepare_firewall_network(host) -> dict[str, Any]:
         fields.append((f"Firewall {port}", state))
         if probe.rc != 0:
             failures.append(port)
+
+    for port in FIREWALL_PODMAN_ZONE_PORTS:
+        probe = run_on_host(host, PREPARE_COMMANDS["firewall_podman_port"], port)
+        state = "open" if probe.rc == 0 else "closed"
+        fields.append((f"Podman zone {port}", state))
+        if probe.rc != 0:
+            failures.append(f"podman-zone {port}")
 
     for interface in PODMAN_INTERFACES:
         in_trusted = run_on_host(
