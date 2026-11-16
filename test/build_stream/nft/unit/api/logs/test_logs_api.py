@@ -45,7 +45,7 @@ class TestLogQuerySuccess:
     def test_default_tail_applied_to_each_stage(self, client, headers, create_job, publish_log):
         """GIVEN two published stage logs WHEN GET /logs THEN 50 lines per stage are returned."""
         job_id = create_job()
-        publish_log(job_id, "parse-catalog", _lines(245))
+        publish_log(job_id, "create-local-repository", _lines(245))
         publish_log(job_id, "build-image", _lines(1830))
 
         response = client.get(f"/api/v1/jobs/{job_id}/logs", headers=headers)
@@ -59,7 +59,7 @@ class TestLogQuerySuccess:
         assert build["total_lines"] == 1830
         assert build["truncated"] is True
         assert build["log_content"].splitlines()[-1] == "line 1830"
-        assert _stage(body, "parse-catalog")["total_lines"] == 245
+        assert _stage(body, "create-local-repository")["total_lines"] == 245
         pending = _stage(body, "deploy")
         assert pending["has_log"] is False
         assert pending["unavailable_reason"] == "NOT_YET_AVAILABLE"
@@ -68,14 +68,14 @@ class TestLogQuerySuccess:
         """GIVEN tail_lines=100 THEN the last 100 lines are returned, or all when shorter."""
         job_id = create_job()
         publish_log(job_id, "build-image", _lines(1830))
-        publish_log(job_id, "parse-catalog", _lines(30))
+        publish_log(job_id, "create-local-repository", _lines(30))
 
         body = client.get(
             f"/api/v1/jobs/{job_id}/logs?tail_lines=100", headers=headers
         ).json()
 
         assert _stage(body, "build-image")["returned_lines"] == 100
-        short = _stage(body, "parse-catalog")
+        short = _stage(body, "create-local-repository")
         assert short["returned_lines"] == 30
         assert short["truncated"] is False
 
@@ -100,7 +100,7 @@ class TestLogQuerySuccess:
         """GIVEN stage=build-image THEN only that stage is returned."""
         job_id = create_job()
         publish_log(job_id, "build-image", _lines(80))
-        publish_log(job_id, "parse-catalog", _lines(10))
+        publish_log(job_id, "create-local-repository", _lines(10))
 
         body = client.get(
             f"/api/v1/jobs/{job_id}/logs?stage=build-image", headers=headers
@@ -281,3 +281,30 @@ class TestConcurrencyLimit:
         assert response.status_code == 503
         assert response.headers["Retry-After"] == "1"
         assert client.get(f"/api/v1/jobs/{job_id}/logs", headers=headers).status_code == 200
+
+
+class TestPlaybookStagesOnlyApi:
+    """AC-004: logs are served only for stages that run an Ansible playbook."""
+
+    def test_unfiltered_response_has_playbook_stages_only(
+        self, client, headers, create_job, publish_log
+    ):
+        """GIVEN a fresh job THEN the unfiltered listing excludes parse-catalog and upload."""
+        job_id = create_job()
+        publish_log(job_id, "build-image", _lines(3))
+        names = {
+            s["stage_name"]
+            for s in client.get(f"/api/v1/jobs/{job_id}/logs", headers=headers).json()["stages"]
+        }
+        assert names == {"create-local-repository", "build-image", "validate", "restart", "deploy"}
+
+    @pytest.mark.parametrize("stage", ["parse-catalog", "upload"])
+    def test_filtering_on_non_playbook_stage_is_404(
+        self, client, headers, create_job, publish_log, stage
+    ):
+        """GIVEN stage=<non-playbook> THEN 404 explains there is no execution log."""
+        job_id = create_job()
+        publish_log(job_id, stage, _lines(3))
+        response = client.get(f"/api/v1/jobs/{job_id}/logs?stage={stage}", headers=headers)
+        assert response.status_code == 404
+        assert "playbook" in response.json()["detail"]["message"]

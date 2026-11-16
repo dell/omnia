@@ -56,7 +56,7 @@ class TestStageLogMetadata:
     def test_stages_with_and_without_logs(self, service):
         """GIVEN 3 stages, 2 with logs on disk THEN has_log/log_lines match the files."""
         stages = [
-            _stage("parse-catalog", StageState.COMPLETED, "parse.log"),
+            _stage("create-local-repository", StageState.COMPLETED, "parse.log"),
             _stage("build-image", StageState.COMPLETED, "build.log"),
             _stage("deploy", StageState.COMPLETED, "deploy.log"),
         ]
@@ -101,4 +101,11 @@ class TestStageLogMetadata:
             stage_state=StageState.COMPLETED,
             log_file_path="/etc/passwd",
         )
+        assert service.describe(JOB, stage) == StageLogMetadata(False, 0)
+
+
+    @pytest.mark.parametrize("name", ["parse-catalog", "upload"])
+    def test_non_playbook_stage_never_has_log(self, service, name):
+        """GIVEN a non-playbook stage with a recorded file THEN has_log=false."""
+        stage = _stage(name, StageState.COMPLETED, "parse.log")
         assert service.describe(JOB, stage) == StageLogMetadata(False, 0)
