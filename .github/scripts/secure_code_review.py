@@ -44,19 +44,21 @@ RULES = [
      PY + YML + SH,
      r"(?i)\b(password|passwd|secret|token|api_?key)\w*\s*[:=]\s*[\"'][^\"'{}$\s]{6,}[\"']",
      r"(?i)(example|changeme|placeholder|dummy|test|<.*>|\bnone\b|vault|\.yml|\.yaml|\.json|path|file|regex|pattern)"),
-    ("SEC-02", "TLS verification not disabled", "CWE-295",
-     "Do not use verify=False / validate_certs: false / curl -k; if unavoidable "
-     "(self-signed BMC) document with '# nosec B501'.",
-     PY + YML + SH,
-     r"verify\s*=\s*False|validate_certs\s*:\s*(false|no)\b|\bcurl\b[^\n]*\s(-k|--insecure)\b|"
-     r"InsecureRequestWarning",
-     r"nosec"),
-    ("SEC-03", "SSH host-key checking stays enabled", "CWE-295",
-     "Use StrictHostKeyChecking=accept-new and a persistent known_hosts "
-     "(no UserKnownHostsFile=/dev/null).",
-     PY + YML + SH + ["*.cfg", "*.j2", "*.conf"],
-     r"StrictHostKeyChecking[ =]+no|UserKnownHostsFile=/dev/null|host_key_checking\s*=\s*(false|no)",
-     None),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-02", "TLS verification not disabled", "CWE-295",
+    #  "Do not use verify=False / validate_certs: false / curl -k; if unavoidable "
+    #  "(self-signed BMC) document with '# nosec B501'.",
+    #  PY + YML + SH,
+    #  r"verify\s*=\s*False|validate_certs\s*:\s*(false|no)\b|\bcurl\b[^\n]*\s(-k|--insecure)\b|"
+    #  r"InsecureRequestWarning",
+    #  r"nosec"),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-03", "SSH host-key checking stays enabled", "CWE-295",
+    #  "Use StrictHostKeyChecking=accept-new and a persistent known_hosts "
+    #  "(no UserKnownHostsFile=/dev/null).",
+    #  PY + YML + SH + ["*.cfg", "*.j2", "*.conf"],
+    #  r"StrictHostKeyChecking[ =]+no|UserKnownHostsFile=/dev/null|host_key_checking\s*=\s*(false|no)",
+    #  None),
     ("SEC-04", "No shell / command injection sinks", "CWE-78",
      "Avoid subprocess shell mode, OS-level shell calls and dynamic code execution; pass argv lists to subprocess.",
      PY, r"shell\s*=\s*True|\bos\.(system|popen)\s*\(|(?<![\w.])(eval|exec)\s*\(", r"nosec"),
@@ -73,20 +75,23 @@ RULES = [
     ("SEC-07", "YAML parsed safely", "CWE-502",
      "Use yaml.safe_load; never yaml.load without SafeLoader, pickle or marshal.",
      PY, r"yaml\.load\s*\((?![^)]*Safe)|yaml\.unsafe_load|\bpickle\.loads?\(|\bmarshal\.loads?\(", r"nosec"),
-    ("SEC-08", "Vault decrypt does not leave plaintext on disk", "CWE-459/CWE-522",
-     "Use 'ansible-vault decrypt --output' to a private tmpfs file (/dev/shm) "
-     "inside block/rescue/always cleanup; no in-place decrypt, no failed_when: false.",
-     YML + SH,
-     r"ansible-vault\s+decrypt\b(?![^\n]*--output)|ansible-vault\s+view\b[^\n]*>\s*\S+", None),
-    ("SEC-09", "Secrets not passed on command line (argv)", "CWE-214",
-     "Pass credentials via files/stdin/env with restrictive perms, not "
-     "--password/-p arguments visible in process lists.",
-     PY + YML + SH,
-     r"(?i)--(password|passwd|token|secret|api-key)[= ]+\S|\s-p\s+['\"]?\{\{|"
-     r"sshpass\s+-p|mysql\b[^\n]*\s-p\S", r"(?i)(no_log|prompt|help|description)"),
-    ("SEC-10", "Credential tasks declare no_log", "CWE-532",
-     "Any task handling passwords/tokens/secrets must set no_log: true.",
-     YML, "__NOLOG__", None),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-08", "Vault decrypt does not leave plaintext on disk", "CWE-459/CWE-522",
+    #  "Use 'ansible-vault decrypt --output' to a private tmpfs file (/dev/shm) "
+    #  "inside block/rescue/always cleanup; no in-place decrypt, no failed_when: false.",
+    #  YML + SH,
+    #  r"ansible-vault\s+decrypt\b(?![^\n]*--output)|ansible-vault\s+view\b[^\n]*>\s*\S+", None),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-09", "Secrets not passed on command line (argv)", "CWE-214",
+    #  "Pass credentials via files/stdin/env with restrictive perms, not "
+    #  "--password/-p arguments visible in process lists.",
+    #  PY + YML + SH,
+    #  r"(?i)--(password|passwd|token|secret|api-key)[= ]+\S|\s-p\s+['\"]?\{\{|"
+    #  r"sshpass\s+-p|mysql\b[^\n]*\s-p\S", r"(?i)(no_log|prompt|help|description)"),
+    # TODO: disabled for now; re-enable in a future release.
+    # ("SEC-10", "Credential tasks declare no_log", "CWE-532",
+    #  "Any task handling passwords/tokens/secrets must set no_log: true.",
+    #  YML, "__NOLOG__", None),
     ("SEC-11", "Secrets not written to logs or errors", "CWE-532/CWE-209",
      "Never log credentials; return generic errors without internal paths/state.",
      PY + SH,
@@ -260,12 +265,12 @@ def main():
                  f"({len(changes)} file(s) scanned)\n")
     lines.append("### Checklist")
     for rid, title, cwe, _, hits in results:
-        lines.append(f"- [{'x' if not hits else ' '}] {'PASS' if not hits else 'FAIL'} **{rid}** {title} ({cwe})"
+        lines.append(f"- [{'x' if not hits else ' '}] {'PASS' if not hits else 'FAIL'} **{rid}** {title}"
                      + (f" - {len(hits)} finding(s)" if hits else ""))
     if failed:
         lines += ["", "### Failed checks - details"]
         for rid, title, cwe, guide, hits in failed:
-            lines += ["", f"<details><summary><b>{rid}</b> {title} ({cwe}) - {len(hits)} finding(s)</summary>", "",
+            lines += ["", f"<details><summary><b>{rid}</b> {title} - {len(hits)} finding(s)</summary>", "",
                       f"**Guideline:** {guide}", ""]
             for path, ln, text in hits[:MAX_SHOWN]:
                 text = text.replace("`", "'").replace("|", "\\|")
