@@ -2,6 +2,7 @@ echo "===== PowerScale CSI driver support is enabled. Proceeding with deployment
 echo "===== Copying CSI PowerScale driver from NFS-mounted path ====="
 mkdir -p /opt/omnia
 POWERSCALE_DEPLOYMENT_FAILED=0
+NFSMOUNT_FAILED=0
 
 if cp -rp {{ k8s_client_mount_path }}/{{ csi_powerscale_dir }} /opt/omnia/; then
   echo "Copied CSI PowerScale driver to /opt/omnia successfully."
@@ -248,13 +249,19 @@ else
       NFSMOUNT_CONF="/opt/omnia/{{ csi_powerscale_dir }}/nfsmount.conf"
       if [ -f "$NFSMOUNT_CONF" ]; then
         echo "===== Applying PowerScale CSI NFS mount options ====="
-        CM_RESULT=$(kubectl create configmap isilon-nfsmount-conf -n isilon \
-          --from-file=nfsmount.conf="$NFSMOUNT_CONF" --dry-run=client -o yaml | kubectl apply -f -)
+        if ! CM_RESULT=$(kubectl create configmap isilon-nfsmount-conf -n isilon \
+          --from-file=nfsmount.conf="$NFSMOUNT_CONF" --dry-run=client -o yaml | kubectl apply -f -); then
+          echo "ERROR: Failed to create the isilon-nfsmount-conf ConfigMap."
+          NFSMOUNT_FAILED=1
+        fi
         echo "$CM_RESULT"
         DRIVER_IDX=$(kubectl get ds isilon-node -n isilon \
           -o jsonpath='{range .spec.template.spec.containers[*]}{.name}{"\n"}{end}' | grep -n '^driver$' | cut -d: -f1)
-        if [ -z "$DRIVER_IDX" ]; then
-          echo "WARNING: driver container not found in isilon-node DaemonSet. NFS mount options not applied."
+        if [ "$NFSMOUNT_FAILED" -eq 1 ]; then
+          echo "Skipping the isilon-node DaemonSet update because the ConfigMap was not created."
+        elif [ -z "$DRIVER_IDX" ]; then
+          echo "ERROR: driver container not found in isilon-node DaemonSet. NFS mount options not applied."
+          NFSMOUNT_FAILED=1
         elif ! kubectl get ds isilon-node -n isilon -o jsonpath='{.spec.template.spec.volumes[*].name}' | grep -qw omnia-nfsmount-conf; then
           DRIVER_IDX=$((DRIVER_IDX - 1))
           kubectl patch ds isilon-node -n isilon --type=json -p="[
@@ -262,22 +269,35 @@ else
              \"value\": {\"name\": \"omnia-nfsmount-conf\", \"configMap\": {\"name\": \"isilon-nfsmount-conf\"} } },
             {\"op\": \"add\", \"path\": \"/spec/template/spec/containers/${DRIVER_IDX}/volumeMounts/-\",
              \"value\": {\"name\": \"omnia-nfsmount-conf\", \"mountPath\": \"/etc/nfsmount.conf\", \"subPath\": \"nfsmount.conf\", \"readOnly\": true} }
-          ]" || echo "ERROR: Failed to mount the NFS mount options in the isilon-node DaemonSet."
+          ]" || {
+            echo "ERROR: Failed to mount the NFS mount options in the isilon-node DaemonSet."
+            NFSMOUNT_FAILED=1
+          }
         elif echo "$CM_RESULT" | grep -qw configured; then
           # subPath mounts are not refreshed in place; restart to pick up changed options
-          kubectl rollout restart daemonset isilon-node -n isilon
+          kubectl rollout restart daemonset isilon-node -n isilon || {
+            echo "ERROR: Failed to restart the isilon-node DaemonSet."
+            NFSMOUNT_FAILED=1
+          }
         fi
-        kubectl rollout status daemonset isilon-node -n isilon --timeout=300s || \
-          echo "ERROR: isilon-node rollout did not complete. Check 'kubectl get pods -n isilon' and verify /etc/nfsmount.conf in the driver container."
+        if [ "$NFSMOUNT_FAILED" -eq 0 ]; then
+          kubectl rollout status daemonset isilon-node -n isilon --timeout=300s || {
+            echo "ERROR: isilon-node rollout did not complete. Check 'kubectl get pods -n isilon' and verify /etc/nfsmount.conf in the driver container."
+            NFSMOUNT_FAILED=1
+          }
+        fi
       fi
-      if [ -f "/opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml" ]; then
+      if [ "$NFSMOUNT_FAILED" -eq 1 ]; then
+        echo "ERROR: PowerScale CSI NFS mount options were not applied. Skipping StorageClass creation."
+        POWERSCALE_DEPLOYMENT_FAILED=1
+      elif [ -f "/opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml" ]; then
         kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml
         echo "PowerScale StorageClass applied successfully."
       fi
     else
       echo "ERROR: CSI PowerScale driver pods not ready after waiting. Skipping StorageClass creation."
     fi
-    echo "===== PowerScale CSI deployed successfully — updating default StorageClass ====="
+    echo "===== Updating default StorageClass ====="
     echo "Checking if StorageClass 'nfs-client' exists..."
     if kubectl get sc nfs-client >/dev/null 2>&1; then
       NFS_SC_EXISTS=1
@@ -297,7 +317,9 @@ else
     fi
 
     # Only proceed if ps01 exists (means CSI is installed correctly)
-    if [ "$PS01_SC_EXISTS" -eq 1 ]; then
+    if [ "$NFSMOUNT_FAILED" -eq 1 ]; then
+      echo "ERROR: PowerScale CSI NFS mount options were not applied. Leaving the default StorageClass unchanged."
+    elif [ "$PS01_SC_EXISTS" -eq 1 ]; then
       echo "===== Updating StorageClass defaults ====="
 
       # Disable default class on nfs-client
@@ -322,4 +344,8 @@ else
       echo "ps01 StorageClass not found. Cannot update default StorageClass settings."
     fi
   fi
+fi
+
+if [ "$NFSMOUNT_FAILED" -eq 1 ]; then
+  echo "ERROR: PowerScale CSI deployment finished with errors: the NFS mount options were not applied."
 fi
