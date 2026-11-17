@@ -196,8 +196,8 @@ slurm_cluster:
 # cannot initialize). nosharecache is required so the transfer size is applied even when
 # other volumes from the same PowerScale are already mounted on the node.
 # Omitting the key also applies this default. Set "" to use the NFS client defaults.
-# Applies only to volumes mounted after the change; existing pods must be restarted
-# to remount their volumes.
+# The options are applied when the CSI PowerScale driver is deployed. To change them after
+# deployment, clean up the NFS share and redeploy the orchestrator with the changed option.
 # mention configurable values
 
 # - k8s_crio_storage_size: Specifies the disk size allocated for CRI-O container storage.

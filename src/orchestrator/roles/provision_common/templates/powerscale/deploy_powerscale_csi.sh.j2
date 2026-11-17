@@ -262,13 +262,13 @@ else
              \"value\": {\"name\": \"omnia-nfsmount-conf\", \"configMap\": {\"name\": \"isilon-nfsmount-conf\"} } },
             {\"op\": \"add\", \"path\": \"/spec/template/spec/containers/${DRIVER_IDX}/volumeMounts/-\",
              \"value\": {\"name\": \"omnia-nfsmount-conf\", \"mountPath\": \"/etc/nfsmount.conf\", \"subPath\": \"nfsmount.conf\", \"readOnly\": true} }
-          ]"
+          ]" || echo "ERROR: Failed to mount the NFS mount options in the isilon-node DaemonSet."
         elif echo "$CM_RESULT" | grep -qw configured; then
           # subPath mounts are not refreshed in place; restart to pick up changed options
           kubectl rollout restart daemonset isilon-node -n isilon
         fi
         kubectl rollout status daemonset isilon-node -n isilon --timeout=300s || \
-          echo "WARNING: isilon-node rollout did not complete. Verify /etc/nfsmount.conf in the driver container."
+          echo "ERROR: isilon-node rollout did not complete. Check 'kubectl get pods -n isilon' and verify /etc/nfsmount.conf in the driver container."
       fi
       if [ -f "/opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml" ]; then
         kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml
