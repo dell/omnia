@@ -61,6 +61,9 @@
 #                   nosharecache makes the transfer size take effect even if the same
 #                   export is already mounted on the node. The kernel rounds rsize/wsize
 #                   down to a power of two, so values such as 1044480 become 524288.
+#                   Instead of setting these options on the entry, set mount_params to
+#                   the powerscale_nfs profile below.
+#                   If specified, takes PRIORITY over mount_params profile
 #                   PowerScale CSI volumes are configured separately through
 #                   csi_powerscale_mount_options in omnia_config.yml.
 #
@@ -137,7 +140,8 @@ mounts:
     source: "172.16.107.121:/mnt/share/omnia_k8s"
     mount_point: "/opt/omnia/k8s_mount"
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mount_params: "powerscale_nfs"  # Only for PowerScale NFS. For normal NFS, remove this line
+    # mnt_opts: "nosuid,rw,sync,hard,intr"  # Uncomment for normal NFS
     mount_on_oim: true
     functional_group_prefix: ["service_kube"]
 
@@ -154,6 +158,25 @@ mounts:
 # Optional profile fields:
 #   - dump_freq: Default dump frequency. Optional. Allowed values: "0"-"2"
 #   - fsck_pass: Default fsck pass number. Optional. Allowed values: "0"-"9"
+#   - node_nfs_mnt_opts: Extra options for the per-node NFS sub-mounts (and, for
+#                Kubernetes, the nfs-client provisioner). Optional.
+#                Appended to the default sub-mount options: "noatime,nolock"
+#                (Kubernetes) or "defaults,_netdev" (Slurm).
+#                Used only when the mount entry does not set node_nfs_mnt_opts
+#                (an entry value replaces the default instead of being appended).
+#
+# A profile value is used only for fields that are not set on the mount entry.
+# To use a profile for mnt_opts or node_nfs_mnt_opts, remove them from the mount entry.
+#
+# PowerScale profile (powerscale_nfs):
+#   RHEL 10.x clients can get Input/output errors on PowerScale at the default
+#   1 MiB NFS transfer size. This profile sets rsize/wsize to 512 KiB on the
+#   per-node sub-mounts, for Kubernetes and Slurm. Example:
+#     - name: "nfs_k8s"
+#       source: "<powerscale_ip>:/ifs/<path>"
+#       mount_point: "/opt/omnia/k8s_mount"
+#       mount_params: "powerscale_nfs"
+#       functional_group_prefix: ["service_kube"]
 #
 
 mount_params:
@@ -172,6 +195,12 @@ mount_params:
   vast_tcp:
     fs_type: "nfs"
     mnt_opts: "nosuid,rw,sync,hard"
+
+  # PowerScale NFS share (Kubernetes or Slurm nfs_storage_name)
+  powerscale_nfs:
+    fs_type: "nfs"
+    mnt_opts: "nosuid,rw,sync,hard,intr"
+    node_nfs_mnt_opts: "rsize=524288,wsize=524288,nosharecache"
 
 # -----------------------------Powervault-------------------------------------------
 # powervault_config
