@@ -36,6 +36,9 @@ CLEANUP_STEPS: Tuple[FvtStep, ...] = (
     # before the orchestrator (the order of omnia.sh: telemetry first).
     ("telemetry", ("cleanup", "test")),
     ("orchestrator", ("cleanup", "test")),
+    # Discovery feeds the orchestrator (bmc_pxe_mapping_file.csv), so it is removed after it
+    # and before image_build_manager (the reverse of the --prepare-base / workflow order).
+    ("discovery", ("cleanup", "test")),
     ("image_build_manager", ("cleanup", "test")),
     ("repo_manager", ("cleanup", "test", "--marker", "destructive")),
     ("main", ("cleanup", "test")),
@@ -51,6 +54,9 @@ CLEANUP_FLAGS: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     "telemetry": ("", ("delete_sinks_volume", "cleanup_credentials", "cleanup_logs")),
     "orchestrator": ("", ("cleanup_credentials", "cleanup_slurm", "cleanup_k8s",
                           "cleanup_benchmark_tools")),
+    # Discovery's cleanup_credentials and cleanup_logs are playbook variables that its
+    # cleanup FVT sets per test case, not test_config.yml keys: only "enabled" applies.
+    "discovery": ("", ()),
     "image_build_manager": ("", ("cleanup_credentials",)),
     "repo_manager": ("", ("cleanup_credentials",)),
     # cleanup_all: omnia.sh --cleanup --all (the whole OMNIA_DATA_PATH). omnia.sh
@@ -66,7 +72,7 @@ MAIN_CLEANUP_ALL_KEY = "cleanup_all"
 # Report settings written into every suite's test_config.yml (top-level keys),
 # so all FVT results, the setup steps and the SVT cases go into one report.
 REPORT_KEYS = ("report_path", "report_name", "run_id")
-REPORT_SUITES = ("main", "repo_manager", "image_build_manager", "orchestrator",
+REPORT_SUITES = ("main", "repo_manager", "image_build_manager", "discovery", "orchestrator",
                  "telemetry", "build_stream")
 
 # Domain credential stores, written by test/<theme creds_suite>/setup_env.sh
@@ -92,7 +98,7 @@ THEMES: Dict[str, Dict] = {
         "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
         # Suites whose requirements go into the Omnia venv, in --prepare-base
         # order (./setup_env.sh --install), then BuildStream.
-        "fvt_domains": ("repo_manager", "image_build_manager", "orchestrator",
+        "fvt_domains": ("repo_manager", "image_build_manager", "discovery", "orchestrator",
                         "telemetry", "build_stream"),
         # Domains whose input folder omnia.sh -s creates and whose credential
         # store the tests need (./setup_env.sh --set-domain-creds).
@@ -116,7 +122,7 @@ THEMES: Dict[str, Dict] = {
         # Cleanup steps of products this theme does not deploy but a previous installation may
         # have: they run only when the domain holds deployed state (a file under its
         # output/ or log/ in the data path, the rule omnia.sh --cleanup --all applies).
-        "cleanup_when_deployed": ("telemetry",),
+        "cleanup_when_deployed": ("telemetry", "discovery"),
         # ./run_validation.sh svt_build_stream <stage>, in this order (after
         # initialization, before summary).
         "stages": ("prepare_build_stream", "build_deploy", "cadence", "automatic_cleanup"),

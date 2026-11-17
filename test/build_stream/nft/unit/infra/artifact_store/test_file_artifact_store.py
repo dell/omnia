@@ -401,9 +401,9 @@ class TestFileArtifactStoreConfiguration:
         """Test handling of invalid configuration."""
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "invalid_config.ini"
-            config_file.write_text("""[artifact_store]
+            config_file.write_text(f"""[artifact_store]
 backend = file_store
-working_dir = /tmp/test
+working_dir = {temp_dir}/work
 
 # Missing file_store section
 """)

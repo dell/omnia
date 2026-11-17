@@ -40,16 +40,16 @@ def _mysql(**pods):
 
 def test_empty_pod_with_reported_unsupported_bmc_warns():
     """A pod whose BMC is only 'reported unsupported' passes with a warning."""
-    inventory = {POD0: ["100.10.1.120"], POD1: ["100.10.1.121"]}
-    mysql = _mysql(idrac_telemetry_0=["100.10.1.120"], idrac_telemetry_1=[])
+    inventory = {POD0: ["192.0.2.120"], POD1: ["192.0.2.121"]}
+    mysql = _mysql(idrac_telemetry_0=["192.0.2.120"], idrac_telemetry_1=[])
 
     result = idrac_func.evaluate_idrac_mysql_parity(
-        inventory, mysql, reported_unsupported=["100.10.1.121"],
+        inventory, mysql, reported_unsupported=["192.0.2.121"],
     )
 
     assert result["success"], result["errors"]
     pod1 = next(pr for pr in result["pod_results"] if pr["pod_name"] == POD1)
-    assert pod1["missing_ips"] == ["100.10.1.121"]
+    assert pod1["missing_ips"] == ["192.0.2.121"]
     assert pod1["ok"] and pod1["expected_idle"]
     assert any("reported as not supported" in w for w in result["warnings"])
 

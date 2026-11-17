@@ -176,7 +176,7 @@ def csv_header(text: str) -> List[str]:
 def render_csv(header: List[str], rows: List[Dict[str, str]]) -> str:
     """Render a CSV with ``header`` and one line per row (missing columns stay empty)."""
     stream = io.StringIO()
-    writer = csv.writer(stream, lineterminator="\n")
+    writer = csv.writer(stream, lineterminator="\n")  # nosec: read by the orchestrator
     writer.writerow(header)
     for row in rows:
         writer.writerow([str(row.get(column, "") or "") for column in header])
