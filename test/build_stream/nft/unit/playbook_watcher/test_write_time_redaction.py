@@ -154,6 +154,30 @@ def test_timeout_drains_and_persists_partial_output(tmp_path):
     assert REDACTED in text
 
 
+def test_timeout_kills_orphans_holding_pipe_and_returns_promptly(tmp_path):
+    """Grandchildren that inherit the pipe are killed with the process group."""
+    body = (
+        "import subprocess,sys,time\n"
+        "subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)'])\n"
+        "print('started',flush=True)\n"
+        "time.sleep(30)\n"
+    )
+    start = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        _run(tmp_path, _python_cmd(body), timeout_seconds=1)
+    assert time.monotonic() - start < 10
+
+
+def test_redacted_output_is_echoed_to_journal(tmp_path, capsys):
+    """Sanitized lines reach stdout (journald); raw secrets never do."""
+    secret = "Sup3r" + "S3cret!"
+    body = f"print('hello'); print('pass' + 'word: ' + {secret!r})"
+    _run(tmp_path, _python_cmd(body))
+    out = capsys.readouterr().out
+    assert "hello" in out
+    assert secret not in out
+
+
 def test_redaction_failure_suppresses_line(tmp_path, monkeypatch):
     """A redaction error withholds the line (fail closed) and never leaks it."""
     import re  # pylint: disable=import-outside-toplevel

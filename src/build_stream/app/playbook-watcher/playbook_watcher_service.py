@@ -35,7 +35,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Thread, Semaphore
+from threading import Event, Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
 
 # Make the shared BuildStream ``app`` package importable when this service runs
@@ -1206,6 +1206,8 @@ def publish_stage_log(
         job_log_path.parent.mkdir(parents=True, exist_ok=True)
         # copyfile (not copy2): copy2 carries over the source SELinux label
         # (var_log_t) and 0600 mode, which the BSM container cannot read.
+        # Logs are redacted at write time (Tier 1), so 0644 is acceptable, but
+        # note they still contain operational data such as IPs and hostnames.
         shutil.copyfile(str(domain_log_path), str(job_log_path))
         os.chmod(job_log_path, 0o644)
         _relabel_like_parent(job_log_path)
@@ -1259,6 +1261,9 @@ def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
         }
         for functional_group, image_group_id in dict.fromkeys(matches)
     ]
+
+
+READER_JOIN_TIMEOUT_SECONDS = 5
 
 
 def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -1319,33 +1324,78 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
             errors="replace",
         )
 
+        stop = Event()
+
         def _drain() -> None:
             """Read, redact, and write every line from the merged output stream."""
             if proc.stdout is None:
                 return
-            for raw_line in proc.stdout:
-                sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
-                    raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
-                )
-                if line_suppressed:
-                    suppressed["count"] += 1
-                log_file.write(f"{sanitized}\n")
-            log_file.flush()
+            try:
+                for raw_line in proc.stdout:
+                    if stop.is_set():
+                        return
+                    sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
+                        raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
+                    )
+                    if line_suppressed:
+                        suppressed["count"] += 1
+                    log_file.write(f"{sanitized}\n")
+                    _echo_to_journal(sanitized)
+                log_file.flush()
+            except (ValueError, OSError):
+                pass
 
         reader = Thread(target=_drain, name="watcher-log-reader", daemon=True)
         reader.start()
         try:
             proc.wait(timeout=timeout_seconds)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            _kill_process_group(proc)
             proc.wait()
-            reader.join()
+            _finish_reader(reader, stop, proc)
             _log_suppressed_lines(suppressed["count"])
             raise
-        reader.join()
+        _finish_reader(reader, stop, proc)
 
     _log_suppressed_lines(suppressed["count"])
     return proc.returncode
+
+
+def _echo_to_journal(line: str) -> None:
+    """Mirror an already-redacted line to the unit's stdout (journald).
+
+    Restores ``journalctl -u playbook-watcher`` visibility of playbook output
+    that the pipe capture would otherwise hide. Only sanitized text is echoed.
+    """
+    try:
+        sys.stdout.write(f"{line}\n")
+        sys.stdout.flush()
+    except (ValueError, OSError):
+        pass
+
+
+def _kill_process_group(proc: "subprocess.Popen") -> None:
+    """SIGKILL the whole session so ansible workers and ssh children die too."""
+    pid = getattr(proc, "pid", None)
+    if not isinstance(pid, int) or pid <= 1:
+        proc.kill()
+        return
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except OSError:
+        proc.kill()
+
+
+def _finish_reader(reader: Thread, stop: Event, proc: "subprocess.Popen") -> None:
+    """Wait a bounded time for the log reader; never block on orphaned pipe holders."""
+    reader.join(READER_JOIN_TIMEOUT_SECONDS)
+    if reader.is_alive():
+        stop.set()
+        _kill_process_group(proc)
+        reader.join(READER_JOIN_TIMEOUT_SECONDS)
+        log_secure_info(
+            "warning", "Log reader did not drain after process exit; output truncated"
+        )
 
 
 def _log_suppressed_lines(count: int) -> None:
