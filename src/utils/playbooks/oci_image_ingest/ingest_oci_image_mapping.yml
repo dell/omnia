@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# ingest_oci_image_mapping.yml - one image mapping (repo_to_bucket). oci_ingest_mapping is the loop item.
+# The digest is pinned first; a digest that is already completely published is a no-op.
+
+- name: Pin the image digest
+  ansible.builtin.include_role:
+    name: pull_oci_image
+    tasks_from: pin.yml
+
+- name: Skip the mapping when its digest is already published
+  ansible.builtin.include_role:
+    name: publish_s3_artifacts
+    tasks_from: check_existing.yml
+
+- name: Pull, extract, build and publish
+  when: not (oci_ingest_skip | bool)
+  block:
+    - name: Export the image
+      ansible.builtin.include_role:
+        name: pull_oci_image
+        tasks_from: export.yml
+
+    - name: Extract the boot artifacts
+      ansible.builtin.include_role:
+        name: extract_boot_artifacts
+
+    - name: Create the SquashFS root filesystem
+      ansible.builtin.include_role:
+        name: create_squashfs
+
+    - name: Publish to S3
+      ansible.builtin.include_role:
+        name: publish_s3_artifacts
+
+- name: Remove this mapping's working data
+  ansible.builtin.file:
+    path: "{{ oci_ingest_pull.workdir }}"
+    state: absent

@@ -238,6 +238,26 @@ value keeps the last valid settings. The first cycle runs 5 minutes after
 the container starts. A manual pass can be run inside the container with
 `python3 /opt/omnia/build_stream/cleanup_cron.py`.
 
+### Pipeline log observability
+
+Each stage that runs an Ansible playbook (create-local-repository, build-image,
+deploy, restart, validate) keeps a stage log under
+`<data_path>/build_stream/log/<job_id>/`. Secrets are redacted before a line is
+written, and the log is flushed after every line, so it can be followed while the
+stage runs. Playbook stage logs start each line with `<time> p=<pid> | `; the
+validate log has no prefix. Stages that run no playbook (initialization,
+parse-catalog, summary) have no execution log and print no log information.
+
+- **API** — `GET /api/v1/jobs/{job_id}/logs` returns the redacted logs of a job
+  (query `stage`, `tail_lines`, `full`); it needs the `job:read` or `job:write`
+  scope.
+- **GitLab job console** — playbook stages preview the last `log_ci_preview_lines`
+  lines when they finish.
+- **Settings** — `log_tail_lines_default`, `log_tail_lines_max`,
+  `max_log_response_bytes`, `log_ci_preview_lines`, `log_query_rate_limit` and
+  `log_query_max_concurrent` in `build_stream_config.yml`; see
+  [Input Contract](docs/contracts/input-contract.md) section 1.3.
+
 ### Cadence pipeline
 
 When cadence is enabled, the playbook-watcher runs the registered

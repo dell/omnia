@@ -1,0 +1,169 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+# precheck_oci_image_ingest - verify prerequisites, take the per-project lock, create the run workdir.
+# Nothing here contacts the registry or S3.
+
+- name: Check tools provided by the Image Build Manager prepare tag
+  ansible.builtin.command: "command -v {{ item.name }}"
+  loop: "{{ oci_ingest_prepare_tools }}"
+  register: _oci_tool_check
+  changed_when: false
+  failed_when: false
+
+- name: Build the list of missing prepare-provided tools
+  ansible.builtin.set_fact:
+    _oci_missing_prepare_tools: >-
+      {{ _oci_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | map(attribute='name') | list }}
+
+- name: Fail when a prepare-provided tool is missing
+  ansible.builtin.fail:
+    msg: "{{ tool_missing_msg }}"
+  when: _oci_missing_prepare_tools | length > 0
+
+# OS packages are NOT installed by this utility (ER prerequisites). Missing tools fail the precheck.
+# - name: Check OS tools
+#   ansible.builtin.command: "command -v {{ item.name }}"
+#   loop: "{{ oci_ingest_os_tools }}"
+#   register: _oci_os_tool_check
+#   changed_when: false
+#   failed_when: false
+#
+# - name: Build the list of missing OS packages
+#   ansible.builtin.set_fact:
+#     _oci_missing_os_tools: >-
+#       {{ _oci_os_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
+#
+# - name: Install missing OS packages
+#   ansible.builtin.package:
+#     name: "{{ _oci_missing_os_tools | map(attribute='package') | list }}"
+#     state: present
+#   when: _oci_missing_os_tools | length > 0
+#   become: true
+#
+# - name: Verify OS tools after installation
+#   ansible.builtin.command: "command -v {{ item.name }}"
+#   loop: "{{ _oci_missing_os_tools }}"
+#   register: _oci_os_tool_verify
+#   changed_when: false
+#   failed_when: false
+#   when: _oci_missing_os_tools | length > 0
+#
+# - name: Build the list of OS tools still missing
+#   ansible.builtin.set_fact:
+#     _oci_still_missing: >-
+#       {{ _oci_os_tool_verify.results | default([]) | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0)
+#          | map(attribute='item') | list }}
+#
+# - name: Fail when an OS tool is still missing
+#   ansible.builtin.fail:
+#     msg: "{{ tool_install_fail_msg }}"
+#   when: _oci_still_missing | length > 0
+
+- name: Check OS tools (verify only)
+  ansible.builtin.command: "command -v {{ item.name }}"
+  loop: "{{ oci_ingest_os_tools }}"
+  register: _oci_os_tool_check
+  changed_when: false
+  failed_when: false
+
+- name: Build the list of missing OS tools
+  ansible.builtin.set_fact:
+    _oci_missing_os_tools: >-
+      {{ _oci_os_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
+
+- name: Fail when an OS tool is missing
+  ansible.builtin.fail:
+    msg: "{{ os_tool_missing_msg }}"
+  when: _oci_missing_os_tools | length > 0
+
+- name: Check S3 configuration file
+  ansible.builtin.stat:
+    path: "{{ oci_ingest_s3cfg_path }}"
+  register: _oci_s3cfg_stat
+
+- name: Fail when .s3cfg is missing
+  ansible.builtin.fail:
+    msg: "{{ s3cfg_missing_msg }}"
+  when: not _oci_s3cfg_stat.stat.exists
+
+- name: Set run facts
+  ansible.builtin.set_fact:
+    oci_ingest_run_id: "{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}-{{ 99999 | random }}"
+    oci_ingest_lock_dir: "{{ oci_ingest_base_workdir }}/.lock"
+    oci_ingest_status_path: "{{ output_project_dir }}/build_status.yml"
+    oci_ingest_s3_endpoint: >-
+      {{ 'https'
+         if (lookup('ini', 'use_https section=default file=' ~ oci_ingest_s3cfg_path, errors='ignore')
+             | default('False') | lower == 'true')
+         else 'http' }}://{{ lookup('ini', 'host_base section=default file=' ~ oci_ingest_s3cfg_path) }}
+    oci_ingest_results: []
+
+- name: Ensure base workdir exists
+  ansible.builtin.file:
+    path: "{{ oci_ingest_base_workdir }}"
+    state: directory
+    mode: "0700"
+
+- name: Take the per-project lock (atomic mkdir)
+  ansible.builtin.command: "mkdir {{ oci_ingest_lock_dir }}"
+  register: _oci_lock
+  changed_when: true
+  failed_when: false
+
+- name: Fail when the lock is held
+  ansible.builtin.fail:
+    msg: "{{ lock_held_msg }}"
+  when: _oci_lock.rc != 0
+
+- name: Record lock owner
+  ansible.builtin.copy:
+    content: "{{ oci_ingest_run_id }}"
+    dest: "{{ oci_ingest_lock_dir }}/owner"
+    mode: "0600"
+
+- name: Set run workdir fact
+  ansible.builtin.set_fact:
+    oci_ingest_lock_held: true
+    oci_ingest_workdir: "{{ oci_ingest_base_workdir }}/{{ oci_ingest_run_id }}"
+    oci_ingest_regctl_config: "{{ oci_ingest_base_workdir }}/{{ oci_ingest_run_id }}/regctl.json"
+
+- name: Create run workdir
+  ansible.builtin.file:
+    path: "{{ oci_ingest_workdir }}"
+    state: directory
+    mode: "0700"
+
+- name: Read existing build_status.yml (if any)
+  ansible.builtin.stat:
+    path: "{{ oci_ingest_status_path }}"
+  register: _oci_status_stat
+
+- name: Load existing build_status.yml
+  ansible.builtin.include_vars:
+    file: "{{ oci_ingest_status_path }}"
+    name: _oci_existing_status
+  when: _oci_status_stat.stat.exists
+
+- name: Reject a build_status.yml written by another producer
+  ansible.builtin.fail:
+    msg: "{{ foreign_status_msg }}"
+  when:
+    - _oci_status_stat.stat.exists
+    - _oci_existing_status.image_build_type | default('') != oci_ingest_output_type
