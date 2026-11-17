@@ -840,6 +840,18 @@ def omnia_powerscale_csi_file_missing_msg(
     )
 
 
+def omnia_powerscale_csi_transfer_size_msg(
+    cluster: str, option: str, value: str, max_size: int
+) -> str:
+    """Return an invalid PowerScale CSI rsize/wsize mount option message."""
+    return (
+        f"omnia_config.yml: Kubernetes cluster '{cluster}' "
+        f"csi_powerscale_mount_options {option}='{value}' is invalid; "
+        f"{option} must be an integer greater than 0 and less than "
+        f"{max_size} (1 MiB), for example 524288."
+    )
+
+
 _POWERSCALE_CSI_CONTENT_REQUIREMENTS = {
     "yaml_mapping": "must be a readable, non-empty YAML mapping",
     "vault_key": (
