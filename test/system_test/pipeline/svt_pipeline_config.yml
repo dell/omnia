@@ -164,6 +164,13 @@ clusters:
       # Theme stages to leave out, comma separated, e.g. "cadence,automatic_cleanup".
       # Can also be set for one run with the SVT_SKIP_STAGES pipeline variable.
       skip_stages: ""
+      # Inputs file of this cluster: a file of clusters/<cluster>/svt/ in the GitLab project, with
+      # the syntax of user_inputs.yml. The checkout job copies it to the OIM as user_inputs.yml,
+      # so a cluster can keep several (user_inputs_ib.yml, user_inputs_small.yml ...) and pick one.
+      # It becomes the CI/CD variable <CLUSTER>_SVT_USER_INPUTS: change it in GitLab (Settings >
+      # CI/CD > Variables) without --update; empty means user_inputs.yml. A name that is not in
+      # the project fails the checkout instead of using another file.
+      user_inputs: "user_inputs.yml"
     # OpenBao path of this cluster's credentials, when it differs from the openbao
     # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
     # path.

@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from .dataset_edit import Change
-from .dataset_merge import render_target
+from .dataset_merge import parse_env, render_target
 
 BACKUP_DIR = ".backup"
 CREDENTIAL_FILE = "credential"
@@ -58,10 +58,13 @@ def build_outputs(repo_root: Path, profile: Dict[str, Any], inputs: Dict[str, An
                 if (path.is_file() and not path.name.startswith(".")
                         and CREDENTIAL_FILE not in path.name):
                     outputs[_output_name(directory, path, base)] = path.read_bytes()
+    env: Dict[str, str] = {}
     for target in profile["targets"]:
         source = repo_root / target["file"]
-        text = render_target(source.read_text(encoding="utf-8"), target, inputs, changes)
+        text = render_target(source.read_text(encoding="utf-8"), target, inputs, changes, env)
         outputs[target["out"]] = text.encode("utf-8")
+        if target["format"] == "env":
+            env = parse_env(text)
     return outputs, changes
 
 

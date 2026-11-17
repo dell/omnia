@@ -101,6 +101,19 @@ DOMAIN_INIT_FORCE_ARG = "--force"
 DOMAIN_INIT_GLOB = os.path.join(REPO_ROOT, "src", "*", "domain-init.sh")
 DOMAIN_INIT_CLEANUP_ARG = "--cleanup"
 SRC_STORAGE_CONFIG = os.path.join(REPO_ROOT, "src", "orchestrator", "input", "storage_config.yml")
+SRC_OMNIA_CONFIG = os.path.join(REPO_ROOT, "src", "orchestrator", "input", "omnia_config.yml")
+# PowerScale CSI files (step "files"): kind -> (omnia_config key with the target path, name of the
+# source file in test/system_test, next to user_inputs.yml).
+POWERSCALE_FILES = {
+    "secret": ("csi_powerscale_driver_secret_file_path", "secret.yaml"),
+    "values": ("csi_powerscale_driver_values_file_path", "values.yaml"),
+}
+POWERSCALE_ENABLE_KEY = "enable_powerscale_csi"
+# The product's reference files: the pipeline seeds each cluster folder with them, and a staged
+# file that is still identical to its reference was never edited.
+POWERSCALE_EXAMPLES_DIR = os.path.join(REPO_ROOT, "src", "orchestrator", "examples",
+                                       "powerscale_reference_files", "CSI_driver")
+STAGED_FILE_MODE = 0o600
 SRC_OMNIA_ENV_FILE = os.path.join(OMNIA_SH_DIR, "omnia.env")
 OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
 OMNIA_VENV_KEY = "OMNIA_VENV_PATH"
@@ -132,9 +145,9 @@ RUN_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 CLUSTER_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}")
 
 # ------------------------------------------------- ./setup_env.sh actions
-# "all" (no action given): configure, [cleanup with --force], install, creds.
-SETUP_ACTIONS = ("all", "configure", "cleanup", "install", "creds", "status")
-SETUP_STEPS = ("configure", "cleanup", "install", "creds")
+# "all" (no action given): configure, [cleanup with --force], install, creds, files.
+SETUP_ACTIONS = ("all", "configure", "cleanup", "install", "creds", "files", "status")
+SETUP_STEPS = ("configure", "cleanup", "install", "creds", "files")
 # --domain-creds-from-openbao is the SVT's own (setup_func.creds): it reads the stores from
 # OpenBao and gives them to --domain-creds-stdin; the others go to the suite.
 OPENBAO_CREDS_FLAG = "--domain-creds-from-openbao"

@@ -72,19 +72,20 @@ def client(tmp_path):
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     config_file = config_dir / "build_stream.ini"
-    config_file.write_text("""
+    base_dir = tmp_path / "build_stream_test"
+    config_file.write_text(f"""
 [paths]
-build_stream_base_path = /tmp/build_stream_test
+build_stream_base_path = {base_dir}
 
 [artifact_store]
 backend = in_memory
-working_dir = /tmp/build_stream_test/artifacts
+working_dir = {base_dir}/artifacts
 max_file_size_bytes = 10737418240
 max_archive_uncompressed_bytes = 53687091200
 max_archive_entries = 1000
 
 [file_store]
-base_path = /tmp/build_stream_test/nfs
+base_path = {base_dir}/nfs
 """)
     os.environ["BUILD_STREAM_CONFIG_PATH"] = str(config_file)
 
