@@ -22,7 +22,9 @@ Secret-looking values are synthetic fixtures, not real credentials.
 import uuid
 
 import pytest
+from fastapi.testclient import TestClient
 
+from api.dependencies import verify_token
 from core.jobs.value_objects import JobId, StageName, StageState
 from core.logs.redaction_patterns import REDACTED
 
@@ -308,3 +310,36 @@ class TestPlaybookStagesOnlyApi:
         response = client.get(f"/api/v1/jobs/{job_id}/logs?stage={stage}", headers=headers)
         assert response.status_code == 404
         assert "playbook" in response.json()["detail"]["message"]
+
+
+class TestLogQueryScopes:
+    """Staging RBAC: the log query needs job:read, which job:write implies."""
+
+    @staticmethod
+    def _with_scopes(client, owner, scopes):
+        """Re-point the token override at a token carrying only ``scopes``."""
+        client.app.dependency_overrides[verify_token] = lambda: {
+            "client_id": owner, "client_name": owner, "scopes": scopes, "token_id": "t",
+        }
+        return TestClient(client.app)
+
+    def test_missing_job_scope_is_403(self, client, owner, headers, create_job, publish_log):
+        """GIVEN a token with only catalog scopes WHEN GET /logs THEN 403 insufficient_scope."""
+        job_id = create_job()
+        publish_log(job_id, "build-image", _lines(3))
+        scoped = self._with_scopes(client, owner, ["catalog:read", "catalog:write"])
+        response = scoped.get(f"/api/v1/jobs/{job_id}/logs", headers=headers)
+        assert response.status_code == 403
+        assert response.json()["detail"]["error"] == "insufficient_scope"
+
+    @pytest.mark.parametrize("scope", ["job:read", "job:write"])
+    def test_job_read_or_write_scope_is_allowed(
+        self, client, owner, headers, create_job, publish_log, scope
+    ):
+        """GIVEN the CI client (job:write only) or a reader WHEN GET /logs THEN 200."""
+        job_id = create_job()
+        publish_log(job_id, "build-image", _lines(3))
+        scoped = self._with_scopes(client, owner, [scope])
+        response = scoped.get(f"/api/v1/jobs/{job_id}/logs?stage=build-image", headers=headers)
+        assert response.status_code == 200
+        assert _stage(response.json(), "build-image")["returned_lines"] == 3

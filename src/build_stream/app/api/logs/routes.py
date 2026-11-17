@@ -26,7 +26,7 @@ from typing import Annotated, NoReturn, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from api.dependencies import get_correlation_id, verify_token
+from api.dependencies import get_correlation_id, require_job_read, verify_token
 from api.jobs.schemas import ErrorResponse
 from api.logging_utils import log_secure_info
 from api.logs.dependencies import enforce_log_query_limits, get_log_query_use_case
@@ -67,6 +67,7 @@ def _raise(status_code: int, error: str, message: str, correlation_id: str) -> N
         200: {"description": "Redacted stage logs", "model": JobLogsResponse},
         400: {"description": "Invalid job_id or query parameters", "model": ErrorResponse},
         401: {"description": "Unauthorized", "model": ErrorResponse},
+        403: {"description": "Missing job:read or job:write scope"},
         404: {"description": "Job, stage, or stage log not found", "model": ErrorResponse},
         409: {"description": "Stored log path violation", "model": ErrorResponse},
         422: {"description": "Stage log is not readable text", "model": ErrorResponse},
@@ -78,6 +79,7 @@ def _raise(status_code: int, error: str, message: str, correlation_id: str) -> N
 def get_job_logs(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     job_id: str,
     token_data: Annotated[dict, Depends(verify_token)],
+    _scope: Annotated[dict, Depends(require_job_read)],
     _limits: Annotated[None, Depends(enforce_log_query_limits)],
     stage: Annotated[
         Optional[str],
