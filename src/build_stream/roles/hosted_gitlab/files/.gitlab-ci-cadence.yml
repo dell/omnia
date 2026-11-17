@@ -215,16 +215,6 @@ default:
         echo "  ------------------------------------------------------------"
       }
 
-      # Synchronous API-only stages (no playbook) log to the per-job API log.
-      # Usage: print_api_stage_log_info <stage_name> <outcome>
-      print_api_stage_log_info() {
-        echo "  ------------------------------------------------------------"
-        printf "  %-22s %s\n" "Stage:" "$1"
-        printf "  %-22s %s\n" "Outcome:" "$2"
-        printf "  %-22s %s\n" "Log File Path:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")${JOB_ID:-unknown}.log"
-        echo "  ------------------------------------------------------------"
-      }
-
       # Print the validate test summary: totals, every test case with its
       # status, and the reason (as shown by the HTML report View button) for each
       # failed, errored, or skipped test. Usage: print_test_summary '<json>'
@@ -293,7 +283,11 @@ default:
         validate)                   _LOG_STAGE="validate" ;;
         *)                          _LOG_STAGE="" ;;
       esac
-      if [ -z "${_LOG_JOB}" ]; then
+      if [ -z "${_LOG_STAGE}" ]; then
+        # API-only stages (initialization, parse-catalog, summary) run no playbook,
+        # so there is no execution log to preview or point to: print nothing.
+        :
+      elif [ -z "${_LOG_JOB}" ]; then
         echo "  [LOG PREVIEW] No BSM job associated with this stage; skipping execution-log preview."
       else
         if [ -n "${_LOG_STAGE}" ] && command -v curl >/dev/null 2>&1; then
@@ -639,17 +633,14 @@ parse-catalog:
       if [ "$PARSE_HTTP_CODE" != "200" ]; then
         echo "  ERROR: Catalog parse failed (HTTP ${PARSE_HTTP_CODE})"
         jq '.' parse_response.json 2>/dev/null || cat parse_response.json
-        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${PARSE_HTTP_CODE})"
         exit 1
       fi
 
       IMAGE_GROUP_ID=$(jq -r '.image_group_id // ""' parse_response.json)
       if [ -z "${IMAGE_GROUP_ID}" ] || [ "${IMAGE_GROUP_ID}" = "null" ]; then
         echo "  ERROR: Parse-catalog response did not contain image_group_id"
-        print_api_stage_log_info "parse-catalog" "FAILED (no image_group_id)"
         exit 1
       fi
-      print_api_stage_log_info "parse-catalog" "COMPLETED"
       echo "  [OK] Catalog parsed — ImageGroupID: ${IMAGE_GROUP_ID}"
       echo "IMAGE_GROUP_ID=${IMAGE_GROUP_ID}" > parse_catalog.env
   artifacts:
@@ -1236,8 +1227,6 @@ summary:
       echo "  Job State:        ${JOB_STATE}"
       echo ""
       echo "  Stage Logs:"
-      print_api_stage_log_info "parse-catalog" \
-        "$(jq -r 'first(.stages[]? | select(.stage_name == "parse-catalog") | .stage_state) // "NOT_RUN"' summary_response.json 2>/dev/null)"
       for _SUMMARY_STAGE in create-local-repository build-image deploy restart validate; do
         print_stage_log_info "${_SUMMARY_STAGE}" summary_response.json
       done

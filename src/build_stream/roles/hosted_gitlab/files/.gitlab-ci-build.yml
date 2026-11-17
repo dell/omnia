@@ -349,16 +349,6 @@ default:
         echo "  ------------------------------------------------------------"
       }
 
-      # Synchronous API-only stages (no playbook) log to the per-job API log.
-      # Usage: print_api_stage_log_info <stage_name> <outcome>
-      print_api_stage_log_info() {
-        echo "  ------------------------------------------------------------"
-        printf "  %-22s %s\n" "Stage:" "$1"
-        printf "  %-22s %s\n" "Outcome:" "$2"
-        printf "  %-22s %s\n" "Log File Path:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")${JOB_ID:-unknown}.log"
-        echo "  ------------------------------------------------------------"
-      }
-
   # -------------------------------------------------------------------------
   # CI console log integration (ER-BSM-003 FR-4.1 / FR-4.2, AC-006 / AC-007)
   #
@@ -384,7 +374,11 @@ default:
         build-images)               _LOG_STAGE="build-image" ;;
         *)                          _LOG_STAGE="" ;;
       esac
-      if [ -z "${_LOG_JOB}" ]; then
+      if [ -z "${_LOG_STAGE}" ]; then
+        # API-only stages (initialization, parse-catalog, summary) run no playbook,
+        # so there is no execution log to preview or point to: print nothing.
+        :
+      elif [ -z "${_LOG_JOB}" ]; then
         echo "  [LOG PREVIEW] No BSM job associated with this stage; skipping execution-log preview."
       else
         if [ -n "${_LOG_STAGE}" ] && command -v curl >/dev/null 2>&1; then
@@ -838,7 +832,6 @@ parse-catalog:
         echo ""
         echo "  ACTION REQUIRED: Change the Catalog.Identifier value in ${CATALOG_FILE}"
         echo "  to a unique image_group_id and re-trigger the pipeline."
-        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${HTTP_CODE})"
         exit 1
       fi
 
@@ -846,7 +839,6 @@ parse-catalog:
         echo "  ERROR: Precondition failed (catalog not uploaded yet, or job in a terminal state)"
         echo "  Response Body:"
         jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
-        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${HTTP_CODE})"
         exit 1
       fi
 
@@ -854,7 +846,6 @@ parse-catalog:
         echo "  ERROR: Parse-catalog request failed"
         echo "  Response Body:"
         jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
-        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${HTTP_CODE})"
         exit 1
       fi
 
@@ -862,7 +853,6 @@ parse-catalog:
       jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
       IMAGE_GROUP_ID=$(jq -r '.image_group_id // ""' parse_catalog_response.json 2>/dev/null)
       echo ""
-      print_api_stage_log_info "parse-catalog" "COMPLETED"
       echo "  [OK] Catalog parsed successfully -- image_group_id '${IMAGE_GROUP_ID}' is unique"
 
       # Save for downstream stages/summary (convenience only, not required)
@@ -1330,8 +1320,6 @@ summary:
 
       # Stage logs (attempt + log path) for every build stage, any outcome
       echo "  Stage Logs:"
-      print_api_stage_log_info "parse-catalog" \
-        "$(jq -r 'first(.stages[]? | select(.stage_name == "parse-catalog") | .stage_state) // "NOT_RUN"' final_status.json 2>/dev/null)"
       for _SUMMARY_STAGE in create-local-repository build-image; do
         print_stage_log_info "${_SUMMARY_STAGE}" final_status.json
       done

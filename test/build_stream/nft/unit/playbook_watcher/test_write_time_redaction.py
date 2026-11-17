@@ -26,8 +26,10 @@ Secret-looking values below are synthetic fixtures, not real credentials.
 """
 
 import importlib.util
+import re
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -154,6 +156,30 @@ def test_timeout_drains_and_persists_partial_output(tmp_path):
     assert REDACTED in text
 
 
+def test_timeout_kills_orphans_holding_pipe_and_returns_promptly(tmp_path):
+    """Grandchildren that inherit the pipe are killed with the process group."""
+    body = (
+        "import subprocess,sys,time\n"
+        "subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)'])\n"
+        "print('started',flush=True)\n"
+        "time.sleep(30)\n"
+    )
+    start = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        _run(tmp_path, _python_cmd(body), timeout_seconds=1)
+    assert time.monotonic() - start < 10
+
+
+def test_redacted_output_is_echoed_to_journal(tmp_path, capsys):
+    """Sanitized lines reach stdout (journald); raw secrets never do."""
+    secret = "Sup3r" + "S3cret!"
+    body = f"print('hello'); print('pass' + 'word: ' + {secret!r})"
+    _run(tmp_path, _python_cmd(body))
+    out = capsys.readouterr().out
+    assert "hello" in out
+    assert secret not in out
+
+
 def test_redaction_failure_suppresses_line(tmp_path, monkeypatch):
     """A redaction error withholds the line (fail closed) and never leaks it."""
     import re  # pylint: disable=import-outside-toplevel
@@ -178,7 +204,8 @@ def test_no_ansible_log_path_in_subprocess_env(tmp_path, monkeypatch):
     """execute_playbook must not hand ANSIBLE_LOG_PATH to the subprocess env."""
     captured = {}
 
-    def _fake_run(cmd, playbook_dir, env, timeout_seconds, log_file_path):  # pylint: disable=unused-argument
+    def _fake_run(  # pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
+            cmd, playbook_dir, env, timeout_seconds, log_file_path, timestamps=False):
         """Stand in for _run_playbook_with_redaction, recording the subprocess env."""
         captured["env"] = env
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -224,3 +251,72 @@ def test_write_time_redaction_throughput_budget(tmp_path):
     assert len(text.splitlines()) == 10000
     assert "10.0.0.5" in text
     assert elapsed < 2.0
+
+
+def test_playbook_lines_have_timestamp_and_pid_prefix(tmp_path):
+    """FR-3.1: playbook stage log lines keep a timestamp and pid, as the Ansible log did."""
+    log_path = tmp_path / "stage.log"
+    env = {k: v for k, v in WATCHER.os.environ.items() if k != "ANSIBLE_LOG_PATH"}
+    WATCHER._run_playbook_with_redaction(
+        _python_cmd("print('one'); print('two')"), str(tmp_path), env, 30, log_path,
+        timestamps=True,
+    )
+    lines = [line for line in log_path.read_text(encoding="utf-8").splitlines() if line]
+    assert len(lines) == 2
+    for line, body in zip(lines, ("one", "two")):
+        assert re.match(
+            r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} p=\d+ \| " + body + "$", line)
+
+
+def test_validate_style_output_stays_unprefixed_for_the_report_parser(tmp_path):
+    """The validate report parser is line-anchored, so by default no prefix is added."""
+    body = ("print('  Suite       : buildstream'); print('FAILED test_x - assert 0'); "
+            "print('  3 passed, 1 failed, 0 skipped / 4 total')")
+    _, text = _run(tmp_path, _python_cmd(body))
+    assert re.search(r"(?m)^FAILED (.+)$", text)
+    assert re.search(r"(?m)^\s*Suite\s*:\s*buildstream", text)
+    assert re.search(r"(?m)^\s*(\d+) passed,\s*(\d+) failed", text)
+
+
+def test_log_is_flushed_per_line_while_running(tmp_path):
+    """A live reader sees each line before the playbook ends, not after an 8 KB buffer."""
+    log_path = tmp_path / "stage.log"
+    env = {k: v for k, v in WATCHER.os.environ.items() if k != "ANSIBLE_LOG_PATH"}
+    body = ("import sys,time; print('early line', flush=True); time.sleep(3); print('late')")
+    seen = {}
+
+    def _watch():
+        deadline = time.monotonic() + 2.5
+        while time.monotonic() < deadline:
+            if log_path.exists() and "early line" in log_path.read_text(encoding="utf-8"):
+                seen["early"] = time.monotonic()
+                return
+            time.sleep(0.05)
+
+    watcher = threading.Thread(target=_watch)
+    watcher.start()
+    WATCHER._run_playbook_with_redaction(_python_cmd(body), str(tmp_path), env, 30, log_path)
+    watcher.join()
+    assert "early" in seen, "line was not visible while the process was still running"
+
+
+def test_write_time_redaction_logs_pattern_count_per_file(tmp_path, monkeypatch):
+    """NFR-4: one audit event per log file with the redacted-pattern count, not the content."""
+    events = []
+    monkeypatch.setattr(WATCHER, "log_secure_info", lambda *a, **k: events.append(a))
+    body = "print('token glpat-abc123secret'); print('plain 10.5.0.1'); print('p\\x61ssword=leakedpw')"
+    _run(tmp_path, _python_cmd(body))
+    applied = [e for e in events if "Write-time redaction applied" in e[1]]
+    assert len(applied) == 1
+    assert "log_file=stage.log" in applied[0][1]
+    match = re.search(r"redacted_patterns=(\d+)", applied[0][1])
+    assert match and int(match.group(1)) >= 2
+    assert all("glpat-abc123secret" not in e[1] and "leakedpw" not in e[1] for e in events)
+
+
+def test_no_audit_event_when_nothing_was_redacted(tmp_path, monkeypatch):
+    """No redaction, no event: the log is not noisy for clean playbook output."""
+    events = []
+    monkeypatch.setattr(WATCHER, "log_secure_info", lambda *a, **k: events.append(a))
+    _run(tmp_path, _python_cmd("print('ok: [oim] 10.5.0.1')"))
+    assert not [e for e in events if "Write-time redaction applied" in e[1]]

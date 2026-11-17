@@ -188,8 +188,9 @@ class LogQueryUseCase:  # pylint: disable=too-few-public-methods
         redacted = self._redaction.redact_lines(read.lines, RedactionTier.SECRETS_ONLY)
         if redacted.redacted_lines:
             log_secure_info(
-                "info",
-                f"Response-time redaction applied: stage={stage.stage_name}, "
+                "warning",
+                f"Security event: response-time redaction caught patterns missed at "
+                f"write time: stage={stage.stage_name}, "
                 f"lines_redacted={redacted.redacted_lines}",
                 job_id=job_id,
             )
