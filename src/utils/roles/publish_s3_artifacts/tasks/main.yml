@@ -60,6 +60,33 @@
         msg: "{{ s3_verify_fail_msg }}"
       when: _oci_s3_uploaded_sizes != _oci_s3_local_sizes
 
+    - name: Verify the uploaded SHA-256 matches the local artifacts
+      ansible.builtin.shell: |
+        set -o pipefail
+        s3cmd get -q --force s3://{{ _oci_s3_prefix }}/{{ item.name }} - | sha256sum | cut -d' ' -f1
+      args:
+        executable: /bin/bash
+      loop: "{{ oci_ingest_artifacts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: _oci_s3_sha
+      changed_when: false
+      failed_when: (_oci_s3_sha.stdout | default('') | trim) != item.sha256
+
+    - name: Record the uploaded object ETags
+      ansible.builtin.set_fact:
+        _oci_s3_etags: "{{ _oci_s3_verify.results | map(attribute='stdout')
+          | map('regex_replace', '(?s).*MD5 sum:\\s+(\\S+).*', '\\1') | list }}"
+
+    - name: Add the ETags to the artifact records for the marker
+      ansible.builtin.set_fact:
+        _oci_artifacts_marked: >-
+          {%- set out = [] -%}
+          {%- for a in oci_ingest_artifacts -%}
+          {%- set _ = out.append(a | combine({'etag': _oci_s3_etags[loop.index0]})) -%}
+          {%- endfor -%}
+          {{ out }}
+
     - name: Write the ingest marker
       ansible.builtin.copy:
         content: "{{ _oci_marker_doc | to_nice_json }}"
@@ -70,7 +97,7 @@
           digest: "{{ oci_ingest_pull.digest }}"
           kernel_version: "{{ oci_ingest_boot.kernel_version }}"
           published_at: "{{ _oci_published_at }}"
-          artifacts: "{{ oci_ingest_artifacts }}"
+          artifacts: "{{ _oci_artifacts_marked }}"
 
     - name: Upload the marker last
       ansible.builtin.command: >-
@@ -87,7 +114,10 @@
       ansible.builtin.fail:
         msg: "{{ s3_verify_fail_msg if 'Verify' in ansible_failed_task.name else s3_put_fail_msg }}"
       vars:
-        _oci_s3_failed_item: "{{ ansible_failed_result.item.name | default('unknown') }}"
+        _oci_s3_failed_item: >-
+          {{ (ansible_failed_result.results | default([]) | selectattr('failed', 'defined') | selectattr('failed')
+              | map(attribute='item') | map(attribute='name') | list | first)
+             | default(ansible_failed_result.item.name | default('unknown')) }}
 
 - name: Set public-read ACL on the release prefix only
   ansible.builtin.command: "s3cmd setacl --acl-public --recursive s3://{{ _oci_s3_prefix }}/"

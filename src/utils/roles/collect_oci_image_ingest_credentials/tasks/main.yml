@@ -109,9 +109,15 @@
     oci_ingest_credentials: "{{ _oci_cred_view.stdout | from_yaml }}"
   no_log: true
 
-- name: Fail when stored credentials are incomplete
+- name: Validate the credentials against the schema (field names only, values never shown)
+  validate_oci_image_ingest_credentials:
+    credentials: "{{ oci_ingest_credentials }}"
+    schema_path: "{{ oci_ingest_credentials_schema_path }}"
+    log_dir: "{{ oci_ingest_log_dir | default('') }}"
+  register: _oci_cred_validation
+  ignore_errors: true
+
+- name: Fail when the stored credentials are incomplete or malformed
   ansible.builtin.fail:
-    msg: "{{ credential_decrypt_fail_msg }}"
-  when: >-
-    (oci_ingest_credentials.registry_username | default('') | length == 0) or
-    (oci_ingest_credentials.registry_password | default('') | length == 0)
+    msg: "{{ credential_decrypt_fail_msg }} {{ _oci_cred_validation.errors | default([]) | join('; ') }}"
+  when: _oci_cred_validation is failed

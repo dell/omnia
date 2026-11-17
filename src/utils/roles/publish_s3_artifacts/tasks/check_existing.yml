@@ -73,6 +73,18 @@
           | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
       when: _oci_marker_info.results is defined
 
+    - name: Compare the recorded ETags with the stored objects
+      ansible.builtin.set_fact:
+        _oci_etags_match: >-
+          {%- set current = _oci_marker_info.results | map(attribute='stdout')
+              | map('regex_replace', '(?s).*MD5 sum:\\s+(\\S+).*', '\\1') | list -%}
+          {%- set bad = [] -%}
+          {%- for a in _oci_marker.artifacts | default([]) -%}
+          {%- if a.etag is defined and a.etag != current[loop.index0] -%}{%- set _ = bad.append(a.name) -%}{%- endif -%}
+          {%- endfor -%}
+          {{ bad | length == 0 }}
+      when: _oci_marker_info.results is defined
+
     - name: Decide whether the publication is complete
       ansible.builtin.set_fact:
         oci_ingest_skip: >-
@@ -80,7 +92,8 @@
              and (_oci_marker.digest | default('')) == oci_ingest_pull.digest
              and (_oci_marker.artifacts | default([]) | length) == 3
              and (_oci_marker_info.results | selectattr('rc', 'equalto', 0) | list | length) == 3
-             and (_oci_marker_sizes | default([])) == (_oci_marker.artifacts | map(attribute='size_bytes') | map('int') | list) }}
+             and (_oci_marker_sizes | default([])) == (_oci_marker.artifacts | map(attribute='size_bytes') | map('int') | list)
+             and (_oci_etags_match | default(false) | bool) }}
 
 - name: Reuse the existing publication
   when: oci_ingest_skip | bool
@@ -89,9 +102,18 @@
       ansible.builtin.debug:
         msg: "s3://{{ _oci_s3_prefix }}/ already holds digest {{ oci_ingest_pull.digest }}; nothing is re-pulled or rewritten."
 
+    - name: Strip the ETags from the recorded artifacts
+      ansible.builtin.set_fact:
+        _oci_marker_artifacts_clean: >-
+          {%- set out = [] -%}
+          {%- for a in _oci_marker.artifacts -%}
+          {%- set _ = out.append({'name': a.name, 'size_bytes': a.size_bytes, 'sha256': a.sha256}) -%}
+          {%- endfor -%}
+          {{ out }}
+
     - name: Record the existing publication
       ansible.builtin.include_tasks: record.yml
       vars:
         _oci_rec_kernel_version: "{{ _oci_marker.kernel_version }}"
-        _oci_rec_artifacts: "{{ _oci_marker.artifacts }}"
+        _oci_rec_artifacts: "{{ _oci_marker_artifacts_clean }}"
         _oci_rec_published_at: "{{ _oci_marker.published_at }}"

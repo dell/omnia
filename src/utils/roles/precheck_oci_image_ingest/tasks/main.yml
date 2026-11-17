@@ -20,8 +20,19 @@
 # precheck_oci_image_ingest - verify prerequisites, take the per-project lock, create the run workdir.
 # Nothing here contacts the registry or S3.
 
+- name: Validate the Omnia environment (same module the utils precheck uses)
+  validate_system_environment:
+    required_vars:
+      - OMNIA_DATA_PATH
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: true
+
 - name: Check tools provided by the Image Build Manager prepare tag
-  ansible.builtin.command: "command -v {{ item.name }}"
+  ansible.builtin.shell: "command -v {{ item.name | quote }}"
+  args:
+    executable: /bin/bash
   loop: "{{ oci_ingest_prepare_tools }}"
   register: _oci_tool_check
   changed_when: false
@@ -38,46 +49,11 @@
   when: _oci_missing_prepare_tools | length > 0
 
 # OS packages are NOT installed by this utility (ER prerequisites). Missing tools fail the precheck.
-# - name: Check OS tools
-#   ansible.builtin.command: "command -v {{ item.name }}"
-#   loop: "{{ oci_ingest_os_tools }}"
-#   register: _oci_os_tool_check
-#   changed_when: false
-#   failed_when: false
-#
-# - name: Build the list of missing OS packages
-#   ansible.builtin.set_fact:
-#     _oci_missing_os_tools: >-
-#       {{ _oci_os_tool_check.results | selectattr('rc', 'ne', 0) | map(attribute='item') | list }}
-#
-# - name: Install missing OS packages
-#   ansible.builtin.package:
-#     name: "{{ _oci_missing_os_tools | map(attribute='package') | list }}"
-#     state: present
-#   when: _oci_missing_os_tools | length > 0
-#   become: true
-#
-# - name: Verify OS tools after installation
-#   ansible.builtin.command: "command -v {{ item.name }}"
-#   loop: "{{ _oci_missing_os_tools }}"
-#   register: _oci_os_tool_verify
-#   changed_when: false
-#   failed_when: false
-#   when: _oci_missing_os_tools | length > 0
-#
-# - name: Build the list of OS tools still missing
-#   ansible.builtin.set_fact:
-#     _oci_still_missing: >-
-#       {{ _oci_os_tool_verify.results | default([]) | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0)
-#          | map(attribute='item') | list }}
-#
-# - name: Fail when an OS tool is still missing
-#   ansible.builtin.fail:
-#     msg: "{{ tool_install_fail_msg }}"
-#   when: _oci_still_missing | length > 0
 
 - name: Check OS tools (verify only)
-  ansible.builtin.command: "command -v {{ item.name }}"
+  ansible.builtin.shell: "command -v {{ item.name | quote }}"
+  args:
+    executable: /bin/bash
   loop: "{{ oci_ingest_os_tools }}"
   register: _oci_os_tool_check
   changed_when: false
@@ -114,6 +90,8 @@
              | default('False') | lower == 'true')
          else 'http' }}://{{ lookup('ini', 'host_base section=default file=' ~ oci_ingest_s3cfg_path) }}
     oci_ingest_results: []
+    oci_ingest_log_dir: "{{ omnia_data_path }}/utils/log/{{ project_name }}"
+    oci_ingest_started_epoch: "{{ now(utc=true).timestamp() | int }}"
 
 - name: Ensure base workdir exists
   ansible.builtin.file:
@@ -142,13 +120,28 @@
   ansible.builtin.set_fact:
     oci_ingest_lock_held: true
     oci_ingest_workdir: "{{ oci_ingest_base_workdir }}/{{ oci_ingest_run_id }}"
-    oci_ingest_regctl_config: "{{ oci_ingest_base_workdir }}/{{ oci_ingest_run_id }}/regctl.json"
+    oci_ingest_secret_dir: "{{ oci_ingest_secret_root }}/{{ oci_ingest_run_id }}"
+    oci_ingest_regctl_config: "{{ oci_ingest_secret_root }}/{{ oci_ingest_run_id }}/regctl.json"
 
 - name: Create run workdir
   ansible.builtin.file:
     path: "{{ oci_ingest_workdir }}"
     state: directory
     mode: "0700"
+
+- name: Create the tmpfs directories for the session registry config
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+    owner: root
+    follow: false
+  loop:
+    - { path: /run/omnia, mode: "0755" }
+    - { path: "{{ oci_ingest_secret_root }}", mode: "0700" }
+    - { path: "{{ oci_ingest_secret_dir }}", mode: "0700" }
+  loop_control:
+    label: "{{ item.path }}"
 
 - name: Read existing build_status.yml (if any)
   ansible.builtin.stat:
@@ -167,3 +160,11 @@
   when:
     - _oci_status_stat.stat.exists
     - _oci_existing_status.image_build_type | default('') != oci_ingest_output_type
+
+- name: Log the run start
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      run started: project={{ project_name }} run_id={{ oci_ingest_run_id }}
+      registries={{ oci_ingest_config.registries | map(attribute='registry_hostname') | join(',') }}
+      mappings={{ oci_ingest_config.image_mappings | length }} s3_endpoint={{ oci_ingest_s3_endpoint }}
