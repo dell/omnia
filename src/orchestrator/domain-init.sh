@@ -24,6 +24,7 @@
 #   3. Creates Ansible log directory:  /var/log/omnia/orchestrator/
 #   4. Creates runtime data directories (input, output, log)
 #   5. Copies input template files from source tree to runtime data path
+#   6. Copies example cloud-init template to runtime data path
 #
 # Source (flat):   src/orchestrator/input/
 # Destination:     <ORCHESTRATOR_DATA_PATH>/input/<project>/
@@ -45,6 +46,7 @@
 #   sudo mkdir -p /var/log/omnia/orchestrator
 #   mkdir -p "$ORCHESTRATOR_DATA_PATH"/{input,output,log}/"$OMNIA_PROJECT_NAME"
 #   cp -a input/*.yml "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/"
+#   cp -a examples/functional_group_cloud_init_template.yml "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/"
 # =============================================================================
 
 set -euo pipefail
@@ -240,6 +242,15 @@ copy_input_files() {
     local count
     count=$(find "$dest_dir" -type f | wc -l)
     echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
+
+    # Copy the reference cloud-init template to the input directory
+    local cloud_init_template="$SCRIPT_DIR/examples/functional_group_cloud_init_template.yml"
+    if [ -f "$cloud_init_template" ]; then
+        cp -a "$cloud_init_template" "$dest_dir/"
+        echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied functional_group_cloud_init_template.yml → ${dest_dir}${NC}"
+    else
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Cloud-init template not found at ${cloud_init_template} — skipping${NC}"
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

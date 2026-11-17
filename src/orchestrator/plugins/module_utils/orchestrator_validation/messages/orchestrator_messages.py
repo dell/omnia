@@ -1191,3 +1191,76 @@ def functional_group_unsupported_os_msg(group: str, detail: str) -> str:
         f"functional_group_config: groups.{group} names {detail}, which is "
         "outside the supported RHEL 10.0/10.2 set. Continuing."
     )
+
+
+def functional_group_cloud_init_disallowed_directive_msg(
+    referenced_by: str, directives: list[str]
+) -> str:
+    """Return the disallowed cloud-init directive error message."""
+    return (
+        f"functional_group_config: {referenced_by} contains disallowed "
+        f"cloud-init directive(s): {', '.join(directives)}. "
+        "Flexible groups support only write_files and runcmd."
+    )
+
+
+def functional_group_missing_field_msg(
+    referenced_by: str, field: str
+) -> str:
+    """Return the missing required field error message."""
+    return (
+        f"functional_group_config: {referenced_by} is missing required field "
+        f"'{field}'."
+    )
+
+
+def functional_group_cloud_init_secret_msg(
+    referenced_by: str, secrets: list[str]
+) -> str:
+    """Return the secret-bearing content error message."""
+    return (
+        f"functional_group_config: {referenced_by} content appears to contain "
+        f"secret-bearing pattern(s): {', '.join(secrets)}. "
+        "Cloud-init content is published as node metadata and must not contain secrets."
+    )
+
+
+def functional_group_path_escaped_msg(
+    referenced_by: str, path: str
+) -> str:
+    """Return the path-escaped boundary error message."""
+    return (
+        f"functional_group_config: {referenced_by} path '{path}' escapes the "
+        "project input directory. Paths must remain within the active project "
+        "input boundary."
+    )
+
+
+def functional_group_path_not_found_msg(
+    referenced_by: str, path: str
+) -> str:
+    """Return the file not found error message."""
+    return (
+        f"functional_group_config: {referenced_by} references file '{path}', "
+        "which does not exist."
+    )
+
+
+def functional_group_cloud_init_parse_msg(
+    referenced_by: str, detail: str
+) -> str:
+    """Return the cloud-init YAML parse error message."""
+    return (
+        f"functional_group_config: Failed to parse cloud-init YAML for "
+        f"{referenced_by}: {detail}."
+    )
+
+
+def functional_group_cloud_init_read_msg(
+    referenced_by: str, detail: str
+) -> str:
+    """Return the cloud-init file read error message."""
+    return (
+        f"functional_group_config: Failed to read cloud-init file for "
+        f"{referenced_by}: {detail}."
+    )

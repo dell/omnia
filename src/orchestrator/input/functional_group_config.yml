@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Flexible Functional Group Configuration
+#
+# This optional file configures flexible functional groups (groups with the mandatory
+# fg_ name prefix). Flexible groups do not consume omnia_config.yml or storage_config.yml
+# and do not invoke category bolt-on roles.
+#
+# When this file is absent, empty, or contains only empty values, Orchestrator
+# preserves existing behavior for all groups.
+#
+# Group keys must start with the mandatory fg_ prefix and must exactly match
+# functional group names in the reviewed PXE mapping file.
+# Predefined group keys (service_kube_*, slurm_*, login_node_*, login_compiler_node_*, os_*)
+# are rejected as invalid.
+#
+# Structure:
+#   common:           Settings that apply to all flexible groups unless overridden
+#   groups.<fg_name>: Exact-group settings that override common settings
+#
+# Resolution order (first non-empty value wins):
+#   1. Exact-group scope (groups.<fg_name>)
+#   2. Common scope (common)
+#   3. Omnia default (append for boot_kernel_params_mode)
+
+# Common settings (apply to all flexible groups unless overridden at exact-group level)
+common:
+  # Optional: Additional kernel command-line parameters for boot
+  # These are advisory-validated; protected or unsafe parameters produce a non-blocking warning
+  # Default: "" (no additional parameters)
+  boot_kernel_params: ""
+
+  # Optional: Mode for applying boot_kernel_params
+  # Valid values: "append" (default) or "override"
+  #   - append: Add parameters to the existing kernel command line
+  #   - override: Replace non-platform default parameters (platform-managed parameters are always retained)
+  # Default: "append"
+  boot_kernel_params_mode: "append"
+
+  # Optional: Path to a cloud-init configuration file for this group
+  # The file supports write_files and runcmd directives only
+  # Default: "" (no additional cloud-init)
+  cloud_init:
+    config_file: ""
+
+# Exact-group settings (override common settings for specific flexible groups)
+# Replace fg_example_group with your actual functional group name from the PXE mapping
+# Group names must match the pattern: fg_<user-label>_<os-name>_<os-version>_<architecture>
+# Example: fg_webserver_rhel_10_2_x86_64
+groups:
+  # fg_example_group:
+  #   boot_kernel_params: ""
+  #   boot_kernel_params_mode: "append"
+  #   cloud_init:
+  #     config_file: ""
+  #   # Optional: Complete image override (kernel, initrd, rootfs)
+  #   # All three objects must be valid and reachable for the override to apply
+  #   # If any object is missing or invalid, the Image Build Manager tuple is used instead
+  #   image_override:
+  #     kernel: ""
+  #     initrd: ""
+  #     rootfs: ""
