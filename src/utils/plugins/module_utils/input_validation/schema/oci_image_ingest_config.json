@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OCI Image Ingest Configuration Schema",
+  "description": "Schema for oci_image_ingest_config.yml. Connection and mapping only; credentials live in the Vault-encrypted oci_image_ingest_credentials.yml. This increment supports registry_type 'harbor' and operation 'repo_to_bucket'.",
+  "type": "object",
+  "required": ["registries", "image_mappings"],
+  "additionalProperties": false,
+  "properties": {
+    "registries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["registry_name", "registry_type", "registry_protocol", "registry_hostname"],
+        "additionalProperties": false,
+        "properties": {
+          "registry_name": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+          "registry_type": {"type": "string", "enum": ["harbor"]},
+          "registry_protocol": {"type": "string", "enum": ["http", "https"]},
+          "registry_hostname": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9.:-]*$"},
+          "registry_port": {"type": "integer", "minimum": 1, "maximum": 65535}
+        }
+      }
+    },
+    "image_mappings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["mapping_name", "registry_name", "namespace_name", "image", "functional_group", "operation"],
+        "additionalProperties": false,
+        "properties": {
+          "mapping_name": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+          "registry_name": {"type": "string", "minLength": 1},
+          "namespace_name": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+          "image": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._/-]*(:[A-Za-z0-9_][A-Za-z0-9._-]{0,127}|@sha256:[a-f0-9]{64})$"
+          },
+          "functional_group": {"type": "string", "pattern": "^[a-z][a-z0-9_]*_(x86_64|aarch64)$"},
+          "kernel_version": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9._+-]+$"},
+          "operation": {"type": "string", "enum": ["repo_to_bucket"]}
+        }
+      }
+    }
+  }
+}

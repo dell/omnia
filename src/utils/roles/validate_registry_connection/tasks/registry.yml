@@ -1,0 +1,103 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+- name: Resolve registry addressing
+  ansible.builtin.set_fact:
+    _oci_base_url: "{{ reg.registry_protocol }}://{{ reg.registry_hostname }}:{{ reg.registry_port }}"
+    _oci_host_ref: >-
+      {{ reg.registry_hostname }}{{ '' if reg.registry_port == oci_ingest_default_ports[reg.registry_protocol] else ':' ~ reg.registry_port }}
+    _oci_tls: "{{ 'disabled' if reg.registry_protocol == 'http' else oci_ingest_registry_tls }}"
+    _oci_namespaces: >-
+      {{ oci_ingest_config.image_mappings | selectattr('registry_name', 'equalto', reg.registry_name)
+         | map(attribute='namespace_name') | unique | list }}
+
+- name: Check registry endpoint and credentials (Docker Registry V2 API)
+  ansible.builtin.uri:
+    url: "{{ _oci_base_url }}/v2/"
+    url_username: "{{ oci_ingest_credentials.registry_username }}"
+    url_password: "{{ oci_ingest_credentials.registry_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ _oci_tls == 'enabled' }}"
+    timeout: "{{ oci_ingest_connect_timeout }}"
+    status_code: [200, 401, 403]
+  register: _oci_v2_check
+  failed_when: false
+  no_log: true
+
+- name: Fail on TLS verification error
+  ansible.builtin.fail:
+    msg: "{{ tls_fail_msg }}"
+  when: _oci_v2_check.status | default(-1) == -1 and (_oci_v2_check.msg | default('')) is search('(?i)certificate|ssl')
+
+- name: Fail when the registry is unreachable
+  ansible.builtin.fail:
+    msg: "{{ connectivity_fail_msg }}"
+  when: _oci_v2_check.status | default(-1) == -1
+
+- name: Fail on authentication error
+  ansible.builtin.fail:
+    msg: "{{ auth_fail_msg }}"
+  when: _oci_v2_check.status in [401, 403]
+
+- name: Fail on unexpected status
+  ansible.builtin.fail:
+    msg: "{{ unexpected_fail_msg }}"
+  when: _oci_v2_check.status != 200
+
+- name: Check namespace (Harbor project) accessibility
+  ansible.builtin.uri:
+    url: "{{ _oci_base_url }}/api/v2.0/projects/{{ _oci_ns }}"
+    url_username: "{{ oci_ingest_credentials.registry_username }}"
+    url_password: "{{ oci_ingest_credentials.registry_password }}"
+    force_basic_auth: true
+    validate_certs: "{{ _oci_tls == 'enabled' }}"
+    timeout: "{{ oci_ingest_connect_timeout }}"
+    status_code: [200, 401, 403, 404]
+  register: _oci_ns_check
+  failed_when: _oci_ns_check.status != 200
+  no_log: true
+  loop: "{{ _oci_namespaces }}"
+  loop_control:
+    loop_var: _oci_ns
+  ignore_errors: true
+
+- name: Fail when a namespace is not accessible
+  ansible.builtin.fail:
+    msg: "{{ namespace_fail_msg }}"
+  vars:
+    _oci_bad_ns: "{{ _oci_ns_check.results | rejectattr('status', 'equalto', 200) | list }}"
+    _oci_ns: "{{ _oci_bad_ns[0]._oci_ns }}"
+    _oci_ns_status: "{{ _oci_bad_ns[0].status | default('n/a') }}"
+  when: _oci_ns_check.results | rejectattr('status', 'equalto', 200) | list | length > 0
+
+- name: Build the session regctl host entry
+  ansible.builtin.set_fact:
+    oci_ingest_regctl_hosts: >-
+      {{ oci_ingest_regctl_hosts | default({}) | combine({
+           (_oci_host_ref | trim): {
+             'hostname': (_oci_host_ref | trim),
+             'tls': _oci_tls,
+             'user': oci_ingest_credentials.registry_username,
+             'pass': oci_ingest_credentials.registry_password
+           }}) }}
+  no_log: true
+
+- name: Record the registry reference host
+  ansible.builtin.set_fact:
+    oci_ingest_registry_refs: "{{ oci_ingest_registry_refs | default({}) | combine({reg.registry_name: _oci_host_ref | trim}) }}"
