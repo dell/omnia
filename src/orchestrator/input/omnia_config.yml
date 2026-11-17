@@ -191,7 +191,7 @@ slurm_cluster:
 # (isilon-node), so they apply when the driver mounts a volume. They are not set as ps01
 # StorageClass mountOptions, because the driver re-applies those on a bind-mount remount,
 # where options such as rsize/wsize fail and the volume cannot be mounted.
-# Default: "rsize=524288,wsize=524288,nosharecache". RHEL 10.x clients get Input/output
+# Default: "rsize=946176,wsize=946176,nosharecache". RHEL 10.x clients get Input/output
 # errors on PowerScale volumes at the negotiated 1 MiB transfer size (MySQL, for example,
 # cannot initialize). nosharecache is required so the transfer size is applied even when
 # other volumes from the same PowerScale are already mounted on the node.
@@ -236,6 +236,6 @@ service_k8s_cluster:
     enable_powerscale_csi: false
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
-    csi_powerscale_mount_options: "rsize=524288,wsize=524288,nosharecache"
+    csi_powerscale_mount_options: "rsize=946176,wsize=946176,nosharecache"
     enable_k8s_ha: true
     virtual_ip_address: "172.16.107.1"

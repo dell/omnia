@@ -99,7 +99,7 @@ vault_key_permission: "0600"
 # Applied when csi_powerscale_mount_options is omitted from omnia_config.yml.
 # RHEL 10.x clients get Input/output errors on PowerScale at the 1 MiB transfer size.
 # Set csi_powerscale_mount_options: "" to disable.
-csi_powerscale_default_mount_options: "rsize=524288,wsize=524288,nosharecache"
+csi_powerscale_default_mount_options: "rsize=946176,wsize=946176,nosharecache"
 
 # Usage ps_storage_class.j2
 ps_isipath: "{{ csi_powerscale_values_file['isiPath'] }}"
