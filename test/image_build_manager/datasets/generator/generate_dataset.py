@@ -112,18 +112,8 @@ _PROFILE_TOPOLOGIES = {
         "packages": "package_groups",
     },
 }
-_BUILD_TYPES = ("image-thrillhouse", "image-builder")
 _BUILTIN_PROFILES = {
-    f"{build_type}-{topology_name}": {
-        **topology_details,
-        "build_type": build_type,
-        "patches": {
-            "image_build_config": {
-                "image_build_type": build_type,
-            },
-        },
-    }
-    for build_type in _BUILD_TYPES
+    f"image-thrillhouse-{topology_name}": topology_details
     for topology_name, topology_details in _PROFILE_TOPOLOGIES.items()
 }
 _PROFILE_ALIASES = {
@@ -156,7 +146,6 @@ _LEGACY_VAR_PATHS = {
     "repo_manager_output_path": (_IBM, ("repo_manager_output_path",)),
     "s3_provider": (_IBM, ("s3_configurations", "provider")),
     "s3_endpoint_url": (_IBM, ("s3_configurations", "endpoint_url")),
-    "image_build_type": (_IBM, ("image_build_type",)),
     "build_image_max_parallel": (_IBM, ("build_image", "max_parallel")),
     "build_image_build_timeout": (_IBM, ("build_image", "build_timeout")),
     "build_image_force_rebuild": (_IBM, ("build_image", "force_rebuild")),
@@ -367,7 +356,7 @@ def _list_profiles() -> None:
     for name in _available_profile_names():
         profile = _load_profile(name)
         details = _BUILTIN_PROFILES.get(name, {})
-        build_type = str(details.get("build_type", "source value"))
+        build_type = str(details.get("build_type", "Image Thrillhouse"))
         repositories = str(
             details.get("repositories", profile.get("repo_variant", "offline"))
         )
@@ -406,7 +395,7 @@ def _show_profile(profile_name: str) -> None:
     )
     packages = str(details.get("packages", _profile_package_source(profile)))
     description = str(details.get("description", profile.get("description", "")))
-    build_type = str(details.get("build_type", "source value"))
+    build_type = str(details.get("build_type", "Image Thrillhouse"))
 
     print(f"\nProfile: {friendly_name}")
     print("-" * 72)

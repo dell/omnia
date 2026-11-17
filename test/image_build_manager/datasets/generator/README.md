@@ -44,26 +44,15 @@ depend on the unavailable public `slurm_custom` repository.
 | `image-thrillhouse-offline-config` | Image Thrillhouse | Repo Manager | Complete source `package_groups.yml` |
 | `image-thrillhouse-internet-catalog` | Image Thrillhouse | Public internet | Catalog |
 | `image-thrillhouse-internet-config` | Image Thrillhouse | Public internet | Minimal public package groups |
-| `image-builder-offline-catalog` | Image Builder | Repo Manager | Catalog |
-| `image-builder-offline-config` | Image Builder | Repo Manager | Complete source `package_groups.yml` |
-| `image-builder-internet-catalog` | Image Builder | Public internet | Catalog |
-| `image-builder-internet-config` | Image Builder | Public internet | Minimal public package groups |
 
-These are the eight canonical profiles: two builders, two repository sources,
-and two package-resolution modes. Every profile explicitly writes its own
-`image_build_type`, so a later source-default change cannot silently switch the
-selected builder. Catalog profiles require `CATALOG_FILE_PATH`. Offline
-profiles require a reachable Repo Manager and its certificate. Internet
-profiles require outbound access. `--from-src` remains completely
-source-driven.
+These are the four canonical Image Thrillhouse profiles: two repository sources
+and two package-resolution modes. Catalog profiles require `CATALOG_FILE_PATH`.
+Offline profiles require a reachable Repo Manager and its certificate. Internet
+profiles require outbound access. `--from-src` remains completely source-driven.
 
 The `offline`/`internet` segment describes the RPM repository source. For a
-fully air-gapped run, also mirror or preload the selected builder container;
-Image Thrillhouse normally comes from GHCR and Image Builder from Docker Hub.
-
-When reusing an existing project's build cache after changing builder families,
-set `image_build_config:build_image.force_rebuild=true` for the first run so
-artifacts with the new builder suffix are created.
+fully air-gapped run, also mirror or preload the Image Thrillhouse container
+from GHCR.
 
 Legacy aliases remain accepted and resolve to the corresponding Image
 Thrillhouse profile:

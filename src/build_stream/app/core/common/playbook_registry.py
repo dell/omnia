@@ -107,8 +107,3 @@ def get_playbook_path(playbook_name: str) -> Optional[str]:
         Absolute path string if found, ``None`` otherwise.
     """
     return _REGISTRY.get(playbook_name)
-
-
-def get_all_playbook_names() -> list:
-    """Return the list of all registered playbook names."""
-    return list(_REGISTRY.keys())

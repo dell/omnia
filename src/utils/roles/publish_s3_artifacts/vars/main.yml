@@ -1,0 +1,34 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+oci_ingest_marker_name: ingest.json
+
+s3_unreachable_msg: >-
+  S3 upload failed (phase: upload): cannot list s3://{{ _oci_s3_prefix }}/ with {{ oci_ingest_s3cfg_path }}.
+  Check that the S3 service is running and reachable. build_status.yml was not updated.
+s3_put_fail_msg: >-
+  S3 upload failed (phase: upload) for artifact '{{ _oci_s3_failed_item | default('unknown') }}'. Partial objects under
+  s3://{{ _oci_s3_prefix }}/ were removed. build_status.yml was not updated.
+s3_acl_fail_msg: >-
+  The S3 endpoint rejected the public-read ACL on s3://{{ _oci_s3_prefix }}/ (phase: upload). Nodes fetch boot
+  artifacts anonymously, so enable ACLs on the bucket or grant anonymous read with a bucket policy. build_status.yml
+  was not updated.
+s3_verify_fail_msg: >-
+  Uploaded object sizes under s3://{{ _oci_s3_prefix }}/ do not match the local artifacts (phase: upload).
+  build_status.yml was not updated.

@@ -1,0 +1,94 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# Append one JSON-lines audit record for the BuildStream cleanup run.
+# Input: build_stream_cleanup_audit_status (STARTED | COMPLETED | FAILED).
+# The audit file lives outside every directory the cleanup removes.
+
+- name: Identify this BuildStream cleanup run
+  ansible.builtin.set_fact:
+    build_stream_cleanup_run_id: >-
+      {{ ((ansible_date_time.iso8601_micro | default(now(utc=true).isoformat()))
+          ~ '-' ~ inventory_hostname) | to_uuid }}
+  when: build_stream_cleanup_run_id is not defined
+
+- name: Build the BuildStream cleanup audit record
+  ansible.builtin.set_fact:
+    build_stream_cleanup_audit_record: >-
+      {{
+        {
+          'timestamp': now(utc=true).strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+          'event': 'BUILD_STREAM_CLEANUP_' ~ build_stream_cleanup_audit_status,
+          'run_id': build_stream_cleanup_run_id,
+          'host': inventory_hostname,
+          'user': lookup('ansible.builtin.env', 'SUDO_USER',
+                         default=lookup('ansible.builtin.env', 'USER', default='unknown')),
+          'mode': ('gitlab_and_build_stream'
+                   if ('cleanup' in (ansible_run_tags | default([])))
+                      or (cleanup_gitlab | default(false) | bool)
+                   else 'build_stream_only'),
+          'postgres_backup': postgres_backup | default(true) | bool,
+          'cleanup_credentials': cleanup_credentials | default(true) | bool,
+        }
+        | combine(
+            {
+              'postgres_data': ('DELETED' if not (postgres_backup | default(true) | bool)
+                                else 'PRESERVED' if postgres_database_marker_stat.stat.exists | default(true)
+                                else 'NOT_FOUND'),
+              'job_artifacts': ('PRESERVED' if build_stream_job_data_preserved | default(false) | bool
+                                else 'DELETED'),
+              'artifacts_kept': build_stream_artifacts_kept | default(0) | int,
+              'artifacts_keep_source': (build_stream_artifact_keep_source | default('none') | trim
+                                        if build_stream_job_data_preserved | default(false) | bool
+                                        else 'none'),
+              'artifacts_referenced_missing': build_stream_artifacts_referenced_missing | default(0) | int,
+              'credentials': ('REMOVED' if cleanup_credentials | default(true) | bool else 'PRESERVED'),
+              'image_groups_marked_cleaned': (non_cleaned_count.stdout | default('0') | trim | int)
+                                             if image_groups_update is defined
+                                                and image_groups_update is not skipped
+                                             else 0,
+              'active_jobs_at_cleanup': build_stream_active_job_count | default(0) | int,
+            }
+            if build_stream_cleanup_audit_status == 'COMPLETED' else {}
+          )
+        | combine(
+            {
+              'failed_task': ansible_failed_task.name | default('unknown'),
+              'error': (ansible_failed_result.msg | default('unknown')) | string,
+            }
+            if build_stream_cleanup_audit_status == 'FAILED' else {}
+          )
+      }}
+
+- name: Ensure the BuildStream cleanup audit directory exists
+  ansible.builtin.file:
+    path: "{{ build_stream_cleanup_audit_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Append the BuildStream cleanup audit record
+  ansible.builtin.lineinfile:
+    path: "{{ build_stream_cleanup_audit_file }}"
+    line: "{{ build_stream_cleanup_audit_record | to_json }}"
+    insertafter: EOF
+    create: true
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Show the BuildStream cleanup audit record
+  ansible.builtin.debug:
+    msg: "Cleanup audit ({{ build_stream_cleanup_audit_file }}): {{ build_stream_cleanup_audit_record | to_json }}"

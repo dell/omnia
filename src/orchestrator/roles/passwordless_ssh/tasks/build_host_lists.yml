@@ -20,10 +20,18 @@
     fail_msg: "{{ pxe_mapping_path_fail_msg }}"
 
 - name: Read PXE mapping file (FUNCTIONAL_GROUP_NAME, HOSTNAME, ...)
-  community.general.read_csv:
-    path: "{{ pxe_mapping_file_path }}"
-    key: ADMIN_MAC
-  register: pxe_mapping_dict
+  block:
+    - name: Read PXE mapping file (FUNCTIONAL_GROUP_NAME, HOSTNAME, ...)
+      community.general.read_csv:
+        path: "{{ pxe_mapping_file_path }}"
+        key: ADMIN_MAC
+      register: pxe_mapping_dict
+      no_log: true
+  rescue:
+    - name: Report PXE mapping file read failure
+      ansible.builtin.fail:
+        msg: "{{ passwordless_ssh_read_csv_rescue_msg }}"
+      no_log: false
 
 - name: Initialize per-stack hostname lists and IP wildcard patterns
   ansible.builtin.set_fact:
@@ -34,6 +42,33 @@
     omnia_cluster_ip_patterns: []
     omnia_hosts_map: {}
   when: inventory_hostname == 'localhost'
+
+- name: Find PXE mapping rows with an invalid HOSTNAME or ADMIN_IP
+  block:
+    - name: Find PXE mapping rows with an invalid HOSTNAME or ADMIN_IP
+      ansible.builtin.set_fact:
+        pxe_invalid_host_rows: >-
+          {%- set ns = namespace(bad=[]) -%}
+          {%- for row in pxe_mapping_dict.dict.values() | list -%}
+          {%- set host = row.HOSTNAME | default('') -%}
+          {%- set ip = row.ADMIN_IP | default('') -%}
+          {%- if not ((host == '' or host is match(passwordless_ssh_hostname_regex))
+                      and (ip == '' or ip is match(passwordless_ssh_ipv4_regex))) -%}
+          {%- set ns.bad = ns.bad + [loop.index] -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ ns.bad }}
+      no_log: true
+  rescue:
+    - name: Report PXE mapping invalid-row scan failure
+      ansible.builtin.fail:
+        msg: "{{ passwordless_ssh_invalid_rows_rescue_msg }}"
+      no_log: false
+
+- name: Fail before CSV-derived hostnames and IPs reach SSH config and /etc/hosts
+  ansible.builtin.fail:
+    msg: "{{ pxe_mapping_invalid_host_value_fail_msg }} Data rows: {{ pxe_invalid_host_rows | join(', ') }}"
+  when: pxe_invalid_host_rows | length > 0
 
 - name: Build per-stack hostname lists and IP wildcard patterns from PXE mapping
   ansible.builtin.set_fact:

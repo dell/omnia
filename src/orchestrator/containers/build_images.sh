@@ -84,7 +84,7 @@ show_help() {
 BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
-AUTH_TAG="1.2"
+AUTH_TAG="1.3"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
@@ -121,6 +121,20 @@ fi
 
 if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
     echo -e "${RED}Error: build_action=push requires build_tool=docker${NC}"
+    exit 1
+fi
+
+# ── Validate tag and registry values ──
+TAG_PATTERN='^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$'
+REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:-]*$'
+
+if [[ ! "$AUTH_TAG" =~ $TAG_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid auth_tag format '${AUTH_TAG}'. Must match ${TAG_PATTERN}${NC}"
+    exit 1
+fi
+
+if [[ ! "$OMNIA_DOCKER_REGISTERY" =~ $REGISTRY_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid registry format '${OMNIA_DOCKER_REGISTERY}'. Must match ${REGISTRY_PATTERN}${NC}"
     exit 1
 fi
 

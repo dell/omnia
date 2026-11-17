@@ -21,13 +21,16 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 
 from api.upload.schemas import UploadFilesResponse
-from api.upload.dependencies import get_upload_files_use_case
+from api.upload.dependencies import get_max_upload_file_size, get_upload_files_use_case
 from api.dependencies import verify_token, get_correlation_id
 from core.jobs.value_objects import JobId, ClientId, CorrelationId
 from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError
 from orchestrator.upload.commands.upload_files import UploadFilesCommand
 from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceededError
-from orchestrator.upload.use_cases.upload_files import UploadFilesUseCase
+from orchestrator.upload.use_cases.upload_files import ALLOWED_CONFIG_FILES, UploadFilesUseCase
+
+# Each allowed file can be uploaded at most once per request.
+MAX_FILES_PER_UPLOAD = len(ALLOWED_CONFIG_FILES)
 
 
 router = APIRouter(prefix="/jobs", tags=["upload"])
@@ -48,6 +51,7 @@ async def upload_files(
     token_data: Annotated[dict, Depends(verify_token)] = None,
     correlation_id: CorrelationId = Depends(get_correlation_id),
     use_case: UploadFilesUseCase = Depends(get_upload_files_use_case),
+    max_file_size: int = Depends(get_max_upload_file_size),
 ) -> UploadFilesResponse:
     """Upload configuration files to a job.
 
@@ -57,6 +61,7 @@ async def upload_files(
         token_data: Token data from authentication (injected).
         correlation_id: Request correlation ID (injected).
         use_case: Upload files use case (injected).
+        max_file_size: Per-file size limit in bytes (injected).
 
     Returns:
         Upload result with summary and file details.
@@ -64,6 +69,7 @@ async def upload_files(
     Raises:
         HTTPException: On validation or processing errors.
     """
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
     try:
         # Extract client_id from token
         client_id = ClientId(token_data["client_id"])
@@ -71,10 +77,33 @@ async def upload_files(
         # Parse job ID
         job_id_vo = JobId(job_id)
 
-        # Read file contents
+        if len(files) > MAX_FILES_PER_UPLOAD:
+            raise InvalidFilenameError(
+                f"Too many files in one upload (maximum {MAX_FILES_PER_UPLOAD})"
+            )
+
+        # Read file contents, never more than the size limit plus one byte
         file_tuples = []
+        seen_filenames = set()
         for upload_file in files:
-            content = await upload_file.read()
+            # Check the allow-list first, so only known names reach the
+            # messages below; the raw multipart filename is never echoed.
+            if upload_file.filename not in ALLOWED_CONFIG_FILES:
+                raise InvalidFilenameError(
+                    "Filename is not in allowed whitelist. "
+                    f"Allowed files: {sorted(ALLOWED_CONFIG_FILES)}"
+                )
+            if upload_file.filename in seen_filenames:
+                raise InvalidFilenameError(
+                    f"Duplicate filename in upload: '{upload_file.filename}'"
+                )
+            seen_filenames.add(upload_file.filename)
+            content = await upload_file.read(max_file_size + 1)
+            if len(content) > max_file_size:
+                raise FileSizeExceededError(
+                    f"File '{upload_file.filename}' exceeds maximum size "
+                    f"({max_file_size} bytes)"
+                )
             file_tuples.append((upload_file.filename, content))
 
         # Create command

@@ -35,7 +35,6 @@ nft_allow_active_stage_restart: false
 nft_allow_watcher_restart: false
 nft_allow_security_mutation: false
 nft_recovery_timeout_seconds: 120
-nft_pipeline_timeout_seconds: 300
 ```
 
 The cancellation case records the pipeline it creates and cancels only that

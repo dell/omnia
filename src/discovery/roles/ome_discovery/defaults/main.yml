@@ -14,7 +14,7 @@
 ---
 
 # Default functional group name for discovered nodes (used when OME group name is absent)
-default_functional_group: "slurm_node_aarch64"
+default_functional_group: "slurm_node_rhel_10_0_aarch64"
 
 # Default group name prefix
 default_group_name: "grp0"

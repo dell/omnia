@@ -1,4 +1,4 @@
-# Repo Manager -- Architecture
+# Repository Manager Architecture
 
 ## System Context
 

@@ -76,9 +76,9 @@ spec:
 
                         # Create cleanup pod - remove lock files recursively
                         # Use container_registry override if set
-                        BUSYBOX_IMAGE="{{ telemetry_registry.host | default('') }}/library/busybox:1.36"
+                        BUSYBOX_IMAGE="{{ telemetry_registry.host | default('') }}/library/busybox:1.38"
                         if [ -z "{{ telemetry_registry.host | default('') }}" ]; then
-                          BUSYBOX_IMAGE="busybox:1.36"
+                          BUSYBOX_IMAGE="busybox:1.38"
                         fi
                         kubectl run $cleanup_pod --image=$BUSYBOX_IMAGE -n telemetry --restart=Never \
                           --overrides="{\"spec\":{\"containers\":[{\"name\":\"cleanup\",\"image\":\"$BUSYBOX_IMAGE\",\"command\":[\"sh\",\"-c\",\"echo 'Cleaning lock files in /data...'; find /data -type f \\\\( -name '.lock' -o -name '*.lock' -o -name '*.sock' -o -name '*.pid' \\\\) -exec rm -fv {} \\\\; 2>/dev/null || true; echo 'Done'\"],\"volumeMounts\":[{\"name\":\"data\",\"mountPath\":\"/data\"}]}],\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc\"}}]}}" \

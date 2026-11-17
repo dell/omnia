@@ -48,6 +48,7 @@ from .common_vars import (
     OMNIA_SH_GENERIC_TAGS,
     OMNIA_CLI_HELP_SECTIONS,
     CMDS,
+    build_cmd,
 )
 from .test_case_vars import TEST_CASES
 from .domain_vars import (
@@ -90,6 +91,7 @@ __all__ = [
     "OMNIA_SH_GENERIC_TAGS",
     "OMNIA_CLI_HELP_SECTIONS",
     "CMDS",
+    "build_cmd",
     "TEST_CASES",
     "ALL_EXEC_MARKER",
     "ALL_EXEC_TAGS",

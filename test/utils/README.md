@@ -655,61 +655,29 @@ cat reports/utils_test_report.json | jq .
 =====================================================================================
   TEST EXECUTION SUMMARY
 =====================================================================================
-  TC ID        Test Name                                Status     Duration
-  ------------ ---------------------------------------- ---------- --------
-  TC_CL_001    test_deploy_collect_setup                PASSED                38.20s
-  TC_CL_002    test_deploy_collect_prepare              PASSED                38.11s
-  TC_CL_010    test_collect_input_file_exists           PASSED                 0.01s
-  TC_CL_012    test_collect_functional_groups_valid     PASSED                 0.02s
-  TC_CL_021    test_collect_bundle_created              PASSED                 0.04s
-  TC_CL_032    test_collect_bundle_log_files_content    PASSED                 0.14s
-  ------------ ---------------------------------------- ---------- --------
+  TC ID                      Test Name                           Status     Duration
+  ------------------------- ----------------------------------- ---------- --------
+  UTILS_FVT_COLLECT_E001     test_deploy_collect_setup           PASSED                38.20s
+  UTILS_FVT_COLLECT_E002     test_deploy_collect_prepare         PASSED                38.11s
+  UTILS_FVT_COLLECT_V001     test_collect_input_file_exists      PASSED                 0.01s
+  UTILS_FVT_COLLECT_V003     test_collect_functional_groups_valid PASSED                 0.02s
+  UTILS_FVT_COLLECT_V005     test_collect_bundle_created         PASSED                 0.04s
+  UTILS_FVT_COLLECT_V012     test_collect_bundle_log_files_content PASSED               0.14s
+  ------------------------- ----------------------------------- ---------- --------
   16 passed, 0 failed, 0 skipped / 16 total (151.81s)
 =====================================================================================
 ```
 
----
 
 ## Test Cases
 
-### Collect Scenario (TC_CL_*)
+See [`fvt/README.md`](fvt/README.md) for the authoritative test case registry. It contains:
 
-| ID | Test Name | Description | Order |
-|----|-----------|-------------|-------|
-| TC_CL_030 | test_collect_env_vars_loaded | Verify OMNIA_DATA_PATH loaded | 0 |
-| TC_CL_031 | test_collect_project_name_loaded | Verify OMNIA_PROJECT_NAME loaded | 1 |
-| TC_CL_010 | test_collect_input_file_exists | Verify collect_pxe.yml exists | 2 |
-| TC_CL_011 | test_collect_input_file_valid | Verify valid YAML structure | 3 |
-| TC_CL_012 | test_collect_functional_groups_valid | Verify valid functional groups | 4 |
-| TC_CL_001 | test_deploy_collect_setup | Deploy with setup tag | 5 |
-| TC_CL_002 | test_deploy_collect_prepare | Deploy with prepare tag | 6 |
-| TC_CL_003 | test_deploy_collect_bundle | Deploy with bundle tag | 7 |
-| TC_CL_004 | test_deploy_collect_full | Full deployment | 8 |
-| TC_CL_020 | test_collect_output_dir_exists | Output directory exists | 9 |
-| TC_CL_021 | test_collect_bundle_created | Log bundle created | 10 |
-| TC_CL_022 | test_collect_metadata_exists | Metadata file exists | 11 |
-| TC_CL_023 | test_collect_metadata_valid | Metadata valid JSON | 12 |
-| TC_CL_024 | test_collect_metadata_sha256 | SHA256 in metadata | 13 |
-| TC_CL_025 | test_collect_bundle_contents | Bundle has expected dirs | 14 |
-| TC_CL_032 | test_collect_bundle_log_files_content | Log files have content | 15 |
-
-### Test Execution Flow
-
-```
-Environment Variables (0-1)
-    ↓
-Input Validation (2-4)
-    ↓
-Playbook Deployment (5-8)
-    ↓
-Output Verification (9-15)
-```
-
-**Key Features:**
-- **Input validation runs FIRST** - Tests fail fast if input is invalid
-- **Playbook tests validate input** - Won't run playbook with invalid input
-- **Timestamp verification** - Ensures tests check current execution artifacts
-- **Empty bundle detection** - Fails if no log files collected
+- Complete test case documentation with UTILS_FVT_* ID convention
+- Detailed test descriptions, markers, and pass criteria
+- Test execution order by phase (precheck, setup, collect, install_os, cleanup)
+- Negative test scenarios
+- Legacy ID migration mapping
 
 ---
 
@@ -733,7 +701,7 @@ Output Verification (9-15)
 
 **Error:**
 ```
-TC_CL_010    test_collect_input_file_exists           FAILED
+UTILS_FVT_COLLECT_V001    test_collect_input_file_exists           FAILED
 AssertionError: Input file not found: /opt/omnia/utils/input/project_default/collect_pxe.yml
 ```
 
@@ -753,7 +721,7 @@ cp datasets/test_data/input/collect_pxe.yml /opt/omnia/utils/input/project_defau
 
 **Error:**
 ```
-TC_CL_012    test_collect_functional_groups_valid     FAILED
+UTILS_FVT_COLLECT_V003    test_collect_functional_groups_valid     FAILED
 Invalid functional group found: ['invalid_group_name']
 ```
 
@@ -786,7 +754,7 @@ is `<role>_<os>_<version>_<arch>` where the OS/version segment is optional (e.g.
 
 **Error:**
 ```
-TC_CL_001    test_deploy_collect_setup                FAILED
+UTILS_FVT_COLLECT_E001    test_deploy_collect_setup                FAILED
 Cannot run playbook - input validation failed
 ```
 
@@ -797,7 +765,7 @@ This is correct behavior! The test automation now validates input BEFORE running
 
 **Error:**
 ```
-TC_CL_032    test_collect_bundle_log_files_content    FAILED
+UTILS_FVT_COLLECT_V012    test_collect_bundle_log_files_content    FAILED
 Log bundle is empty - no log files were collected
 ```
 
@@ -820,7 +788,7 @@ slurm_control_node_x86_64:
 
 **Error:**
 ```
-TC_CL_030    test_collect_env_vars_loaded             FAILED
+UTILS_FVT_COLLECT_V010    test_collect_env_vars_loaded             FAILED
 Environment variable 'OMNIA_DATA_PATH' is not set
 ```
 

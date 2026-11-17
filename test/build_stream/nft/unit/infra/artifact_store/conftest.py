@@ -66,5 +66,5 @@ def sample_file_map() -> dict:
     """Sample file map for archive storage."""
     return {
         "x86_64/rhel/9.5/functional_layer.json": b'{"features": []}',
-        "x86_64/rhel/9.5/base_os.json": b'{"packages": []}',
+        "x86_64/rhel/9.5/baseos.json": b'{"packages": []}',
     }

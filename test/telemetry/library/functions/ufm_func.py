@@ -26,22 +26,26 @@ import json
 import math
 from datetime import datetime, timezone
 
-from omnia_auto import read_yaml_key
+from omnia_auto import read_remote_yaml, read_yaml_key
 
 from ..messages.ufm_msgs import UFM_DETAIL_MSGS, UFM_ERROR_MSGS
-from ..vars.common_vars import TELEMETRY_NAMESPACE
+from ..vars.common_vars import CMDS, TELEMETRY_NAMESPACE, TELEMETRY_PACKAGES_FILE
 from ..vars.ufm_vars import (
+    CFG_KEY_K8S_CLUSTER_MOUNT,
     CFG_KEY_UFM_ENDPOINT,
     CFG_KEY_UFM_PORT,
     UFM_CMD_TEMPLATES,
     UFM_DEFAULT_METRICS_PATH,
     UFM_DEFAULT_METRICS_PORT,
+    UFM_DEPLOYMENTS_SUBDIR,
+    UFM_SECRET_MANIFEST_FILE,
     UFM_SVC_NAME,
     UFM_SECRET_NAME,
     UFM_UTC_TIMESTAMP_FORMAT,
     UFM_VMSCRAPE_NAME,
 )
 from .telemetry_func import (
+    _get_input_path,
     load_telemetry_config_from_target,
     run_on_kube_vip,
     query_vm_metric_names,
@@ -49,15 +53,40 @@ from .telemetry_func import (
 )
 
 
+def _resolve_ufm_secret_manifest_path(host):
+    """Resolve the UFM secret manifest path from telemetry_packages.yml.
+
+    Returns:
+        tuple (path, error): path is empty when k8s_cluster_mount cannot be
+        read from the user's telemetry_packages.yml.
+    """
+    packages_path = f"{_get_input_path(host)}/{TELEMETRY_PACKAGES_FILE}"
+    try:
+        packages = read_remote_yaml(host, packages_path)
+    except (RuntimeError, ValueError) as exc:
+        return "", str(exc)
+    mount = str(
+        read_yaml_key(packages, CFG_KEY_K8S_CLUSTER_MOUNT, default="") or ""
+    ).strip().rstrip("/")
+    if not mount:
+        return "", f"{CFG_KEY_K8S_CLUSTER_MOUNT} is not set in {packages_path}"
+    return f"{mount}/{UFM_DEPLOYMENTS_SUBDIR}/{UFM_SECRET_MANIFEST_FILE}", ""
+
+
 def verify_ufm_resources_absent(host):
     """Verify UFM disable removed Service, Endpoints, and VMServiceScrape.
 
     Checks that the three resources deleted during disable are absent, and
-    that the credentials Secret is preserved for re-enablement.
+    that the credentials Secret is preserved when UFM was enabled before.
+    Enable renders the Secret manifest under the telemetry deployments
+    directory on the k8s cluster mount; disable keeps it and cleanup removes
+    it. When the Secret is absent, the manifest distinguishes a deleted
+    Secret (manifest present) from a cluster where UFM was never enabled
+    (manifest absent, nothing to preserve).
 
     Returns:
         dict with keys: success, resources (list of per-resource dicts),
-        secret_preserved, error.
+        secret_present, previously_enabled, manifest_path, error.
     """
     resources = []
     checks = [
@@ -76,13 +105,12 @@ def verify_ufm_resources_absent(host):
             "success": not exists,
         })
 
-    # Secret must be preserved
     secret_cmd = UFM_CMD_TEMPLATES["get_secret_json"].format(
         name=UFM_SECRET_NAME,
         namespace=TELEMETRY_NAMESPACE,
     )
     secret_result = run_on_kube_vip(host, secret_cmd)
-    secret_preserved = (
+    secret_present = (
         secret_result.rc == 0 and bool(secret_result.stdout.strip())
     )
 
@@ -95,16 +123,35 @@ def verify_ufm_resources_absent(host):
         errors.append(
             f"expected absent but found: {', '.join(still_present)}"
         )
-    if not secret_preserved:
-        errors.append(
-            f"credentials secret {UFM_SECRET_NAME} was deleted "
-            "(should be preserved for re-enablement)"
-        )
+
+    previously_enabled = None
+    manifest_path = ""
+    if not secret_present:
+        manifest_path, path_error = _resolve_ufm_secret_manifest_path(host)
+        if path_error:
+            errors.append(
+                f"cannot determine whether UFM was enabled before: {path_error}"
+            )
+        else:
+            manifest_result = run_on_kube_vip(
+                host, CMDS["file_exists"].format(path=manifest_path),
+            )
+            previously_enabled = (
+                manifest_result.rc == 0 and "exists" in manifest_result.stdout
+            )
+            if previously_enabled:
+                errors.append(
+                    f"credentials secret {UFM_SECRET_NAME} is missing although "
+                    f"UFM was enabled before ({manifest_path} exists); it "
+                    "should be preserved for re-enablement"
+                )
 
     return {
-        "success": all_absent and secret_preserved,
+        "success": not errors,
         "resources": resources,
-        "secret_preserved": secret_preserved,
+        "secret_present": secret_present,
+        "previously_enabled": previously_enabled,
+        "manifest_path": manifest_path,
         "error": "; ".join(errors),
     }
 

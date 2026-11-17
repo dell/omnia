@@ -66,31 +66,49 @@
 - name: Build LDMS deployment inventory and validate reachability
   ansible.builtin.include_tasks: build_deployment_inventory.yml
 
-# ---- Aggregator authentication (delegate to Slurm control node) ----
+# ---- Aggregator authentication, deployment, and cleanup ----
+# Wrapped in block/always to guarantee the secure munge key temp file is
+# removed even if a downstream task fails (CWE-377 remediation).
 
-- name: Prepare LDMS aggregator authentication
-  ansible.builtin.include_tasks: configure_ldms_aggregator.yml
+- name: Deploy LDMS aggregator with secure munge key handling
+  block:
+    # ---- Aggregator authentication (delegate to Slurm control node) ----
 
-# ---- Shared sampler configuration (rendered to NFS from kube_vip) ----
+    - name: Prepare LDMS aggregator authentication
+      ansible.builtin.include_tasks: configure_ldms_aggregator.yml
 
-- name: Prepare shared LDMS sampler configuration
-  ansible.builtin.include_tasks: prepare_ldms_sampler_config.yml
+    # ---- Shared sampler configuration (rendered to NFS from kube_vip) ----
 
-# ---- K8s deployment: aggregator + store (Helm chart) ----
+    - name: Prepare shared LDMS sampler configuration
+      ansible.builtin.include_tasks: prepare_ldms_sampler_config.yml
 
-- name: Deploy LDMS aggregator and store
-  ansible.builtin.include_tasks: deploy_ldms_aggregator_k8s.yml
+    # ---- K8s deployment: aggregator + store (Helm chart) ----
 
-# ---- K8s deployment: Vector-LDMS bridge ----
-# The Vector-LDMS bridge is an independent on/off switch within an enabled
-# LDMS deployment (telemetry_bridges.vector_ldms.metrics_enabled), so it
-# needs its own reconciliation step distinct from LDMS source enable/disable.
+    - name: Deploy LDMS aggregator and store
+      ansible.builtin.include_tasks: deploy_ldms_aggregator_k8s.yml
 
-- name: Reconcile Vector-LDMS bridge state
-  ansible.builtin.include_tasks: reconcile_vector_ldms_bridge.yml
+    # ---- K8s deployment: Vector-LDMS bridge ----
+    # The Vector-LDMS bridge is an independent on/off switch within an enabled
+    # LDMS deployment (telemetry_bridges.vector_ldms.metrics_enabled), so it
+    # needs its own reconciliation step distinct from LDMS source enable/disable.
 
-# ---- Verification ----
+    - name: Reconcile Vector-LDMS bridge state
+      ansible.builtin.include_tasks: reconcile_vector_ldms_bridge.yml
 
-- name: Verify LDMS telemetry
-  ansible.builtin.include_tasks: verify_ldms.yml
-  when: not (skip_ldms_verify | default(false) | bool)
+    # ---- Verification ----
+
+    - name: Verify LDMS telemetry
+      ansible.builtin.include_tasks: verify_ldms.yml
+      when: not (skip_ldms_verify | default(false) | bool)
+
+  always:
+    - name: Remove temporary munge key file
+      ansible.builtin.file:
+        path: "{{ munge_key_tempfile.path }}"
+        state: absent
+      delegate_to: localhost
+      when:
+        - munge_key_tempfile is defined
+        - munge_key_tempfile.path is defined
+        - munge_key_tempfile.path | length > 0
+      no_log: true

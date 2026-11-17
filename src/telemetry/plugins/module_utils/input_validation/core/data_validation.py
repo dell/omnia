@@ -18,6 +18,7 @@
 # pylint: disable=import-error,no-name-in-module
 
 import json
+import yaml
 import jsonschema
 import ansible.module_utils.input_validation.core.data_fetch as get
 from ansible.module_utils.input_validation.messages import en_us_validation_msg
@@ -104,37 +105,51 @@ def schema(config) -> list:  # pylint: disable=too-many-locals,too-many-branches
                 logger.error(error_msg)
                 error_bucket.append(error_msg)
                 # get the line number and log it
-                line_number, is_line_num = None, False
-                if "json" in extension:
-                    line_number, is_line_num = get.json_line_number(
-                        input_file_path, error_path, module
+                try:
+                    line_number, is_line_num = None, False
+                    if "json" in extension:
+                        line_number, is_line_num = get.json_line_number(
+                            input_file_path, error_path, module
+                        )
+                    elif "yml" in extension:
+                        line_number, is_line_num = get.yml_line_number(
+                            input_file_path, error_path, omnia_base_dir, project_name
+                        )
+                        logger.info("Line number: %s (exact=%s)", line_number, is_line_num)
+                    if line_number:
+                        message = (
+                            f"Error occurs on line {line_number}"
+                            if is_line_num
+                            else f"Error occurs on object or list entry on line {line_number}"
+                        )
+                        logger.error(message)
+                        error_bucket.append(message)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.warning(
+                        "Could not determine line number for %s",
+                        error_path, exc_info=True
                     )
-                elif "yml" in extension:
-                    line_number, is_line_num = get.yml_line_number(
-                        input_file_path, error_path, omnia_base_dir, project_name
-                    )
-                    logger.info(line_number, is_line_num)
-                if line_number:
-                    message = (
-                        f"Error occurs on line {line_number}"
-                        if is_line_num
-                        else f"Error occurs on object or list entry on line {line_number}"
-                    )
-                    logger.error(message)
-                    error_bucket.append(message)
             logger.error(en_us_validation_msg.get_schema_failed(input_file_path))
             error_bucket.append(en_us_validation_msg.get_schema_failed(input_file_path))
     except jsonschema.exceptions.SchemaError as schemaerror:
         message = f"Internal schema validation error: {schemaerror.message}"
         logger.error(message)
         error_bucket.append(message)
+    except (OSError, yaml.YAMLError) as exc:
+        message = f"Unable to read or parse {input_file_path}: {exc}"
+        logger.error(message, exc_info=True)
+        error_bucket.append(message)
+    except KeyError as exc:
+        message = f"Missing expected field {exc} while validating {input_file_path}"
+        logger.error(message, exc_info=True)
+        error_bucket.append(message)
     except ValueError as valueerror:
         message = f"Value error at {input_file_path}: {valueerror}"
-        logger.error(message)
+        logger.error(message, exc_info=True)
         error_bucket.append(message)
     except Exception as exception:  # pylint: disable=broad-exception-caught
-        message = f"An unexpected error occurred: {exception}"
-        logger.error(message)
+        message = f"An unexpected error occurred while validating {input_file_path}: {exception}"
+        logger.error(message, exc_info=True)
         error_bucket.append(message)
     logger.info(en_us_validation_msg.get_schema_success(input_file_path))
     return error_bucket
@@ -162,7 +177,7 @@ def _log_line_number(extension, input_file_path, error_key,
 
 
 # Code to run the L2 validation validate_input_logic function.
-def logic(config) -> list | bool:  # pylint: disable=too-many-locals
+def logic(config) -> list:  # pylint: disable=too-many-locals
     """
     Validates the logic of the input file.
 
@@ -176,7 +191,7 @@ def logic(config) -> list | bool:  # pylint: disable=too-many-locals
         - module (AnsibleModule): The Ansible module.
 
     Returns:
-        bool: True if the logic validation is successful, False otherwise.
+        list: List of error messages, empty if the logic validation is successful.
 
     Raises:
         ValueError: If a value error occurs.
@@ -217,22 +232,38 @@ def logic(config) -> list | bool:  # pylint: disable=too-many-locals
                 logger.error(err_msg)
 
                 # log the line number based off of the input config file extension
-                _log_line_number(
-                    extension, input_file_path, error_key,
-                    omnia_base_dir, project_name, module, logger
-                )
+                try:
+                    _log_line_number(
+                        extension, input_file_path, error_key,
+                        omnia_base_dir, project_name, module, logger
+                    )
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.warning(
+                        "Could not determine line number for %s",
+                        error_key, exc_info=True
+                    )
 
             logger.error(en_us_validation_msg.get_logic_failed(input_file_path))
             return error_bucket
+    except (OSError, yaml.YAMLError) as exc:
+        message = f"Unable to read or parse {input_file_path}: {exc}"
+        error_bucket.append(message)
+        logger.error(message, exc_info=True)
+        return error_bucket
+    except KeyError as exc:
+        message = f"Missing expected field {exc} while validating {input_file_path}"
+        error_bucket.append(message)
+        logger.error(message, exc_info=True)
+        return error_bucket
     except ValueError as valueerror:
         message = f"Value error at {input_file_path}: {valueerror}"
         error_bucket.append(message)
         logger.error(message, exc_info=True)
         return error_bucket
     except Exception as exception:  # pylint: disable=broad-exception-caught
-        message = f"An unexpected error occurred: {exception}"
+        message = f"An unexpected error occurred while validating {input_file_path}: {exception}"
         error_bucket.append(message)
         logger.error(message, exc_info=True)
         return error_bucket
     logger.info(en_us_validation_msg.get_logic_success(input_file_path))
-    return False
+    return []

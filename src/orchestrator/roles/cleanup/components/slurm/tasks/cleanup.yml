@@ -14,7 +14,9 @@
 
 ---
 # Slurm Cleanup for OIM Node
-# Focuses on cleaning up Slurm-related NFS data only
+# Focuses on unmounting storage and removing fstab entries
+# NFS data cleanup is disabled by default and must be performed manually
+# (see README.md for manual cleanup instructions)
 
 - name: Load Slurm component configuration
   ansible.builtin.include_vars:
@@ -23,7 +25,7 @@
 
 - name: Display Slurm cleanup start
   ansible.builtin.debug:
-    msg: "Starting Slurm cleanup operations (OIM node - NFS data only)"
+    msg: "Starting Slurm cleanup operations (storage unmount and fstab cleanup - NFS data cleanup is manual)"
   tags: slurm
 
 - name: Load Omnia configuration for Slurm storage reference

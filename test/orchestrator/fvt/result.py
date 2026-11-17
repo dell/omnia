@@ -72,6 +72,20 @@ def verify_precheck(test_log, case, host, checker):
     )
 
 
+def verify_precheck_input(test_log, case, host, checker, *args):
+    """Execute and enforce one scratch-project input-validation case."""
+    result = checker(host, *args)
+    fields = result["details"]["fields"]
+    _skip_if_requested(test_log, case, result, fields, PRECHECK_LOG)
+    _report(
+        test_log,
+        result,
+        fields,
+        case["component"],
+        (PRECHECK_LOG, PRECHECK_ASSERT),
+    )
+
+
 def verify_precheck_rejection(test_log, case, host, checker):
     """Require one precheck to reject an invalid condition with an error."""
     result = checker(host)

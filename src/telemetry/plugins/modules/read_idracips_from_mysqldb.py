@@ -114,16 +114,19 @@ services_table_check:
   returned: always
 '''
 
+import logging
 import time
 import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
+from kubernetes.config import ConfigException
 
 def load_kube_context() -> None:
     """Load Kubernetes configuration for accessing the cluster."""
     try:
         config.load_kube_config()
-    except Exception:
+    except ConfigException as exc:
+        logging.warning("load_kube_config failed (%s), trying in-cluster config", exc)
         config.load_incluster_config()
 
 
@@ -239,13 +242,12 @@ def main() -> None:
     db_retries = module.params["db_retries"]
     db_delay = module.params["db_delay"]
 
-    load_kube_context()
-
     services_table_exists = {}
     db_idrac_ips = {}
     mysqldb_idrac_ips = []
 
     try:
+        load_kube_context()
         for idrac_podname in idrac_podnames:
             found = None
             ip_output = None

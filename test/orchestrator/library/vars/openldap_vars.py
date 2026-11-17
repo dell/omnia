@@ -25,6 +25,13 @@ modulepath      /usr/lib64/openldap
 moduleload      back_ldap.so
 moduleload      back_meta.so
 
+TLSCACertificateFile    /etc/openldap/certs/ldapserver.crt
+TLSCertificateFile      /etc/openldap/certs/ldapserver.crt
+TLSCertificateKeyFile   /etc/openldap/certs/ldapserver.key
+
+# Password binds must be TLS-protected, as in the deployed slapd.conf
+security simple_bind=128
+
 ###############################################################################
 # Meta database definitions
 ###############################################################################
@@ -41,7 +48,4 @@ idassert-bind
  credentials="{ldap_bind_credentials}"
  flags=override
  mode=none
-TLSCACertificateFile    /etc/openldap/certs/ldapserver.crt
-TLSCertificateFile      /etc/openldap/certs/ldapserver.crt
-TLSCertificateKeyFile   /etc/openldap/certs/ldapserver.key
 """

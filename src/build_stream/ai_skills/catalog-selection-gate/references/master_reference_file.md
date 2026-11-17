@@ -50,7 +50,7 @@ One row per selectable option across every decision axis.
 | os_version | RHEL 10.0 | supported |  | src/main/samples/catalogs/rhel/10.0/ (captured 2026-09-25) |
 | os_version | RHEL 10.2 | supported | Content-equivalent to 10.0 apart from version strings, except the 5 Kubernetes catalogs: 10.0 pins `python3-3.12.9` (also as `python3_3_12_9`), 10.2 uses unpinned `python3` (verified by diffing every 10.0/10.2 catalog pair after normalizing version substrings) | src/main/samples/catalogs/rhel/10.2/ (captured 2026-10-16) |
 | architecture | x86_64 | supported |  | src/main/samples/catalogs/**/*_x86_64*.json (captured 2026-09-25) |
-| architecture | aarch64 | supported | Some image-builder and helm artifacts are arch-specific | src/main/samples/catalogs/**/*_aarch64*.json (captured 2026-09-25) |
+| architecture | aarch64 | supported | Some image-thrillhouse and helm artifacts are arch-specific | src/main/samples/catalogs/**/*_aarch64*.json (captured 2026-09-25) |
 | stack | slurm | supported |  | src/main/samples/catalogs/**/slurm_*.json (captured 2026-09-25) |
 | stack | service_k8s | supported | Kubernetes is not supported on aarch64 in this release; every service_k8s functional layer in the RHEL and hybrid catalogs is x86_64 | src/main/samples/catalogs/**/service_k8s_*.json (captured 2026-09-30) |
 | stack | slurm + service_k8s | supported | Mixed-stack catalogs are a shipped configuration; x86_64 only when Kubernetes is included | src/main/samples/catalogs/**/slurm_service_k8s_*.json (captured 2026-09-25) |

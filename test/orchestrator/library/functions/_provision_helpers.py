@@ -213,7 +213,7 @@ def load_context(host) -> dict[str, Any]:
         "rows": rows,
         "rows_by_fg": rows_by_fg,
         "domain_name": str(state.get("domain_name") or "").strip(),
-        "dns_enabled": bool(state.get("dns_enabled", False)),
+        "dns_enabled": bool(state.get("dns_enabled", True)),
     }
 
 

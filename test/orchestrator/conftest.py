@@ -283,6 +283,14 @@ def pytest_configure(config):
         "idempotency": "Repeated lifecycle execution checks",
         "security": "Credential, key, log, and vault protection checks",
         "lifecycle": "Clean-baseline and fresh-install lifecycle checks",
+        "ipoib": "IPoIB IPv4/IPv6 input and post-boot checks (ER-ORCH-005)",
+        "fault_injection": (
+            "IPoIB fault-injection and IB re-provision checks; run only when "
+            "--marker selects fault_injection"
+        ),
+        "reprovision": (
+            "Provision-rerun idempotency checks; run only when --marker selects reprovision"
+        ),
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -310,7 +318,7 @@ def _item_has_marker(item, marker_name):
     return item.get_closest_marker(marker_name) is not None
 
 
-OPT_IN_MARKERS = ("reboot", "node_lifecycle")
+OPT_IN_MARKERS = ("reboot", "node_lifecycle", "fault_injection", "reprovision")
 
 
 def _opt_in_markers(item):
@@ -339,8 +347,9 @@ def pytest_collection_modifyitems(session, config, items):
         }
     )
     # Without a marker expression every collected test runs except opt-in
-    # (reboot, node_lifecycle) cases, which are deselected. Deploy cases still
-    # run only in the exec phase, which creates the verified state.
+    # (reboot, node_lifecycle, fault_injection, reprovision) cases, which are
+    # deselected. Deploy cases still run only in the exec phase, which creates
+    # the verified state.
     if mode == "none":
         selected = []
         deselected = []

@@ -109,7 +109,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "mysqladmin shutdown -uroot -p${MYSQL_ROOT_PASSWORD} 2>/dev/null || true"]
+                command: ["/bin/sh", "-c", "MYSQL_PWD=\"${MYSQL_ROOT_PASSWORD}\" mysqladmin shutdown -uroot 2>/dev/null || true"]
           env:
             - name: MYSQL_DATABASE
               value: {{ mysqldb_name }}

@@ -383,10 +383,10 @@ def check_repo_ssl_verify_config(host) -> Dict[str, Any]:
 def check_repo_ssl_verify_applied(host) -> Dict[str, Any]:
     """Verify repo_ssl_verify is wired into the image build templates.
 
-    This is a structural source-template check.  It confirms that the RHEL
-    base and compute templates reference ``repo_ssl_verify`` and emit both
-    ``sslverify`` and ``gpgcheck`` fields.  It does not inspect rendered or
-    previously built artifacts.
+    This is a structural source-template check. It confirms that the Image
+    Thrillhouse base and compute templates reference ``repo_ssl_verify`` and
+    emit both ``sslverify`` and ``gpgcheck`` fields. It does not inspect
+    rendered or previously built artifacts.
 
     Args:
         host: Testinfra host connection.
@@ -436,8 +436,8 @@ def check_repo_ssl_verify_applied(host) -> Dict[str, Any]:
         "images",
     )
     template_paths = [
-        os.path.join(template_dir, "rhel-base-config.yaml.j2"),
-        os.path.join(template_dir, "rhel-compute-config.yaml.j2"),
+        os.path.join(template_dir, "thrillhouse-base-config.yaml.j2"),
+        os.path.join(template_dir, "thrillhouse-compute-config.yaml.j2"),
     ]
 
     results = []

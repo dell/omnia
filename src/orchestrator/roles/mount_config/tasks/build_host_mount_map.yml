@@ -24,6 +24,7 @@
   community.general.read_csv:
     path: "{{ pxe_mapping_file_path }}"
   register: pxe_mapping_data
+  no_log: true
   when: pxe_mapping_file_path is defined and pxe_mapping_file_path | length > 0
 
 - name: Build group_host_map from PXE mapping

@@ -25,159 +25,65 @@ from typing import Dict
 # =============================================================================
 TEST_LOG_MSGS: Dict[str, str] = {
     # --- GitLab Install ---
-    "packages_installed": "GitLab packages installed: {packages}",
     "packages_missing": "GitLab packages missing: {packages}",
-    "server_reachable": "GitLab server reachable at {host}",
     "server_unreachable": "GitLab server not reachable at {host}",
-    "runner_container_ok": "gitlab-runner container running",
     "runner_container_missing": "gitlab-runner container not found",
-    "quadlet_exists": "Quadlet file exists: {path}",
     "quadlet_missing": "Quadlet file not found: {path}",
-    "runner_services_ok": "Runner services running: {count}/{total}",
     "runner_services_failed": "Runner services not running: {failed}",
-    "url_accessible": "GitLab URL accessible: {url} (HTTP {code})",
     "url_not_accessible": "GitLab URL not accessible: {url}",
-    "services_running": "GitLab services running: {count}/{total}",
     "services_not_running": "Services not running: {services}",
-    "resources_ok": "Resources meet requirements",
     "resources_insufficient": "Resources insufficient: {failed}",
-    "puma_workers_ok": "Puma workers: {actual} (expected {expected})",
     "puma_workers_mismatch": "Puma workers mismatch: {actual} != {expected}",
-    "sidekiq_ok": "Sidekiq concurrency: {actual} (expected {expected})",
     "sidekiq_mismatch": "Sidekiq mismatch: {actual} != {expected}",
-    "project_exists": "Project '{name}' exists (ID: {project_id})",
     "project_missing": "Project '{name}' not found",
-    "visibility_ok": "Visibility: {actual} (expected {expected})",
     "visibility_mismatch": "Visibility mismatch: {actual} != {expected}",
-    "branch_ok": "Default branch: {actual} (expected {expected})",
     "branch_mismatch": "Branch mismatch: {actual} != {expected}",
-    "pipeline_file_ok": "Pipeline file exists: {file}",
     "pipeline_file_missing": "Pipeline file not found: {file}",
-    "variables_ok": "Pipeline variables configured: {count}/{total}",
     "variables_missing": "Pipeline variables missing: {missing}",
-    "ci_file_ok": "{file} exists in GitLab repo",
-    "ci_file_missing": "{file} not found in GitLab repo",
-    "omnia_env_ok": "omnia.env exists with required variables",
     "omnia_env_missing": "omnia.env not found or missing variables",
-    "domain_dirs_ok": "Domain input directories found in repo",
-    "domain_dirs_missing": "Domain input directories missing: {missing}",
+    "domain_dirs_missing": "Domain input files missing: {missing}",
 
     # --- BuildStream Health ---
-    "bsm_enabled": "build_stream enabled in config",
     "bsm_disabled": "build_stream not enabled in config",
-    "bsm_health_ok": "BSM API healthy: {url}",
     "bsm_health_fail": "BSM API unhealthy: {url}",
-    "postgres_tables_ok": "All {count} tables found in {db}",
     "postgres_tables_missing": "Tables missing in {db}: {missing}",
-    "playbook_paths_ok": "playbook_paths.yml has entries: {entries}",
-    "playbook_paths_missing": "playbook_paths.yml missing entries: {missing}",
-    "playbook_paths_resolved": "All playbook paths resolve to files",
-    "playbook_paths_unresolved": "Playbook paths not found: {missing}",
-    "venv_ok": "Shared venv exists with ansible-playbook",
     "venv_missing": "Shared venv or ansible-playbook not found",
-    "tls_cert_ok": "BSM TLS certificate valid",
     "tls_cert_invalid": "BSM TLS certificate invalid or missing",
-    "nfs_queue_ok": "NFS queue directory accessible and writable",
     "nfs_queue_fail": "NFS queue directory not accessible",
-    "watcher_ok": "Playbook watcher service running",
     "watcher_fail": "Playbook watcher service not running",
 
     # --- Deploy ---
-    "playbook_success": "Playbook completed (rc=0, duration={duration:.1f}s)",
-    "playbook_failed": "Playbook failed (rc={rc}, duration={duration:.1f}s)",
-
     # --- GitLab Cleanup ---
-    "packages_removed": "GitLab packages removed: {packages}",
-    "packages_still_present": "GitLab packages still installed: {packages}",
-    "runner_container_removed": "gitlab-runner container removed",
-    "runner_container_still_exists": "gitlab-runner container still exists",
-    "quadlet_removed": "Quadlet file removed: {path}",
-    "quadlet_still_exists": "Quadlet file still exists: {path}",
-    "runner_services_stopped": "Runner services stopped: {count}/{total}",
-    "runner_services_still_active": "Runner services still active: {active}",
-    "url_not_accessible_ok": "GitLab URL not accessible (expected after cleanup)",
-    "url_still_accessible": "GitLab URL still accessible: {url} (HTTP {code})",
-    "directories_removed": "GitLab directories removed: {count}/{total}",
-    "directories_still_exist": "GitLab directories still exist: {dirs}",
-    "services_stopped": "All GitLab services stopped",
-    "services_still_running": "GitLab services still running: {services}",
-    "port_free": "GitLab port {port} is free",
-    "port_in_use": "GitLab port {port} is still in use",
-
     # --- BuildStream Domain Cleanup ---
-    "container_not_found": "{container} container not found (removed)",
-    "container_still_exists": "{container} container still exists: {status}",
-    "service_inactive": "{service}: inactive (stopped)",
-    "service_still_active": "{service}: still active",
-    "service_disabled": "{service}: disabled",
-    "service_still_enabled": "{service}: still enabled",
-    "service_file_removed": "{path}: removed",
-    "service_file_still_exists": "{path}: still exists",
-    "quadlet_files_removed": "No quadlet files found for {pattern}",
-    "quadlet_files_still_exist": "Quadlet files still exist: {files}",
-    "dirs_removed": "Directories removed: {count}/{total}",
-    "dirs_still_exist": "Directories still exist: {dirs}",
-    "creds_removed": "Credential files removed: {count}/{total}",
-    "creds_still_exist": "Credential files still exist: {files}",
-    "volumes_removed": "No Postgres volumes found for {container}",
-    "volumes_still_exist": "Postgres volumes still exist: {volumes}",
-    "volumes_preserved_ok": "Postgres volumes preserved (backup mode)",
-    "image_groups_cleaned": "All image_groups marked CLEANED",
-    "image_groups_not_checked": (
-        "Postgres not running; image_groups status cannot be verified"
-    ),
-
     # --- Build Pipeline ---
-    "pipeline_triggered": "Pipeline #{pipeline_id} triggered ({status})",
-    "pipeline_not_triggered": "Pipeline not triggered: {error}",
-    "pipeline_canceled": "Pipeline #{pipeline_id} canceled",
     "job_created": "BSM job created: {job_id} (state: {state})",
-    "job_not_created": "No BSM job found in database",
-    "stage_completed": "Stage '{stage}' completed ({elapsed}s)",
-    "stage_failed": "Stage '{stage}' failed: {error}",
-    "stage_running": "Stage '{stage}' running...",
-    "stage_pending": "Stage '{stage}' pending",
     "stage_skipped": "Stage '{stage}' skipped (not in catalog)",
-    "stage_db_ok": "Stage '{stage}' verified (state: {state})",
-    "stage_db_fail": "Stage '{stage}' DB state: {state} (expected COMPLETED)",
-    "init_health_ok": "Initialization health check passed",
-    "init_health_fail": "Initialization health check failed",
-    "init_auth_ok": "Initialization OAuth auth completed",
-    "init_auth_fail": "Initialization OAuth auth failed: {error}",
-    "init_job_ok": "Initialization job created: {job_id}",
-    "init_job_fail": "Initialization job not created",
-    "init_upload_ok": "Initialization implicit upload completed",
-    "init_upload_fail": "Initialization implicit upload failed",
 
-    "catalog_push_ok": "Catalog '{catalog}' pushed to GitLab",
-    "catalog_push_fail": "Failed to push catalog: {error}",
-    "catalog_trigger_ok": "Catalog triggered pipeline #{pipeline_id}",
-    "catalog_trigger_fail": "Catalog did not trigger a pipeline: {error}",
-    "job_id_saved": "Job ID saved to test_config.yml: {job_id}",
-    "job_id_overwritten": (
-        "Job ID in test_config.yml overwritten: {old_job_id} -> {new_job_id}"
+
+    # --- Prepare base ---
+    "prepare_base_precheck_ok": (
+        "prepare_base precheck passed: ./omnia.sh --prepare-base can run unattended"
     ),
-    "job_id_save_fail": "Failed to save job_id to test_config.yml",
-    "repo_status_ok": "repo_status.yml overall_status: success",
-    "repo_status_fail": "repo_status.yml overall_status: {status}",
-    "creds_configured_ok": "Server credentials configured: {fields}",
-    "creds_configured_fail": "Server credentials missing: {fields}",
-    "repo_tags_ok": "create-local-repo called with correct tags",
-    "repo_tags_fail": "create-local-repo tags mismatch: {actual}",
-    "build_manager_ok": "build-image called image_build_manager.yml",
-    "build_manager_fail": "build-image did not call image_build_manager.yml",
-    "meta_persisted_ok": "build_image_meta.json found at {path}",
-    "meta_persisted_fail": "build_image_meta.json not found",
-    "image_groups_ok": "Found {count} image group(s) for job {job_id}",
-    "image_groups_fail": "No image groups found for job {job_id}",
-    "images_ok": "Found {count} image(s) for job {job_id}",
-    "images_fail": "No images found for job {job_id}",
-    "registry_ok": "All {count} role images found in registry",
-    "registry_fail": "Missing {count} role image(s) in registry: {missing}",
-    "s3_ok": "All {count} role boot images found in S3",
-    "s3_fail": "Missing {count} role boot image(s) in S3: {missing}",
-    "pipeline_result_ok": "Build pipeline completed \u2014 all stages passed",
-    "pipeline_result_fail": "Build pipeline completed with failures",
+    "prepare_base_precheck_failed": "prepare_base precheck failed: {count} check(s)",
+    "entry_failed_skip": (
+        "{entry_id} ({entry_title}) failed earlier in this run, so this "
+        "{category} check cannot give a meaningful result. HOW TO FIX: fix the "
+        "{entry_id} failure above, then re-run ./run_validation.sh "
+        "fvt_build_stream {category}"
+    ),
+    "prepare_base_ok": "./omnia.sh --prepare-base completed in {duration:.1f}s",
+    "prepare_base_failed": (
+        "./omnia.sh --prepare-base failed (rc={rc}) in {duration:.1f}s"
+    ),
+    "domain_ready_ok": "{domain} is ready for BuildStream",
+    "domain_ready_failed": "{domain} is not ready: {count} check(s)",
+
+    # --- Tag scenarios (precheck, prepare, execute, cleanup) ---
+    "tag_playbook_ok": "build_stream.yml --tags {tag} completed in {duration:.1f}s",
+    "tag_playbook_failed": "build_stream.yml --tags {tag} failed (rc={rc}) in {duration:.1f}s",
+    "result_passed": "All checks passed",
+    "result_failed": "Check failed: see the items marked with a cross",
+    "result_no_error": "See the fields above",
 }
 
 # =============================================================================
@@ -186,21 +92,6 @@ TEST_LOG_MSGS: Dict[str, str] = {
 _BORDER = "\u2550" * 74
 
 TEST_ASSERT_MSGS: Dict[str, str] = {
-    "playbook_failed": (
-        "\n\u2554" + _BORDER + "\u2557\n"
-        "\u2551 PLAYBOOK EXECUTION FAILED\n"
-        "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 Playbook: {playbook}\n"
-        "\u2551 Tag: {tag}\n"
-        "\u2551 Exit code: {rc}\n"
-        "\u2551 Duration: {duration:.1f}s\n"
-        "\u2551\n"
-        "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Check the playbook output above\n"
-        "\u2551   2. Verify build_stream_config.yml settings\n"
-        "\u2551   3. Run with increased verbosity: -vvv\n"
-        "\u255a" + _BORDER + "\u255d\n"
-    ),
     "packages_missing": (
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 GITLAB PACKAGES NOT INSTALLED\n"
@@ -208,7 +99,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\u2551 Missing: {packages}\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
-        "\u2551   1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "\u2551   1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "\u2551   2. Verify gitlab_host is set in build_stream_config.yml\n"
         "\u2551      Path: /opt/omnia/build_stream/input/<project>/build_stream_config.yml\n"
         "\u2551   3. Check SSH to GitLab server: ssh root@<gitlab_host>\n"
@@ -231,14 +122,14 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "runner_container_missing": (
         "gitlab-runner container not found on GitLab server.\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "  1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "  2. Verify on GitLab host: podman ps -a --filter name=gitlab-runner\n"
         "  3. Check gitlab_host is correct in build_stream_config.yml"
     ),
     "quadlet_missing": (
         "Quadlet file not found: {path}\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "  1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "  2. Check on GitLab host: ls -la /etc/containers/systemd/gitlab-runner.container"
     ),
     "runner_services_failed": (
@@ -251,7 +142,8 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "GitLab URL not accessible: {url} (HTTP {code})\n"
         "HOW TO FIX:\n"
         "  1. Check GitLab is running on host: gitlab-ctl status\n"
-        "  2. Check port: curl -kI {url}\n"
+        "  2. Check the port: curl --cacert <GitLab CA> -I {url}\n"
+        "     (the CA is /root/gitlab-certs/ca.crt on the GitLab host)\n"
         "  3. Verify firewall allows gitlab_https_port"
     ),
     "services_not_running": (
@@ -283,7 +175,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "project_missing": (
         "GitLab project '{name}' not found.\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "  1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "  2. Check gitlab_project_name in build_stream_config.yml matches\n"
         "  3. Verify on GitLab: gitlab-rails runner \"puts Project.all.map(&:name)\""
     ),
@@ -291,7 +183,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "Visibility: expected {expected}, got {actual}\n"
         "HOW TO FIX:\n"
         "  1. Update in GitLab UI: Settings > General > Visibility\n"
-        "  2. Or re-run: ansible-playbook build_stream.yml --tags buildstream_install"
+        "  2. Or re-run: ansible-playbook build_stream.yml --tags execute"
     ),
     "branch_mismatch": (
         "Default branch: expected {expected}, got {actual}\n"
@@ -302,26 +194,27 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "pipeline_file_missing": (
         "{file} not found in GitLab repository.\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "  1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "  2. Check GitLab repo files manually in the GitLab UI"
     ),
     "variables_missing": (
         "Pipeline variables missing: {missing}\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "  1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "  2. Check GitLab project > Settings > CI/CD > Variables"
     ),
     "omnia_env_missing": (
         "omnia.env not found or missing required variables.\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
+        "  1. Run: ansible-playbook build_stream.yml --tags execute\n"
         "  2. Verify omnia.env is committed to the GitLab repo root"
     ),
     "domain_dirs_missing": (
-        "Domain input directories missing: {missing}\n"
+        "Domain input files missing in the GitLab repo: {missing}\n"
         "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
-        "  2. Verify input/repo_manager/ and input/image_build_manager/ exist in GitLab repo"
+        "  1. Check the files exist in <domain data path>/input/<project>/ on the OIM\n"
+        "     (the upload skips a missing file silently)\n"
+        "  2. Run: ansible-playbook build_stream.yml --tags execute"
     ),
     "bsm_disabled": (
         "build_stream not enabled in build_stream_config.yml.\n"
@@ -345,18 +238,6 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "  2. Check logs: podman logs omnia_postgres\n"
         "  3. Run migrations: podman exec omnia_build_stream alembic upgrade head"
     ),
-    "playbook_paths_missing": (
-        "playbook_paths.yml missing entries: {missing}\n"
-        "HOW TO FIX:\n"
-        "  1. Check: cat <clone_path>/src/build_stream/app/playbook_paths.yml\n"
-        "  2. Verify expected entries: repo_manager.yml, image_build_manager.yml"
-    ),
-    "playbook_paths_unresolved": (
-        "Playbook paths not found on host: {missing}\n"
-        "HOW TO FIX:\n"
-        "  1. Verify clone_path in test_config.yml points to correct location\n"
-        "  2. Check playbook files exist at the paths listed above"
-    ),
     "venv_missing": (
         "Shared venv or ansible-playbook not found.\n"
         "HOW TO FIX:\n"
@@ -367,16 +248,16 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "tls_cert_invalid": (
         "BSM TLS certificate invalid or missing.\n"
         "HOW TO FIX:\n"
-        "  1. Check: ls -la /opt/omnia/build_stream_ssl/ssl/bs_cert.pem\n"
-        "  2. Verify: openssl x509 -in /opt/omnia/build_stream_ssl/ssl/bs_cert.pem -noout -dates\n"
+        "  1. Check: ls -la /opt/omnia/build_stream/ssl/bs_cert.pem\n"
+        "  2. Verify: openssl x509 -in /opt/omnia/build_stream/ssl/bs_cert.pem -noout -dates\n"
         "  3. Regenerate certificate if expired or missing"
     ),
     "nfs_queue_fail": (
         "NFS queue directory not accessible: {path}\n"
         "HOW TO FIX:\n"
-        "  1. Check directory exists: ls -la /opt/omnia/playbook_queue/\n"
+        "  1. Check directory exists: ls -la /opt/omnia/build_stream/playbook_queue/\n"
         "  2. Check subdirectories: archive, processing, requests, results\n"
-        "  3. Create if missing: mkdir -p /opt/omnia/playbook_queue/"
+        "  3. Create if missing: mkdir -p /opt/omnia/build_stream/playbook_queue/"
     ),
     "watcher_fail": (
         "Playbook watcher service not running.\n"
@@ -387,161 +268,56 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     ),
 
     # --- GitLab Cleanup ---
-    "packages_still_present": (
-        "GitLab packages still installed after cleanup: {packages}\n"
-        "Root cause: cleanup_gitlab playbook did not remove packages.\n"
-        "HOW TO FIX:\n"
-        "  1. Re-run: ansible-playbook cleanup_build_stream.yml\n"
-        "  2. Manual: dnf remove {packages}"
-    ),
-    "runner_container_still_exists": (
-        "gitlab-runner container still exists after cleanup.\n"
-        "HOW TO FIX:\n"
-        "  1. Manual: podman rm -f gitlab-runner\n"
-        "  2. Re-run cleanup playbook"
-    ),
-    "gitlab_url_still_accessible": (
-        "GitLab URL still accessible at {url} after cleanup.\n"
-        "HOW TO FIX:\n"
-        "  1. Verify cleanup ran to completion\n"
-        "  2. Manual: gitlab-ctl stop && dnf remove gitlab-ce"
-    ),
-    "gitlab_dirs_still_exist": (
-        "GitLab directories still exist: {dirs}\n"
-        "HOW TO FIX:\n"
-        "  1. Manual: rm -rf {dirs}\n"
-        "  2. Re-run cleanup playbook"
-    ),
-    "gitlab_port_in_use": (
-        "GitLab port {port} still in use after cleanup.\n"
-        "HOW TO FIX:\n"
-        "  1. Check: ss -tlnp | grep :{port}\n"
-        "  2. Kill process using the port"
-    ),
-
     # --- BuildStream Domain Cleanup ---
-    "container_still_exists": (
-        "{container} container still exists after cleanup.\n"
+    # --- Build Pipeline ---
+    # --- Prepare base ---
+    "prepare_base_precheck_failed": (
+        "prepare_base precheck failed: {failures}\n"
         "HOW TO FIX:\n"
-        "  1. podman stop {container} && podman rm -f {container}\n"
-        "  2. Re-run cleanup_build_stream.yml"
+        "  1. Run ./omnia.sh --setup-venv so /etc/omnia/omnia.env and the venv exist\n"
+        "  2. Save the base domain credentials: ./setup_env.sh --set-domain-creds\n"
+        "  3. Check clone_path in test_config.yml (remote mode)"
     ),
-    "service_still_active": (
-        "{service} still active after cleanup.\n"
+    "prepare_base_failed": (
+        "./omnia.sh --prepare-base failed (rc={rc}, {duration:.1f}s). Error: {error}\n"
         "HOW TO FIX:\n"
-        "  1. systemctl stop {service}\n"
-        "  2. Re-run cleanup_build_stream.yml"
+        "  1. Review the streamed omnia.sh output above\n"
+        "  2. Re-run on the OIM: cd src/main && ./omnia.sh --prepare-base"
     ),
-    "dirs_still_exist": (
-        "Directories still exist after cleanup: {dirs}\n"
+    "domain_ready_failed": (
+        "{domain} is not ready after prepare_base: {failures}\n"
         "HOW TO FIX:\n"
-        "  1. rm -rf <directory>\n"
-        "  2. Re-run cleanup_build_stream.yml"
-    ),
-    "creds_still_exist": (
-        "Credential files still exist: {files}\n"
-        "HOW TO FIX:\n"
-        "  1. Remove files manually\n"
-        "  2. Re-run cleanup_build_stream.yml"
+        "  1. Re-run: ansible-playbook {domain}.yml --tags prepare\n"
+        "  2. Check the failed containers/units: podman ps -a; systemctl status <unit>"
     ),
 
-    # --- Build Pipeline ---
-    "catalog_push_failed": (
-        "Failed to push catalog to GitLab.\n"
+    # --- Tag scenarios (precheck, prepare, execute, cleanup) ---
+    "tag_playbook_failed": (
+        "build_stream.yml --tags {tag} failed (rc={rc}, {duration:.1f}s). Error: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Verify catalog_path in test_config.yml is a valid relative path\n"
-        "  2. Available catalogs are in src/main/samples/catalogs/\n"
-        "  3. Check GitLab API access and root token"
+        "  1. Review the streamed playbook output above\n"
+        "  2. Re-run on the OIM: cd src/build_stream/playbooks && "
+        "ansible-playbook build_stream.yml --tags {tag}"
     ),
-    "catalog_not_in_examples": (
-        "Catalog '{catalog}' not found in src/main/samples/catalogs/.\n"
-        "Available catalogs: {available}\n"
+    "precheck_failed": (
+        "Precheck {component} failed: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Set catalog_path in test_config.yml to one of the above\n"
-        "  2. Or add your catalog below src/main/samples/catalogs/"
+        "  1. Run ./omnia.sh --prepare-base so pulp, minio-server and registry run\n"
+        "  2. Check /etc/omnia/omnia.env (SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME,\n"
+        "     SYSTEM_ADMIN_NIC_IPV4, OMNIA_DATA_PATH, OMNIA_PROJECT_NAME)\n"
+        "  3. Export OMNIA_DATA_PATH with root_squash, then run exportfs -ra"
     ),
-    "catalog_path_not_set": (
-        "catalog_path is empty in test_config.yml.\n"
+    "prepare_check_failed": (
+        "Prepare {component} failed: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Edit test_config.yml and set catalog_path to a JSON file\n"
-        "     below src/main/samples/catalogs/\n"
-        "  2. Example: catalog_path: rhel/10.2/slurm_x86_64_no_vast.json"
+        "  1. Re-run: ansible-playbook build_stream.yml --tags prepare\n"
+        "  2. Check: podman ps -a; systemctl status omnia_build_stream omnia_postgres "
+        "playbook-watcher"
     ),
-    "job_id_not_set": (
-        "job_id is empty in test_config.yml.\n"
+    "cleanup_check_failed": (
+        "Cleanup {component} failed: {error}\n"
         "HOW TO FIX:\n"
-        "  1. Run with --test first to auto-populate job_id\n"
-        "  2. Or manually set job_id in test_config.yml"
-    ),
-    "repo_status_failed": (
-        "repo_status.yml overall_status is not success.\n"
-        "Path: {path}\n"
-        "Status: {status}\n"
-        "HOW TO FIX:\n"
-        "  1. Check: cat {path}\n"
-        "  2. Verify repo_manager completed successfully\n"
-        "  3. Re-run build pipeline if repo_manager stage failed"
-    ),
-    "credentials_not_configured": (
-        "build_stream_credentials.yml not configured.\n"
-        "Path: {path}\n"
-        "Missing fields: {missing}\n"
-        "HOW TO FIX:\n"
-        "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
-        "     (the playbook will prompt for credentials and save them)\n"
-        "  2. Or manually create the credentials file at the path above\n"
-        "  3. Required fields: gitlab_root_password, gitlab_ssh_password,\n"
-        "     build_stream_auth_username, build_stream_auth_password, and\n"
-        "     build_stream_auth_password_hash"
-    ),
-    "pipeline_not_triggered": (
-        "Build pipeline was not triggered.\n"
-        "HOW TO FIX:\n"
-        "  1. Check GitLab CI/CD > Pipelines for errors\n"
-        "  2. Verify .gitlab-ci.yml auto-trigger rules\n"
-        "  3. Check GitLab runner is registered and active"
-    ),
-    "stage_not_completed": (
-        "Stage '{stage}' did not complete (state: {state}).\n"
-        "HOW TO FIX:\n"
-        "  1. Check pipeline job logs in GitLab CI/CD\n"
-        "  2. Check BSM API logs: podman logs omnia_build_stream\n"
-        "  3. Verify stage prerequisites are met"
-    ),
-    "job_not_created": (
-        "BSM job not found in database after pipeline trigger.\n"
-        "HOW TO FIX:\n"
-        "  1. Check BSM API is healthy: curl -sk https://<host>:<port>/health\n"
-        "  2. Check initialization stage logs in GitLab\n"
-        "  3. Check Postgres: podman logs omnia_postgres"
-    ),
-    "job_id_not_saved": (
-        "The new build job ID could not be written to test_config.yml.\n"
-        "The existing job_id was not accepted for this execution.\n"
-        "HOW TO FIX:\n"
-        "  1. Verify test_config.yml contains exactly one job_id field\n"
-        "  2. Verify the file is writable\n"
-        "  3. Re-run the build pipeline execution"
-    ),
-    "registry_images_missing": (
-        "Registry images missing for roles: {missing}\n"
-        "HOW TO FIX:\n"
-        "  1. Check registry: regctl repo ls <hostname>:5000\n"
-        "  2. Verify build-image stage completed without errors\n"
-        "  3. Check image_build_manager playbook logs"
-    ),
-    "s3_images_missing": (
-        "S3 boot images missing for roles: {missing}\n"
-        "HOW TO FIX:\n"
-        "  1. Check S3: s3cmd ls -r s3://boot-images/\n"
-        "  2. Verify build-image stage completed without errors\n"
-        "  3. Check image_build_manager playbook logs"
-    ),
-    "pipeline_result_failed": (
-        "Build pipeline had failures.\n"
-        "HOW TO FIX:\n"
-        "  1. Review individual stage results above\n"
-        "  2. Check GitLab CI/CD pipeline for detailed logs\n"
-        "  3. Re-run failed stages in GitLab"
+        "  1. Re-run: ansible-playbook build_stream.yml --tags cleanup\n"
+        "  2. Check what is still listening: ss -tlnp"
     ),
 }

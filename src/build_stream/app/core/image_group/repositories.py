@@ -101,6 +101,7 @@ class ImageGroupRepository(ABC):
         status: ImageGroupStatus,
         limit: int,
         offset: int,
+        client_id: Optional[str] = None,
     ) -> Tuple[List[ImageGroup], int]:
         """List ImageGroups by status with pagination.
 
@@ -108,6 +109,7 @@ class ImageGroupRepository(ABC):
             status: Filter by this status.
             limit: Maximum number of results.
             offset: Number of results to skip.
+            client_id: If set, only groups whose job belongs to this client.
 
         Returns:
             Tuple of (image_groups_with_images, total_count).
@@ -119,6 +121,7 @@ class ImageGroupRepository(ABC):
         self,
         limit: int,
         offset: int,
+        client_id: Optional[str] = None,
     ) -> Tuple[List[ImageGroup], int]:
         """List ImageGroups in all post-BUILT states with pagination.
 
@@ -128,6 +131,7 @@ class ImageGroupRepository(ABC):
         Args:
             limit: Maximum number of results.
             offset: Number of results to skip.
+            client_id: If set, only groups whose job belongs to this client.
 
         Returns:
             Tuple of (image_groups_with_images, total_count).

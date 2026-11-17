@@ -157,9 +157,16 @@
   when: _vm_tls_enabled | bool
   block:
     - name: Read Victoria TLS CA certificate from K8s secret
-      ansible.builtin.command: >-
-        kubectl get secret {{ victoria_tls_secret }} -n {{ victoria_namespace }}
-        -o jsonpath='{.data.ca\.crt}'
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - secret
+          - "{{ victoria_tls_secret }}"
+          - -n
+          - "{{ victoria_namespace }}"
+          - -o
+          - "jsonpath={.data.ca\\.crt}"
       register: _victoria_ca_b64
       changed_when: false
       failed_when: _victoria_ca_b64.rc != 0 or (_victoria_ca_b64.stdout | trim | length == 0)

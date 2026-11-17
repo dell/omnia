@@ -228,16 +228,14 @@ ARM-host readiness and tooling checks before artifact and package validation.
 | `validate` | `--tags validate` | Configuration, credentials, package/catalog input, effective `repo_ssl_verify`, and template wiring; does not consume `repo_status.yml` |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
 | `build` | `--tags build` | Build-only repo-status contract validation, S3 images, registry images, build_status, and **naming convention** |
-| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials; external PowerScale storage and s3cmd config are retained |
+| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials (kept with `cleanup_credentials: false` in `test_config.yml`); external PowerScale storage and s3cmd config are retained |
 | `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
 | *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
 
 #### Build-type naming convention (within `build` tag)
 
-Both `image-builder` and `image-thrillhouse` produce artifacts with distinct
-suffixes (`-imgbld` / `-imgth`). The naming tests confirm that at least one
-artifact for the recorded build type carries the expected suffix. Artifacts
-from another build type are allowed to coexist and are reported, not rejected.
+Image Thrillhouse artifacts use the `-imgth` suffix. The naming tests confirm
+that registry and S3 artifacts for the recorded build carry that suffix.
 
 Every new `build_status.yml` records the `image_build_type` that produced its
 artifact paths. Build verification uses that recorded value for engine-specific
@@ -245,7 +243,7 @@ S3 and naming checks, so changing the input configuration after a build does
 not cause the previous manifest to be interpreted with the wrong layout. The
 current input still defines the functional groups expected by the test. A
 legacy manifest without the field is accepted only when one engine can be
-inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
+inferred unambiguously from `-imgth` or `-imgth` artifact directories.
 
 ```bash
 # Run only naming convention tests
@@ -255,21 +253,25 @@ inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
 
 #### Catalog dictionary reuse scenarios (within `build` tag)
 
-The `catalog_reuse` suite owns its execution lifecycle and runs eleven ordered
+The `catalog_reuse` suite owns its execution lifecycle and runs nine ordered
 catalog dictionary scenarios. Each scenario performs its required state change
-and immediately validates the result. Run all eleven scenarios with either:
+and immediately validates the result. Run all nine scenarios with either:
 
 ```bash
-# Execute all eleven scenario actions and assertions
+# Execute all nine scenario actions and assertions
 ./run_validation.sh fvt_image_build_manager build exec \
   --suite catalog_reuse
 
-# Execute the same eleven scenarios, followed by the runner's verification phase
+# Execute the same nine scenarios, followed by the runner's verification phase
 ./run_validation.sh fvt_image_build_manager build test \
   --suite catalog_reuse
 ```
 
-All eleven tests are deploy-marked. Consequently, standalone `verify` selects
+The suite is opt-in: the default `fvt_image_build_manager test`/`exec` flow
+and `build test`/`build exec` without `--suite` report these cases as skipped,
+so they do not block the default lifecycle verification.
+
+All nine tests are deploy-marked. Consequently, standalone `verify` selects
 only `not deploy` tests and has no catalog-reuse cases to execute. Do not use
 the following command to validate a previous catalog-reuse run:
 
@@ -286,9 +288,9 @@ does not create backup files beside production inputs or in a shared temporary
 directory.
 
 The suite covers the first build, dictionary reuse, selective package and
-repository rebuilds, forced rebuild, missing S3 artifact recovery, switching
-between Image Builder and Image Thrillhouse, catalog-versioned status output,
-config-mode isolation, and restoration of the target's pre-suite state.
+repository rebuilds, forced rebuild, missing S3 artifact recovery,
+catalog-versioned status output, config-mode isolation, and restoration of
+the target's pre-suite state.
 
 ### Options
 
@@ -442,8 +444,10 @@ the MinIO/registry infrastructure and the S3 buckets.
 This runs the `cleanup` playbook tag, which also removes build logs and domain
 credentials. The post-cleanup FVT cases verify local MinIO/registry services
 and data, listening ports, S3 state, s3cmd configuration, build output, and
-registry state. They also verify that the credential file and vault key were
-removed without reading or displaying their contents.
+registry state. They also verify, without reading or displaying their contents,
+that the credential file and vault key were removed, or preserved when
+`cleanup_credentials: false` is set in `test_config.yml` (the cleanup then runs
+with `-e cleanup_credentials=false`).
 
 With PowerScale, the product intentionally retains the external buckets and
 `/root/.s3cfg`. The MinIO-specific `IMGBM_FVT_CLEANUP_V004` and
@@ -632,9 +636,9 @@ cd datasets/generator/
 ./generate_dataset.py create my_dataset \
   --profile image-thrillhouse-internet-config
 
-# Select Image Builder with the same internet/config topology
-./generate_dataset.py create my_image_builder \
-  --profile image-builder-internet-config
+# Generate an Image Thrillhouse internet/config dataset
+./generate_dataset.py create my_thrillhouse \
+  --profile image-thrillhouse-internet-config
 
 # Generate an offline dataset with one real host applied to every repo URL
 ./generate_dataset.py create my_offline \
@@ -704,7 +708,7 @@ the UT ID ranges and maintenance rule.
 | validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 |
 | prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`008` | 9 |
 | build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 |
-| catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`011` | 11 |
+| catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`009` | 9 |
 | cleanup_images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
 | cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 |
 | full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 reportable ID |
@@ -716,15 +720,12 @@ There are 221 physical test functions (63 FVT, 4 NFT, and 154 UT).
 `IMGBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
 function that reports `IMGBM_FVT_BUILD_E001` for a tagged build.
 
-### Build-type suffix checks (IMGBM_FVT_BUILD_V013 – IMGBM_FVT_BUILD_V017)
+### Image Thrillhouse suffix checks
 
-| Test | Build type | Checks |
-|------|-----------|--------|
-| IMGBM_FVT_BUILD_V013 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
-| IMGBM_FVT_BUILD_V014 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
-| IMGBM_FVT_BUILD_V015 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
-| IMGBM_FVT_BUILD_V016 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
-| IMGBM_FVT_BUILD_V017 | both | Every x86_64 registry/S3 artifact has exactly one engine suffix, full names are unique, and the build-status engine has at least one artifact |
+| Test | Checks |
+|------|--------|
+| IMGBM_FVT_BUILD_V015 | At least one x86_64 registry repository ends with `-imgth` |
+| IMGBM_FVT_BUILD_V016 | At least one x86_64 S3 path includes `-imgth` |
 
 ---
 

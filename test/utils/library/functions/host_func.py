@@ -46,7 +46,6 @@ from omnia_auto import (
 )
 
 from ..vars.common_vars import (
-    DOMAIN_NAME,
     MODULE_ROOT,
     MONOREPO_ROOT,
     SRC_INPUT_DIR,
@@ -57,6 +56,8 @@ from ..vars.common_vars import (
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
 )
+
+from ..vars.domain_vars import DOMAIN_NAME
 
 # =============================================================================
 # CREDENTIAL EXCLUSION PATTERNS

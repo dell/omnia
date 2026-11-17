@@ -313,6 +313,9 @@ UT_TEST_CASE_IDS = {
             146: "test_destructive_nft_marker_explicitly_enables_cleanup",
             147: "test_default_fvt_verification_excludes_cleanup_flows",
             148: "test_catalog_reuse_e2e_owns_execution_and_restores_state",
+            162: "test_default_build_exec_skips_catalog_reuse_suite",
+            163: "test_explicit_catalog_reuse_suite_runs",
+            164: "test_explicit_catalog_reuse_test_selector_runs",
         },
     ),
     **_module_cases(
@@ -333,6 +336,16 @@ UT_TEST_CASE_IDS = {
         {
             150: "test_registry_image_pin_is_aligned_across_lifecycle",
             151: "test_registry_deploy_reconciles_pin_changes_for_active_service",
+        },
+    ),
+    **_module_cases(
+        "test_input_validation_fail_closed.py",
+        {
+            157: "test_encrypted_credentials_are_validated_with_masked_errors",
+            158: "test_encrypted_credentials_without_key_are_unvalidated",
+            159: "test_standalone_x86_64_build_accepts_its_play_tags",
+            160: "test_standalone_aarch64_build_accepts_its_play_tags",
+            161: "test_uncollected_template_values_are_not_errors",
         },
     ),
 }

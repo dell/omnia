@@ -2,7 +2,7 @@
 [defaults]
 arch=x86_64, os=rhel, os_version=10.0
 
-[baseos_group_10.0 | type=base_os, description=base os packages for rhel cluster nodes, os=rhel, os_version=10.0]
+[baseos_group_10.0 | type=baseos, description=base os packages for rhel cluster nodes, os=rhel, os_version=10.0]
 systemd, rpm, systemd, baseos
 systemd_udev, rpm, systemd-udev, baseos
 wget, rpm, wget, appstream
@@ -11,7 +11,7 @@ glibc_langpack_en, rpm, glibc-langpack-en, baseos
 [slurm_custom_group | description=slurm custom packages]
 clustershell, rpm, clustershell, epel
 papi, tarball, papi, https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz
-curl_image, image, docker.io/curlimages/curl, docker.io, 8.17.0
+curl_image, image, docker.io/curlimages/curl, docker.io, 8.22.0
 
 [openldap_group | description=OpenLDAP packages]
 openldap, rpm, openldap, baseos

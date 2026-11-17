@@ -143,17 +143,17 @@ def _run_read_only_command(arguments: list[str]) -> str:
 
 def _system_hostname() -> str:
     """Return the local short hostname."""
-    return _run_read_only_command(["hostname", "-s"]) or socket.gethostname().split(".")[0]
+    return _run_read_only_command(["/usr/bin/hostname", "-s"]) or socket.gethostname().split(".")[0]
 
 
 def _system_domain() -> str:
     """Return the local DNS domain when available."""
-    return _run_read_only_command(["hostname", "-d"])
+    return _run_read_only_command(["/usr/bin/hostname", "-d"])
 
 
 def _local_ipv4_addresses() -> list[str]:
     """Return IPv4 addresses assigned to local interfaces."""
-    output = _run_read_only_command(["ip", "-4", "-o", "addr", "show"])
+    output = _run_read_only_command(["/usr/sbin/ip", "-4", "-o", "addr", "show"])
     addresses: list[str] = []
     for line in output.splitlines():
         fields = line.split()

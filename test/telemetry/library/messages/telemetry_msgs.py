@@ -156,8 +156,8 @@ TEST_LOG_MSGS = {
     "idrac_pod_count_mismatch": "iDRAC pod count mismatch",
 
     # iDRAC MySQL data
-    "idrac_mysql_verified": "MySQL data verified in all {count} iDRAC pods",
-    "idrac_mysql_missing": "MySQL data missing in {count} iDRAC pod(s)",
+    "idrac_mysql_verified": "MySQL matches bmc_group_data.csv in all {count} iDRAC pods",
+    "idrac_mysql_missing": "MySQL does not match bmc_group_data.csv in {count} iDRAC pod(s)",
 
     # iDRAC receiver
     "idrac_receiver_collecting": "All {count} iDRAC receivers collecting metrics",
@@ -366,12 +366,15 @@ TEST_ASSERT_MSGS = {
 
     # iDRAC MySQL data
     "idrac_mysql_missing": (
-        "MySQL data missing in {count} iDRAC pod(s)\n"
+        "MySQL does not match bmc_group_data.csv in {count} iDRAC pod(s)\n"
         "HOW TO FIX:\n"
         "  1. kubectl exec <pod> -n telemetry -c mysqldb -- "
         "sh -c 'MYSQL_PWD=\"$MYSQL_PASSWORD\" mysql -u\"$MYSQL_USER\" "
-        "\"$MYSQL_DATABASE\" -e \"SELECT * FROM services\"'\n"
-        "  2. Check idrac-telemetry-receiver logs\n"
+        "\"$MYSQL_DATABASE\" -e \"SELECT ip FROM services\"'\n"
+        "  2. Check idrac_telemetry_report.yml 'Telemetry not supported IPs List'\n"
+        "  3. Remove stale/duplicate rows or fix the BMC registration\n"
+        "  4. Re-run telemetry deploy\n"
+        "DETAILS:\n"
     ),
 
     # iDRAC receiver

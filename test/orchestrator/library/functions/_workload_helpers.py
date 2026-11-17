@@ -15,6 +15,7 @@
 """Shared Kubernetes and Slurm context, selection, and skip contracts."""
 
 import re
+from typing import Any, Dict, List, Tuple
 
 from omnia_auto import load_test_credentials
 
@@ -44,7 +45,7 @@ from ._pxeboot_helpers import (
 _GPU_GRES_RE = re.compile(r"(?:^|,)gpu(?::[^,:()]+)?:(\d+)(?:\(|,|$)")
 
 
-def kubernetes_context(host):
+def kubernetes_context(host) -> Tuple[Any, Any, Any, Any]:
     """Return runtime context, mapped Kubernetes rows, primary, and config."""
     context = load_context(host)
     rows = rows_matching(context, (KUBERNETES_PREFIX,))
@@ -57,7 +58,7 @@ def kubernetes_context(host):
     return context, rows, control, selected_kubernetes_config(context)
 
 
-def slurm_context(host):
+def slurm_context(host) -> Tuple[Any, Any, Any, Any]:
     """Return runtime context, mapped Slurm rows, controller, and config."""
     context = load_context(host)
     rows = rows_matching(context, SLURM_PREFIXES)
@@ -70,7 +71,7 @@ def slurm_context(host):
     return context, rows, control, selected_slurm_config(context)
 
 
-def slurm_shared_storage(context, slurm_config):
+def slurm_shared_storage(context, slurm_config) -> Dict[str, str]:
     """Resolve the configured common Slurm NFS storage entry."""
     storage_name = str(slurm_config.get("nfs_storage_name") or "").strip()
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", storage_name):
@@ -104,7 +105,7 @@ def slurm_shared_storage(context, slurm_config):
     }
 
 
-def optional_skip(summary: str, reason: str = ""):
+def optional_skip(summary: str, reason: str = "") -> Dict[str, Any]:
     """Return the canonical successful skip result for an optional capability."""
     return runtime_result(
         True,
@@ -115,14 +116,14 @@ def optional_skip(summary: str, reason: str = ""):
     )
 
 
-def require_marker(summary: str, marker: str, reason: str):
+def require_marker(summary: str, marker: str, reason: str) -> Dict[str, Any] | None:
     """Return a skip result unless the caller received explicit authorization."""
     if marker_is_authorized(marker):
         return None
     return optional_skip(summary, reason)
 
 
-def slurm_compute_rows(rows):
+def slurm_compute_rows(rows) -> List[Any]:
     """Return mapped Slurm compute roles."""
     return [
         row
@@ -131,7 +132,7 @@ def slurm_compute_rows(rows):
     ]
 
 
-def slurm_gpu_rows(host, control, compute_rows):
+def slurm_gpu_rows(host, control, compute_rows) -> List[tuple[Any, str, int]]:
     """Return mapped compute rows where Slurm declares a GPU GRES."""
     scheduler = remote_command(host, control, PXEBOOT_COMMANDS["slurm_nodes"])
     if scheduler.rc != 0:
@@ -151,7 +152,7 @@ def slurm_gpu_rows(host, control, compute_rows):
     ]
 
 
-def slurm_submission_rows(rows):
+def slurm_submission_rows(rows) -> List[Any]:
     """Return mapped Slurm roles allowed to submit jobs."""
     return [
         row
@@ -181,7 +182,7 @@ def ldap_test_username() -> str:
     return username
 
 
-def require_functional(summary: str):
+def require_functional(summary: str) -> Dict[str, Any] | None:
     """Require explicit authorization before creating temporary workloads."""
     return require_marker(
         summary,
@@ -203,7 +204,7 @@ def _is_non_ofed_node(host, row):
     return result.rc != 0
 
 
-def ensure_source_mpi(host, rows):
+def ensure_source_mpi(host, rows) -> Tuple[bool, str]:
     """Install the source-compiled UCX/OpenMPI stack when needed.
 
     When compute nodes lack both DOCA MPI and source-compiled MPI, and at
@@ -294,3 +295,42 @@ def ensure_source_mpi(host, rows):
 
     _source_mpi_provisioned = True
     return True, ""
+
+
+def mapped_compute_readiness(host, control, compute_rows):
+    """Return normalized scheduler readiness for every mapped compute."""
+    scheduler = remote_command(
+        host,
+        control,
+        PXEBOOT_COMMANDS["slurm_partitions"],
+    )
+    if scheduler.rc != 0:
+        raise RuntimeError("sinfo could not read mapped compute-node state")
+    node_states = {}
+    for line in scheduler.stdout.splitlines():
+        parts = [part.strip() for part in line.split("|", 3)]
+        if len(parts) != 4 or not parts[0]:
+            continue
+        node = parts[0].split(".", 1)[0]
+        state = parts[2].lower().split("+", 1)[0].rstrip("*~#$@!%^")
+        availability = parts[3].lower()
+        node_states.setdefault(node, []).append((state, availability))
+    readiness = []
+    for row in compute_rows:
+        states = node_states.get(row["HOSTNAME"], [])
+        idle = bool(states) and all(
+            state == "idle" and availability == "up" for state, availability in states
+        )
+        readiness.append(
+            {
+                "row": row,
+                "idle": idle,
+                "state": ", ".join(sorted({state for state, _availability in states}))
+                or "missing",
+                "availability": ", ".join(
+                    sorted({availability for _state, availability in states})
+                )
+                or "missing",
+            }
+        )
+    return readiness

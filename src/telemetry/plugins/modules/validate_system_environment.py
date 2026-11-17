@@ -22,6 +22,7 @@ common precheck.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import socket
@@ -119,8 +120,8 @@ def _get_system_hostname() -> str:
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        logging.warning("hostname -s failed (%s), falling back to socket.gethostname()", exc)
     return socket.gethostname().split(".")[0]
 
 
@@ -133,8 +134,8 @@ def _get_system_domain() -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        logging.warning("hostname -d failed (%s), returning empty domain", exc)
     return ""
 
 
@@ -152,8 +153,8 @@ def _get_local_ips() -> list[str]:
                 if part == "inet" and i + 1 < len(parts):
                     ip_cidr = parts[i + 1]
                     ips.append(ip_cidr.split("/")[0])
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        logging.warning("ip addr show failed (%s), returning empty IP list", exc)
     return ips
 
 

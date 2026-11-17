@@ -43,17 +43,6 @@ class IdempotencyRecord:
     created_at: datetime
     expires_at: datetime
 
-    def is_expired(self, current_time: datetime) -> bool:
-        """Check if record has expired.
-
-        Args:
-            current_time: Current timestamp for comparison.
-
-        Returns:
-            True if record is expired.
-        """
-        return current_time >= self.expires_at
-
     def matches_fingerprint(self, fingerprint: RequestFingerprint) -> bool:
         """Check if fingerprint matches this record.
 

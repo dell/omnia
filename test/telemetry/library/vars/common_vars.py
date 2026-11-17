@@ -154,6 +154,9 @@ IDRAC_CONTAINERS = [
     "activemq",
 ]
 IDRAC_KAFKA_TOPIC = "idrac"
+# test_config.yml key with the BMC IP that TEL_NFT_026 deletes from and re-adds
+# to bmc_group_data.csv. Empty means the NFT is skipped with a warning.
+IDRAC_NFT_BMC_IP_KEY = "idrac_nft_bmc_ip"
 
 # LDMS - see ldms_vars.py for all LDMS-specific constants
 # Kept here for backward compatibility
@@ -161,7 +164,7 @@ from .ldms_vars import (  # noqa: F401, E402
     LDMS_AGG_STS_NAME,
     LDMS_STORE_NAME,
     LDMS_KAFKA_TOPIC,
-    LDMS_FUNCTIONAL_GROUPS,
+    LDMS_FUNCTIONAL_GROUP_PATTERN,
     LDMS_SAMPLER_SERVICE,
     LDMS_SAMPLER_CONF_PATH,
 )

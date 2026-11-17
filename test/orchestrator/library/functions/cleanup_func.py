@@ -292,9 +292,13 @@ def _check_cleanup_storage(host, component: str) -> dict[str, Any]:
         if mounted or in_fstab:
             failures.append(f"{name}: storage still attached")
 
-    missing = sorted(names - resolved)
-    if missing:
-        failures.append("unresolved storage: " + ", ".join(missing))
+    # A referenced storage with no mount in storage_config.yml is a storage the user did not
+    # configure (its source is blank, so the generator commented the mount out): there is
+    # nothing to detach. The input validation reports a missing mount when nodes use it.
+    for name in sorted(names - resolved):
+        fields.append(
+            (f"Storage {name}", "not configured in storage_config.yml (nothing to detach)")
+        )
     if not names:
         fields.append(("Referenced storage", "none configured"))
     fields.append(

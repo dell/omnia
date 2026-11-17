@@ -16,7 +16,7 @@ galaxy_info:
   role_name: deploy_openldap
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia orchestrator role: deploy OpenLDAP (omnia_auth) container"
+  description: "Deploy the OpenLDAP (`omnia_auth`) container on the OIM"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

@@ -17,6 +17,8 @@
 import uuid
 from unittest.mock import patch
 
+import pytest
+
 
 class TestValidateSuccess:
     """Happy-path validate stage tests — AC-3.1."""
@@ -189,6 +191,7 @@ class TestValidateValidation:
 class TestValidateAuthentication:
     """Authentication header tests."""
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_missing_authorization_returns_error(
         self, client, job_with_completed_restart
     ):
@@ -203,6 +206,7 @@ class TestValidateAuthentication:
         )
         assert response.status_code in (202, 401, 422)
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_invalid_authorization_format_returns_error(
         self, client, job_with_completed_restart
     ):
@@ -218,6 +222,7 @@ class TestValidateAuthentication:
         )
         assert response.status_code in (202, 401)
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_empty_bearer_token_returns_error(
         self, client, job_with_completed_restart
     ):

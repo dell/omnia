@@ -278,6 +278,24 @@ class TestCleanupJobSuccess:
         assert job is not None
         assert job.tombstoned is False
 
+    def test_submit_audit_event_is_committed(self, tmp_path):
+        """The JOB_CLEANUP_SUBMITTED audit event is only flushed by save().
+        The auto-cleanup cron closes its shared session without a commit when
+        there is no retention candidate, so the use case must commit it."""
+        from unittest.mock import MagicMock
+
+        uc, jid, client, _ig_repo, _queue, _dir = self._setup(
+            ImageGroupStatus.BUILT, tmp_path
+        )
+        uc._audit_repo.session = MagicMock()  # pylint: disable=protected-access
+        uc.execute(CleanupJobCommand(
+            job_id=jid, client_id=client, correlation_id=_correlation_id()
+        ))
+
+        events = uc._audit_repo.find_by_job(jid)  # pylint: disable=protected-access
+        assert any(e.event_type == "JOB_CLEANUP_SUBMITTED" for e in events)
+        uc._audit_repo.session.commit.assert_called()  # pylint: disable=protected-access
+
     def test_sync_fallback_tombstones_job_immediately(self, tmp_path):
         """Without a queue service there's nothing to wait on, so the
         legacy synchronous CLEANED + tombstone behavior still applies."""

@@ -42,16 +42,6 @@ def valid_digest() -> ArtifactDigest:
 
 
 @pytest.fixture
-def valid_store_hint() -> StoreHint:
-    """A valid store hint."""
-    return StoreHint(
-        namespace="catalog",
-        label="catalog-file",
-        tags={"job_id": "018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"},
-    )
-
-
-@pytest.fixture
 def valid_artifact_ref(valid_artifact_key, valid_digest) -> ArtifactRef:
     """A valid artifact reference."""
     return ArtifactRef(

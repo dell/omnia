@@ -25,10 +25,11 @@ and Image records from catalog metadata persisted during create-local-repository
 import json
 import asyncio
 import os
+import stat
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
+from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 
@@ -38,6 +39,7 @@ from core.image_group.entities import Image, ImageGroup
 from core.image_group.repositories import ImageGroupRepository, ImageRepository
 from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
 from core.artifacts.entities import ArtifactRecord
+from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind, StoreHint
 from core.jobs.entities import AuditEvent
@@ -59,8 +61,75 @@ from core.localrepo.services import PlaybookQueueResultService
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
 DEFAULT_NFS_ARTIFACT_BASE = os.path.join(
-    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root"
+    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream", "build_stream_root"
 )
+
+# Per-job files the playbooks write under <NFS_ARTIFACT_BASE>/artifacts/<job_id>/.
+JOB_ARTIFACT_NAMES = frozenset({
+    "node_results.json",
+    "failed_nodes.json",
+    "build_image_meta.json",
+})
+MAX_JOB_ARTIFACT_BYTES = 5 * 1024 * 1024
+
+# Stage error codes used when a successful build-image result cannot be
+# registered as an ImageGroup with Images.
+CATALOG_METADATA_MISSING = "CATALOG_METADATA_MISSING"
+CATALOG_METADATA_INVALID = "CATALOG_METADATA_INVALID"
+IMAGE_GROUP_REGISTRATION_FAILED = "IMAGE_GROUP_REGISTRATION_FAILED"
+
+_NEW_JOB_HINT = (
+    "The images built by this job are not registered and cannot be deployed. "
+    "Submit a new job to rebuild and register them."
+)
+
+
+class ImageRegistrationError(Exception):
+    """A successful build-image result could not be registered.
+
+    Raised by the build-image completion handler so the result poller fails
+    the stage instead of completing it without ImageGroup/Image records.
+    """
+
+    def __init__(self, error_code: str, error_summary: str) -> None:
+        super().__init__(f"{error_code}: {error_summary}")
+        self.error_code = error_code
+        self.error_summary = error_summary
+
+
+def _job_artifact_file(job_id: str, name: str) -> Optional[Path]:
+    """Return a job's artifact file, or None if it is absent or not acceptable.
+
+    The path is always derived from the validated job id and a fixed file
+    name. Paths reported inside result files are never opened, because the
+    result directory is a shared queue. Symlinks, non-regular files, files
+    that resolve outside the artifacts directory and oversized files are
+    rejected.
+
+    Args:
+        job_id: Job identifier (UUID).
+        name: One of :data:`JOB_ARTIFACT_NAMES`.
+
+    Returns:
+        Path to the file, or None.
+    """
+    if name not in JOB_ARTIFACT_NAMES:
+        return None
+    try:
+        safe_job_id = JobId(str(job_id)).value
+    except ValueError:
+        return None
+    base = Path(os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)) / "artifacts"
+    path = base / safe_job_id / name
+    try:
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_JOB_ARTIFACT_BYTES:
+            return None
+        if not path.resolve().is_relative_to(base.resolve()):
+            return None
+    except OSError:
+        return None
+    return path
 
 
 def _discover_s3_image_paths(
@@ -80,8 +149,7 @@ def _discover_s3_image_paths(
 
     Returns:
         Dict mapping role_name -> list of S3 directory paths
-        Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
-                                  "s3://boot-images/slurm_node/..."]}
+        Example: {"slurm_node": ["s3://boot-images/slurm_node/..."]}
     """
     import subprocess  # nosec B404 - subprocess used safely with list args
 
@@ -204,26 +272,6 @@ def _apply_catalog_metadata(image_group: ImageGroup, metadata: dict) -> None:
     for field_name, value in catalog_fields.items():
         if hasattr(image_group, field_name):
             setattr(image_group, field_name, value)
-
-
-def _load_build_image_meta(job_id: str) -> Dict[str, str]:
-    """Read ``build_image_meta.json`` persisted by the build-image stage.
-
-    Returns an empty dict if the file does not exist or cannot be read.
-    """
-    base = os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)
-    meta_path = Path(base) / "artifacts" / str(job_id) / "build_image_meta.json"
-    try:
-        if not meta_path.exists():
-            return {}
-        raw = meta_path.read_text(encoding="utf-8")
-        decoder = json.JSONDecoder()
-        data, _ = decoder.raw_decode(raw)
-        if isinstance(data, dict):
-            return data
-        return {}
-    except (OSError, ValueError):
-        return {}
 
 
 class ResultPoller:
@@ -370,7 +418,38 @@ class ResultPoller:
                 # The service archives the result file automatically.
                 return
 
-            if result.status == "success":
+            registration_error = None
+            if result.status == "success" and self._is_build_image_stage(
+                result.stage_name
+            ):
+                # S1-4: Register ImageGroup + Images BEFORE completing the
+                # stage. Registration is part of the build-image success
+                # contract; if it cannot be performed the stage must fail
+                # instead of reporting success with no registered images.
+                try:
+                    self._on_build_image_success(result)
+                except ImageRegistrationError as exc:
+                    registration_error = exc
+
+            if registration_error is not None:
+                stage.fail(
+                    error_code=registration_error.error_code,
+                    error_summary=registration_error.error_summary,
+                )
+                log_secure_info(
+                    "error",
+                    f"Stage failed: job_id={result.job_id}, "
+                    f"stage={result.stage_name}, "
+                    f"error={registration_error.error_code}: "
+                    f"{registration_error.error_summary}",
+                    job_id=str(result.job_id),
+                )
+                self._handle_job_stage_failure(
+                    result,
+                    registration_error.error_code,
+                    registration_error.error_summary,
+                )
+            elif result.status == "success":
                 # Populate validation detail before completing the stage.
                 if result.stage_name == "validate":
                     stage.result_detail = self._build_validate_result_detail(
@@ -383,11 +462,6 @@ class ResultPoller:
                     f"Stage completed: job_id={result.job_id}, stage={result.stage_name}",
                     job_id=str(result.job_id),
                 )
-
-                # S1-4: On build-image success, create ImageGroup + Images
-                # (catalog metadata is now persisted by parse-catalog stage)
-                if self._is_build_image_stage(result.stage_name):
-                    self._on_build_image_success(result)
 
                 # On validate success, mark ImageGroup PASSED
                 if result.stage_name == "validate":
@@ -439,21 +513,7 @@ class ResultPoller:
                     self._on_validate_failure(result)
 
                 # Update job state to FAILED when stage fails
-                JobStateHelper.handle_stage_failure(
-                    job_repo=self._job_repo,
-                    audit_repo=self._audit_repo,
-                    uuid_generator=self._uuid_generator,
-                    job_id=JobId(result.job_id),
-                    stage_name=result.stage_name,
-                    error_code=error_code,
-                    error_summary=error_summary,
-                    correlation_id=(
-                        str(result.correlation_id)
-                        if getattr(result, "correlation_id", None)
-                        else str(self._uuid_generator.generate())
-                    ),
-                    client_id=str(result.job_id),
-                )
+                self._handle_job_stage_failure(result, error_code, error_summary)
 
             if self._is_build_image_stage(result.stage_name):
                 self._emit_dictionary_hit_events(result)
@@ -475,10 +535,22 @@ class ResultPoller:
                 self._stage_repo.session.commit()
 
             # Emit audit event
+            stage_completed = stage.stage_state == StageState.COMPLETED
+            event_details = {
+                "stage_name": result.stage_name,
+                "status": result.status,
+                "duration_seconds": result.duration_seconds,
+                "exit_code": result.exit_code,
+                "attempt": stage.attempt,
+                "log_file_path": result.log_file_path,
+            }
+            if registration_error is not None:
+                event_details["error_code"] = registration_error.error_code
+                event_details["error_summary"] = registration_error.error_summary
             event = AuditEvent(
                 event_id=str(self._uuid_generator.generate()),
                 job_id=result.job_id,
-                event_type="STAGE_COMPLETED" if result.status == "success" else "STAGE_FAILED",
+                event_type="STAGE_COMPLETED" if stage_completed else "STAGE_FAILED",
                 correlation_id=(
                     str(result.correlation_id)
                     if getattr(result, "correlation_id", None)
@@ -486,14 +558,7 @@ class ResultPoller:
                 ),
                 client_id=result.job_id,  # Using job_id as client_id placeholder
                 timestamp=datetime.now(timezone.utc),
-                details={
-                    "stage_name": result.stage_name,
-                    "status": result.status,
-                    "duration_seconds": result.duration_seconds,
-                    "exit_code": result.exit_code,
-                    "attempt": stage.attempt,
-                    "log_file_path": result.log_file_path,
-                },
+                details=event_details,
             )
             self._audit_repo.save(event)
 
@@ -514,6 +579,26 @@ class ResultPoller:
                 job_id=str(result.job_id),
                 exc_info=True,
             )
+
+    def _handle_job_stage_failure(
+        self, result: PlaybookResult, error_code: str, error_summary: str
+    ) -> None:
+        """Transition the job to FAILED after one of its stages failed."""
+        JobStateHelper.handle_stage_failure(
+            job_repo=self._job_repo,
+            audit_repo=self._audit_repo,
+            uuid_generator=self._uuid_generator,
+            job_id=JobId(result.job_id),
+            stage_name=result.stage_name,
+            error_code=error_code,
+            error_summary=error_summary,
+            correlation_id=(
+                str(result.correlation_id)
+                if getattr(result, "correlation_id", None)
+                else str(self._uuid_generator.generate())
+            ),
+            client_id=str(result.job_id),
+        )
 
     # ------------------------------------------------------------------
     # S1-4: Build-image completion — ImageGroup/Image creation
@@ -550,41 +635,20 @@ class ResultPoller:
             )
             self._audit_repo.save(event)
 
-    def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
-        """Persist one audit event for each catalog image reused by hash."""
-        for hit in result.dictionary_hits or []:
-            functional_group = hit.get("functional_group", "")
-            image_group_id = hit.get("image_group_id", "")
-            if not functional_group or not image_group_id:
-                continue
-            event = AuditEvent(
-                event_id=str(self._uuid_generator.generate()),
-                job_id=result.job_id,
-                event_type="DICTIONARY_HIT",
-                correlation_id=(
-                    str(result.correlation_id)
-                    if result.correlation_id
-                    else str(self._uuid_generator.generate())
-                ),
-                client_id=result.job_id,
-                timestamp=datetime.now(timezone.utc),
-                details={
-                    "stage_name": result.stage_name,
-                    "functional_group": functional_group,
-                    "image_group_id": image_group_id,
-                },
-            )
-            self._audit_repo.save(event)
-
     def _on_build_image_success(self, result: PlaybookResult) -> None:
         """Create ImageGroup (BUILT) and Image records on build-image success.
 
-        Loads catalog metadata persisted by the create-local-repository
-        completion callback, creates the ImageGroup with status BUILT,
-        and inserts Image records for each constituent role.
+        Loads catalog metadata persisted by the parse-catalog stage,
+        creates the ImageGroup with status BUILT, and inserts Image records
+        for each constituent role.
 
         Args:
             result: Playbook execution result from NFS queue.
+
+        Raises:
+            ImageRegistrationError: If the catalog metadata cannot be loaded
+                or the ImageGroup/Image records cannot be persisted. The
+                caller must fail the build-image stage.
         """
         if self._image_group_repo is None or self._image_repo is None:
             log_secure_info(
@@ -596,163 +660,224 @@ class ResultPoller:
             return
 
         try:
-            catalog_metadata = self._load_catalog_metadata(result.job_id)
-            if catalog_metadata is None:
-                log_secure_info(
-                    "warning",
-                    f"No catalog metadata found for job={result.job_id}; "
-                    f"skipping ImageGroup creation",
-                    job_id=str(result.job_id),
-                )
-                return
-
-            image_group_id = _resolve_catalog_image_group_id(
-                catalog_metadata
-            )
-            role_images = catalog_metadata.get("role_images", {})
-
-            # Create ImageGroup entity
-            now = datetime.now(timezone.utc)
-            image_group = ImageGroup(
-                id=ImageGroupId(image_group_id),
-                job_id=JobId(str(result.job_id)),
-                status=ImageGroupStatus.BUILT,
-                images=[],
-                created_at=now,
-                updated_at=now,
-            )
-            _apply_catalog_metadata(image_group, catalog_metadata)
-
-            # Catalog artifacts are named with the composite image-group ID.
-            # Legacy builds used the Job ID, so use it only as a fallback.
-            # The CleanUp API uses ``images.image_name`` verbatim
-            # with ``s3cmd del --recursive --force``.
-            bucket_uri = os.environ.get(
-                "CLEANUP_S3_BUCKET", DEFAULT_S3_BUCKET_URI
-            )
-
-            metadata_has_catalog_identity = bool(
-                catalog_metadata.get("composite_image_group_id")
-                or catalog_metadata.get("catalog_version")
-                or catalog_metadata.get("version")
-            )
-            primary_identity = (
-                image_group_id
-                if metadata_has_catalog_identity
-                else str(result.job_id)
-            )
-
-            log_secure_info(
-                "info",
-                f"Discovering S3 paths for ImageGroup {image_group_id} "
-                f"with artifact_identity={primary_identity}, roles: "
-                f"{list(role_images.keys())}",
-                job_id=str(result.job_id),
-            )
-
-            role_to_paths = _discover_s3_image_paths(
-                bucket_uri,
-                primary_identity,
-                list(role_images.keys()),
-            )
-
-            missing_roles = [
-                role_name
-                for role_name in role_images
-                if not role_to_paths.get(role_name)
-            ]
-            if missing_roles and primary_identity != str(result.job_id):
-                legacy_paths = _discover_s3_image_paths(
-                    bucket_uri,
-                    str(result.job_id),
-                    missing_roles,
-                )
-                _merge_discovered_paths(
-                    role_to_paths, legacy_paths, missing_roles
-                )
-
-            # Dictionary hits deliberately reuse artifacts from an older
-            # image group. Resolve those roles against the owning group ID,
-            # not the current catalog ID or Job ID.
-            dictionary_hits = result.dictionary_hits or []
-            for hit in dictionary_hits:
-                role_name = hit.get("functional_group", "")
-                source_image_group_id = hit.get("image_group_id", "")
-                if role_name not in role_images or not source_image_group_id:
-                    continue
-                reused_paths = _discover_s3_image_paths(
-                    bucket_uri,
-                    source_image_group_id,
-                    [role_name],
-                )
-                _merge_discovered_paths(
-                    role_to_paths, reused_paths, [role_name]
-                )
-
-            # Create Image entities for each role with discovered S3
-            # paths (semicolon-delimited).
-            # The DB has a unique constraint on (image_group_id, role), so
-            # we store all S3 directory paths for a role in a single
-            # image_name field.  Cleanup splits on ";" and deletes each.
-            images = []
-            for role_name in role_images:
-                paths = role_to_paths.get(role_name, [])
-                combined_path = ";".join(paths) if paths else ""
-                image = Image(
-                    id=str(uuid.uuid4()),
-                    image_group_id=image_group_id,
-                    role=role_name,
-                    image_name=combined_path,
-                    created_at=now,
-                )
-                images.append(image)
-
-            image_group.images = images
-
-            # Persist: ImageGroup first, then Images.
-            # In ProdContainer each repo may hold a different DB session
-            # (Factory-created via providers.Factory(SessionLocal)).
-            # The images table has a FK to image_groups, so the ImageGroup
-            # row must be flushed (visible within transaction) before the
-            # Image INSERT can satisfy the FK constraint.
-            # We use flush() instead of commit() to keep the transaction atomic.
-            try:
-                self._image_group_repo.save(image_group)
-                # Flush to make ImageGroup visible within transaction for FK constraint
-                if hasattr(self._image_group_repo, 'session'):
-                    self._image_group_repo.session.flush()
-
-                self._image_repo.save_batch(images)
-                # Commit only after both operations succeed
-                if hasattr(self._image_repo, 'session'):
-                    self._image_repo.session.commit()
-            except IntegrityError as integrity_exc:
-                log_secure_info(
-                    "warning",
-                    f"IntegrityError creating ImageGroup '{image_group_id}' "
-                    f"for job={result.job_id}: {integrity_exc.orig}",
-                    job_id=str(result.job_id),
-                )
-                if hasattr(self._image_group_repo, 'session'):
-                    self._image_group_repo.session.rollback()
-                if hasattr(self._image_repo, 'session'):
-                    self._image_repo.session.rollback()
-                return
-
-            log_secure_info(
-                "info",
-                f"Build-image SUCCESS for job={result.job_id}. Created ImageGroup "
-                f"'{image_group_id}' with {len(images)} images (status=BUILT).",
-                job_id=str(result.job_id),
-            )
-
+            self._register_build_image(result)
+        except ImageRegistrationError:
+            self._rollback_registration_sessions()
+            raise
         except Exception as exc:  # pylint: disable=broad-except
+            self._rollback_registration_sessions()
             log_secure_info(
                 "error",
                 f"Failed to create ImageGroup/Images for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
             )
+            raise ImageRegistrationError(
+                IMAGE_GROUP_REGISTRATION_FAILED,
+                f"Failed to register the ImageGroup and Images for job "
+                f"{result.job_id}: {exc}. {_NEW_JOB_HINT}",
+            ) from exc
+
+    def _rollback_registration_sessions(self) -> None:
+        """Roll back the poller's registration session(s) after a failure.
+
+        Keeps the shared session usable for the next result.
+        """
+        seen = set()
+        for repo in (
+            self._image_group_repo,
+            self._image_repo,
+            self._artifact_metadata_repo,
+        ):
+            session = getattr(repo, "session", None)
+            if not hasattr(session, "rollback") or id(session) in seen:
+                continue
+            seen.add(id(session))
+            try:
+                session.rollback()
+            except Exception as exc:  # pylint: disable=broad-except
+                log_secure_info(
+                    "error",
+                    f"Failed to roll back the result poller session: {exc}",
+                )
+
+    def _image_group_registered_for_job(self, image_group_id: str, job_id) -> bool:
+        """Return True if the ImageGroup already exists for this same job."""
+        try:
+            existing = self._image_group_repo.find_by_id(
+                ImageGroupId(image_group_id)
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to look up existing ImageGroup '{image_group_id}': {exc}",
+                job_id=str(job_id),
+            )
+            return False
+        return existing is not None and str(existing.job_id) == str(job_id)
+
+    def _register_build_image(self, result: PlaybookResult) -> None:
+        """Build and persist the ImageGroup and Images for a build-image result.
+
+        Raises:
+            ImageRegistrationError: If metadata is unavailable or the
+                ImageGroup conflicts with a record owned by another job.
+        """
+        catalog_metadata = self._load_catalog_metadata(result.job_id)
+
+        image_group_id = _resolve_catalog_image_group_id(
+            catalog_metadata
+        )
+        role_images = catalog_metadata.get("role_images", {})
+
+        # Create ImageGroup entity
+        now = datetime.now(timezone.utc)
+        image_group = ImageGroup(
+            id=ImageGroupId(image_group_id),
+            job_id=JobId(str(result.job_id)),
+            status=ImageGroupStatus.BUILT,
+            images=[],
+            created_at=now,
+            updated_at=now,
+        )
+        _apply_catalog_metadata(image_group, catalog_metadata)
+
+        # Catalog artifacts are named with the composite image-group ID.
+        # Legacy builds used the Job ID, so use it only as a fallback.
+        # The CleanUp API uses ``images.image_name`` verbatim
+        # with ``s3cmd del --recursive --force``.
+        bucket_uri = os.environ.get(
+            "CLEANUP_S3_BUCKET", DEFAULT_S3_BUCKET_URI
+        )
+
+        metadata_has_catalog_identity = bool(
+            catalog_metadata.get("composite_image_group_id")
+            or catalog_metadata.get("catalog_version")
+            or catalog_metadata.get("version")
+        )
+        primary_identity = (
+            image_group_id
+            if metadata_has_catalog_identity
+            else str(result.job_id)
+        )
+
+        log_secure_info(
+            "info",
+            f"Discovering S3 paths for ImageGroup {image_group_id} "
+            f"with artifact_identity={primary_identity}, roles: "
+            f"{list(role_images.keys())}",
+            job_id=str(result.job_id),
+        )
+
+        role_to_paths = _discover_s3_image_paths(
+            bucket_uri,
+            primary_identity,
+            list(role_images.keys()),
+        )
+
+        missing_roles = [
+            role_name
+            for role_name in role_images
+            if not role_to_paths.get(role_name)
+        ]
+        if missing_roles and primary_identity != str(result.job_id):
+            legacy_paths = _discover_s3_image_paths(
+                bucket_uri,
+                str(result.job_id),
+                missing_roles,
+            )
+            _merge_discovered_paths(
+                role_to_paths, legacy_paths, missing_roles
+            )
+
+        # Dictionary hits deliberately reuse artifacts from an older
+        # image group. Resolve those roles against the owning group ID,
+        # not the current catalog ID or Job ID.
+        dictionary_hits = result.dictionary_hits or []
+        for hit in dictionary_hits:
+            role_name = hit.get("functional_group", "")
+            source_image_group_id = hit.get("image_group_id", "")
+            if role_name not in role_images or not source_image_group_id:
+                continue
+            reused_paths = _discover_s3_image_paths(
+                bucket_uri,
+                source_image_group_id,
+                [role_name],
+            )
+            _merge_discovered_paths(
+                role_to_paths, reused_paths, [role_name]
+            )
+
+        # Create Image entities for each role with discovered S3
+        # paths (semicolon-delimited).
+        # The DB has a unique constraint on (image_group_id, role), so
+        # we store all S3 directory paths for a role in a single
+        # image_name field.  Cleanup splits on ";" and deletes each.
+        images = []
+        for role_name in role_images:
+            paths = role_to_paths.get(role_name, [])
+            combined_path = ";".join(paths) if paths else ""
+            image = Image(
+                id=str(uuid.uuid4()),
+                image_group_id=image_group_id,
+                role=role_name,
+                image_name=combined_path,
+                created_at=now,
+            )
+            images.append(image)
+
+        image_group.images = images
+
+        # Persist: ImageGroup first, then Images.
+        # In ProdContainer each repo may hold a different DB session
+        # (Factory-created via providers.Factory(SessionLocal)).
+        # The images table has a FK to image_groups, so the ImageGroup
+        # row must be flushed (visible within transaction) before the
+        # Image INSERT can satisfy the FK constraint.
+        # We use flush() instead of commit() to keep the transaction atomic.
+        try:
+            self._image_group_repo.save(image_group)
+            # Flush to make ImageGroup visible within transaction for FK constraint
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.flush()
+
+            self._image_repo.save_batch(images)
+            # Commit only after both operations succeed
+            if hasattr(self._image_repo, 'session'):
+                self._image_repo.session.commit()
+        except IntegrityError as integrity_exc:
+            self._rollback_registration_sessions()
+            # A re-delivered result for the same job finds its own
+            # ImageGroup already registered: treat that as success.
+            if self._image_group_registered_for_job(image_group_id, result.job_id):
+                log_secure_info(
+                    "info",
+                    f"ImageGroup '{image_group_id}' is already registered for "
+                    f"job={result.job_id}; treating build-image registration "
+                    f"as complete.",
+                    job_id=str(result.job_id),
+                )
+                return
+            log_secure_info(
+                "error",
+                f"IntegrityError creating ImageGroup '{image_group_id}' "
+                f"for job={result.job_id}: {integrity_exc.orig}",
+                job_id=str(result.job_id),
+            )
+            raise ImageRegistrationError(
+                IMAGE_GROUP_REGISTRATION_FAILED,
+                f"ImageGroup '{image_group_id}' could not be registered for job "
+                f"{result.job_id} because it conflicts with an existing record "
+                f"(for example, the same catalog Identifier and Version "
+                f"registered by another job). {_NEW_JOB_HINT}",
+            ) from integrity_exc
+
+        log_secure_info(
+            "info",
+            f"Build-image SUCCESS for job={result.job_id}. Created ImageGroup "
+            f"'{image_group_id}' with {len(images)} images (status=BUILT).",
+            job_id=str(result.job_id),
+        )
 
     def _load_catalog_metadata(self, job_id) -> dict:
         """Load catalog metadata artifact persisted by parse-catalog stage.
@@ -763,14 +888,29 @@ class ResultPoller:
         In Omnia 2.3+, catalog metadata is stored by the parse-catalog stage
         which validates the catalog and extracts image_group_id, roles, etc.
 
+        The metadata is required to register the build-image output, so every
+        failure is raised with a specific error code instead of returning None.
+
         Args:
             job_id: Job identifier.
 
         Returns:
-            Dict with image_group_id, roles, role_images, or None if not found.
+            Dict with image_group_id, roles, role_images.
+
+        Raises:
+            ImageRegistrationError: ``CATALOG_METADATA_MISSING`` when the
+                database record or the artifact file does not exist,
+                ``CATALOG_METADATA_INVALID`` when the content cannot be used,
+                ``IMAGE_GROUP_REGISTRATION_FAILED`` when the lookup or read
+                itself fails.
         """
         if self._artifact_metadata_repo is None or self._artifact_store is None:
-            return None
+            raise ImageRegistrationError(
+                IMAGE_GROUP_REGISTRATION_FAILED,
+                f"Catalog metadata for job {job_id} cannot be loaded because "
+                f"the artifact store is not configured for the result poller. "
+                f"{_NEW_JOB_HINT}",
+            )
 
         try:
             record = self._artifact_metadata_repo.find_by_job_stage_and_label(
@@ -778,22 +918,70 @@ class ResultPoller:
                 stage_name=StageName("parse-catalog"),
                 label="catalog-metadata",
             )
-            if record is None:
-                return None
-
-            raw = self._artifact_store.retrieve(
-                record.artifact_ref.key,
-                ArtifactKind.FILE,
-            )
-            return json.loads(raw.decode("utf-8"))
-
         except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "warning",
-                f"Failed to load catalog metadata for job={job_id}: {exc}",
-                job_id=str(job_id),
+            raise ImageRegistrationError(
+                IMAGE_GROUP_REGISTRATION_FAILED,
+                f"Failed to look up the catalog-metadata record for job "
+                f"{job_id}: {exc}. {_NEW_JOB_HINT}",
+            ) from exc
+
+        if record is None:
+            raise ImageRegistrationError(
+                CATALOG_METADATA_MISSING,
+                f"No catalog-metadata record exists in the database for job "
+                f"{job_id} (parse-catalog stage). {_NEW_JOB_HINT}",
             )
-            return None
+
+        key = record.artifact_ref.key
+        key_text = getattr(key, "value", key)
+        missing_file_summary = (
+            f"The catalog-metadata file '{key_text}' for job {job_id} is "
+            f"referenced in the database but was not found in the artifact "
+            f"store. The BuildStream artifacts may have been deleted while "
+            f"PostgreSQL was retained. {_NEW_JOB_HINT}"
+        )
+        try:
+            raw = self._artifact_store.retrieve(key, ArtifactKind.FILE)
+        except ArtifactNotFoundError as exc:
+            raise ImageRegistrationError(
+                CATALOG_METADATA_MISSING, missing_file_summary
+            ) from exc
+        except Exception as exc:  # pylint: disable=broad-except
+            raise ImageRegistrationError(
+                IMAGE_GROUP_REGISTRATION_FAILED,
+                f"Failed to read the catalog-metadata file '{key_text}' for job "
+                f"{job_id}: {exc}. {_NEW_JOB_HINT}",
+            ) from exc
+
+        if raw is None:
+            raise ImageRegistrationError(
+                CATALOG_METADATA_MISSING, missing_file_summary
+            )
+
+        try:
+            metadata = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise ImageRegistrationError(
+                CATALOG_METADATA_INVALID,
+                f"The catalog-metadata file '{key_text}' for job {job_id} is "
+                f"not valid JSON: {exc}. {_NEW_JOB_HINT}",
+            ) from exc
+
+        if (
+            not isinstance(metadata, dict)
+            or not (
+                metadata.get("composite_image_group_id")
+                or metadata.get("image_group_id")
+            )
+            or not isinstance(metadata.get("role_images", {}), dict)
+        ):
+            raise ImageRegistrationError(
+                CATALOG_METADATA_INVALID,
+                f"The catalog-metadata file '{key_text}' for job {job_id} does "
+                f"not contain a valid image_group_id and role_images mapping. "
+                f"{_NEW_JOB_HINT}",
+            )
+        return metadata
 
     # ------------------------------------------------------------------
     # S1-6: Deploy completion — ImageGroup status transitions
@@ -1011,8 +1199,8 @@ class ResultPoller:
     def _on_restart_completed(self, result: PlaybookResult) -> None:
         """Store node_results.json and failed_nodes.json as artifacts on restart completion.
 
-        Both files are created by the playbook (Play 6 in set_pxe_boot.yml).
-        This method reads them from NFS and stores them in ArtifactStore
+        Both files are created by the BuildStream post-PXE playbook. This
+        method reads them from NFS and stores them in ArtifactStore
         so they can be downloaded via the API by GitLab CI.
 
         Args:
@@ -1027,8 +1215,9 @@ class ResultPoller:
             )
             return
 
-        node_results_path = result.node_results_file_path
-        if not node_results_path:
+        # The result file only signals that node results exist; the path it
+        # reports is not trusted and is never opened.
+        if not result.node_results_file_path:
             log_secure_info(
                 "info",
                 f"No node_results_file_path in restart result for "
@@ -1038,12 +1227,12 @@ class ResultPoller:
             return
 
         try:
-            path = Path(node_results_path)
-            if not path.exists():
+            path = _job_artifact_file(str(result.job_id), "node_results.json")
+            if path is None:
                 log_secure_info(
                     "warning",
-                    f"node_results file not found at {node_results_path} "
-                    f"for job={result.job_id}",
+                    f"node_results.json missing or not acceptable in the "
+                    f"artifacts directory for job={result.job_id}",
                     job_id=str(result.job_id),
                 )
                 return
@@ -1051,7 +1240,7 @@ class ResultPoller:
             raw = path.read_bytes()
 
             # Validate JSON
-            json.loads(raw)
+            json.JSONDecoder().decode(raw.decode("utf-8"))
 
             # Store node_results.json in artifact store
             hint = StoreHint(
@@ -1076,6 +1265,7 @@ class ResultPoller:
                 content_type="application/json",
             )
             self._artifact_metadata_repo.save(record)
+            self._commit_artifact_metadata()
 
             log_secure_info(
                 "info",
@@ -1085,12 +1275,14 @@ class ResultPoller:
             )
 
             # Store failed_nodes.json (written by the playbook alongside node_results.json)
-            failed_nodes_file = path.parent / "failed_nodes.json"
-            if failed_nodes_file.exists():
+            failed_nodes_file = _job_artifact_file(
+                str(result.job_id), "failed_nodes.json"
+            )
+            if failed_nodes_file is not None:
                 failed_raw = failed_nodes_file.read_bytes()
 
                 # Validate JSON
-                json.loads(failed_raw)
+                failed_data = json.JSONDecoder().decode(failed_raw.decode("utf-8"))
 
                 failed_hint = StoreHint(
                     namespace=str(result.job_id),
@@ -1114,11 +1306,8 @@ class ResultPoller:
                     content_type="application/json",
                 )
                 self._artifact_metadata_repo.save(failed_record)
+                self._commit_artifact_metadata()
 
-                if hasattr(self._artifact_metadata_repo, 'session'):
-                    self._artifact_metadata_repo.session.commit()
-
-                failed_data = json.loads(failed_raw)
                 log_secure_info(
                     "info",
                     f"Stored failed_nodes.json as artifact for job={result.job_id} "
@@ -1149,6 +1338,28 @@ class ResultPoller:
                 job_id=str(result.job_id),
                 exc_info=True,
             )
+            self._rollback_artifact_metadata()
+
+    def _commit_artifact_metadata(self) -> None:
+        """Commit the artifact metadata session.
+
+        ``save()`` only adds the row, and this session is shared with the
+        image-group repositories. Without a commit the rows stay pending until
+        an unrelated result commits the session, so the artifact API answers
+        404 for artifacts the poller has already stored.
+        """
+        session = getattr(self._artifact_metadata_repo, "session", None)
+        if session is not None:
+            session.commit()
+
+    def _rollback_artifact_metadata(self) -> None:
+        """Best-effort rollback so a failed commit does not poison the shared session."""
+        session = getattr(self._artifact_metadata_repo, "session", None)
+        if session is not None:
+            try:
+                session.rollback()
+            except Exception:  # pylint: disable=broad-except
+                pass  # nosec B110 - best-effort rollback
 
     def _build_validate_result_detail(
         self, result: PlaybookResult, outcome: str

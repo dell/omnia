@@ -42,7 +42,7 @@ import re
 import subprocess
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread, Event
 from typing import Optional, Dict, Any
@@ -95,12 +95,30 @@ RELOAD_LOGGED_SECRET_KEYS = (
 
 # Audit event type for cadence sync completion
 CADENCE_SYNC_COMPLETED = "CADENCE_SYNC_COMPLETED"
+CADENCE_STATE_SCHEMA_VERSION = 1
+CADENCE_STATE_FILENAME = "cadence_schedule.json"
+
+
+def _validate_project_name(project_name):
+    """Validate OMNIA_PROJECT_NAME is a single safe path segment."""
+    if (
+        not project_name
+        or project_name in ('.', '..')
+        or os.path.basename(project_name) != project_name
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
+    ):
+        raise ValueError(
+            "OMNIA_PROJECT_NAME is not a valid single-segment name"
+        )
+    return project_name
 
 
 def _default_build_stream_config_path() -> Path:
     """Return the project-scoped BuildStream configuration path."""
     omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    project_name = _validate_project_name(
+        os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    )
     return (
         omnia_data_path
         / "build_stream"
@@ -119,7 +137,9 @@ def _cadence_log_dir(job_id: str) -> Path:
 def _repo_resync_status_path() -> Path:
     """Return the project-scoped Repo Manager resync result path."""
     omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    project_name = _validate_project_name(
+        os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    )
     return (
         omnia_data_path
         / "repo_manager"
@@ -524,38 +544,6 @@ def is_pipeline_busy(processing_dir: Path) -> bool:
         return True  # Assume busy on error (safe default)
 
 
-def bump_catalog_version(catalog_path: Path) -> Optional[str]:
-    """Bump the version field in the cadence catalog file.
-
-    Increments the minor version (e.g., "1.0" -> "1.1", "1.5" -> "1.6").
-
-    Args:
-        catalog_path: Path to the cadence_catalog_rhel.json file.
-
-    Returns:
-        The new version string, or None on failure.
-    """
-    try:
-        original_content = catalog_path.read_text(encoding="utf-8")
-        new_version, catalog_content = _render_bumped_catalog(original_content)
-        if not _write_text_atomically(catalog_path, catalog_content):
-            return None
-
-        log_secure_info(
-            "info",
-            f"Cadence catalog version bumped to {new_version}"
-        )
-        return new_version
-
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
-        log_secure_info(
-            "error",
-            "Failed to bump cadence catalog version",
-            exc_info=True,
-        )
-        return None
-
-
 def _render_bumped_catalog(catalog_content: str) -> tuple[str, str]:
     """Return the next catalog version and serialized content without writing."""
     catalog_data = json.loads(catalog_content)
@@ -601,7 +589,7 @@ def _write_text_atomically(target_path: Path, content: str) -> bool:
     except OSError:
         log_secure_info(
             "error",
-            f"Failed to atomically replace catalog: {target_path}",
+            f"Failed to atomically replace file: {target_path}",
             exc_info=True,
         )
         if temporary_path is not None:
@@ -610,10 +598,83 @@ def _write_text_atomically(target_path: Path, content: str) -> bool:
             except OSError:
                 log_secure_info(
                     "warning",
-                    "Failed to remove temporary cadence catalog",
+                    "Failed to remove temporary cadence file",
                     exc_info=True,
                 )
         return False
+
+
+def _utc_now() -> datetime:
+    """Return the current timezone-aware UTC timestamp."""
+    return datetime.now(timezone.utc)
+
+
+def _format_utc_timestamp(value: datetime) -> str:
+    """Serialize a timezone-aware timestamp in UTC."""
+    if value.tzinfo is None:
+        raise ValueError("Cadence timestamps must be timezone-aware")
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _parse_utc_timestamp(value: Any, field: str) -> datetime:
+    """Parse one persisted UTC timestamp."""
+    if not isinstance(value, str):
+        raise ValueError(f"Cadence state {field} must be a string")
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError(f"Cadence state {field} must include a timezone")
+    return parsed.astimezone(timezone.utc)
+
+
+def load_cadence_schedule(state_path: Path) -> Optional[Dict[str, Any]]:
+    """Load and validate persisted cadence schedule state."""
+    if not state_path.exists():
+        return None
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        if not isinstance(state, dict):
+            raise ValueError("Cadence state must be a JSON object")
+        if state.get("schema_version") != CADENCE_STATE_SCHEMA_VERSION:
+            raise ValueError("Unsupported cadence state schema version")
+        schedule = {
+            "schema_version": CADENCE_STATE_SCHEMA_VERSION,
+            "next_run_at": _parse_utc_timestamp(
+                state.get("next_run_at"), "next_run_at"
+            ),
+            "last_attempt_at": None,
+            "last_successful_at": None,
+            "last_outcome": state.get("last_outcome"),
+        }
+        for field in ("last_attempt_at", "last_successful_at"):
+            if state.get(field) is not None:
+                schedule[field] = _parse_utc_timestamp(state[field], field)
+        if schedule["last_outcome"] not in (None, "success", "failed"):
+            raise ValueError("Invalid cadence state last_outcome")
+        return schedule
+    except (OSError, ValueError, TypeError, OverflowError):
+        log_secure_info(
+            "warning",
+            f"Invalid cadence schedule state ignored: {state_path}",
+            exc_info=True,
+        )
+        return None
+
+
+def save_cadence_schedule(state_path: Path, state: Dict[str, Any]) -> bool:
+    """Persist cadence schedule state atomically."""
+    serialized = {
+        "schema_version": CADENCE_STATE_SCHEMA_VERSION,
+        "last_attempt_at": None,
+        "last_successful_at": None,
+        "next_run_at": _format_utc_timestamp(state["next_run_at"]),
+        "last_outcome": state.get("last_outcome"),
+    }
+    for field in ("last_attempt_at", "last_successful_at"):
+        if state.get(field) is not None:
+            serialized[field] = _format_utc_timestamp(state[field])
+    return _write_text_atomically(
+        state_path, json.dumps(serialized, indent=2) + "\n"
+    )
 
 
 def _validate_catalog_document(document: Any) -> bool:
@@ -773,57 +834,6 @@ def update_catalog_via_gitlab_api(
         return False
 
 
-def copy_cadence_catalog_to_default_path(
-    cadence_catalog_path: Path,
-    catalog_path: Path,
-) -> bool:
-    """Copy the cadence catalog to the configured CATALOG_FILE_PATH.
-
-    The repo_sync.yml playbook uses CATALOG_FILE_PATH to determine which
-    packages to sync. This function ensures the cadence catalog is available
-    at that path before triggering the sync.
-
-    Args:
-        cadence_catalog_path: Path to the cadence_catalog_rhel.json file.
-        catalog_path: Path selected by the CATALOG_FILE_PATH environment variable.
-
-    Returns:
-        True if copy succeeded, False otherwise.
-    """
-    try:
-        if not cadence_catalog_path.exists():
-            log_secure_info(
-                "error",
-                f"Cadence catalog not found: {cadence_catalog_path}"
-            )
-            return False
-
-        # Ensure target directory exists
-        catalog_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Copy cadence catalog to the configured path
-        with open(cadence_catalog_path, "r", encoding="utf-8") as src:
-            catalog_data = json.load(src)
-
-        with open(catalog_path, "w", encoding="utf-8") as dst:
-            json.dump(catalog_data, dst, indent=2)
-            dst.write("\n")
-
-        log_secure_info(
-            "info",
-            "Cadence catalog copied to CATALOG_FILE_PATH"
-        )
-        return True
-
-    except (OSError, json.JSONDecodeError):
-        log_secure_info(
-            "error",
-            "Failed to copy cadence catalog to CATALOG_FILE_PATH",
-            exc_info=True,
-        )
-        return False
-
-
 def submit_repo_sync_request(
     requests_dir: Path,
     job_id: str,
@@ -855,7 +865,8 @@ def submit_repo_sync_request(
     request_path = requests_dir / request_filename
 
     try:
-        with open(request_path, "w", encoding="utf-8") as fh:
+        fd = os.open(request_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(request_data, fh, indent=2)
 
         log_secure_info(
@@ -1087,6 +1098,14 @@ class CadenceTimerThread(Thread):
         self.gitlab_branch = "main"
         self.gitlab_token = ""
         self.gitlab_project_id = ""
+        omnia_data_path = os.getenv("OMNIA_DATA_PATH")
+        state_root = (
+            Path(omnia_data_path) / "build_stream_root"
+            if omnia_data_path
+            else requests_dir.parent
+        )
+        self.state_path = state_root / "cadence" / CADENCE_STATE_FILENAME
+        self.schedule: Dict[str, Any] = {}
         self._apply_config(config)
 
     def _apply_config(self, config: Dict[str, Any]) -> None:
@@ -1215,6 +1234,49 @@ class CadenceTimerThread(Thread):
             Path(catalog_file_path),
         )
 
+    def _load_or_initialize_schedule(self) -> None:
+        """Resume a persisted schedule or create the first UTC deadline."""
+        schedule = load_cadence_schedule(self.state_path)
+        if schedule is None:
+            now = _utc_now()
+            schedule = {
+                "schema_version": CADENCE_STATE_SCHEMA_VERSION,
+                "last_attempt_at": None,
+                "last_successful_at": None,
+                "next_run_at": now + timedelta(seconds=self.interval_seconds),
+                "last_outcome": None,
+            }
+            save_cadence_schedule(self.state_path, schedule)
+            log_secure_info(
+                "info",
+                "Created cadence schedule; next cycle at "
+                f"{_format_utc_timestamp(schedule['next_run_at'])}",
+            )
+        else:
+            log_secure_info(
+                "info",
+                "Resumed cadence schedule; next cycle at "
+                f"{_format_utc_timestamp(schedule['next_run_at'])}",
+            )
+        self.schedule = schedule
+
+    def _record_cycle(self, succeeded: bool) -> None:
+        """Record one attempt and schedule the next interval."""
+        now = _utc_now()
+        self.schedule["last_attempt_at"] = now
+        self.schedule["last_outcome"] = "success" if succeeded else "failed"
+        if succeeded:
+            self.schedule["last_successful_at"] = now
+        self.schedule["next_run_at"] = now + timedelta(
+            seconds=self.interval_seconds
+        )
+        save_cadence_schedule(self.state_path, self.schedule)
+        log_secure_info(
+            "info",
+            "Next cadence cycle scheduled for "
+            f"{_format_utc_timestamp(self.schedule['next_run_at'])}",
+        )
+
     def run(self) -> None:
         """Main cadence polling loop.
 
@@ -1228,14 +1290,17 @@ class CadenceTimerThread(Thread):
             f"catalog={self.catalog_filename}"
         )
 
+        self._load_or_initialize_schedule()
         while not self.stop_event.is_set():
             # Wait for interval OR manual trigger, whichever comes first.
             # interval_seconds is re-read on every iteration, so a value
             # reloaded during the previous cycle takes effect here without a
             # service restart. SIGUSR1 applies a new interval immediately.
-            triggered = self.trigger_event.wait(
-                timeout=self.interval_seconds
+            remaining = max(
+                0.0,
+                (self.schedule["next_run_at"] - _utc_now()).total_seconds(),
             )
+            triggered = self.trigger_event.wait(timeout=remaining)
             if self.stop_event.is_set():
                 log_secure_info(
                     "info",
@@ -1250,7 +1315,8 @@ class CadenceTimerThread(Thread):
                     "executing cycle immediately"
                 )
 
-            self._execute_cadence_cycle()
+            succeeded = self._execute_cadence_cycle()
+            self._record_cycle(succeeded)
 
         log_secure_info("info", "CadenceTimerThread stopped")
 
@@ -1271,8 +1337,8 @@ class CadenceTimerThread(Thread):
         )
         self.trigger_event.set()
 
-    def _execute_cadence_cycle(self) -> None:
-        """Execute one cadence polling cycle."""
+    def _execute_cadence_cycle(self) -> bool:
+        """Execute one cadence polling cycle and report complete success."""
         log_secure_info("info", "Cadence polling cycle started")
 
         # Step 1: Reload operator settings without restarting the service.
@@ -1282,7 +1348,7 @@ class CadenceTimerThread(Thread):
                 "info",
                 "Cadence polling is disabled; cycle skipped and timer remains active",
             )
-            return
+            return False
 
         # Step 2: Check if pipeline is busy (AC-009)
         if is_pipeline_busy(self.processing_dir):
@@ -1290,7 +1356,7 @@ class CadenceTimerThread(Thread):
                 "info",
                 "Cadence sync suppressed — build pipeline in progress"
             )
-            return
+            return False
 
         # Step 3: Fetch the operator-controlled catalog from GitLab. Fetch
         # failure is non-blocking and leaves the existing local catalog intact.
@@ -1299,7 +1365,7 @@ class CadenceTimerThread(Thread):
         # Step 4-5: Sync packages via repo_manager
         sync_result = self._sync_packages()
         if sync_result is None:
-            return
+            return False
 
         job_id = str(sync_result["job_id"])
         updates_detected = bool(sync_result["updates_detected"])
@@ -1316,7 +1382,7 @@ class CadenceTimerThread(Thread):
 
         # Always bump and trigger after successful exact-mirror reconciliation.
         # Package add/remove counts cannot detect version-only RPM updates.
-        self._bump_and_push(job_id)
+        return self._bump_and_push(job_id)
 
     def _sync_packages(self) -> Optional[Dict[str, Any]]:
         """Submit repo sync and wait for completion.

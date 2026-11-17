@@ -22,6 +22,10 @@ pattern as create-local-repository and other stages:
 - PENDING -> proceed normally
 """
 
+# The use case's private stage validator is the unit under test, and the
+# mock_helper fixture patches JobStateHelper even where a test does not read it.
+# pylint: disable=protected-access,unused-argument
+
 import uuid
 from unittest.mock import MagicMock, patch
 

@@ -45,7 +45,7 @@ Highest to lowest precedence:
 Any of the above may be a raw NFS export, e.g.
 `nfs:/mnt/backup_dir`. This is detected
 automatically and mounted at a fixed local mountpoint
-(`/tmp/omnia_backup_oim_logs_nfs`) before the archive is written.
+(`/run/omnia/mnt/omnia_backup_oim_logs_nfs`) before the archive is written.
 
 ## Dependencies
 

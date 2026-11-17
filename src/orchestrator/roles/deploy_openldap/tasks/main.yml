@@ -25,52 +25,124 @@
       register: auth_container_check
       failed_when: false
 
-    - name: Deploy OpenLDAP when container is not running
-      when: >-
-        (auth_container_check.containers | default([]) | length == 0) or
-        (auth_container_check.containers[0].State.Status | default('') != 'running')
-      block:
-        - name: Load OpenLDAP credentials
-          ansible.builtin.include_role:
-            name: orchestrator_common
-            tasks_from: decrypt_include_encrypt.yml
-          vars:
-            credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_credentials.yml"
-            vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.orchestrator_credentials_key"
+    - name: Load OpenLDAP credentials
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: decrypt_include_encrypt.yml
+      vars:
+        credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_credentials.yml"
+        vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.orchestrator_credentials_key"
 
-        - name: Validate OpenLDAP credentials are available
+    - name: Validate OpenLDAP credentials are available
+      ansible.builtin.assert:
+        that:
+          - openldap_db_username is defined
+          - openldap_db_username | length > 0
+          - openldap_db_password is defined
+          - openldap_db_password | length > 0
+        fail_msg: "{{ credentials_missing_msg }}"
+        quiet: true
+
+    - name: Set OpenLDAP configuration facts
+      ansible.builtin.set_fact:
+        ldap_search_base: "{{ (hostvars['localhost']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+        ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+        ldap_connection_type: "{{ hostvars['localhost']['ldap_connection_type'] | default('TLS') }}"
+        domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+
+    - name: Create the group that grants slapd read access to its configuration and key
+      ansible.builtin.group:
+        name: "{{ auth_ldap_group }}"
+        gid: "{{ auth_ldap_gid }}"
+        system: true
+        state: present
+
+    - name: Create OpenLDAP directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ auth_base_dir }}", mode: "0755" }
+        - { path: "{{ auth_config_dir }}", mode: "0700" }
+        - { path: "{{ auth_certs_dir }}", mode: "0750", group: "{{ auth_ldap_group }}" }
+        - { path: "{{ auth_data_dir }}", mode: "0700", owner: "{{ auth_ldap_uid }}", group: "{{ auth_ldap_gid }}" }
+        - { path: "{{ auth_init_dir }}", mode: "0700" }
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Check deployed slapd.conf
+      ansible.builtin.stat:
+        path: "{{ auth_config_dir }}/slapd.conf"
+      register: _slapd_conf_stat
+
+    - name: Detect an external LDAP proxy slapd.conf
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -Eq
+          - '^[[:space:]]*database[[:space:]]+(meta|ldap)([[:space:]]|$)'
+          - "{{ auth_config_dir }}/slapd.conf"
+      register: _slapd_proxy_check
+      changed_when: false
+      failed_when: _slapd_proxy_check.rc > 1
+      check_mode: false
+      when: _slapd_conf_stat.stat.exists
+
+    - name: Record whether slapd.conf is managed outside this role
+      ansible.builtin.set_fact:
+        omnia_auth_external_proxy: >-
+          {{ (not openldap_force_reconcile | bool)
+             and _slapd_conf_stat.stat.exists
+             and (_slapd_proxy_check.rc | default(1)) == 0 }}
+
+    - name: Report that the external LDAP proxy slapd.conf is kept
+      ansible.builtin.debug:
+        msg: "{{ slapd_conf_external_proxy_msg }}"
+      when: omnia_auth_external_proxy | bool
+
+    - name: Enforce slapd.conf ownership so the unprivileged slapd can read it
+      ansible.builtin.file:
+        path: "{{ auth_config_dir }}/slapd.conf"
+        owner: root
+        group: "{{ auth_ldap_group }}"
+        mode: "0640"
+      when: _slapd_conf_stat.stat.exists
+
+    - name: Verify the configured LDAP TLS CA certificate
+      when: ldap_tls_ca_file | length > 0
+      block:
+        - name: Check the CA certificate file
+          ansible.builtin.stat:
+            path: "{{ auth_certs_dir }}/{{ ldap_tls_ca_file }}"
+          register: _ldap_tls_ca_stat
+
+        - name: Assert the CA certificate file exists
           ansible.builtin.assert:
-            that:
-              - openldap_db_username is defined
-              - openldap_db_username | length > 0
-              - openldap_db_password is defined
-              - openldap_db_password | length > 0
-            fail_msg: "{{ credentials_missing_msg }}"
+            that: _ldap_tls_ca_stat.stat.exists
+            fail_msg: "{{ ldap_tls_ca_missing_msg }}"
             quiet: true
 
-        - name: Set OpenLDAP configuration facts
-          ansible.builtin.set_fact:
-            ldap_search_base: "{{ (hostvars['localhost']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
-            ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-            ldap_connection_type: "{{ hostvars['localhost']['ldap_connection_type'] | default('TLS') }}"
-            domain_name: "{{ hostvars['localhost']['domain_name'] }}"
-
-        - name: Create OpenLDAP directories
+        - name: Set CA certificate file permissions
           ansible.builtin.file:
-            path: "{{ item.path }}"
-            state: directory
+            path: "{{ auth_certs_dir }}/{{ ldap_tls_ca_file }}"
             owner: root
             group: root
-            mode: "{{ item.mode }}"
-          loop:
-            - { path: "{{ auth_base_dir }}", mode: "0755" }
-            - { path: "{{ auth_config_dir }}", mode: "0700" }
-            - { path: "{{ auth_certs_dir }}", mode: "0700" }
-            - { path: "{{ auth_data_dir }}", mode: "0700" }
-            - { path: "{{ auth_init_dir }}", mode: "0700" }
-          loop_control:
-            label: "{{ item.path }}"
+            mode: "0644"
 
+    - name: Decide whether omnia_auth must be deployed or redeployed
+      ansible.builtin.set_fact:
+        omnia_auth_needs_deploy: >-
+          {{ (auth_container_check.containers | default([]) | length == 0)
+             or (auth_container_check.containers[0].State.Status | default('') != 'running')
+             or (auth_container_check.containers[0].ImageName | default('')
+                 != (omnia_auth_image ~ ':' ~ omnia_auth_tag)) }}
+
+    - name: Deploy OpenLDAP when container is not running or runs a different image
+      when: omnia_auth_needs_deploy | bool
+      block:
         - name: Generate TLS certificates
           ansible.builtin.include_tasks: generate_tls_certs.yml
 
@@ -79,14 +151,29 @@
             src: slapd.conf.j2
             dest: "{{ auth_config_dir }}/slapd.conf"
             owner: root
-            group: root
-            mode: "0600"
+            group: "{{ auth_ldap_group }}"
+            mode: "0640"
           no_log: true
+          when: not (omnia_auth_external_proxy | bool)
 
         - name: Template bootstrap.ldif
           ansible.builtin.template:
             src: bootstrap.ldif.j2
             dest: "{{ auth_init_dir }}/bootstrap.ldif"
+            owner: root
+            group: root
+            mode: "0600"
+
+        - name: Read bootstrap.ldif checksum
+          ansible.builtin.stat:
+            path: "{{ auth_init_dir }}/bootstrap.ldif"
+            checksum_algorithm: sha256
+          register: _bootstrap_ldif_stat
+
+        - name: Generate bootstrap.ldif integrity checksum
+          ansible.builtin.copy:
+            content: "{{ _bootstrap_ldif_stat.stat.checksum }}  {{ auth_init_dir }}/bootstrap.ldif\n"
+            dest: "{{ auth_init_dir }}/bootstrap.ldif.sha256"
             owner: root
             group: root
             mode: "0600"
@@ -100,6 +187,12 @@
           until: pull_result.rc == 0
           changed_when: "'Pulling' in pull_result.stdout or 'Copying' in pull_result.stderr"
           failed_when: pull_result.rc != 0
+
+        - name: Stop omnia_auth service before replacing the container
+          ansible.builtin.systemd:
+            name: omnia_auth
+            state: stopped
+          failed_when: false
 
         - name: Stop existing omnia_auth container if present
           containers.podman.podman_container:
@@ -140,12 +233,15 @@
           ansible.builtin.debug:
             msg: "OpenLDAP (omnia_auth) container deployed successfully on {{ ldap_server_ip }}"
 
-    - name: Display skip message when container is already running
-      ansible.builtin.debug:
-        msg: "OpenLDAP (omnia_auth) container is already running. Skipping deployment."
-      when: >-
-        (auth_container_check.containers | default([]) | length > 0) and
-        (auth_container_check.containers[0].State.Status | default('') == 'running')
+    - name: Verify TLS certificate when container is already running the desired image
+      ansible.builtin.include_tasks: generate_tls_certs.yml
+      when: not (omnia_auth_needs_deploy | bool)
+
+    - name: Reconcile slapd.conf when container is already running the desired image
+      ansible.builtin.include_tasks: reconcile_slapd_conf.yml
+      when:
+        - not (omnia_auth_needs_deploy | bool)
+        - not (omnia_auth_external_proxy | bool)
 
   rescue:
     - name: OpenLDAP deployment failed

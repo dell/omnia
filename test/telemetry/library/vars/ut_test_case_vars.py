@@ -117,6 +117,47 @@ UT_TEST_CASE_IDS = {
             56: "test_powerscale_log_query_matches_only_marker",
         },
     ),
+    **_module_cases(
+        "test_project_name_validation.py",
+        {
+            57: "test_validate_project_name_accepts_valid_names",
+            58: "test_validate_project_name_rejects_invalid_names",
+            59: "test_vault_path_rejects_traversal",
+            60: "test_vault_path_accepts_valid_project",
+            61: "test_log_path_symlink_containment",
+        },
+    ),
+    **_module_cases(
+        "test_input_validation_fail_closed.py",
+        {
+            62: "test_unknown_tag_alone_is_rejected",
+            63: "test_known_tag_with_unknown_tag_is_rejected",
+            64: "test_empty_tag_list_is_rejected",
+            65: "test_valid_tag_reaches_file_validation",
+            66: "test_supported_tags_cover_public_and_play_tags",
+        },
+    ),
+    **_module_cases(
+        "test_log_permissions.py",
+        {
+            67: "test_telemetry_log_dir_and_files_are_restricted",
+        },
+    ),
+    **_module_cases(
+        "test_idrac_bmc_inventory.py",
+        {
+            68: "test_empty_pod_with_reported_unsupported_bmc_warns",
+            69: "test_missing_bmc_not_in_report_fails",
+            70: "test_deleted_bmc_left_in_mysql_fails",
+            71: "test_bmc_registered_in_wrong_pod_fails",
+            72: "test_nothing_registered_fails_even_when_all_reported_unsupported",
+            73: "test_duplicates_query_failures_and_missing_pods_fail",
+            74: "test_csv_parser_matches_deploy_parser",
+            75: "test_lifecycle_candidate_never_changes_pod_layout",
+            76: "test_node_deletion_only_removes_mysql_rows",
+            77: "test_nft_bmc_ip_config",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

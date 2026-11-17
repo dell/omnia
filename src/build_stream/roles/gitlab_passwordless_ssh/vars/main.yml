@@ -12,8 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Script path
-check_gitlab_port_script: "/tmp/check_gitlab_port.sh"
+# Script path is now generated securely at runtime via ansible.builtin.tempfile
+# in prereq_checks.yml (CWE-377 remediation). The registered variable
+# _secure_port_check_dir.path replaces the old fixed /tmp path.
+
+# Usage: pin_host_key.yml
+gitlab_known_hosts_file: "{{ lookup('env', 'HOME') }}/.ssh/known_hosts"
+gitlab_host_key_mismatch_msg: >
+  The SSH host key of {{ gitlab_host }} does not match gitlab_host_key_fingerprint.
+  Do not continue: verify the GitLab host identity out of band.
 
 # Port validation error message
 gitlab_https_port_in_use_msg: >
@@ -67,3 +74,16 @@ ssh_connection_failure_msg: 'Passwordless SSH to {{ gitlab_host }} failed. Verif
 gitlab_host_invalid_format_msg: >-
   gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
   Value must be a valid hostname containing only alphanumeric characters, dots, and hyphens.
+gitlab_ssh_retries: 6
+gitlab_ssh_retry_delay: 10
+gitlab_key_bootstrap_no_password_msg: >-
+  The key {{ ssh_key_path }} is not authorized on {{ gitlab_host }} and gitlab_ssh_password is
+  empty. Run the BuildStream credential utility to populate gitlab_ssh_password, or authorize
+  the key yourself: ssh-copy-id -i {{ ssh_key_path }}.pub root@{{ gitlab_host }}
+gitlab_key_install_fail_msg: >-
+  Could not authorize {{ ssh_key_path }} on {{ gitlab_host }} with the GitLab SSH password
+  (ssh-copy-id rc={{ _gitlab_key_install.rc | default('unknown') }}). Check gitlab_ssh_password
+  and that password login is enabled for {{ gitlab_ansible_user | default('root') }} on the
+  GitLab host. The output of the command is hidden because it handles the password: run
+  ssh-copy-id -i {{ ssh_key_path }}.pub {{ gitlab_ansible_user | default('root') }}@{{ gitlab_host }}
+  by hand to see it.

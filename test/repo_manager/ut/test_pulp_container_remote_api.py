@@ -10,7 +10,9 @@ from unittest.mock import Mock, patch
 
 import source_loader  # noqa: F401  # pylint: disable=unused-import
 
-from ansible.module_utils.repo_manager import pulp_container_remote_api
+from ansible.module_utils.repo_manager import (
+    pulp_container_remote_api, rest_client,
+)
 
 
 class AuthenticatedContainerRemoteTests(unittest.TestCase):
@@ -94,6 +96,60 @@ class AuthenticatedContainerRemoteTests(unittest.TestCase):
 
         self.assertFalse(self._update())
         self.client.get.assert_not_called()
+
+
+class RestClientCompatibilityTests(unittest.TestCase):
+    """Keep the RestClient fallback contract stable for changed handlers."""
+
+    class _FailingConnection:
+        """Connection stub that raises a configured error on request."""
+
+        def __init__(self, error):
+            self._error = error
+            self.closed = False
+
+        def request(self, *_args, **_kwargs):
+            raise self._error
+
+        def close(self):
+            self.closed = True
+
+    @staticmethod
+    def _client():
+        return rest_client.RestClient(
+            "https://pulp.example", "user", "secret", ca_bundle="/tmp/ca.pem"
+        )
+
+    def test_request_json_returns_none_for_explicit_and_fallback_errors(self):
+        """Explicit and fallback handlers both preserve the ``None`` contract."""
+        for error in (OSError("down"), TypeError("boom")):
+            with self.subTest(error=type(error).__name__):
+                client = self._client()
+                conn = self._FailingConnection(error)
+                client.get_connection = Mock(return_value=conn)
+
+                result = client.request_json(
+                    "GET",
+                    "/pulp/api/v3/tasks/12345678-1234-1234-1234-123456789abc/",
+                )
+
+                self.assertIsNone(result)
+                self.assertTrue(conn.closed)
+
+    def test_raw_get_returns_none_for_explicit_and_fallback_errors(self):
+        """raw_get keeps returning ``None`` for both catch branches."""
+        for error in (OSError("down"), TypeError("boom")):
+            with self.subTest(error=type(error).__name__):
+                client = self._client()
+                conn = self._FailingConnection(error)
+                client.get_connection = Mock(return_value=conn)
+
+                result = client.raw_get(
+                    "/pulp/api/v3/tasks/12345678-1234-1234-1234-123456789abc/"
+                )
+
+                self.assertIsNone(result)
+                self.assertTrue(conn.closed)
 
 
 if __name__ == "__main__":

@@ -30,10 +30,10 @@ clone_path: "/root/omnia"
 
 # The dataset name selects the local folder under test/discovery/datasets/.
 # When empty, uses src/discovery/input/ directly.
-dataset: "data_set_01"
+dataset: ""
 
 # Sync discovery input files (discovery_config.yml, network_spec.yml)
-sync_discovery_input: true
+sync_discovery_input: false
 
 # Report output path (no spaces allowed)
 # Falls back to OMNIA_DATA_PATH/reports if not set

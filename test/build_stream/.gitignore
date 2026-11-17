@@ -11,3 +11,4 @@ test_creds.yml.bak
 .run_validation_rc
 *.egg-info/
 datasets/*/output/
+test_config.yml.bak

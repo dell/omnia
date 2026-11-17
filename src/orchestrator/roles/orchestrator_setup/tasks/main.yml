@@ -50,6 +50,13 @@
     domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
     cacheable: true
 
+- name: Validate SYSTEM_DOMAIN_NAME format
+  ansible.builtin.assert:
+    that:
+      - domain_name is match(domain_name_regex)
+    fail_msg: "{{ domain_name_invalid_fail_msg }}"
+    quiet: true
+
 - name: Resolve component data paths
   ansible.builtin.set_fact:
     orchestrator_data_path: >-
@@ -243,6 +250,14 @@
     _deployed_service_k8s_cluster: >-
       {{ _deployed_service_k8s_clusters | first | default({}) }}
 
+# Kubernetes HA settings (enable_k8s_ha, virtual_ip_address) live on the
+# deployed service_k8s_cluster entry. Publish it for kube_vip consumers, which
+# select by deployment flag rather than list position.
+- name: Publish deployed service Kubernetes cluster
+  ansible.builtin.set_fact:
+    service_k8s_deployed_cluster: "{{ _deployed_service_k8s_cluster }}"
+    cacheable: true
+
 - name: Validate PowerScale CSI enablement
   ansible.builtin.assert:
     that:
@@ -267,7 +282,7 @@
     language: >-
       {{ _orch_config.language | default('') }}
     dns_enabled: >-
-      {{ _orch_config.dns_enabled | default(false) | bool }}
+      {{ _orch_config.dns_enabled | default(true) | bool }}
     nvidia_driver_version_x86_64: >-
       {{ _configured_slurm_cluster.nvidia_driver_version_x86_64
          | default('580.159.04', true) }}
@@ -286,6 +301,18 @@
     enable_pxe_boot: >-
       {{ _orch_config.enable_pxe_boot | default(true) | bool }}
     cacheable: true
+
+# Step 6b: Harden PXE mapping file permissions
+#   The file may have been copied from discovery output with default 0644
+#   permissions.  Strip group-write and all "other" access so the L2
+#   validator (INSECURE_MODE_BITS) does not reject it.
+- name: Harden PXE mapping file permissions (0640)
+  ansible.builtin.file:
+    path: "{{ pxe_mapping_file_path }}"
+    mode: "0640"
+  when:
+    - pxe_mapping_file_path | default('') | length > 0
+    - pxe_mapping_file_path is file
 
 # Step 7: Load repo_manager output (repo_status.yml)
 - name: Determine whether repo_status.yml is required for this flow
@@ -460,24 +487,24 @@
   block:
     - name: Extract base OS group from catalog
       ansible.builtin.set_fact:
-        _base_os_group: >-
+        _baseos_group: >-
           {{ catalog_data.catalog.groups | dict2items
-             | selectattr('value.type', 'equalto', 'base_os')
+             | selectattr('value.type', 'equalto', 'baseos')
              | map(attribute='value') | first | default({}) }}
 
     - name: Validate catalog base OS metadata
       ansible.builtin.assert:
         that:
-          - _base_os_group | length > 0
-          - _base_os_group.os | default('') | length > 0
-          - _base_os_group.os_version | default('') | length > 0
+          - _baseos_group | length > 0
+          - _baseos_group.os | default('') | length > 0
+          - _baseos_group.os_version | default('') | length > 0
         fail_msg: "{{ catalog_invalid_fail_msg }}"
         quiet: true
 
     - name: Set cluster OS metadata from catalog
       ansible.builtin.set_fact:
-        cluster_os_type: "{{ _base_os_group.os }}"
-        cluster_os_version: "{{ _base_os_group.os_version }}"
+        cluster_os_type: "{{ _baseos_group.os }}"
+        cluster_os_version: "{{ _baseos_group.os_version }}"
         cacheable: true
 
     - name: Derive feature flags from catalog functionallayers and groups
@@ -582,7 +609,7 @@
       service_k8s_support: {{ service_k8s_support | default(false) }}
       enable_powerscale_csi: {{ enable_powerscale_csi | default(false) }}
       openldap_support: {{ openldap_support | default(false) }}
-      dns_enabled: {{ dns_enabled | default(false) }}
+      dns_enabled: {{ dns_enabled | default(true) }}
       boot_kernel_params: {{ boot_kernel_params | default('') | to_json }}
       cluster_os_type: "{{ cluster_os_type | default('') }}"
       cluster_os_version: "{{ cluster_os_version | default('') }}"

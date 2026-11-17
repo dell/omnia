@@ -1,4 +1,4 @@
-# Orchestrator -- Architecture
+# Orchestrator Architecture
 
 **Domain**: `orchestrator` | **Collection**: `omnia.orchestrator`
 

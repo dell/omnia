@@ -17,8 +17,9 @@
 # This is an independent copy for the discovery domain.
 # The orchestrator domain maintains its own separate copy.
 #
-# Only admin_network.subnet and ib_network.subnet are used by discovery
-# for IP address derivation in the PXE mapping file.
+# Discovery consumes admin_network.subnet, ib_network.ipv4_subnet
+# (or legacy ib_network.subnet), and ib_network.ipv6_subnet for
+# IP address derivation in the PXE mapping file.
 
 Networks:
   - admin_network:
@@ -34,6 +35,9 @@ Networks:
       additional_subnets: []
 
   - ib_network:
-      subnet: "192.168.0.0"
-      netmask_bits: "24"
+      ipv4_subnet: "192.168.0.0"
+      ipv4_netmask_bits: "24"
+      ipv6_subnet: "fd00:1b::"
+      ipv6_netmask_bits: "64"
+      ib_addr_mode: "dual-stack"
       dns: []

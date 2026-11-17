@@ -25,6 +25,7 @@ import re
 import yaml
 
 from ..vars.common_vars import (
+    IDRAC_NFT_BMC_IP_KEY,
     IPV4_PATTERN,
     REQUIRED_CONFIG_FIELDS,
     REQUIRED_SRC_FILES,
@@ -196,6 +197,11 @@ def validate_test_config():
             "report_name must contain only letters, numbers, "
             "underscores, hyphens"
         )
+
+    # --- iDRAC NFT delete/add BMC IP ---
+    errors.extend(_validate_ip(
+        str(config.get(IDRAC_NFT_BMC_IP_KEY) or "").strip(), IDRAC_NFT_BMC_IP_KEY,
+    ))
 
     # --- Remote mode checks ---
     if oim_ip:

@@ -16,7 +16,7 @@ galaxy_info:
   role_name: mount_config
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia orchestrator role: mount_config"
+  description: "Configure NFS client mounts on cluster nodes by functional group or host"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

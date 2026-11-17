@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# Record the GitLab host key in the OIM known_hosts file before the first
+# SSH connection, so that every later connection runs with strict host-key
+# checking. If gitlab_host_key_fingerprint (for example "SHA256:...") is set,
+# the scanned key must match it; otherwise the first contact is trusted.
+
+- name: Ensure the known_hosts directory exists
+  ansible.builtin.file:
+    path: "{{ gitlab_known_hosts_file | dirname }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  run_once: true
+
+- name: Check whether the GitLab host key is already known
+  ansible.builtin.command:
+    argv: [ssh-keygen, -F, "{{ gitlab_host }}", -f, "{{ gitlab_known_hosts_file }}"]
+  register: _gitlab_known_host
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Record the GitLab host key on first contact
+  when: _gitlab_known_host.rc != 0
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Scan the GitLab host key
+      ansible.builtin.command:
+        argv: [ssh-keyscan, -T, "10", -t, "ed25519,ecdsa,rsa", "{{ gitlab_host }}"]
+      register: _gitlab_host_keyscan
+      changed_when: false
+      failed_when: >-
+        _gitlab_host_keyscan.stdout_lines | map('trim')
+        | reject('equalto', '') | reject('match', '^#') | list | length == 0
+
+    - name: Compute fingerprints of the scanned GitLab host keys
+      ansible.builtin.command:
+        argv: [ssh-keygen, -l, -f, "-"]
+        stdin: "{{ _gitlab_host_keyscan.stdout }}"
+      register: _gitlab_host_fingerprints
+      changed_when: false
+      when: gitlab_host_key_fingerprint | default('') | length > 0
+
+    - name: Verify the GitLab host key fingerprint
+      ansible.builtin.assert:
+        that:
+          - gitlab_host_key_fingerprint in _gitlab_host_fingerprints.stdout
+        fail_msg: "{{ gitlab_host_key_mismatch_msg }}"
+        quiet: true
+      when: gitlab_host_key_fingerprint | default('') | length > 0
+
+    - name: Add the GitLab host key to known_hosts
+      ansible.builtin.known_hosts:
+        path: "{{ gitlab_known_hosts_file }}"
+        name: "{{ gitlab_host }}"
+        key: "{{ item }}"
+        state: present
+      loop: >-
+        {{ _gitlab_host_keyscan.stdout_lines | map('trim')
+        | reject('equalto', '') | reject('match', '^#') | list }}

@@ -149,10 +149,6 @@ class ExecutionTimeout:
         """Create default timeout configuration."""
         return cls(minutes=cls.DEFAULT_MINUTES)
 
-    def to_seconds(self) -> int:
-        """Convert timeout to seconds."""
-        return self.minutes * 60
-
     def __str__(self) -> str:
         """Return string representation."""
         return f"{self.minutes}m"

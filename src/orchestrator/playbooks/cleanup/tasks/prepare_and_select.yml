@@ -346,51 +346,43 @@
     'slurm' in enabled_components or
     'k8s' in enabled_components
 
-# Shared-data decisions are independent in full and component cleanup.
-# Explicit true or false values are non-interactive; omitted values require
-# confirmation.
-- name: Confirm Slurm shared-data cleanup
-  ansible.builtin.pause:
-    prompt: |
-      Permanently delete all Slurm shared data except configured preserved directories,
-      then unmount its storage and remove its fstab entries?
-      Type 'yes' to delete Slurm data. Any other answer preserves the data;
-      the storage is still unmounted and removed from fstab.
-  register: cleanup_slurm_confirmation
-  when:
-    - enabled_components.slurm is defined
-    - cleanup_slurm is not defined
-    - not skip_approval | bool
-    - not dry_run | bool
-
-- name: Confirm Kubernetes shared-data cleanup
-  ansible.builtin.pause:
-    prompt: |
-      Permanently delete all Kubernetes shared data, then unmount its storage
-      and remove its fstab entries?
-      Type 'yes' to delete Kubernetes data. Any other answer preserves the
-      data; the storage is still unmounted and removed from fstab.
-  register: cleanup_k8s_confirmation
-  when:
-    - enabled_components.k8s is defined
-    - cleanup_k8s is not defined
-    - not skip_approval | bool
-    - not dry_run | bool
+# Shared-data confirmation prompts are disabled because cleanup_nfs_server
+# is false in both component specs (slurm/k8s), so NFS data is never
+# automatically deleted. The manual-cleanup warning in cleanup_engine.yml
+# tells the user how to clean up NFS data after the run.
+#
+# - name: Confirm Slurm shared-data cleanup
+#   ansible.builtin.pause:
+#     prompt: |
+#       Permanently delete all Slurm shared data except configured preserved directories,
+#       then unmount its storage and remove its fstab entries?
+#       Type 'yes' to delete Slurm data. Any other answer preserves the data;
+#       the storage is still unmounted and removed from fstab.
+#   register: cleanup_slurm_confirmation
+#   when:
+#     - enabled_components.slurm is defined
+#     - cleanup_slurm is not defined
+#     - not skip_approval | bool
+#     - not dry_run | bool
+#
+# - name: Confirm Kubernetes shared-data cleanup
+#   ansible.builtin.pause:
+#     prompt: |
+#       Permanently delete all Kubernetes shared data, then unmount its storage
+#       and remove its fstab entries?
+#       Type 'yes' to delete Kubernetes data. Any other answer preserves the
+#       data; the storage is still unmounted and removed from fstab.
+#   register: cleanup_k8s_confirmation
+#   when:
+#     - enabled_components.k8s is defined
+#     - cleanup_k8s is not defined
+#     - not skip_approval | bool
+#     - not dry_run | bool
 
 - name: Resolve shared-data cleanup decisions
   ansible.builtin.set_fact:
-    cleanup_slurm_approved: >-
-      {{ enabled_components.slurm is defined and
-         ((cleanup_slurm | bool) if cleanup_slurm is defined
-          else true if (skip_approval | bool or dry_run | bool)
-          else (cleanup_slurm_confirmation.user_input | default('')
-                | trim | lower) == 'yes') }}
-    cleanup_k8s_approved: >-
-      {{ enabled_components.k8s is defined and
-         ((cleanup_k8s | bool) if cleanup_k8s is defined
-          else true if (skip_approval | bool or dry_run | bool)
-          else (cleanup_k8s_confirmation.user_input | default('')
-                | trim | lower) == 'yes') }}
+    cleanup_slurm_approved: false
+    cleanup_k8s_approved: false
   when:
     - enabled_components.slurm is defined or enabled_components.k8s is defined
 

@@ -136,10 +136,6 @@ def load_workload_context(
         host,
         os.path.join(input_dir, STORAGE_CONFIG),
     )
-    context["high_availability_config"] = read_yaml_mapping(
-        host,
-        os.path.join(input_dir, "high_availability_config.yml"),
-    )
     orchestrator_config = read_yaml_mapping(
         host,
         os.path.join(input_dir, "orchestrator_config.yml"),
@@ -287,7 +283,7 @@ def hostname_ssh_probe(host, row: Mapping[str, str]) -> tuple[bool, str]:
     )
 
 
-def remote_command(host, row: Mapping[str, str], command: str):
+def remote_command(host, row: Mapping[str, str], command: str) -> Any:
     """Execute a fixed command on a desired node from the execution OIM."""
     return run_ssh_command(host, row["ADMIN_IP"], command)
 
@@ -454,7 +450,7 @@ def run_remote_with_progress(
     label: str,
     timeout_seconds: int,
     poll_seconds: int,
-):
+) -> Any:
     """Run one bounded remote command while reporting progress periodically."""
     started = time.monotonic()
     executor = ThreadPoolExecutor(max_workers=1)
@@ -572,6 +568,59 @@ def parse_fg_identity(
     os_id = os_match.group("os")
     os_version = os_match.group("ver").lstrip("_").replace("_", ".")
     return architecture, os_id, os_version
+
+
+def resolve_ib_addr_family(context: Mapping[str, Any]) -> str:
+    """Determine the preferred IB address family from network_spec.
+
+    Uses ``ib_addr_mode`` from the ``ib_network`` block in
+    ``network_spec.yml`` to decide whether tests should verify IPv4 or
+    IPv6 IB connectivity.
+
+    Per FR-7, dual-stack mode automatically uses IPv6.
+
+    Returns ``'ipv6'`` or ``'ipv4'``.
+    """
+    network_spec = context.get("network_spec") or {}
+    networks = network_spec.get("Networks") or network_spec.get("networks") or []
+    ib_block: dict[str, Any] = {}
+    for net in (networks if isinstance(networks, list) else []):
+        if isinstance(net, dict) and "ib_network" in net:
+            ib_block = net["ib_network"]
+            break
+
+    addr_mode = str(ib_block.get("ib_addr_mode") or "").strip()
+
+    if addr_mode in ("ipv6-only", "dual-stack"):
+        return "ipv6"
+    return "ipv4"
+
+
+def ib_ip_for_row(row: Mapping[str, str], addr_family: str = "ipv4") -> str:
+    """Return the IB IP address from a CSV row for the given address family.
+
+    When *addr_family* is ``'ipv6'``, returns ``IB_IPV6`` if populated,
+    otherwise falls back to ``IB_IPV4`` (or legacy ``IB_IP``).
+    When ``'ipv4'``, returns ``IB_IPV4`` (or legacy ``IB_IP``).
+    """
+    if addr_family == "ipv6":
+        ipv6 = str(row.get("IB_IPV6") or "").strip()
+        if ipv6:
+            return ipv6
+    return str(row.get("IB_IPV4") or row.get("IB_IP") or "").strip()
+
+
+def ib_rows_for_family(
+    rows: list[dict[str, str]],
+    addr_family: str = "ipv4",
+) -> list[dict[str, str]]:
+    """Return rows that have both an IB NIC name and an IB IP for *addr_family*."""
+    return [
+        row
+        for row in rows
+        if str(row.get("IB_NIC_NAME", "")).strip()
+        and ib_ip_for_row(row, addr_family)
+    ]
 
 
 def fg_prefix_without_os(fg_name: str) -> str:

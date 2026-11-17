@@ -18,6 +18,7 @@ and unchanged.
 | `DISC_UT_015`--`020` | `test_input_validation_schema.py` | Credential rules schema validation |
 | `DISC_UT_021`--`030` | `test_discovery_config_validator.py` | L2 semantic validation (OME IP) |
 | `DISC_UT_031`--`040` | `test_standalone_independence.py` | Standalone independence and repo structure |
+| `DISC_UT_050`--`053` | `test_input_validation_fail_closed.py` | Empty schema fails closed, anchored patterns, vault inputs validated or reported unvalidated |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.

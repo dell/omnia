@@ -80,7 +80,7 @@
       value: "{{ item.item.value }}"
       variable_type: "{{ item.item.variable_type }}"
       masked: "{{ item.item.masked }}"
-      protected: false
+      protected: "{{ item.item.protected }}"
     validate_certs: false
     status_code: "{{ gitlab_pipeline_var_create_status_codes }}"
   when: item.status == 404
@@ -100,11 +100,57 @@
       value: "{{ item.item.value }}"
       variable_type: "{{ item.item.variable_type }}"
       masked: "{{ item.item.masked }}"
-      protected: false
+      protected: "{{ item.item.protected }}"
     validate_certs: false
     status_code: "{{ gitlab_pipeline_var_update_status_codes }}"
   when: item.status == 200
   loop: "{{ _pipeline_var_check.results }}"
   loop_control:
     label: "{{ item.item.key }}"
+  no_log: true
+
+- name: Read pipeline-created secret variables
+  ansible.builtin.uri:
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/variables/{{ item }}
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: "{{ gitlab_pipeline_var_check_status_codes }}"
+  register: _runtime_secret_check
+  loop: "{{ gitlab_pipeline_runtime_secret_variables }}"
+  no_log: true
+
+- name: Protect pipeline-created secret variables
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/variables/{{ item.item }}"
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      value: "{{ item.json.value }}"
+      masked: "{{ item.json.masked }}"
+      protected: true
+    validate_certs: false
+    status_code: "{{ gitlab_pipeline_var_update_status_codes }}"
+  when:
+    - item.status == 200
+    - not (item.json.protected | bool)
+  loop: "{{ _runtime_secret_check.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true
+
+- name: Revoke previous CI/CD project access tokens
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/access_tokens/{{ item }}"
+    method: DELETE
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [204, 404]
+  loop: "{{ gitlab_previous_ci_token_ids | default([]) }}"
   no_log: true

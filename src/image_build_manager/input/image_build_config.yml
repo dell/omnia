@@ -22,7 +22,7 @@
 # Sections:
 #   1. Upstream Dependency    — repo_manager output path
 #   2. S3 Storage Backend     — S3 provider and endpoint
-#   3. Image Builder          — builder type, container image, build controls
+#   3. Build Controls         — concurrency, timeout, and rebuild controls
 #   4. Functional Groups      — which OS image variants to build
 #   5. ARM Build Host         — aarch64 remote build host
 #
@@ -31,7 +31,7 @@
 #
 # S3 bucket names are FIXED constants (do NOT change):
 #   boot-images  — OS boot images (kernel, initramfs, rootfs)
-#   efi-images   — EFI boot artifacts
+#   efi          — EFI bucket (reserved)
 # =============================================================================
 
 
@@ -57,16 +57,9 @@ s3_configurations:
 
 
 # ---------------------------------------------------------------------------
-# 3. Image Builder
+# 3. Build Controls
 # ---------------------------------------------------------------------------
-# image_build_type: Which OpenCHAMI image builder to use.
-#   "image-builder"     — Standard OpenCHAMI image-builder.
-#                         Config format: options/repos/packages/cmds
-#   "image-thrillhouse" — Next-gen OpenCHAMI builder with extended features (default).
-#                         Config format: meta/layer (inline repos, script commands)
-# Each type uses its own config templates and container image.
-image_build_type: "image-thrillhouse"
-
+# Image builds use OpenCHAMI Image Thrillhouse.
 # build_image: Controls for the build phase.
 #   max_parallel     — Max concurrent image builds. 0 = unlimited.
 #   build_timeout    — Per-build timeout in seconds.

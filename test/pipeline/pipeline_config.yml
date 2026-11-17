@@ -28,7 +28,7 @@
 global:
   # List of clusters to manage (comma-separated, must match section names below)
   # Example: "cluster1,cluster2,cluster3"
-  clusters: "cluster1,automation_cluster"
+  clusters: "cluster1"
 
   # ---- Utils Pipeline Control (Optional) ----
   # Enable utils pipeline mode instead of the standard domain deployment pipeline.

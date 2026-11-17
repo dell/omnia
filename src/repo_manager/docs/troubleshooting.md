@@ -2,6 +2,8 @@
 
 ## Common Issues
 
+For the expected behavior of each failure mode, see [failure-modes.md](failure-modes.md).
+
 ### 1. Required environment variable is missing
 
 ```text

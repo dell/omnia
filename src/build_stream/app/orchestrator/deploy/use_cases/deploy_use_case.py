@@ -34,6 +34,7 @@ from core.jobs.repositories import (
 )
 from core.jobs.services import JobStateHelper
 from core.jobs.value_objects import (
+    JobState,
     StageName,
     StageState,
     StageType,
@@ -231,6 +232,20 @@ class DeployUseCase:
                 correlation_id=str(command.correlation_id),
                 client_id=str(command.client_id),
             )
+
+            # Reopen a COMPLETED job for redeployment (repeated deploy
+            # with updated PXE mapping on the same built images).
+            job = self._job_repo.find_by_id(command.job_id)
+            if job and job.job_state == JobState.COMPLETED:
+                job.job_state = JobState.IN_PROGRESS
+                job._update_metadata()
+                self._job_repo.save(job)
+                log_secure_info(
+                    "info",
+                    f"Reopened COMPLETED job for redeployment: "
+                    f"job_id={command.job_id}",
+                    job_id=str(command.job_id),
+                )
 
         if stage.stage_state != StageState.PENDING:
             raise InvalidStateTransitionError(

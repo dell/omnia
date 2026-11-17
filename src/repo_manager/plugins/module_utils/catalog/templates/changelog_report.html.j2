@@ -169,9 +169,9 @@
   </tbody>
 </table>
 {% endif %}
-{% if base_os_notes or architecture_notes or summary.catalog_fields %}
+{% if baseos_notes or architecture_notes or summary.catalog_fields %}
 <ul class="notes">
-  {% for note in base_os_notes %}<li>{{ note }}</li>{% endfor %}
+  {% for note in baseos_notes %}<li>{{ note }}</li>{% endfor %}
   {% for note in architecture_notes %}<li>{{ note }}</li>{% endfor %}
   {% for item in summary.catalog_fields %}
   <li>{{ item.field }}: {{ item.old }} &rarr; {{ item.new }}</li>

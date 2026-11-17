@@ -165,6 +165,4 @@ class TestJob:
             client_name="abc123",
         )
         assert job.is_completed() is True
-        assert job.is_failed() is False
         assert job.is_cancelled() is False
-        assert job.is_in_progress() is False

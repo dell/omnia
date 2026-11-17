@@ -25,7 +25,22 @@
 # unmounts when this role's own resolution chain was the one that mounted it.
 - name: Unmount NFS auto-mounted for deploy mode
   ansible.builtin.command:
-    cmd: umount /tmp/install_os_nfs
+    cmd: umount /run/omnia/mnt/install_os_nfs
   when: _deploy_nfs_auto_mounted | default(false) | bool
+  register: _deploy_nfs_umount
+  changed_when: _deploy_nfs_umount.rc == 0
+  failed_when: false
+
+- name: Lazy-unmount deploy-mode NFS if still busy
+  ansible.builtin.command:
+    cmd: umount -l /run/omnia/mnt/install_os_nfs
+  when:
+    - _deploy_nfs_auto_mounted | default(false) | bool
+    - _deploy_nfs_umount.rc is defined
+    - _deploy_nfs_umount.rc != 0
+  register: _deploy_nfs_lazy_umount
+  until: _deploy_nfs_lazy_umount.rc == 0
+  retries: 3
+  delay: 5
   changed_when: true
   failed_when: false

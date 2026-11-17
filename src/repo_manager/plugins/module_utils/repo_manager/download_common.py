@@ -85,6 +85,8 @@ from ansible.module_utils.repo_manager.software_utils import build_repo_name
 from ansible.module_utils.repo_manager.security_utils import (
     render_catalog_placeholders,
     validate_artifact_url,
+    validate_cli_argument,
+    validate_cli_path,
     normalize_pulp_distribution_url,
     parse_python_requirement,
     validate_artifact_identifier,
@@ -324,7 +326,7 @@ def download_file_distribution(distribution_name, dl_directory, relative_path, l
 
     try:
         cmd = pulp_file_commands["show_distribution"] % distribution_name
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, shell=False)
         data = json.loads(result.stdout)
 
         pulp_config = load_pulp_config(CLI_FILE_PATH)
@@ -618,6 +620,7 @@ def process_file(repository_name, _output_file, relative_path,
             logger.info(f"File already exists: {file_path}. Skipping download.")
         else:
             logger.info("File does not exist. Downloading file...")
+            validate_cli_path(file_path, "file path")
             download_command = ["wget", "-c", "-O", file_path, url]
             if not execute_command(download_command, logger):
                 logger.error(f"Failed to download the file: {url}")

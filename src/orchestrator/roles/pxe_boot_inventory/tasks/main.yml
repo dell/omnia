@@ -48,9 +48,17 @@
       when: not _mapping_file_stat.stat.exists
 
     - name: Read inventory CSV by column name
-      community.general.read_csv:
-        path: "{{ pxeboot_inventory_source }}"
-      register: _pxeboot_csv
+      block:
+        - name: Read inventory CSV by column name
+          community.general.read_csv:
+            path: "{{ pxeboot_inventory_source }}"
+          register: _pxeboot_csv
+          no_log: true
+      rescue:
+        - name: Report PXE inventory CSV read failure
+          ansible.builtin.fail:
+            msg: "{{ pxe_boot_inventory_read_csv_rescue_msg }}"
+          no_log: false
 
     - name: Validate inventory contains node records
       ansible.builtin.assert:
@@ -82,6 +90,21 @@
       loop_control:
         label: "{{ item.HOSTNAME | default('unknown host') }}"
 
+    - name: Validate IB_NIC_NAME format in PXE inventory
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.IB_NIC_NAME | default('', true) | string | trim | length == 0)
+            or (item.IB_NIC_NAME | default('', true) | string | trim is regex(pxe_boot_inventory_ib_nic_name_pattern))
+        fail_msg: "{{ pxe_boot_inventory_invalid_ib_nic_name_msg }}"
+        quiet: true
+      loop: "{{ _pxeboot_csv.list }}"
+      loop_control:
+        label: "{{ item.HOSTNAME | default('unknown host') }}"
+      when:
+        - _pxeboot_csv.list | length > 0
+        - "'IB_NIC_NAME' in (_pxeboot_csv.list[0].keys() | list)"
+
     - name: Validate PXE inventory addresses are unique
       ansible.builtin.assert:
         that:
@@ -91,27 +114,41 @@
         quiet: true
 
     - name: Generate access token for SMD identity lookup
-      ansible.builtin.command: sudo bash -lc 'gen_access_token'
-      register: _pxeboot_identity_token
-      changed_when: false
-      retries: "{{ pxe_boot_inventory_token_retries }}"
-      delay: "{{ pxe_boot_inventory_token_delay }}"
-      until: >-
-        _pxeboot_identity_token.rc == 0
-        and _pxeboot_identity_token.stdout not in ['', 'null']
-      no_log: true
+      block:
+        - name: Generate access token for SMD identity lookup
+          ansible.builtin.command: sudo bash -lc 'gen_access_token'
+          register: _pxeboot_identity_token
+          changed_when: false
+          retries: "{{ pxe_boot_inventory_token_retries }}"
+          delay: "{{ pxe_boot_inventory_token_delay }}"
+          until: >-
+            _pxeboot_identity_token.rc == 0
+            and _pxeboot_identity_token.stdout not in ['', 'null']
+          no_log: true
+      rescue:
+        - name: Report SMD identity token generation failure
+          ansible.builtin.fail:
+            msg: "{{ pxe_boot_inventory_token_rescue_msg }}"
+          no_log: false
 
     - name: Resolve PXE identities from SMD Hardware Inventory
-      openchami_reconcile:
-        action: resolve_identities
-        cluster_uri: >-
-          https://{{ oim_node_name }}.{{ domain_name }}:8443
-        access_token: "{{ _pxeboot_identity_token.stdout }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        nodes: "{{ _pxeboot_csv.list }}"
-      check_mode: true
-      register: _pxeboot_identity_result
-      no_log: true
+      block:
+        - name: Resolve PXE identities from SMD Hardware Inventory
+          openchami_reconcile:
+            action: resolve_identities
+            cluster_uri: >-
+              https://{{ oim_node_name }}.{{ domain_name }}:8443
+            access_token: "{{ _pxeboot_identity_token.stdout }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            nodes: "{{ _pxeboot_csv.list }}"
+          check_mode: true
+          register: _pxeboot_identity_result
+          no_log: true
+      rescue:
+        - name: Report SMD identity resolution failure
+          ansible.builtin.fail:
+            msg: "{{ pxe_boot_inventory_resolve_identities_rescue_msg }}"
+          no_log: false
 
     - name: Require provisioned SMD Service Tag identities for PXE boot
       ansible.builtin.assert:

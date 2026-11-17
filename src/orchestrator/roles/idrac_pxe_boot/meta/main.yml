@@ -16,7 +16,7 @@ galaxy_info:
   role_name: idrac_pxe_boot
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia orchestrator role: idrac_pxe_boot"
+  description: "Configure Dell iDRAC systems for PXE boot and restart nodes through Redfish"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

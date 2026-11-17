@@ -337,8 +337,8 @@ class TestDeployUseCase:
         with pytest.raises(ImageGroupMismatchError):
             use_case.execute(command)
 
-    def test_image_group_wrong_status(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
-        """Raises InvalidStateTransitionError when status is PASSED or CLEANED (requires fresh build)."""
+    def test_image_group_cleaned_status_rejected(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Raises InvalidStateTransitionError when status is CLEANED (requires fresh build)."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         job = _make_job(job_id, client_id)
@@ -347,7 +347,7 @@ class TestDeployUseCase:
         build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
-        ig = _make_image_group(job_id, status=ImageGroupStatus.PASSED)
+        ig = _make_image_group(job_id, status=ImageGroupStatus.CLEANED)
         ig_repo.save(ig)
 
         command = _make_command(job_id=job_id, client_id=client_id)
@@ -486,4 +486,123 @@ class TestDeployUseCase:
         use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
 
         with pytest.raises(UpstreamStageNotCompletedError):
+            use_case.execute(command)
+
+    def test_redeploy_passed_image_group_with_completed_job(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Redeployment: COMPLETED job + PASSED image group + COMPLETED deploy stage succeeds."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        job = _make_job(job_id, client_id)
+        job.job_state = JobState.COMPLETED
+        job_repo.save(job)
+
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
+        stage_repo.save(build_stage)
+
+        deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.COMPLETED)
+        stage_repo.save(deploy_stage)
+
+        ig = _make_image_group(job_id, status=ImageGroupStatus.PASSED)
+        ig_repo.save(ig)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
+        result = use_case.execute(command)
+
+        assert result.job_id == str(job_id)
+        assert result.status == "accepted"
+        assert len(queue_service.submitted) == 1
+
+        # Job reopened to IN_PROGRESS
+        saved_job = job_repo.find_by_id(job_id)
+        assert saved_job.job_state == JobState.IN_PROGRESS
+
+        # Image group transitioned to DEPLOYING
+        updated_ig = ig_repo.find_by_job_id(job_id)
+        assert updated_ig.status == ImageGroupStatus.DEPLOYING
+
+        # Deploy stage reset and now IN_PROGRESS
+        saved_stage = stage_repo.find_by_job_and_name(job_id, StageName(StageType.DEPLOY.value))
+        assert saved_stage.stage_state == StageState.IN_PROGRESS
+
+    def test_redeploy_preserves_same_image_group_id(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Redeployment reuses the same image group ID — no duplicate created."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        job = _make_job(job_id, client_id)
+        job.job_state = JobState.COMPLETED
+        job_repo.save(job)
+
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
+        stage_repo.save(build_stage)
+
+        deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.COMPLETED)
+        stage_repo.save(deploy_stage)
+
+        ig = _make_image_group(job_id, ig_id="my-cluster-v1", status=ImageGroupStatus.PASSED)
+        ig_repo.save(ig)
+
+        command = _make_command(job_id=job_id, client_id=client_id, image_group_id="my-cluster-v1")
+        use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
+        result = use_case.execute(command)
+
+        assert result.image_group_id == "my-cluster-v1"
+
+    def test_redeploy_twice_succeeds(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Two consecutive redeployments succeed using same job and image group."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+
+        # First lifecycle complete
+        job = _make_job(job_id, client_id)
+        job.job_state = JobState.COMPLETED
+        job_repo.save(job)
+
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE, StageState.COMPLETED)
+        stage_repo.save(build_stage)
+
+        deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.COMPLETED)
+        stage_repo.save(deploy_stage)
+
+        ig = _make_image_group(job_id, status=ImageGroupStatus.PASSED)
+        ig_repo.save(ig)
+
+        # First redeploy
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
+        result1 = use_case.execute(command)
+        assert result1.status == "accepted"
+
+        # Simulate lifecycle completion: set back to COMPLETED/PASSED
+        job_repo.find_by_id(job_id).job_state = JobState.COMPLETED
+        ig_repo.find_by_job_id(job_id).status = ImageGroupStatus.PASSED
+        saved_stage = stage_repo.find_by_job_and_name(job_id, StageName(StageType.DEPLOY.value))
+        saved_stage.stage_state = StageState.COMPLETED
+
+        # Second redeploy
+        command2 = _make_command(job_id=job_id, client_id=client_id)
+        result2 = use_case.execute(command2)
+        assert result2.status == "accepted"
+        assert len(queue_service.submitted) == 2
+
+        # Job reopened again
+        assert job_repo.find_by_id(job_id).job_state == JobState.IN_PROGRESS
+
+    def test_redeploy_cancelled_job_rejected(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Cancelled job cannot be redeployed — tombstoned check fires."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        job = Job(
+            job_id=job_id,
+            client_id=client_id,
+            request_client_id=str(client_id),
+            job_state=JobState.CANCELLED,
+            tombstoned=True,
+        )
+        job_repo.save(job)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
+
+        with pytest.raises(JobNotFoundError):
             use_case.execute(command)

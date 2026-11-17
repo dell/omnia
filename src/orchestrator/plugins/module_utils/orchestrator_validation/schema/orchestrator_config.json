@@ -19,7 +19,7 @@
     "dns_enabled": {
       "type": "boolean",
       "description": "Enable DNS-based hostname resolution via coresmd.",
-      "default": false
+      "default": true
     },
     "additional_cloud_init_config_file": {
       "type": "string",

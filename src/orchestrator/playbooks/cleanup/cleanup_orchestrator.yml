@@ -33,14 +33,16 @@
 #   ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags cleanup_credentials
 #
 # STORAGE ORDERING:
-#   Slurm and K8s remove shared data while its NFS mount is available, then
-#   invoke scoped storage-mount cleanup. This prevents premature unmounting.
+#   Slurm unmounts its storage and removes fstab entries, but NFS data cleanup
+#   must be performed manually (see README.md for details).
+#   K8s unmounts its storage and removes fstab entries, but NFS data cleanup
+#   must be performed manually (see README.md for details).
 #
 # AVAILABLE COMPONENTS:
 #   openchami      - OpenCHAMI services, containers, configuration, artifacts
 #   openldap       - OpenLDAP container, Quadlet units, and data
-#   slurm          - Slurm configuration and NFS directories
-#   k8s            - K8s configuration and NFS directories
+#   slurm          - Slurm configuration, storage unmount, and fstab cleanup (NFS data cleanup is manual)
+#   k8s            - K8s configuration, storage unmount, and fstab cleanup (NFS data cleanup is manual)
 #   storage_mounts - NFS storage mount unmounting and fstab cleanup
 #   artifacts      - Orchestrator artifacts and state files
 #   credentials    - Credential files (default in full cleanup; directly selectable)

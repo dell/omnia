@@ -172,10 +172,7 @@ SQUASHFS_PACKAGE = "squashfs-tools"
 S3_BOOT_IMAGES_BUCKET = "s3://boot-images"
 
 # Image engine identifiers and their collision-safe artifact suffixes.
-IMAGE_BUILD_TYPE_SUFFIXES = {
-    "image-builder": "-imgbld",
-    "image-thrillhouse": "-imgth",
-}
+IMAGE_BUILD_TYPE_SUFFIXES = {"image-thrillhouse": "-imgth"}
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS

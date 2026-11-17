@@ -38,7 +38,7 @@
         -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' \
         2>/dev/null | \
       while read ns name phase ready; do
-        if [ "$ns" = "{{ telemetry_namespace }}" ]; then
+        if [ "$ns" = {{ telemetry_namespace | quote }} ]; then
           continue
         fi
         if [[ "$phase" == "Running" && "$ready" == *"false"* ]]; then

@@ -381,10 +381,17 @@ powerscale_named_resources:
   - { type: "deployment", name: "csi-volume-exporter" }
   - { type: "service", name: "csi-volume-exporter" }
   - { type: "serviceaccount", name: "csi-volume-exporter" }
+  # karavi-observability Helm hook resources (left behind only if a hook fails)
+  - { type: "job", name: "cert-manager-readiness-check" }
+  - { type: "serviceaccount", name: "cert-manager-readiness-check" }
+  - { type: "role", name: "cert-manager-readiness-check" }
+  - { type: "rolebinding", name: "cert-manager-readiness-check" }
 
 powerscale_cluster_resources:
   - { type: "clusterrole", name: "csi-volume-exporter" }
   - { type: "clusterrolebinding", name: "csi-volume-exporter" }
+  - { type: "clusterrole", name: "cert-manager-readiness-check-karavi-observability" }
+  - { type: "clusterrolebinding", name: "cert-manager-readiness-check-karavi-observability" }
 
 powerscale_pod_labels:
   - "app.kubernetes.io/name=karavi-metrics-powerscale"

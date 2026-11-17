@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=too-many-lines
 """User-facing messages for Orchestrator input validation."""
 
 from typing import Any
@@ -35,16 +36,8 @@ NETWORK_SPEC_NETMASK_REQUIRED_MSG = (
 OMNIA_CONFIG_EMPTY_MSG = (
     "omnia_config.yml: File is empty or not a valid YAML object."
 )
-HA_CONFIG_EMPTY_MSG = (
-    "high_availability_config.yml: File is missing, empty, or not a valid "
-    "YAML object for the selected Kubernetes workload."
-)
-HA_OMNIA_CONFIG_INVALID_MSG = (
-    "high_availability_config.yml: omnia_config.yml must define a valid "
-    "service_k8s_cluster list."
-)
 HA_CONTROL_PLANE_REQUIRED_MSG = (
-    "high_availability_config.yml: PXE mapping must contain at least one "
+    "omnia_config.yml service_k8s_cluster: PXE mapping must contain at least one "
     "service_kube_control_plane functional group with a valid ADMIN_IP."
 )
 
@@ -195,6 +188,31 @@ def pxe_mapping_not_found_msg(path: str) -> str:
     return f"orchestrator_config: pxe_mapping_file_path '{path}' does not exist."
 
 
+def pxe_mapping_not_csv_msg(path: str) -> str:
+    """Return the non-CSV PXE mapping file error message."""
+    return (
+        f"orchestrator_config: pxe_mapping_file_path '{path}' must resolve "
+        "to a .csv file."
+    )
+
+
+def pxe_mapping_insecure_permissions_msg(path: str, mode: int) -> str:
+    """Return the insecure PXE mapping file permissions error message."""
+    return (
+        f"orchestrator_config: PXE mapping file '{path}' has insecure mode "
+        f"{mode:04o}. It must not be group-writable or accessible by "
+        f"others; run 'chmod 640 {path}'."
+    )
+
+
+def pxe_mapping_untrusted_owner_msg(path: str, uid: int) -> str:
+    """Return the untrusted PXE mapping file owner error message."""
+    return (
+        f"orchestrator_config: PXE mapping file '{path}' is owned by uid "
+        f"{uid}; it must be owned by root or the invoking user."
+    )
+
+
 def pxe_mapping_read_failed_msg(path: str, detail: str) -> str:
     """Return the PXE mapping read error message."""
     return f"orchestrator_config: Failed to read mapping file '{path}': {detail}"
@@ -229,11 +247,19 @@ def pxe_mapping_noncanonical_headers_msg(
 def pxe_mapping_header_contract_msg(
     path: str, actual: list[str], expected: list[str]
 ) -> str:
-    """Return an exact PXE mapping header-contract error message."""
+    """Return a PXE mapping header-contract error without echoing file content."""
+    missing = [column for column in expected if column not in actual]
+    base = [
+        "FUNCTIONAL_GROUP_NAME", "GROUP_NAME", "SERVICE_TAG",
+        "PARENT_SERVICE_TAG", "HOSTNAME", "ADMIN_MAC", "ADMIN_IP",
+        "BMC_MAC", "BMC_IP",
+    ]
     return (
-        f"orchestrator_config: Mapping file '{path}' has header {actual}; "
-        f"expected exactly {expected}. Preserve all columns in this order, "
-        "including IB_NIC_NAME and IB_IP."
+        f"orchestrator_config: Mapping file '{path}' has {len(actual)} "
+        f"column(s) and does not match any accepted header format; missing "
+        f"columns: {missing or 'none (check order or extra columns)'}. "
+        f"Accepted formats: {base} (without InfiniBand) or "
+        f"{expected} (with InfiniBand)."
     )
 
 
@@ -299,7 +325,9 @@ def pxe_mapping_dns_hostname_msg(value: str, row: int) -> str:
     """Return a DNS-enabled PXE hostname-policy error message."""
     return (
         f"orchestrator_config: HOSTNAME '{value}' at mapping row {row} "
-        "must match nid001-nid999 when dns_enabled is true."
+        "must match nid001-nid999 when dns_enabled is true (the default). "
+        "Set dns_enabled to false in orchestrator_config.yml to use free-form hostnames. "
+        "See examples/pxe_mapping_file_dns_disabled.csv for the expected format."
     )
 
 
@@ -338,11 +366,21 @@ def pxe_mapping_functional_group_architecture_msg(
     )
 
 
-def pxe_mapping_ib_pair_msg(row: int) -> str:
-    """Return an incomplete InfiniBand mapping pair error message."""
+def pxe_mapping_ib_address_required_msg(row: int, column: str, ib_addr_mode: str) -> str:
+    """Return a missing InfiniBand address error for a row that has an IB_NIC_NAME."""
+    stack = ib_addr_mode or "not set (default: ipv4-only)"
     return (
-        f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
-        "and IB_IP, or leave both empty."
+        f"orchestrator_config: Mapping row {row} has IB_NIC_NAME set, so {column} is "
+        f"required when ib_addr_mode is {stack}."
+    )
+
+
+def pxe_mapping_ib_ipv4_without_nic_msg(row: int) -> str:
+    """Return an IB_IPV4 set without IB_NIC_NAME error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} has IB_IPV4 set but "
+        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv4 "
+        "configuration."
     )
 
 
@@ -514,6 +552,73 @@ def ib_admin_subnet_overlap_msg(
     return (
         f"network_spec: {ib_label} subnet {ib_network} overlaps "
         f"{admin_label} subnet {admin_network}."
+    )
+
+
+def ib_ipv6_subnet_invalid_msg(label: str) -> str:
+    """Return an invalid IB IPv6 subnet error message."""
+    return (
+        f"network_spec: {label}.ipv6_subnet is not a valid IPv6 network "
+        "address."
+    )
+
+
+def ib_ipv6_netmask_required_msg(label: str) -> str:
+    """Return a missing IB IPv6 netmask error when subnet is set."""
+    return (
+        f"network_spec: {label}.ipv6_netmask_bits is required when "
+        "ipv6_subnet is set."
+    )
+
+
+def ib_ipv6_subnet_required_msg(label: str) -> str:
+    """Return a missing IB IPv6 subnet error when netmask is set."""
+    return (
+        f"network_spec: {label}.ipv6_subnet is required when "
+        "ipv6_netmask_bits is set."
+    )
+
+
+def ib_ipv6_required_for_mode_msg(label: str, mode: str) -> str:
+    """Return an error when IPv6 fields are missing for the active mode."""
+    return (
+        f"network_spec: {label}.ipv6_subnet and ipv6_netmask_bits are "
+        f"required when ib_addr_mode is '{mode}'."
+    )
+
+
+def ib_ipv4_required_for_mode_msg(label: str, mode: str) -> str:
+    """Return an error when IPv4 fields are missing for the active mode."""
+    return (
+        f"network_spec: {label}.ipv4_subnet and ipv4_netmask_bits are "
+        f"required when ib_addr_mode is '{mode}'."
+    )
+
+
+def pxe_mapping_invalid_ipv6_msg(field: str, value: str, row: int) -> str:
+    """Return an invalid IPv6 address in the PXE mapping."""
+    return (
+        f"orchestrator_config: {field} '{value}' at mapping row {row} "
+        "is not a valid IPv6 address."
+    )
+
+
+def pxe_mapping_ib_ipv6_without_nic_msg(row: int) -> str:
+    """Return an IB_IPV6 set without IB_NIC_NAME error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} has IB_IPV6 set but "
+        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv6 "
+        "configuration."
+    )
+
+
+def pxe_mapping_ib_ipv6_outside_prefix_msg(
+    value: str, row: int, prefix: str
+) -> str:
+    """Return an IB_IPV6 address outside the approved prefix message."""
+    return (
+        f"orchestrator_config: IB_IPV6 '{value}' at mapping row {row} "
+        f"is not within the approved prefix {prefix}."
     )
 
 
@@ -807,37 +912,19 @@ def omnia_powerscale_csi_content_msg(
     )
 
 
-def ha_entry_count_msg(count: int) -> str:
-    """Return an HA configuration entry-count error message."""
+def ha_field_required_msg(field_name: str, expected: str) -> str:
+    """Return a missing Kubernetes HA field error message."""
     return (
-        "high_availability_config.yml: Exactly one service_k8s_cluster_ha "
-        "entry is required for the selected Kubernetes workload; "
-        f"found {count}."
-    )
-
-
-def ha_omnia_deployment_count_msg(count: int) -> str:
-    """Return an unresolved deployed Kubernetes cluster error message."""
-    return (
-        "high_availability_config.yml: Cannot resolve the active Kubernetes "
-        "cluster because omnia_config.yml must contain exactly one deployed "
-        f"service_k8s_cluster entry; found {count}."
-    )
-
-
-def ha_cluster_name_mismatch_msg(actual: str, expected: str) -> str:
-    """Return an HA/Kubernetes cluster-name mismatch error message."""
-    return (
-        f"high_availability_config.yml: HA cluster_name '{actual}' must match "
-        "the deployed omnia_config.yml Kubernetes cluster "
-        f"'{expected}'."
+        f"omnia_config.yml service_k8s_cluster: {field_name} must be set to "
+        f"{expected} on the deployed entry when the PXE mapping selects "
+        "Kubernetes."
     )
 
 
 def ha_vip_invalid_msg(value: str) -> str:
     """Return an invalid HA virtual IPv4 address error message."""
     return (
-        "high_availability_config.yml: virtual_ip_address "
+        "omnia_config.yml service_k8s_cluster: virtual_ip_address "
         f"'{value}' is not a valid IPv4 address."
     )
 
@@ -845,7 +932,7 @@ def ha_vip_invalid_msg(value: str) -> str:
 def ha_vip_address_conflict_msg(vip: str, source: str) -> str:
     """Return an HA virtual-IP address collision error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' conflicts "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' conflicts "
         f"with an address defined by {source}."
     )
 
@@ -853,7 +940,7 @@ def ha_vip_address_conflict_msg(vip: str, source: str) -> str:
 def ha_vip_dhcp_conflict_msg(vip: str, ranges: list[str]) -> str:
     """Return an HA virtual-IP DHCP-pool collision error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' belongs "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' belongs "
         f"to DHCP pool(s): {', '.join(ranges)}."
     )
 
@@ -861,7 +948,7 @@ def ha_vip_dhcp_conflict_msg(vip: str, ranges: list[str]) -> str:
 def ha_vip_external_pool_conflict_msg(vip: str, pool: str) -> str:
     """Return an HA virtual-IP external-pool collision error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' belongs "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' belongs "
         f"to Kubernetes pod_external_ip_range '{pool}'."
     )
 
@@ -869,7 +956,7 @@ def ha_vip_external_pool_conflict_msg(vip: str, pool: str) -> str:
 def ha_control_plane_network_unresolved_msg(addresses: list[str]) -> str:
     """Return an unresolved control-plane admin-subnet error message."""
     return (
-        "high_availability_config.yml: Control-plane ADMIN_IP address(es) "
+        "omnia_config.yml service_k8s_cluster: Control-plane ADMIN_IP address(es) "
         "must belong to exactly one configured admin subnet: "
         f"{', '.join(addresses)}."
     )
@@ -878,7 +965,7 @@ def ha_control_plane_network_unresolved_msg(addresses: list[str]) -> str:
 def ha_control_plane_multiple_subnets_msg(networks: list[str]) -> str:
     """Return a split control-plane admin-subnet error message."""
     return (
-        "high_availability_config.yml: All Kubernetes control-plane nodes "
+        "omnia_config.yml service_k8s_cluster: All Kubernetes control-plane nodes "
         "must share one admin subnet for kube-vip and MetalLB L2 operation; "
         f"found {', '.join(networks)}."
     )
@@ -887,7 +974,7 @@ def ha_control_plane_multiple_subnets_msg(networks: list[str]) -> str:
 def ha_vip_control_plane_subnet_msg(vip: str, network: str) -> str:
     """Return an HA virtual-IP subnet-membership error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' must be "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' must be "
         f"a usable host address in the control-plane subnet {network}."
     )
 
@@ -897,7 +984,7 @@ def ha_external_pool_control_plane_subnet_msg(
 ) -> str:
     """Return a MetalLB pool/control-plane subnet error message."""
     return (
-        "high_availability_config.yml: Kubernetes pod_external_ip_range "
+        "omnia_config.yml service_k8s_cluster: Kubernetes pod_external_ip_range "
         f"'{pool}' must be fully contained in the control-plane subnet "
         f"{network} for MetalLB L2 operation."
     )

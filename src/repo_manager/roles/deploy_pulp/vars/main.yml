@@ -34,7 +34,7 @@ pulp_csr_permissions: "0600"
 
 device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_https_port: "{{ pulp_deployment_defaults.https.container_port }}"
-pulp_publish_port: "{{ pulp_server_port }}:{{ pulp_container_https_port }}"
+pulp_publish_port: "{{ pulp_server_ip }}:{{ pulp_server_port }}:{{ pulp_container_https_port }}"
 pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
 pulp_status_url: "{{ pulp_base_url }}/pulp/api/v3/status/"
 pulp_registry_url: "{{ pulp_base_url }}/v2/"

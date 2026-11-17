@@ -14,8 +14,8 @@
 
 """Unit tests for CreateRestartUseCase.
 
-The restart stage submits ``orchestrator.yml --tags pxeboot`` to the
-NFS playbook queue for asynchronous execution by the playbook watcher.
+The restart stage submits the BuildStream-owned ``restart.yml`` sequence to
+the NFS playbook queue for asynchronous execution by the playbook watcher.
 """
 
 import uuid
@@ -114,7 +114,7 @@ class MockQueueService:
 
 
 class TestCreateRestartUseCase:
-    """Test cases for CreateRestartUseCase (orchestrator.yml --tags pxeboot)."""
+    """Test cases for the BuildStream-owned restart sequence."""
 
     @pytest.fixture
     def job_id(self):
@@ -212,10 +212,10 @@ class TestCreateRestartUseCase:
         assert result.status == "accepted"
         assert result.correlation_id == str(correlation_id)
 
-    def test_execute_submits_orchestrator_with_pxeboot_tag(
+    def test_execute_submits_buildstream_restart_sequence(
         self, use_case, job_id, client_id, correlation_id, queue_service,
     ):
-        """Test that restart submits orchestrator.yml --tags pxeboot to queue."""
+        """Test that restart submits the BuildStream restart playbook."""
         command = CreateRestartCommand(
             job_id=job_id,
             client_id=client_id,
@@ -226,8 +226,8 @@ class TestCreateRestartUseCase:
 
         assert len(queue_service.submitted) == 1
         submitted = queue_service.submitted[0]
-        assert str(submitted.playbook_path) == "orchestrator.yml"
-        assert submitted.tags == "pxeboot"
+        assert str(submitted.playbook_path) == "restart.yml"
+        assert submitted.tags is None
         assert submitted.extra_vars.to_dict()["job_id"] == str(job_id)
 
     def test_execute_success_with_image_group_id(
@@ -424,7 +424,8 @@ class TestCreateRestartUseCase:
         started_event = use_case._audit_repo.saved_events[0]
         assert started_event.event_type == "STAGE_STARTED"
         assert started_event.details["stage_name"] == StageType.RESTART.value
-        assert started_event.details["tags"] == "pxeboot"
+        assert started_event.details["playbook"] == "restart.yml"
+        assert "tags" not in started_event.details
 
     def test_execute_transitions_stage_to_in_progress(
         self, use_case, job_id, client_id, correlation_id,

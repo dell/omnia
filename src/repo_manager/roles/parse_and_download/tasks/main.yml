@@ -155,9 +155,9 @@
   ansible.builtin.debug:
     msg: >
       Total playbook execution time: {{
-        ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) // 60)
+        ((now().timestamp() | int - playbook_start_time | int) // 60)
       }} min and {{
-        ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) % 60)
+        ((now().timestamp() | int - playbook_start_time | int) % 60)
       }} sec
 
 - name: Repo Manager status

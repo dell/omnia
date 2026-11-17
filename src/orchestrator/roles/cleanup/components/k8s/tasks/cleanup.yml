@@ -14,7 +14,8 @@
 
 ---
 # K8s Cleanup for OIM Node
-# Focuses on cleaning up K8s-related NFS data only
+# Focuses on unmounting K8s storage and removing fstab entries
+# NFS data cleanup must be performed manually (see README.md)
 
 - name: Load K8s component configuration
   ansible.builtin.include_vars:
@@ -23,7 +24,7 @@
 
 - name: Display K8s cleanup start
   ansible.builtin.debug:
-    msg: "Starting K8s cleanup operations (OIM node - cleaning K8s NFS data)"
+    msg: "Starting K8s cleanup operations (OIM node - unmounting storage and removing fstab entries)"
   tags: k8s
 
 - name: Load Omnia configuration for K8s storage reference

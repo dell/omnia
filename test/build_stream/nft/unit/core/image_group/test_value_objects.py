@@ -81,6 +81,52 @@ class TestImageGroupId:
         ig_id = ImageGroupId("omnia_cluster-v1.2.3-rc1")
         assert ig_id.value == "omnia_cluster-v1.2.3-rc1"
 
+    @pytest.mark.parametrize(
+        "value",
+        ["omnia-cluster-v1.2", "a", "0-test", "Omnia_Cluster.v1-rc1", "a" * 128],
+    )
+    def test_parse_accepts_safe_identifiers(self, value):
+        """parse() accepts letters, digits, '.', '_' and '-'."""
+        assert ImageGroupId.parse(value).value == value
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "../../../../etc/passwd",
+            "a/b",
+            "a;id",
+            "a$(id)",
+            "a`id`",
+            "a b",
+            "a\nb",
+            "a'b",
+            'a"b',
+            "a{{x}}",
+            "a|b",
+            "a&b",
+            ".hidden",
+            "-leading-dash",
+            "_leading",
+            " lead",
+            "trail ",
+            "caf\u00e9",
+        ],
+    )
+    def test_parse_rejects_unsafe_identifiers(self, value):
+        """parse() rejects metacharacters, separators, whitespace and bad starts."""
+        with pytest.raises(ValueError):
+            ImageGroupId.parse(value)
+
+    @pytest.mark.parametrize("value", ["", "   ", "a" * 129, None, 5])
+    def test_parse_keeps_length_and_type_checks(self, value):
+        """parse() still rejects empty, over-long and non-string values."""
+        with pytest.raises(ValueError):
+            ImageGroupId.parse(value)
+
+    def test_constructor_still_loads_stored_ids(self):
+        """The constructor stays length-only so existing database rows load."""
+        assert ImageGroupId("legacy id with spaces").value == "legacy id with spaces"
+
 
 class TestImageGroupStatus:
     """Tests for ImageGroupStatus enum."""

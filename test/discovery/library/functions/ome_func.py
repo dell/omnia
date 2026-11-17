@@ -48,7 +48,7 @@ _ome_session_cache: Dict[str, Any] = {}
 OME_SESSION_LOGOUT_ENDPOINT: str = "/api/SessionService/Sessions('current')"
 
 
-def clear_ome_cache():
+def clear_ome_cache() -> None:
     """Clear OME session cache (does not invalidate session on OME server)."""
     global _ome_session_cache
     _ome_session_cache.clear()
@@ -526,7 +526,7 @@ def get_ome_device_details(host, service_tag: str) -> Dict[str, Any]:
 
     for nic in nic_info_list:
         nic_id = nic.get("NicId", "")
-        if "iDRAC" in nic_id.upper():
+        if "iDRAC" in nic_id.upper() or "INFINIBAND" in nic_id.upper():
             continue
 
         ports = nic.get("Ports", [])

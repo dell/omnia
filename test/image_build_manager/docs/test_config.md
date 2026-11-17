@@ -72,8 +72,8 @@ cd datasets/generator/
   --profile image-thrillhouse-internet-config
 ```
 
-Use `--profile image-builder-internet-config` for the same repository/package
-setup with Image Builder. The generator lists all eight explicit combinations.
+Use `--profile image-thrillhouse-internet-config` for public repositories and
+configuration-driven package groups.
 
 Setting the name does not itself copy files to the target. Enable the relevant
 sync option below for the scenario being executed.
@@ -123,6 +123,12 @@ credential-dependent run.
 | `report_path` | No | Directory for test reports (relative or absolute) | `/opt/omnia/reports` |
 | `report_name` | No | Base name for report files (no extension) | `image_test_report` |
 | `report_id` | No | Custom report ID. Empty = auto-generated timestamp. | `""` |
+
+### Cleanup Settings
+
+| Field | Required | Description | Default |
+|-------|----------|-------------|---------|
+| `cleanup_credentials` | No | `true`: `--tags cleanup` removes `image_build_credentials.yml` and its vault key. `false`: the cleanup runs with `-e cleanup_credentials=false`, both are preserved, and `IMGBM_FVT_CLEANUP_V008` checks they still exist | `true` |
 
 ---
 

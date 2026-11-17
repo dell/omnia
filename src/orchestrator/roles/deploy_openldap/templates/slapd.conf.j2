@@ -15,15 +15,16 @@ argsfile    /run/openldap/slapd.args
 
 {% if ldap_connection_type | lower == 'tls' %}
 # TLS configuration (STARTTLS on port 389)
-TLSCACertificateFile  /etc/openldap/certs/{{ tls_cert_file }}
+TLSCACertificateFile  /etc/openldap/certs/{{ ldap_tls_ca_file if ldap_tls_ca_file | length > 0 else tls_cert_file }}
 TLSCertificateFile    /etc/openldap/certs/{{ tls_cert_file }}
 TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
 {% elif ldap_connection_type | lower == 'ssl' %}
 # SSL configuration (LDAPS on port 636)
-TLSCACertificateFile  /etc/openldap/certs/{{ tls_cert_file }}
+TLSCACertificateFile  /etc/openldap/certs/{{ ldap_tls_ca_file if ldap_tls_ca_file | length > 0 else tls_cert_file }}
 TLSCertificateFile    /etc/openldap/certs/{{ tls_cert_file }}
 TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
 {% endif %}
+security simple_bind=128
 
 # MDB backend
 database    mdb

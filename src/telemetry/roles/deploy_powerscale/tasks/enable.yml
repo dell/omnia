@@ -205,22 +205,14 @@
 - name: Scale up cert-manager if at 0 replicas
   ansible.builtin.include_tasks: scale_up_cert_manager.yml
   when: powerscale_enabled | bool
-# --- Deploy karavi-observability Helm chart ---
-# Only deploy when metrics are enabled and deployments don't exist
+# --- Deploy / upgrade karavi-observability Helm chart ---
+# Always run: helm_install_karavi.yml has its own install-vs-upgrade logic,
+# and the post-install patches (service port 8889, labels, PVC) must re-apply
+# on every run to survive Helm upgrades that reset the service spec.
 
-- name: Check if karavi-metrics-powerscale deployment exists
-  ansible.builtin.command: >
-    kubectl get deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} -o name
-  register: karavi_exists_check
-  changed_when: false
-  failed_when: false
-  when: powerscale_enabled | bool
-
-- name: Deploy karavi-observability via Helm
+- name: Deploy or upgrade karavi-observability via Helm
   ansible.builtin.include_tasks: helm_install_karavi.yml
-  when:
-    - powerscale_enabled | bool
-    - karavi_exists_check.rc != 0
+  when: powerscale_enabled | bool
 
 # --- Generate PowerScale deployment manifests ---
 # CSI volume exporter is only deployed when metrics are enabled

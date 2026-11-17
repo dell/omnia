@@ -64,6 +64,18 @@ _ERROR_CONTEXT_PATTERN = re.compile(
 _LOG_DIRECTORY_MODE = 0o700
 _LOG_FILE_MODE = 0o600
 
+# Keys that may carry credentials and must be stripped before display.
+_SENSITIVE_RESULT_KEYS = frozenset({
+    "invocation",
+    "module_args",
+    "password",
+    "token",
+    "secret_key",
+    "api_key",
+    "vault_password",
+    "credentials",
+})
+
 
 def _secure_log_file(log_filepath):
     """Create or restrict the controller log without module-utils imports."""
@@ -157,18 +169,29 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
         self._patch_display()
         super().v2_playbook_on_play_start(play)
 
+    @staticmethod
+    def _redact_sensitive_keys(result_dict):
+        """Return a copy of result_dict with credential-bearing keys removed."""
+        return {
+            k: v for k, v in result_dict.items()
+            if k not in _SENSITIVE_RESULT_KEYS
+        }
+
     def _format_result_msg(self, result_dict):
         """
         Format result dict for display.
 
+        Credential-bearing keys are stripped before serialization to
+        prevent accidental credential exposure in task output.
         If ``msg`` contains newlines, display them as real line breaks
         instead of escaped ``\\n`` characters.
         """
-        msg = result_dict.get("msg", "")
+        safe_dict = self._redact_sensitive_keys(result_dict)
+        msg = safe_dict.get("msg", "")
         if isinstance(msg, str) and "\n" in msg:
-            filtered = {k: v for k, v in result_dict.items() if k != "msg"}
+            filtered = {k: v for k, v in safe_dict.items() if k != "msg"}
             return f"{json.dumps(filtered, sort_keys=True)}\nmsg: |-\n  {msg.replace(chr(10), chr(10) + '  ')}"
-        return self._dump_results(result_dict)
+        return self._dump_results(safe_dict)
 
     def v2_runner_on_failed(self, result, ignore_errors=False):
         """

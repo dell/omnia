@@ -44,7 +44,8 @@ slurmctld_service_default_path: '/usr/lib/systemd/system/slurmctld.service'
 slurmd_service_default_path: '/usr/lib/systemd/system/slurmd.service'
 slurmdbd_service_default_path: '/usr/lib/systemd/system/slurmdbd.service'
 sys_env_path: '/etc/environment'
-default_real_memory: 864
+# Default memory in MB for slurm.conf (864 GB = 884736 MB)
+default_real_memory: 884736
 default_threadspercore: 1
 default_corespersocket: 72
 default_sockets: 2

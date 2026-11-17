@@ -25,7 +25,19 @@ This means:
 - `./run_validation.sh fvt_main test` = execute the positive lifecycle once, then verify all FVTs
 - `./run_validation.sh fvt_main verify` = verify all FVT scenarios in one pytest session
 - `./run_validation.sh fvt_main setup test` = execute and verify setup only
-- `./run_validation.sh fvt_main cleanup exec` = run cleanup explicitly
+- `./run_validation.sh fvt_main cleanup test` = run cleanup explicitly, then verify it
+
+### Cleanup scope (`cleanup_all` in `test_config.yml`)
+
+- `false` (default): `omnia.sh --cleanup` removes the Omnia venv,
+  `/etc/omnia/omnia.env`, omnia-cli and the dependency cache, and keeps the
+  runtime data under `OMNIA_DATA_PATH` (input, output, logs).
+- `true`: `omnia.sh --cleanup --all --skip-approval` also removes every
+  domain's input and log artifacts and the whole `OMNIA_DATA_PATH`, credential
+  stores included. omnia.sh refuses, and removes nothing, while a domain still
+  holds deployed state or log/output files; run each domain's cleanup first.
+  The system test (`test/system_test`, `cleanup.main.cleanup_all`) sets this
+  flag and runs every `domain-init.sh --cleanup` before it.
 
 ### Intelligent Skip for Setup & Cleanup
 
@@ -56,7 +68,7 @@ vi test_config.yml
 ./run_validation.sh fvt_main setup test          # Setup only
 ./run_validation.sh fvt_main init test           # Init only
 ./run_validation.sh fvt_main precheck exec       # Precheck execution only
-./run_validation.sh fvt_main cleanup exec        # Explicit cleanup only
+./run_validation.sh fvt_main cleanup test        # Explicit cleanup + verify
 ./run_validation.sh nft_main test                # Performance + idempotency NFT
 python3 -m unittest discover -s ut -p 'test_*.py' # Local CLI/catalog unit contracts
 ```
@@ -170,7 +182,7 @@ test/main/
 | `validate` | `--run image_build_manager --tags validate` | Command completion and validation contract |
 | `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags, --prepare-base, and recursive catalog listing |
 | `omnia_cli` | `omnia-cli help` | Status, check, version, domain queries, logs, errors |
-| `cleanup` | `omnia.sh --cleanup` | Explicit cleanup only; excluded from aggregate runs |
+| `cleanup` | `omnia.sh --cleanup`, or `--cleanup --all --skip-approval` with `cleanup_all: true` | Explicit cleanup only; excluded from aggregate runs |
 | `nft` | `--setup-venv`, `--init`, `omnia-cli status` | Performance thresholds, idempotency, file permissions |
 
 ## Result output

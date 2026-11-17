@@ -28,7 +28,12 @@
 # =============================================================================
 
 - name: Check if Python module is installed
-  ansible.builtin.command: python3 -c "import {{ package_name }}"
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - "import importlib, sys; importlib.import_module(sys.argv[1])"
+      - "{{ package_name }}"
   register: module_check
   failed_when: false
   changed_when: false
@@ -43,7 +48,7 @@
     - name: Install Python module in online mode (from PyPI)
       when: install_mode == "online"
       ansible.builtin.command: >
-        python3 -m pip install {{ package_distribution_name }}=={{ package_version }}
+        python3 -m pip install {{ package_distribution_name | quote }}=={{ package_version | quote }}
       register: pip_install_online
       changed_when: true
 
@@ -81,7 +86,12 @@
         - pip_install_offline.rc != 0
 
 - name: Verify Python module is now available
-  ansible.builtin.command: python3 -c "import {{ package_name }}; print({{ package_name }}.__version__)"
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - "import importlib, sys; mod = importlib.import_module(sys.argv[1]); print(mod.__version__)"
+      - "{{ package_name }}"
   register: module_verify
   changed_when: false
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Image Builder and Repo Manager status-file contracts."""
+"""Image Build Manager and Repo Manager status-file contracts."""
 
 import pytest
 from library.functions import (

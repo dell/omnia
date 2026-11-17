@@ -18,7 +18,6 @@ from library.vars.common_vars import (
     DOMAIN_NAME,
     PLAYBOOK_ENTRY_POINT,
     PLAYBOOK_WORKDIR,
-    PLAYBOOK_TAGS,
     CMDS,
 )
 from library.vars.test_case_vars import TEST_CASES
@@ -27,7 +26,6 @@ __all__ = [
     "DOMAIN_NAME",
     "PLAYBOOK_ENTRY_POINT",
     "PLAYBOOK_WORKDIR",
-    "PLAYBOOK_TAGS",
     "CMDS",
     "TEST_CASES",
 ]

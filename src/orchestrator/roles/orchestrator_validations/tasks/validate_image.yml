@@ -75,7 +75,7 @@
       - _build_status_data.overall_status | default('') == 'success'
       - >-
         _build_status_data.image_build_type | default('') in
-        ['image-builder', 'image-thrillhouse']
+        accepted_image_build_types
       - _build_status_data.s3_configurations is defined
       - >-
         _build_status_data.s3_configurations.endpoint_url

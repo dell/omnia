@@ -158,8 +158,8 @@ result selects validation-only handling.
 The same image name can appear with multiple tags:
 
 ```text
-docker.io/victoriametrics/operator:v0.68.3
-docker.io/victoriametrics/operator:config-reloader-v0.68.3
+docker.io/victoriametrics/operator:v0.75.0
+docker.io/victoriametrics/operator:config-reloader-v0.75.0
 ```
 
 Both tags use one Pulp container repository but remain separate catalog, status

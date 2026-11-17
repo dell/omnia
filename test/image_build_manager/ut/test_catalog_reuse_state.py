@@ -217,5 +217,5 @@ def test_selective_mutation_skips_layers_without_unique_groups():
 
     changed_catalog, target_group = context.mutate_one_functional_group()
 
-    assert target_group == "slurm_control_node_rhel_10_0_x86_64"
+    assert target_group == "slurm_control_node_rhel_10_2_x86_64"
     assert changed_catalog != context.original_catalog

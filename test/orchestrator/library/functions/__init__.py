@@ -14,14 +14,33 @@
 
 """Public helper surface used by Orchestrator verification modules."""
 
+from typing import Any, Dict
+
 from omnia_auto import TestLogger
 from omnia_auto import run_playbook as _run_playbook
 
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 from .additional_cloud_init_pxeboot_func import (
+    check_additional_cloud_init_bss_common,
+    check_additional_cloud_init_bss_stability,
+    check_additional_cloud_init_bss_per_fg,
+    check_additional_cloud_init_common_template,
+    check_additional_cloud_init_conditional_rendering,
+    check_additional_cloud_init_e2e_combined,
+    check_additional_cloud_init_e2e_common_only,
+    check_additional_cloud_init_e2e_mixed_directives,
+    check_additional_cloud_init_e2e_multiple_fgs,
+    check_additional_cloud_init_e2e_packages,
+    check_additional_cloud_init_e2e_per_fg_only,
+    check_additional_cloud_init_merge_behavior,
     check_additional_cloud_init_metadata_groups,
+    check_additional_cloud_init_multi_fg_compat,
+    check_additional_cloud_init_per_fg_template,
+    check_additional_cloud_init_pipeline_stability,
+    check_additional_cloud_init_rhel_compat,
     check_additional_cloud_init_runcmd,
     check_additional_cloud_init_smd_groups,
+    check_additional_cloud_init_smd_stability,
     check_additional_cloud_init_write_files,
 )
 from .apptainer_accelerator_pxeboot_func import (
@@ -180,6 +199,42 @@ from .external_ldap_pxeboot_func import (
     check_external_ldap_backend,
     check_external_ldap_proxy,
     reconcile_external_ldap_proxy,
+)
+from .ipoib_comm_path_pxeboot_func import check_ipoib_slurm_comm_path
+from .ipoib_inputs_precheck_func import check_ipoib_input_case
+from .ipoib_nft_func import (
+    check_ipoib_allocation_validation_latency,
+    check_ipoib_artifact_generation_throughput,
+)
+from .ipoib_powervault_pxeboot_func import (
+    check_ipoib_powervault_coexistence,
+    check_ipoib_powervault_dns_resilience,
+    check_ipoib_powervault_ib_reprovision,
+    check_ipoib_powervault_iscsi_path,
+    check_ipoib_powervault_nfs_coexistence,
+)
+from .ipoib_pxeboot_func import (
+    check_ipoib_address_state,
+    check_ipoib_custom_slurm_conf,
+    check_ipoib_mode_address_assignment,
+    check_ipoib_nm_profile,
+    check_ipoib_peer_mesh,
+    check_ipoib_routes,
+    check_ipoib_slurm_nodeaddr,
+)
+from .ipoib_resilience_pxeboot_func import (
+    check_ipoib_compute_multi_reboot_recovery,
+    check_ipoib_compute_reboot_recovery,
+    check_ipoib_controller_reboot_recovery,
+    check_ipoib_failure_dual_stack,
+    check_ipoib_nodeaddr_reapply,
+)
+from .kubernetes_bootstrap_token_pxeboot_func import (
+    check_kubernetes_bootstrap_token_ttl,
+    check_kubernetes_cp_join_file_format,
+    check_kubernetes_cp_join_file_permissions,
+    check_kubernetes_worker_join_file_format,
+    check_kubernetes_worker_join_file_permissions,
 )
 from .kubernetes_etcd_pxeboot_func import (
     check_kubernetes_etcd_health,
@@ -379,7 +434,7 @@ from .vast_storage_pxeboot_func import (
 )
 
 
-def run_playbook(tag: str | None = None, **kwargs):
+def run_playbook(tag: str | None = None, **kwargs) -> Dict[str, Any]:
     """Run the canonical Orchestrator playbook for the requested lifecycle tag."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
@@ -391,9 +446,26 @@ def run_playbook(tag: str | None = None, **kwargs):
 
 __all__ = [
     "TestLogger",
+    "check_additional_cloud_init_bss_common",
+    "check_additional_cloud_init_bss_stability",
+    "check_additional_cloud_init_bss_per_fg",
+    "check_additional_cloud_init_common_template",
+    "check_additional_cloud_init_conditional_rendering",
+    "check_additional_cloud_init_e2e_combined",
+    "check_additional_cloud_init_e2e_common_only",
+    "check_additional_cloud_init_e2e_mixed_directives",
+    "check_additional_cloud_init_e2e_multiple_fgs",
+    "check_additional_cloud_init_e2e_packages",
+    "check_additional_cloud_init_e2e_per_fg_only",
+    "check_additional_cloud_init_merge_behavior",
     "check_additional_cloud_init_metadata_groups",
+    "check_additional_cloud_init_multi_fg_compat",
+    "check_additional_cloud_init_per_fg_template",
+    "check_additional_cloud_init_pipeline_stability",
+    "check_additional_cloud_init_rhel_compat",
     "check_additional_cloud_init_runcmd",
     "check_additional_cloud_init_smd_groups",
+    "check_additional_cloud_init_smd_stability",
     "check_additional_cloud_init_write_files",
     "check_apptainer_concurrent_jobs",
     "check_apptainer_cuda_workload",
@@ -525,6 +597,27 @@ __all__ = [
     "check_hpc_benchmarks_source_only_delivery",
     "check_hpc_benchmarks_staging_idempotency",
     "check_hpc_benchmarks_tools_dir_creation",
+    "check_ipoib_address_state",
+    "check_ipoib_allocation_validation_latency",
+    "check_ipoib_artifact_generation_throughput",
+    "check_ipoib_compute_multi_reboot_recovery",
+    "check_ipoib_compute_reboot_recovery",
+    "check_ipoib_controller_reboot_recovery",
+    "check_ipoib_custom_slurm_conf",
+    "check_ipoib_failure_dual_stack",
+    "check_ipoib_input_case",
+    "check_ipoib_mode_address_assignment",
+    "check_ipoib_nm_profile",
+    "check_ipoib_nodeaddr_reapply",
+    "check_ipoib_peer_mesh",
+    "check_ipoib_powervault_coexistence",
+    "check_ipoib_powervault_dns_resilience",
+    "check_ipoib_powervault_ib_reprovision",
+    "check_ipoib_powervault_iscsi_path",
+    "check_ipoib_powervault_nfs_coexistence",
+    "check_ipoib_routes",
+    "check_ipoib_slurm_comm_path",
+    "check_ipoib_slurm_nodeaddr",
     "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
     "check_external_ldap_backend",
@@ -532,8 +625,13 @@ __all__ = [
     "check_kubernetes_control_plane_recovery",
     "check_kubernetes_csi_dynamic_provisioning",
     "check_kubernetes_default_storage_class",
+    "check_kubernetes_bootstrap_token_ttl",
+    "check_kubernetes_cp_join_file_format",
+    "check_kubernetes_cp_join_file_permissions",
     "check_kubernetes_etcd_health",
     "check_kubernetes_etcd_topology",
+    "check_kubernetes_worker_join_file_format",
+    "check_kubernetes_worker_join_file_permissions",
     "check_kubernetes_local_etcd",
     "check_kubernetes_local_etcd_integrity",
     "check_kubernetes_local_etcd_media",

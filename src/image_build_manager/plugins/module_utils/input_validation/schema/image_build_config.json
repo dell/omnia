@@ -41,12 +41,6 @@
             "pattern": "^\\S*$",
             "description": "Optional path to repo_status.yml produced by repo_manager. An empty value uses the current Repo Manager project output."
         },
-        "image_build_type": {
-            "type": "string",
-            "enum": ["image-builder", "image-thrillhouse"],
-            "description": "OpenCHAMI image builder type: 'image-builder' (standard) or 'image-thrillhouse' (next-gen with extended features).",
-            "default": "image-thrillhouse"
-        },
         "functional_groups_source": {
             "type": "string",
             "enum": ["config", "catalog"],
@@ -100,7 +94,6 @@
     "required": [
         "repo_manager_output_path",
         "s3_configurations",
-        "image_build_type",
         "functional_groups_source",
         "build_image"
     ],

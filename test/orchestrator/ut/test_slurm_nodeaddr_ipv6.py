@@ -1,0 +1,490 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Portable unit tests for Slurm NodeAddr injection from IPoIB allocation.
+
+Story: ER-ORCH-005-nm-config-publication (FR-7, AC-009)
+ER test plan: TC-UT-009
+
+Covers:
+- Address family selection: ipv4-only, ipv6-only, dual-stack (FR-7: auto IPv6)
+- CommunicationParameters EnableIPv6 injection for dual-stack and ipv6-only
+- No allocation file skips injection
+- Empty node_params skips injection
+- Cloud-init /etc/hosts injection parsing
+
+These tests validate the logic embedded in inject_ib_nodeaddr.yml by testing
+the equivalent Python logic used in the Ansible shell tasks.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from typing import Any, Dict, List, Optional
+
+import pytest
+
+pytestmark = pytest.mark.unit
+
+
+# ---------------------------------------------------------------------------
+# Helper: simulate the NodeAddr address-family derivation from Ansible logic
+# ---------------------------------------------------------------------------
+
+def derive_nodeaddr_af(
+    ib_addr_mode: str,
+) -> str:
+    """Derive the target address family for Slurm NodeAddr.
+
+    Mirrors the Jinja2 logic in inject_ib_nodeaddr.yml task
+    'Determine target address family for NodeAddr'.
+
+    Per FR-7, dual-stack mode automatically uses IPv6.
+
+    Args:
+        ib_addr_mode: One of 'ipv4-only', 'ipv6-only', 'dual-stack', or ''.
+
+    Returns:
+        'ipv4', 'ipv6', or 'none'.
+    """
+    mode = ib_addr_mode.strip()
+    if mode == "ipv4-only":
+        return "ipv4"
+    if mode == "ipv6-only":
+        return "ipv6"
+    if mode == "dual-stack":
+        return "ipv6"
+    return "none"
+
+
+def build_nodeaddr_map(
+    allocations: List[Dict[str, Any]],
+    target_af: str,
+) -> Dict[str, str]:
+    """Build hostname-to-address mapping for NodeAddr.
+
+    Mirrors the 'Build hostname to IB address mapping' task.
+
+    Args:
+        allocations: List of allocation records with hostname, address, address_family.
+        target_af: Target address family ('ipv4' or 'ipv6').
+
+    Returns:
+        Dict mapping hostname to IB address.
+    """
+    return {
+        a["hostname"]: a["address"]
+        for a in allocations
+        if a.get("address_family") == target_af
+    }
+
+
+def inject_nodeaddr(
+    node_params: List[Dict[str, Any]],
+    nodeaddr_map: Dict[str, str],
+) -> List[Dict[str, Any]]:
+    """Inject NodeAddr into node_params entries.
+
+    Mirrors the 'Add NodeAddr to each node_params entry' task.
+
+    Args:
+        node_params: List of Slurm node parameter dicts (must have NodeName).
+        nodeaddr_map: hostname-to-address mapping.
+
+    Returns:
+        Updated node_params with NodeAddr injected.
+    """
+    result = []
+    for entry in node_params:
+        node_name = entry.get("NodeName", "")
+        if node_name in nodeaddr_map:
+            updated = dict(entry, NodeAddr=nodeaddr_map[node_name])
+            result.append(updated)
+        else:
+            result.append(entry)
+    return result
+
+
+def add_enable_ipv6(
+    apply_config: Dict[str, Any],
+    ib_addr_mode: str,
+) -> Dict[str, Any]:
+    """Add EnableIPv6 to CommunicationParameters for dual-stack/ipv6-only.
+
+    Mirrors the 'Add EnableIPv6 to CommunicationParameters' task.
+
+    Args:
+        apply_config: Slurm config dict with 'slurm' key.
+        ib_addr_mode: The IB addressing mode.
+
+    Returns:
+        Updated apply_config.
+    """
+    if ib_addr_mode in ("dual-stack", "ipv6-only"):
+        slurm_conf = apply_config.get("slurm", {})
+        existing = slurm_conf.get("CommunicationParameters", "")
+        new_val = f"{existing},EnableIPv6" if existing else "EnableIPv6"
+        # Strip leading comma (mirrors regex_replace('^,', ''))
+        new_val = re.sub(r"^,", "", new_val)
+        slurm_conf["CommunicationParameters"] = new_val
+        apply_config["slurm"] = slurm_conf
+    return apply_config
+
+
+def build_ctld_ib_list(
+    ctld_list: List[str],
+    nodeaddr_map: Dict[str, str],
+) -> List[str]:
+    """Build SlurmctldHost entries with IB address for controller nodes.
+
+    Mirrors the 'Build SlurmctldHost entries with IB address' task in
+    inject_ib_nodeaddr.yml. IPv6 addresses are NOT bracketed — Slurm
+    cannot parse brackets in SlurmctldHost.
+
+    Args:
+        ctld_list: List of controller hostnames.
+        nodeaddr_map: hostname-to-IB-address mapping.
+
+    Returns:
+        List of 'hostname(addr)' strings (or plain hostname if not in map).
+    """
+    result = []
+    for hostname in ctld_list:
+        if hostname in nodeaddr_map:
+            addr = nodeaddr_map[hostname]
+            result.append(f"{hostname}({addr})")
+        else:
+            result.append(hostname)
+    return result
+
+
+def build_ctld_ib_addrs(
+    ctld_list: List[str],
+    nodeaddr_map: Dict[str, str],
+) -> List[str]:
+    """Build IB addresses for --conf-server (configless mode).
+
+    Mirrors the same task as build_ctld_ib_list but returns raw addresses
+    (with IPv6 bracketing) for use in --conf-server.
+
+    Args:
+        ctld_list: List of controller hostnames.
+        nodeaddr_map: hostname-to-IB-address mapping.
+
+    Returns:
+        List of IB addresses (or hostnames if not in map).
+    """
+    result = []
+    for hostname in ctld_list:
+        if hostname in nodeaddr_map:
+            addr = nodeaddr_map[hostname]
+            result.append(f"[{addr}]" if ":" in addr else addr)
+        else:
+            result.append(hostname)
+    return result
+
+
+def parse_hosts_block_for_cloudinit(raw: str) -> List[str]:
+    """Parse hosts block content for cloud-init injection.
+
+    Mirrors the set_fact logic in configure_metadata_svc.yml that filters
+    comment and empty lines from the rendered hosts block.
+
+    Args:
+        raw: Raw hosts block content.
+
+    Returns:
+        List of non-comment, non-empty lines.
+    """
+    return [
+        line
+        for line in raw.splitlines()
+        if not re.match(r"^#", line) and not re.match(r"^\s*$", line)
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Test data fixtures
+# ---------------------------------------------------------------------------
+
+SAMPLE_ALLOCATIONS = [
+    {"hostname": "nid001", "address": "192.168.0.11", "address_family": "ipv4",
+     "interface_id": "ib0", "lifecycle_state": "active"},
+    {"hostname": "nid001", "address": "fd00:1b::11", "address_family": "ipv6",
+     "interface_id": "ib0", "lifecycle_state": "active"},
+    {"hostname": "nid002", "address": "192.168.0.12", "address_family": "ipv4",
+     "interface_id": "ib0", "lifecycle_state": "active"},
+    {"hostname": "nid002", "address": "fd00:1b::12", "address_family": "ipv6",
+     "interface_id": "ib0", "lifecycle_state": "active"},
+    {"hostname": "nid003", "address": "192.168.0.13", "address_family": "ipv4",
+     "interface_id": "ib0", "lifecycle_state": "active"},
+    {"hostname": "nid003", "address": "fd00:1b::13", "address_family": "ipv6",
+     "interface_id": "ib0", "lifecycle_state": "active"},
+]
+
+SAMPLE_NODE_PARAMS = [
+    {"NodeName": "nid001", "CPUs": 144, "RealMemory": 864},
+    {"NodeName": "nid002", "CPUs": 144, "RealMemory": 864},
+    {"NodeName": "nid003", "CPUs": 144, "RealMemory": 864},
+]
+
+
+# ===========================================================================
+# TC-UT-009: Address family selection tests
+# ===========================================================================
+
+class TestNodeAddrAddressFamily:
+    """TC-UT-009: Verify NodeAddr address family derivation."""
+
+    def test_ipv4_only_derives_ipv4(self):
+        """ipv4-only mode auto-derives ipv4 without preference."""
+        assert derive_nodeaddr_af("ipv4-only") == "ipv4"
+
+    def test_ipv6_only_derives_ipv6(self):
+        """ipv6-only mode auto-derives ipv6 without preference."""
+        assert derive_nodeaddr_af("ipv6-only") == "ipv6"
+
+    def test_dual_stack_derives_ipv6(self):
+        """dual-stack mode auto-derives ipv6 per FR-7."""
+        assert derive_nodeaddr_af("dual-stack") == "ipv6"
+
+    def test_empty_mode_returns_none(self):
+        """Empty ib_addr_mode returns 'none'."""
+        assert derive_nodeaddr_af("") == "none"
+
+    def test_unknown_mode_returns_none(self):
+        """Unknown ib_addr_mode value returns 'none'."""
+        assert derive_nodeaddr_af("multi-stack") == "none"
+
+
+# ===========================================================================
+# TC-UT-009: NodeAddr injection into node_params
+# ===========================================================================
+
+class TestNodeAddrInjection:
+    """TC-UT-009: Verify NodeAddr injection into Slurm node_params."""
+
+    def test_ipv4_nodeaddr_injected(self):
+        """IPv4 NodeAddr injected into all 3 nodes."""
+        addr_map = build_nodeaddr_map(SAMPLE_ALLOCATIONS, "ipv4")
+        result = inject_nodeaddr(SAMPLE_NODE_PARAMS, addr_map)
+        assert len(result) == 3
+        assert result[0]["NodeAddr"] == "192.168.0.11"
+        assert result[1]["NodeAddr"] == "192.168.0.12"
+        assert result[2]["NodeAddr"] == "192.168.0.13"
+
+    def test_ipv6_nodeaddr_injected(self):
+        """IPv6 NodeAddr injected into all 3 nodes."""
+        addr_map = build_nodeaddr_map(SAMPLE_ALLOCATIONS, "ipv6")
+        result = inject_nodeaddr(SAMPLE_NODE_PARAMS, addr_map)
+        assert result[0]["NodeAddr"] == "fd00:1b::11"
+        assert result[1]["NodeAddr"] == "fd00:1b::12"
+        assert result[2]["NodeAddr"] == "fd00:1b::13"
+
+    def test_unmatched_node_unchanged(self):
+        """Nodes not in allocation map keep original params (no NodeAddr)."""
+        addr_map = {"nid001": "192.168.0.11"}  # Only nid001
+        result = inject_nodeaddr(SAMPLE_NODE_PARAMS, addr_map)
+        assert "NodeAddr" in result[0]
+        assert "NodeAddr" not in result[1]
+        assert "NodeAddr" not in result[2]
+
+    def test_empty_node_params_returns_empty(self):
+        """Empty node_params produces empty result."""
+        result = inject_nodeaddr([], {"nid001": "192.168.0.11"})
+        assert result == []
+
+    def test_empty_map_preserves_params(self):
+        """Empty address map preserves all params unchanged."""
+        result = inject_nodeaddr(SAMPLE_NODE_PARAMS, {})
+        for entry in result:
+            assert "NodeAddr" not in entry
+
+    def test_original_fields_preserved(self):
+        """Original CPUs/RealMemory preserved after NodeAddr injection."""
+        addr_map = build_nodeaddr_map(SAMPLE_ALLOCATIONS, "ipv4")
+        result = inject_nodeaddr(SAMPLE_NODE_PARAMS, addr_map)
+        assert result[0]["CPUs"] == 144
+        assert result[0]["RealMemory"] == 864
+
+
+# ===========================================================================
+# TC-UT-009: EnableIPv6 CommunicationParameters injection
+# ===========================================================================
+
+class TestEnableIPv6Injection:
+    """TC-UT-009: Verify CommunicationParameters EnableIPv6 handling."""
+
+    def test_dual_stack_adds_enable_ipv6(self):
+        """dual-stack adds EnableIPv6."""
+        config = {"slurm": {}}
+        result = add_enable_ipv6(config, "dual-stack")
+        assert result["slurm"]["CommunicationParameters"] == "EnableIPv6"
+
+    def test_ipv6_only_adds_enable_ipv6(self):
+        """ipv6-only adds EnableIPv6."""
+        config = {"slurm": {}}
+        result = add_enable_ipv6(config, "ipv6-only")
+        assert result["slurm"]["CommunicationParameters"] == "EnableIPv6"
+
+    def test_ipv4_only_no_enable_ipv6(self):
+        """ipv4-only does not add EnableIPv6."""
+        config = {"slurm": {}}
+        result = add_enable_ipv6(config, "ipv4-only")
+        assert "CommunicationParameters" not in result.get("slurm", {})
+
+    def test_existing_params_appended(self):
+        """EnableIPv6 appended to existing CommunicationParameters."""
+        config = {"slurm": {"CommunicationParameters": "NoCtld"}}
+        result = add_enable_ipv6(config, "dual-stack")
+        assert result["slurm"]["CommunicationParameters"] == "NoCtld,EnableIPv6"
+
+    def test_empty_existing_params(self):
+        """Empty existing CommunicationParameters gets clean EnableIPv6."""
+        config = {"slurm": {"CommunicationParameters": ""}}
+        result = add_enable_ipv6(config, "ipv6-only")
+        assert result["slurm"]["CommunicationParameters"] == "EnableIPv6"
+
+
+# ===========================================================================
+# TC-UT-009: Cloud-init /etc/hosts injection parsing
+# ===========================================================================
+
+class TestCloudInitHostsInjection:
+    """TC-UT-009: Verify hosts block parsing for cloud-init injection."""
+
+    def test_comments_and_empty_lines_filtered(self):
+        """Comment and empty lines stripped from hosts block."""
+        raw = (
+            "# BEGIN Omnia IPoIB managed block\n"
+            "192.168.0.11 nid001-ib0 nid001-ib\n"
+            "fd00:1b::11 nid001-ib0 nid001-ib\n"
+            "\n"
+            "# END Omnia IPoIB managed block\n"
+        )
+        entries = parse_hosts_block_for_cloudinit(raw)
+        assert len(entries) == 2
+        assert "192.168.0.11 nid001-ib0 nid001-ib" in entries
+        assert "fd00:1b::11 nid001-ib0 nid001-ib" in entries
+
+    def test_empty_block_returns_empty_list(self):
+        """Empty hosts block returns empty list."""
+        entries = parse_hosts_block_for_cloudinit("")
+        assert entries == []
+
+    def test_all_comments_returns_empty(self):
+        """Block with only comments returns empty."""
+        raw = "# BEGIN Omnia IPoIB managed block\n# END Omnia IPoIB managed block\n"
+        entries = parse_hosts_block_for_cloudinit(raw)
+        assert entries == []
+
+    def test_multiple_hosts_preserved(self):
+        """All non-comment host lines are preserved."""
+        raw = (
+            "# BEGIN Omnia IPoIB managed block\n"
+            "192.168.0.11 nid001-ib0 nid001-ib\n"
+            "192.168.0.12 nid002-ib0 nid002-ib\n"
+            "192.168.0.13 nid003-ib0 nid003-ib\n"
+            "fd00:1b::11 nid001-ib0 nid001-ib\n"
+            "fd00:1b::12 nid002-ib0 nid002-ib\n"
+            "fd00:1b::13 nid003-ib0 nid003-ib\n"
+            "# END Omnia IPoIB managed block\n"
+        )
+        entries = parse_hosts_block_for_cloudinit(raw)
+        assert len(entries) == 6
+
+
+# ===========================================================================
+# TC-UT-009: SlurmctldHost IB address injection
+# ===========================================================================
+
+class TestSlurmctldHostIBAddr:
+    """TC-UT-009: Verify SlurmctldHost IB address building logic."""
+
+    def test_ipv4_controller_gets_addr_in_parens(self):
+        """IPv4 controller address renders as hostname(addr)."""
+        ib_map = {"nid001": "192.168.1.31"}
+        result = build_ctld_ib_list(["nid001"], ib_map)
+        assert result == ["nid001(192.168.1.31)"]
+
+    def test_ipv6_controller_gets_raw_addr(self):
+        """IPv6 controller address renders as hostname(addr) without brackets."""
+        ib_map = {"nid001": "fd00:1b::31"}
+        result = build_ctld_ib_list(["nid001"], ib_map)
+        assert result == ["nid001(fd00:1b::31)"]
+
+    def test_controller_not_in_map_falls_back_to_hostname(self):
+        """Controller not in IB map falls back to plain hostname."""
+        ib_map = {"nid002": "192.168.1.32"}
+        result = build_ctld_ib_list(["nid001"], ib_map)
+        assert result == ["nid001"]
+
+    def test_empty_map_returns_hostnames(self):
+        """Empty IB map returns plain hostnames."""
+        result = build_ctld_ib_list(["nid001", "nid002"], {})
+        assert result == ["nid001", "nid002"]
+
+    def test_multi_controller_ha(self):
+        """Multiple controllers each get their IB address."""
+        ib_map = {"nid001": "192.168.1.31", "nid002": "192.168.1.32"}
+        result = build_ctld_ib_list(["nid001", "nid002"], ib_map)
+        assert result == ["nid001(192.168.1.31)", "nid002(192.168.1.32)"]
+
+    def test_mixed_controllers_partial_ib(self):
+        """Only controllers with IB get addr; others keep hostname."""
+        ib_map = {"nid001": "192.168.1.31"}
+        result = build_ctld_ib_list(["nid001", "nid002"], ib_map)
+        assert result == ["nid001(192.168.1.31)", "nid002"]
+
+
+class TestConfServerIBAddrs:
+    """TC-UT-009: Verify --conf-server IB address building logic."""
+
+    def test_ipv4_addr_no_brackets(self):
+        """IPv4 address returned without brackets."""
+        ib_map = {"nid001": "192.168.1.31"}
+        result = build_ctld_ib_addrs(["nid001"], ib_map)
+        assert result == ["192.168.1.31"]
+
+    def test_ipv6_addr_bracketed(self):
+        """IPv6 address returned with brackets for port concatenation."""
+        ib_map = {"nid001": "fd00:1b::31"}
+        result = build_ctld_ib_addrs(["nid001"], ib_map)
+        assert result == ["[fd00:1b::31]"]
+
+    def test_not_in_map_returns_hostname(self):
+        """Controller not in map returns hostname for DNS fallback."""
+        result = build_ctld_ib_addrs(["nid001"], {})
+        assert result == ["nid001"]
+
+    def test_conf_server_port_concat_ipv4(self):
+        """IPv4 conf-server string formats correctly with port."""
+        ib_map = {"nid001": "192.168.1.31"}
+        addrs = build_ctld_ib_addrs(["nid001"], ib_map)
+        conf_server = ",".join(f"{a}:6817" for a in addrs)
+        assert conf_server == "192.168.1.31:6817"
+
+    def test_conf_server_port_concat_ipv6(self):
+        """IPv6 conf-server string formats correctly with port."""
+        ib_map = {"nid001": "fd00:1b::31"}
+        addrs = build_ctld_ib_addrs(["nid001"], ib_map)
+        conf_server = ",".join(f"{a}:6817" for a in addrs)
+        assert conf_server == "[fd00:1b::31]:6817"
+
+    def test_multi_controller_conf_server(self):
+        """Multi-controller conf-server joins with comma."""
+        ib_map = {"nid001": "192.168.1.31", "nid002": "192.168.1.32"}
+        addrs = build_ctld_ib_addrs(["nid001", "nid002"], ib_map)
+        conf_server = ",".join(f"{a}:6817" for a in addrs)
+        assert conf_server == "192.168.1.31:6817,192.168.1.32:6817"

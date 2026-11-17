@@ -31,6 +31,9 @@
 - name: Import firewall task
   ansible.builtin.import_tasks: firewall.yml
 
+- name: Import NTP server task
+  ansible.builtin.import_tasks: configure_ntp.yml
+
 - name: Import verify task
   ansible.builtin.import_tasks: verify.yml
 

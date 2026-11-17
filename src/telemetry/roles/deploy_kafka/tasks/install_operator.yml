@@ -26,7 +26,7 @@
 
 - name: Ensure telemetry namespace exists
   ansible.builtin.command: >
-    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
+    kubectl create namespace {{ telemetry_namespace | quote }} --dry-run=client -o yaml
   register: ns_yaml
   changed_when: false
 
@@ -39,7 +39,7 @@
 
 - name: Check if Strimzi operator is installed
   ansible.builtin.command: >
-    helm status strimzi-cluster-operator -n {{ telemetry_namespace }}
+    helm status strimzi-cluster-operator -n {{ telemetry_namespace | quote }}
   register: strimzi_status
   changed_when: false
   failed_when: false
@@ -53,28 +53,28 @@
 - name: Set Strimzi image overrides for container_registry
   ansible.builtin.set_fact:
     _strimzi_helm_args: >
-      {% set _operator_img = telemetry_registry.images.strimzi.operator | default('quay.io/strimzi/operator:1.1.0') %}
+      {% set _operator_img = telemetry_registry.images.strimzi.operator | default('quay.io/strimzi/operator:1.2.0') %}
       {% set _op_tag = _operator_img.split(':')[-1] %}
-      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.0.0') %}
+      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.2.0') %}
       {% set _br_tag = _bridge_img.split(':')[-1] %}
       {% if telemetry_registry.host | default('') %}
-      --set defaultImageRegistry={{ telemetry_registry.host }}
-      --set image.tag={{ _op_tag }}
-      --set kafkaBridge.image.tag={{ _br_tag }}
+      --set defaultImageRegistry={{ telemetry_registry.host | quote }}
+      --set image.tag={{ _op_tag | quote }}
+      --set kafkaBridge.image.tag={{ _br_tag | quote }}
       {% endif %}
 
 - name: Install Strimzi Kafka operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} install strimzi-cluster-operator
-    {{ strimzi_kafka_pkg }}
+  ansible.builtin.shell: >
+    helm -n {{ telemetry_namespace | quote }} install strimzi-cluster-operator
+    {{ strimzi_kafka_pkg | quote }}
     {{ _strimzi_helm_args }}
   when: strimzi_status.rc != 0
   changed_when: true
 
 - name: Upgrade Strimzi Kafka operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} upgrade strimzi-cluster-operator
-    {{ strimzi_kafka_pkg }}
+  ansible.builtin.shell: >
+    helm -n {{ telemetry_namespace | quote }} upgrade strimzi-cluster-operator
+    {{ strimzi_kafka_pkg | quote }}
     {{ _strimzi_helm_args }}
   when: strimzi_status.rc == 0
   changed_when: true
@@ -82,7 +82,7 @@
 - name: Apply Strimzi CRDs from chart
   ansible.builtin.shell: |
     _TMP=$(mktemp -d)
-    tar -xzf "{{ strimzi_kafka_pkg }}" -C "$_TMP"
+    tar -xzf {{ strimzi_kafka_pkg | quote }} -C "$_TMP"
     kubectl apply -f "$_TMP/strimzi-kafka-operator/crds/" --server-side --force-conflicts
     rm -rf "$_TMP"
   changed_when: false
@@ -90,11 +90,11 @@
 - name: Wait for Strimzi operator deployment to be available
   ansible.builtin.command: >
     kubectl wait --for=condition=available --timeout=300s
-    deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
+    deployment/strimzi-cluster-operator -n {{ telemetry_namespace | quote }}
   changed_when: false
 
 - name: Wait for Strimzi CRDs to be registered
-  ansible.builtin.command: kubectl get crd {{ item }}
+  ansible.builtin.command: kubectl get crd {{ item | quote }}
   loop:
     - kafkas.kafka.strimzi.io
     - kafkatopics.kafka.strimzi.io

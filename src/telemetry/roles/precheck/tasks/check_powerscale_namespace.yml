@@ -49,7 +49,7 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      kubectl get pods -n {{ isilon_namespace }} --no-headers \
+      kubectl get pods -n {{ isilon_namespace | quote }} --no-headers \
         -o custom-columns='NAME:.metadata.name,PHASE:.status.phase,READY:.status.containerStatuses[*].ready' \
         2>/dev/null | \
       awk '{print $1"|"$2"|"$3}'

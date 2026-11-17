@@ -510,7 +510,7 @@ def main():
             sw_archs=sw_archs
         )
 
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught
         logger.error(
             "Package task preparation failed (%s).", type(error).__name__
         )

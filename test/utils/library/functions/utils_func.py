@@ -36,10 +36,11 @@ from ..vars.common_vars import (
     CUSTOM_ISO_PATTERN,
     KICKSTART_FILE,
     INSTALL_OS_STATUS_FILE,
-    DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
     ENV_OMNIA_PROJECT_NAME,
 )
+
+from ..vars.domain_vars import DOMAIN_NAME
 
 from omnia_auto import read_remote_env
 

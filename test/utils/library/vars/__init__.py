@@ -15,7 +15,6 @@
 """Utils domain variables package."""
 
 from .common_vars import (
-    DOMAIN_NAME,
     PLAYBOOK_UTILS,
     PLAYBOOK_COLLECT,
     PLAYBOOK_INSTALL_OS,
@@ -56,8 +55,22 @@ from .common_vars import (
 
 from .test_case_vars import TEST_CASES, LEGACY_ID_MAP
 
+from .domain_vars import (
+    DOMAIN_NAME,
+    FVT_TAGS,
+    MARKERS,
+    SUITES,
+    EXCLUDE_TAGS,
+    ALL_EXEC_TAGS,
+    ALL_EXEC_MARKER,
+    ALL_VERIFY_EXCLUDE_MARKERS,
+    REQUIRED_SUITE_TAGS,
+    VERIFY_ONLY_TAGS,
+    VERIFY_ONLY_SUITES,
+    SUITE_EXEC_OWNERS,
+)
+
 __all__ = [
-    "DOMAIN_NAME",
     "PLAYBOOK_UTILS",
     "PLAYBOOK_COLLECT",
     "PLAYBOOK_INSTALL_OS",
@@ -96,4 +109,16 @@ __all__ = [
     "SRC_INPUT_DIR",
     "TEST_CASES",
     "LEGACY_ID_MAP",
+    "DOMAIN_NAME",
+    "FVT_TAGS",
+    "MARKERS",
+    "SUITES",
+    "EXCLUDE_TAGS",
+    "ALL_EXEC_TAGS",
+    "ALL_EXEC_MARKER",
+    "ALL_VERIFY_EXCLUDE_MARKERS",
+    "REQUIRED_SUITE_TAGS",
+    "VERIFY_ONLY_TAGS",
+    "VERIFY_ONLY_SUITES",
+    "SUITE_EXEC_OWNERS",
 ]

@@ -78,7 +78,6 @@ def valid_config():
     return {
         "repo_manager_output_path": "/opt/omnia/repo_manager/output/p/repo_status.yml",
         "s3_configurations": {"provider": "minio", "endpoint_url": ""},
-        "image_build_type": "image-thrillhouse",
         "functional_groups_source": "config",
         "build_image": {
             "max_parallel": 0,
@@ -99,7 +98,6 @@ def test_valid_boolean_values_pass(valid_config):
     [
         "repo_manager_output_path",
         "s3_configurations",
-        "image_build_type",
         "functional_groups_source",
         "build_image",
     ],
@@ -124,7 +122,6 @@ def test_quoted_boolean_values_fail(valid_config, field):
     ("path", "value"),
     [
         (("repo_manager_output_path",), "with spaces"),
-        (("image_build_type",), "   "),
         (("functional_groups_source",), None),
         (("s3_configurations", "provider"), ""),
     ],

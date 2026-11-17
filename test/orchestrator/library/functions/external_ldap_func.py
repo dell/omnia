@@ -487,6 +487,20 @@ def _proxy_health(host, container: str) -> str:
     return health.stdout.strip() if health.rc == 0 else "unavailable"
 
 
+def _config_ownership(host, config_path: str) -> tuple[str, str, str]:
+    """Return owner, group and mode of the deployed slapd.conf.
+
+    A replacement must keep them: slapd runs as an unprivileged user that reads
+    the file through its group.
+    """
+    result = _checked(
+        run_on_host(host, "stat -c '%%U %%G %%a' -- %s", config_path),
+        "Read slapd.conf ownership",
+    )
+    owner, group, mode = result.stdout.split()
+    return owner, group, mode
+
+
 def _wait_for_proxy(host) -> bool:
     """Wait for running, healthy, and LDAP-responsive proxy state."""
     for _ in range(LDAP_READY_RETRIES):
@@ -511,10 +525,12 @@ def _wait_for_proxy(host) -> bool:
 def _restore_proxy_config(host, backup: str, config_path: str) -> None:
     """Atomically restore the most recent configuration and its readiness."""
     rollback = f"{config_path}.rollback-{secrets.token_hex(8)}.tmp"
+    ownership = _config_ownership(host, config_path)
     _checked(
         run_on_host(
             host,
-            "install -o root -g root -m 0600 -- %s %s",
+            "install -o %s -g %s -m %s -- %s %s",
+            *ownership,
             backup,
             rollback,
         ),
@@ -567,13 +583,15 @@ def _install_proxy_config(
 
     backup = f"{config_path}.pre-external-ldap"
     candidate = f"{config_path}.omnia-test-{secrets.token_hex(8)}.tmp"
+    ownership = _config_ownership(host, config_path)
     installed = False
     try:
         with _target_files(host, {"slapd.conf": (desired, 0o600)}) as staged:
             _checked(
                 run_on_host(
                     host,
-                    "install -o root -g root -m 0600 -- %s %s",
+                    "install -o %s -g %s -m %s -- %s %s",
+                    *ownership,
                     staged["slapd.conf"],
                     candidate,
                 ),

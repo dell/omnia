@@ -309,11 +309,11 @@ TEST_CASES = {
     },
     "cleanup_install_os_temp_iso_removed": {
         "id": "UTILS_FVT_CLEANUP_INSTALL_OS_V001",
-        "title": "Verify /tmp/install_os directory removed",
+        "title": "Verify legacy /tmp/install_os directory removed (if present)",
     },
     "cleanup_install_os_nfs_unmounted": {
         "id": "UTILS_FVT_CLEANUP_INSTALL_OS_V002",
-        "title": "Verify /tmp/install_os_nfs unmounted and removed",
+        "title": "Verify /run/omnia/mnt/install_os_nfs unmounted and removed",
     },
     "cleanup_install_os_credentials_removed": {
         "id": "UTILS_FVT_CLEANUP_INSTALL_OS_V003",

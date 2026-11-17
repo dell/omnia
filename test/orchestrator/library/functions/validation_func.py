@@ -144,7 +144,7 @@ def _validate_repo_status(path: Path) -> list[str]:
 
 
 def _validate_build_status(path: Path) -> list[str]:
-    """Validate the image-builder handoff consumed during provisioning."""
+    """Validate the image-thrillhouse handoff consumed during provisioning."""
     try:
         value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as exc:

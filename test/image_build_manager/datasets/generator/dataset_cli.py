@@ -66,7 +66,7 @@ Examples:
   ./generate_dataset.py profiles
   ./generate_dataset.py profiles image-thrillhouse-internet-config
   ./generate_dataset.py create my_dataset --profile image-thrillhouse-internet-config
-  ./generate_dataset.py create my_image_builder --profile image-builder-internet-config
+  ./generate_dataset.py create my_thrillhouse --profile image-thrillhouse-internet-config
   ./generate_dataset.py create my_offline \\
       --profile image-thrillhouse-offline-config \\
       --repo-host repo.company.internal

@@ -34,6 +34,15 @@ _LOG_BASE = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream" / 
 
 _job_loggers: Dict[str, logging.Logger] = {}
 
+# job_id becomes a directory and file name, so it must be a single safe path
+# component. Route parameters reach these helpers before JobId validation.
+_SAFE_JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
+def _is_safe_job_id(job_id: str) -> bool:
+    """Return True if *job_id* can be used as a log path component."""
+    return isinstance(job_id, str) and bool(_SAFE_JOB_ID.fullmatch(job_id))
+
 # ---------------------------------------------------------------------------
 # Sensitive-data redaction patterns
 # ---------------------------------------------------------------------------
@@ -75,6 +84,8 @@ def create_job_log_file(job_id: str) -> Optional[Path]:
     Returns:
         Path to the created log file, or ``None`` on failure.
     """
+    if not _is_safe_job_id(job_id):
+        return None
     job_log_dir = _LOG_BASE / job_id
     try:
         job_log_dir.mkdir(parents=True, exist_ok=True)
@@ -111,6 +122,8 @@ def create_stage_log_file(
     Returns:
         None — the log path is set later by the result poller.
     """
+    if not _is_safe_job_id(job_id):
+        return
     job_log_dir = _LOG_BASE / job_id
     try:
         job_log_dir.mkdir(parents=True, exist_ok=True)
@@ -137,6 +150,8 @@ def remove_job_logger(job_id: str) -> None:
 # ---------------------------------------------------------------------------
 def _get_job_log_file(job_id: str) -> Optional[Path]:
     """Return the Path to the job log file if the directory exists."""
+    if not _is_safe_job_id(job_id):
+        return None
     log_file = _LOG_BASE / job_id / f"{job_id}.log"
     if log_file.parent.is_dir():
         return log_file

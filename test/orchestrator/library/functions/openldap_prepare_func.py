@@ -30,8 +30,11 @@ from ..vars.prepare_vars import (
     OPENLDAP_CONTAINER,
     OPENLDAP_KEY_PATH_SUFFIX,
     OPENLDAP_PORTS,
+    OPENLDAP_PUBLIC_MODES,
     OPENLDAP_QUADLET_PATH,
+    OPENLDAP_SECRET_MODES,
     OPENLDAP_SERVICE,
+    OPENLDAP_SERVICE_USER,
     PREPARE_COMMANDS,
 )
 from ._prepare_helpers import prepare_result, read_yaml_mapping
@@ -121,21 +124,21 @@ def check_prepare_openldap_artifacts(host) -> dict[str, Any]:
 
     base = resolve_target_omnia_data_path(host).rstrip("/")
     artifacts = (
-        (posixpath.join(base, OPENLDAP_CONFIG_PATH_SUFFIX), 0o600),
-        (posixpath.join(base, OPENLDAP_KEY_PATH_SUFFIX), 0o600),
-        (posixpath.join(base, OPENLDAP_CERT_PATH_SUFFIX), 0o644),
-        (OPENLDAP_QUADLET_PATH, 0o644),
+        (posixpath.join(base, OPENLDAP_CONFIG_PATH_SUFFIX), OPENLDAP_SECRET_MODES),
+        (posixpath.join(base, OPENLDAP_KEY_PATH_SUFFIX), OPENLDAP_SECRET_MODES),
+        (posixpath.join(base, OPENLDAP_CERT_PATH_SUFFIX), OPENLDAP_PUBLIC_MODES),
+        (OPENLDAP_QUADLET_PATH, OPENLDAP_PUBLIC_MODES),
     )
     fields = []
     failures = []
-    for path, mode in artifacts:
+    for path, allowed in artifacts:
         deployed = host.file(path)
         state = "valid"
         if not deployed.is_file:
             state = "missing"
-        elif deployed.user != "root" or deployed.group != "root":
+        elif deployed.user != "root" or deployed.group not in {g for g, _ in allowed}:
             state = "invalid owner"
-        elif deployed.mode != mode:
+        elif (deployed.group, deployed.mode) not in allowed:
             state = f"mode {oct(deployed.mode)}"
         fields.append((path, state))
         if state != "valid":
@@ -155,6 +158,18 @@ def check_prepare_openldap_artifacts(host) -> dict[str, Any]:
     fields.append(("slapd.conf syntax", "valid" if slapd.rc == 0 else "invalid"))
     if slapd.rc != 0:
         failures.append("slapd.conf syntax")
+
+    processes = run_on_host(
+        host, PREPARE_COMMANDS["slapd_process_user"], OPENLDAP_CONTAINER
+    )
+    users = {
+        line.split()[0]
+        for line in processes.stdout.splitlines()
+        if "slapd" in line and line.split()
+    }
+    fields.append(("slapd process user", ", ".join(sorted(users)) or "unavailable"))
+    if users != {OPENLDAP_SERVICE_USER}:
+        failures.append(f"slapd must run as {OPENLDAP_SERVICE_USER}")
 
     return prepare_result(
         not failures,

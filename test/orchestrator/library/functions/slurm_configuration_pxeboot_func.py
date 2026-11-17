@@ -16,7 +16,7 @@
 
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
 from ._pxeboot_helpers import (
@@ -100,7 +100,7 @@ def _contains_expected(actual_lines: list[str], expected_line: str) -> bool:
     return any(wanted <= _line_tokens(actual) for actual in actual_lines)
 
 
-def check_slurm_custom_configuration(host):
+def check_slurm_custom_configuration(host) -> Dict[str, Any]:
     """Verify configured custom values, NFS delivery, and effective visibility."""
     summary = "Slurm custom configuration end-to-end"
     try:
@@ -221,7 +221,7 @@ def _short_digest(digest: str) -> str:
     return f"{digest[:12]}..." if digest else "missing"
 
 
-def check_slurm_configuration_consistency(host):
+def check_slurm_configuration_consistency(host) -> Dict[str, Any]:
     """Compare controller configuration with every configless client cache."""
     summary = "Slurm configuration consistency"
     try:
@@ -358,7 +358,7 @@ def check_slurm_configuration_consistency(host):
         return runtime_exception(summary, exc)
 
 
-def check_slurm_configless_mode(host):
+def check_slurm_configless_mode(host) -> Dict[str, Any]:
     """Verify configless controller access and cluster identity on every role."""
     summary = "Slurm configless access and cluster identity"
     try:
@@ -459,7 +459,7 @@ def check_slurm_configless_mode(host):
         return runtime_exception(summary, exc)
 
 
-def check_slurm_reconfigure(host):
+def check_slurm_reconfigure(host) -> Dict[str, Any]:
     """Request a controller reconfigure and confirm all nodes remain healthy."""
     summary = "Slurm configuration reconfigure"
     try:

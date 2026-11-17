@@ -13,7 +13,7 @@ user-provided Kickstart file and writes the artifacts to an NFS export.
 ## Behavior
 
 1. Validate NFS server/path values.
-2. Reuse a matching NFS mount or mount the export at `/tmp/install_os_nfs`.
+2. Reuse a matching NFS mount or mount the export at `/run/omnia/mnt/install_os_nfs`.
 3. Resolve the custom ISO, `kickstart.ks`, and `install_os_manifest.yml` paths.
 4. Skip an existing ISO unless `rebuild_iso: true`.
 5. Render the built-in `rhel10` Kickstart or process `kickstart_file`.

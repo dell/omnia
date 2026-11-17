@@ -68,18 +68,14 @@ ansible-playbook playbooks/cleanup/cleanup_orchestrator.yml --tags slurm,k8s
 |-----|-------|-------------|
 | `cleanup` | both | All enabled components, including Orchestrator credentials by default |
 | `cleanup_credentials` | both | Orchestrator credential files only |
-| `slurm` | component playbook | Slurm NFS data and configuration |
-| `k8s` | component playbook | K8s NFS data and configuration |
+| `slurm` | component playbook | Slurm configuration, storage unmount, and fstab cleanup. NFS server data is kept. |
+| `k8s` | component playbook | Kubernetes configuration, storage unmount, and fstab cleanup. NFS server data is kept. |
 | `storage_mounts` | component playbook | Unmount orchestrator-deployed NFS mounts, clean fstab |
 | `openchami` | component playbook | OpenCHAMI services, containers, and configuration |
 | `openldap` | component playbook | OpenLDAP service, container, and data |
 | `artifacts` | component playbook | Orchestrator deployment outputs and state files |
 
-Slurm and Kubernetes cleanup remove their shared data first and then invoke
-scoped `storage_mounts` cleanup. This ordering keeps the share reachable while
-server-side data is deleted. A full `--tags cleanup` run does not execute an
-additional global storage-mount pass. Each domain performs its own scoped
-unmount and fstab cleanup after either deleting or preserving its data.
+Slurm and Kubernetes cleanup each invoke scoped `storage_mounts` cleanup to unmount their configured storage and remove its `/etc/fstab` entries. NFS server data is preserved. A full `--tags cleanup` run does not execute an additional global storage-mount pass. Each domain performs its own scoped unmount and fstab cleanup after either deleting or preserving its data.
 Selecting `storage_mounts` directly through the component playbook still
 cleans all Orchestrator-managed mounts.
 
@@ -126,31 +122,22 @@ or `prepare` run recreates the files and prompts for required values.
 
 ## Shared (NFS) data cleanup
 
-When selected, Slurm and K8s cleanup removes data from the **shared filesystem**,
-not just the local mount point, so the data is deleted on the NFS server. This is
-done by writing through the mount point while the share is still mounted, which
-means no SSH access to the NFS server is required and it works with NFS appliances.
-Kubernetes cleanup removes every entry below its configured NFS mount, including
-hidden and dynamically generated content. Slurm cleanup removes its configured
-data directories while retaining `preserve_directories`.
+Slurm and Kubernetes cleanup **does not delete data on the NFS server**. The cleanup unmounts the component's storage and removes its `/etc/fstab` entries, and the shared data remains on the share. To remove that data, delete it manually.
 
-Order of operations per component:
+Files on the NFS share are locked by active processes, pods, or containers while the Slurm daemons or
+Kubernetes cluster are running, so stop them first:
 
-1. Remove the component's directories via the mount point (deletes them on the server)
-2. Unmount the share and remove its `/etc/fstab` entry
-3. Remove the now-empty local mount point directories
+**For Slurm:**
+1. Stop the Slurm daemons (slurmctld, slurmd) and ensure all jobs are terminated
+2. Manually delete the data from the NFS share path configured in `storage_config.yml`
+3. Run the orchestrator cleanup playbook with `cleanup_slurm=true` to unmount the share
+   and remove fstab entries
 
-If the share is **not mounted** and the same path is not a local NFS export,
-cleanup fails instead of claiming that requested server-side data was removed.
-Mount or export the share and re-run the cleanup.
-
-To keep shared data, set `cleanup_nfs_server: false` in the relevant component spec:
-
-- `roles/cleanup/components/slurm/vars/component_spec.yml`
-- `roles/cleanup/components/k8s/vars/component_spec.yml`
-
-Directories listed under `preserve_directories` (Slurm: `slurm_backups`) are never
-removed.
+**For Kubernetes:**
+1. Stop the Kubernetes cluster (or ensure all pods are terminated)
+2. Manually delete the data from the NFS share path configured in `storage_config.yml`
+3. Run the orchestrator cleanup playbook with `cleanup_k8s=true` to unmount the share
+   and remove fstab entries
 
 **Warning:** this is destructive and irreversible. On shared storage these paths
 (`projects`, `scratch`, `apps`, …) may hold data Omnia did not create. Verify backups
@@ -164,9 +151,9 @@ variables:
 
 | Value | Behaviour |
 |-------|-----------|
-| `true` | No prompt; delete that component's shared data, unmount its configured storage, and remove its fstab entries |
-| `false` | No prompt; preserve that component's data, then unmount its storage and remove its fstab entries |
-| omitted | Prompt for data deletion; only an exact `yes` deletes data, while every other answer preserves it; storage cleanup still runs |
+| `true` | No prompt. Unmount that component's storage and remove its fstab entries. NFS server data is not deleted. |
+| `false` | No prompt. Preserve that component's data, then unmount its storage and remove its fstab entries. |
+| omitted | Shared-data confirmation prompts are currently disabled in the cleanup code. Data is preserved, and storage cleanup still runs. |
 
 Examples:
 
@@ -239,7 +226,7 @@ Component behaviour is defined in two places:
 - `roles/cleanup/config/default_cleanup.yml` — which components exist, their priority,
   whether they are enabled, and the paths they remove.
 - `roles/cleanup/components/<component>/vars/component_spec.yml` — per-component
-  behaviour such as `cleanup_nfs_server` and directories to preserve.
+  behaviour such as directories to preserve.
 
 ## Troubleshooting
 

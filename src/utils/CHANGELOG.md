@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PXE boot management moved to the orchestrator domain; obsolete Utils PXE roles and playbooks were removed.
 - Domain initialization now stages flat input templates and caches dependency installation by checksum.
 
+### Fixed
+- Galaxy collection documentation URL now points to Read the Docs latest (https://omnia.readthedocs.io/en/latest/index.html) instead of GitHub Pages
+- README restructured to the common domain layout (same sections in the same order across all domains); Architecture lists every role, module, and plugin; commands and links validated.
+
 ## [2.2.0] - 2026-08-04
 
 ### Added

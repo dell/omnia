@@ -1,7 +1,7 @@
 # build_os_images
 
 Builds base and compute OS images for x86_64 and aarch64 architectures using
-the selected OpenCHAMI `image-builder` or `image-thrillhouse` engine. Uploads
+the OpenCHAMI `image-thrillhouse` engine. Uploads
 artifacts to S3 and verifies pushed OCI images via `regctl`.
 
 ## Structure

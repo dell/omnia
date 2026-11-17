@@ -24,6 +24,13 @@
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
+- name: Ensure upload destination directories exist for container mounts
+  ansible.builtin.file:
+    path: "{{ omnia_path }}/{{ item }}"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+  loop: "{{ build_stream_upload_dirs }}"
+
 - name: Enable playbook watcher service
   ansible.builtin.include_tasks: enable_watcher_service.yml
 

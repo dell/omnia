@@ -56,13 +56,15 @@
   # HPC: run_once: true prevents loop fan-out
   ansible.builtin.shell: |
     python3 -c "
-    import yaml, json
+    import yaml, json, os
     try:
-        data = yaml.safe_load(open('{{ cluster_inventory_path }}'))
+        data = yaml.safe_load(open(os.environ['_CLUSTER_INV_PATH']))
         print(json.dumps(data))
     except Exception as e:
         print(json.dumps({'_parse_error': str(e)}))
     "
+  environment:
+    _CLUSTER_INV_PATH: "{{ cluster_inventory_path }}"
   register: cluster_inv_parse
   delegate_to: localhost
   run_once: true
@@ -211,7 +213,7 @@
 - name: Check network reachability for all Slurm nodes
   # HPC: run_once: true prevents loop fan-out
   ansible.builtin.shell:
-    cmd: "timeout 5 nc -zv {{ item }} 22 2>&1 || echo 'UNREACHABLE'"
+    cmd: "timeout 5 nc -zv {{ item | quote }} 22 2>&1 || echo 'UNREACHABLE'"
   delegate_to: localhost
   loop: "{{ all_slurm_node_ips }}"
   loop_control:

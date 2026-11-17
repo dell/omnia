@@ -75,6 +75,10 @@ def test_kafka_pods(host):
         tl.skipped("Kafka not in deploy_sinks_enabled configuration")
         pytest.skip("Kafka not in deploy_sinks_enabled")
 
+    if not is_sink_enabled(host, "kafka"):
+        tl.skipped("Kafka sink is not enabled in telemetry configuration")
+        pytest.skip("Kafka sink is not enabled")
+
     all_ok = True
     for role, prefix in KAFKA_POD_PREFIXES.items():
         tl.check(f"Checking Kafka {role} pods (prefix: {prefix})")
@@ -120,6 +124,10 @@ def test_kafka_ready(host):
         tl.skipped("Kafka not in deploy_sinks_enabled configuration")
         pytest.skip("Kafka not in deploy_sinks_enabled")
 
+    if not is_sink_enabled(host, "kafka"):
+        tl.skipped("Kafka sink is not enabled in telemetry configuration")
+        pytest.skip("Kafka sink is not enabled")
+
     tl.check("Checking Kafka cluster Ready condition")
     result = verify_kafka_ready(host)
 
@@ -152,6 +160,10 @@ def test_kafka_bridge(host):
     if not is_sink_selected("kafka", deploy_sinks_enabled()):
         tl.skipped("Kafka not in deploy_sinks_enabled configuration")
         pytest.skip("Kafka not in deploy_sinks_enabled")
+
+    if not is_sink_enabled(host, "kafka"):
+        tl.skipped("Kafka sink is not enabled in telemetry configuration")
+        pytest.skip("Kafka sink is not enabled")
 
     tl.check(f"Checking Kafka bridge pods (prefix: {KAFKA_BRIDGE_PREFIX})")
     result = verify_pods_by_prefix(host, KAFKA_BRIDGE_PREFIX, min_count=1)

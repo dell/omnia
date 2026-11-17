@@ -28,6 +28,7 @@ from main import app
 class TestBuildImageAPI:
     """Integration tests for build image API endpoints."""
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_create_build_image_success(self, client, auth_headers, job_with_completed_parse_catalog):
         """Trigger the unified build-image stage with an empty body.
 
@@ -54,6 +55,7 @@ class TestBuildImageAPI:
         assert "correlation_id" in data
         assert "submitted_at" in data
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_create_build_image_legacy_fields_ignored(
         self, client, auth_headers, job_with_completed_parse_catalog
     ):

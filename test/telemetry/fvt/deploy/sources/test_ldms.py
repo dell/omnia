@@ -59,7 +59,7 @@ from library.functions.k8s_func import (
     verify_kafka_topic_ready,
     verify_pods_by_prefix,
 )
-from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source
+from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source, is_bridge_enabled
 
 
 def _skip_if_ldms_disabled(host):
@@ -192,9 +192,12 @@ def test_ldms_store_pod(host):
 @pytest.mark.sanity
 @pytest.mark.ldms
 @pytest.mark.order(52)
+@pytest.mark.functional
 def test_ldms_vector_bridge(host):
     """TEL_FVT_DEPLOY_V022: Verify Vector-LDMS bridge deployment ready."""
     _skip_if_ldms_disabled(host)
+    if not is_bridge_enabled(host, "vector_ldms"):
+        pytest.skip("Vector-LDMS bridge not enabled in telemetry_config.yml")
     tc = TC["ldms_vector_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -452,6 +455,7 @@ def test_ldms_sampler_plugins(host):
 @pytest.mark.functional
 @pytest.mark.ldms
 @pytest.mark.order(56)
+@pytest.mark.sanity
 def test_ldms_kafka_topic(host):
     """TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists."""
     _skip_if_ldms_disabled(host)

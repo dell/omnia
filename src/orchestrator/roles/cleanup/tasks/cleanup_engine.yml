@@ -50,3 +50,43 @@
   ansible.builtin.fail:
     msg: "{{ cleanup_incomplete_fail_msg }}"
   when: cleanup_failures | length > 0
+
+- name: Display K8s manual cleanup warning if K8s was selected
+  ansible.builtin.debug:
+    msg:
+      - "================================================================================"
+      - "IMPORTANT: K8s NFS share data was NOT automatically cleaned up"
+      - "================================================================================"
+      - "Automated cleanup of K8s NFS share data is disabled to prevent failures when"
+      - "the cluster is running (files locked by active pods/containers)."
+      - ""
+      - "To manually clean up the K8s NFS share:"
+      - "1. Stop the Kubernetes cluster (or ensure all pods are terminated)"
+      - "2. Manually delete the data from the NFS share path configured in storage_config.yml"
+      - "3. The storage mount has been unmounted and fstab entries removed by this cleanup"
+      - ""
+      - "Reference: src/orchestrator/playbooks/cleanup/README.md"
+      - "================================================================================"
+  when:
+    - cleanup_execution_order is defined
+    - '"k8s" in cleanup_execution_order'
+
+- name: Display manual cleanup warning for Slurm NFS share
+  ansible.builtin.debug:
+    msg:
+      - "================================================================================"
+      - "IMPORTANT: Slurm NFS share data was NOT automatically cleaned up"
+      - "================================================================================"
+      - "Automated cleanup of Slurm NFS share data is disabled to prevent failures when"
+      - "Slurm daemons are running (files locked by active processes/jobs)."
+      - ""
+      - "To manually clean up the Slurm NFS share:"
+      - "1. Stop the Slurm daemons (slurmctld, slurmd) and ensure all jobs are terminated"
+      - "2. Manually delete the data from the NFS share path configured in storage_config.yml"
+      - "3. The storage mount has been unmounted and fstab entries removed by this cleanup"
+      - ""
+      - "Reference: src/orchestrator/playbooks/cleanup/README.md"
+      - "================================================================================"
+  when:
+    - cleanup_execution_order is defined
+    - '"slurm" in cleanup_execution_order'

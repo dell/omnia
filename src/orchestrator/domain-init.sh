@@ -228,7 +228,7 @@ copy_input_files() {
         return 0
     fi
 
-    mkdir -p "$dest_dir"
+    mkdir -p -m 0750 "$dest_dir"
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
@@ -240,6 +240,26 @@ copy_input_files() {
     local count
     count=$(find "$dest_dir" -type f | wc -l)
     echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Harden permissions on the runtime project input directory.
+# Always runs when the directory exists, regardless of whether files were
+# copied in this invocation.  This catches files that the user replaced
+# after a previous domain-init run (e.g. copying a discovery CSV with
+# default 0644 permissions).
+#
+# Directories 0750; files lose group-write and all "other" access, so
+# 0644 becomes 0640 while stricter modes such as 0600 are preserved.
+# ─────────────────────────────────────────────────────────────────────────────
+harden_input_permissions() {
+    local dest_dir="${ORCHESTRATOR_DATA_PATH}/input/${OMNIA_PROJECT_NAME}"
+
+    [ -d "$dest_dir" ] || return 0
+
+    chmod 0750 "$dest_dir"
+    find "$dest_dir" -mindepth 1 -type d -exec chmod 0750 {} +
+    find "$dest_dir" -type f -exec chmod g-w,o-rwx {} +
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -256,24 +276,27 @@ create_runtime_directories() {
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
         fi
     done
+
+    # Logs and outputs may contain node identities; keep them owner/group only.
+    chmod 0750 "$output_dir" "$runtime_log_dir" "$ansible_log_dir"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Install domain-specific pip + Galaxy dependencies
 # Expects the shared Omnia venv to be activated before calling this script.
 #
-# Checksum-based skip: stores an MD5 hash of the requirements file after a
+# Checksum-based skip: stores a SHA-256 hash of the requirements file after a
 # successful install.  On re-run, if the hash matches, the install is skipped
 # entirely — saving 10-30 seconds per domain on re-runs.
 # Use --force-deps to bypass the cache and force a fresh install.
 # ─────────────────────────────────────────────────────────────────────────────
 _checksum_file() {
-    if command -v md5sum >/dev/null 2>&1; then
-        md5sum "$1" | awk '{print $1}'
-    elif command -v md5 >/dev/null 2>&1; then
-        md5 -q "$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | awk '{print $1}'
     else
-        echo "no-md5"
+        echo "no-sha256"
     fi
 }
 
@@ -294,7 +317,7 @@ install_dependencies() {
         if command -v pip >/dev/null 2>&1; then
             local pip_hash pip_cache_file
             pip_hash="$(_checksum_file "$req_txt")"
-            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.md5"
+            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.sha256"
 
             if [ "$FORCE_DEPS" = false ] && [ -f "$pip_cache_file" ] && [ "$(cat "$pip_cache_file")" = "$pip_hash" ]; then
                 echo -e "  ${GREEN}[${DOMAIN_NAME}] pip deps unchanged (cached) — skipped${NC}"
@@ -316,7 +339,7 @@ install_dependencies() {
         if command -v ansible-galaxy >/dev/null 2>&1; then
             local galaxy_hash galaxy_cache_file
             galaxy_hash="$(_checksum_file "$req_yml")"
-            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.md5"
+            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.sha256"
 
             if [ "$FORCE_DEPS" = false ] && [ -f "$galaxy_cache_file" ] && [ "$(cat "$galaxy_cache_file")" = "$galaxy_hash" ]; then
                 echo -e "  ${GREEN}[${DOMAIN_NAME}] Galaxy deps unchanged (cached) — skipped${NC}"
@@ -360,6 +383,12 @@ main() {
     else
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipping input file staging (--deps-only)${NC}"
     fi
+
+    # 4. Harden permissions on all input files — runs unconditionally so
+    #    files replaced after a previous init (e.g. discovery CSV copied
+    #    with default 0644) are corrected before orchestrator validation.
+    #    Runs even with --deps-only since insecure files may already exist.
+    harden_input_permissions
 
     echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }

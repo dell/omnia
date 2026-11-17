@@ -15,6 +15,7 @@
 """Opt-in GPU and InfiniBand visibility checks inside Apptainer."""
 
 import time
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import APPTAINER_GPU_MEMORY_SETTLE_SECONDS, PXEBOOT_COMMANDS
 from ._apptainer_helpers import (
@@ -24,7 +25,13 @@ from ._apptainer_helpers import (
     primary_image,
     quoted_image,
 )
-from ._pxeboot_helpers import remote_command, runtime_exception, runtime_result
+from ._pxeboot_helpers import (
+    ib_ip_for_row,
+    remote_command,
+    resolve_ib_addr_family,
+    runtime_exception,
+    runtime_result,
+)
 from ._workload_helpers import optional_skip, require_functional, slurm_gpu_rows
 
 
@@ -69,7 +76,7 @@ def _gpu_counts(host, row, image_path):
     return host_result, container_result, host_count, container_count
 
 
-def check_apptainer_gpu_access(host):
+def check_apptainer_gpu_access(host) -> Dict[str, Any]:
     """Verify every scheduler-declared GPU node exposes a GPU in Apptainer."""
     summary = "Apptainer GPU visibility"
     try:
@@ -107,7 +114,7 @@ def check_apptainer_gpu_access(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_gpu_count(host):
+def check_apptainer_gpu_count(host) -> Dict[str, Any]:
     """Verify container GPU count exactly matches each GPU host."""
     summary = "Apptainer GPU count"
     try:
@@ -150,7 +157,7 @@ def check_apptainer_gpu_count(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_cuda_workload(host):
+def check_apptainer_cuda_workload(host) -> Dict[str, Any]:
     """Execute a bounded NVIDIA runtime command inside each GPU container."""
     summary = "Apptainer NVIDIA workload"
     try:
@@ -200,7 +207,7 @@ def _memory_total(output):
     return sum(values) if values else -1
 
 
-def check_apptainer_gpu_memory(host):
+def check_apptainer_gpu_memory(host) -> Dict[str, Any]:
     """Verify a container GPU probe does not leave material memory allocated."""
     summary = "Apptainer GPU memory release"
     try:
@@ -249,19 +256,24 @@ def check_apptainer_gpu_memory(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_infiniband(host):
+def check_apptainer_infiniband(host) -> Dict[str, Any]:
     """Verify mapped InfiniBand devices are visible inside Apptainer."""
     summary = "Apptainer InfiniBand device visibility"
     try:
         gated = require_functional(summary)
         if gated:
             return gated
-        _context, _rows, _control, computes, _config = apptainer_context(host)
-        ib_rows = [row for row in computes if str(row.get("IB_IP") or "").strip()]
+        context_data, _rows, _control, computes, _config = apptainer_context(host)
+        ib_af = resolve_ib_addr_family(context_data)
+        ib_rows = [
+            row for row in computes
+            if ib_ip_for_row(row, ib_af)
+        ]
         if not ib_rows:
-            return optional_skip(summary, "No Slurm compute node has a mapped IB_IP")
+            return optional_skip(summary, f"No Slurm compute node has a mapped IB address ({ib_af})")
         outcomes = {}
         for row in ib_rows:
+            ib_ip = ib_ip_for_row(row, ib_af)
             image = primary_image(host, row)
             result = remote_command(
                 host,
@@ -270,7 +282,7 @@ def check_apptainer_infiniband(host):
             )
             outcomes[row["HOSTNAME"]] = (
                 result.rc == 0,
-                f"IB_IP={row['IB_IP']} | /dev/infiniband={'visible' if result.rc == 0 else 'missing'}",
+                f"IB_{ib_af.upper()}={ib_ip} | /dev/infiniband={'visible' if result.rc == 0 else 'missing'}",
             )
         failures = [name for name, outcome in outcomes.items() if not outcome[0]]
         return runtime_result(

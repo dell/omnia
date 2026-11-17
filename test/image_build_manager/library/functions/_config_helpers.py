@@ -298,9 +298,7 @@ def _configured_functional_groups_result(
             "groups": [],
             "skipped": True,
             "source": config.get("functional_groups_source", "config"),
-            "image_build_type": config.get(
-                "image_build_type", "image-thrillhouse",
-            ),
+            "image_build_type": "image-thrillhouse",
             "details": (
                 "aarch64_inventory_host_ip is not configured — "
                 "aarch64 image build is disabled"
@@ -317,14 +315,7 @@ def _configured_functional_groups_result(
             "error": f"Invalid functional_groups_source '{source}'",
         }
 
-    build_type = config.get("image_build_type", "image-thrillhouse")
-    if build_type not in ("image-builder", "image-thrillhouse"):
-        return {
-            "success": False,
-            "groups": [],
-            "skipped": False,
-            "error": f"Invalid image_build_type '{build_type}'",
-        }
+    build_type = "image-thrillhouse"
 
     input_dir = config_path.rsplit("/", 1)[0]
     arches = [arch] if arch else ["x86_64"]

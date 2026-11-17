@@ -14,8 +14,11 @@
 
 """Unit tests for AuthService."""
 
+from unittest.mock import patch
+
 import pytest
 
+from api.auth import service as service_module
 from api.auth.service import (
     AuthenticationError,
     AuthService,
@@ -52,6 +55,18 @@ class TestAuthServiceCredentialVerification:
                 MockVaultClient.DEFAULT_TEST_USERNAME,
                 "wrong_password",
             )
+
+    def test_wrong_username_still_runs_password_check(self, auth_service: AuthService):
+        """A wrong username must not skip Argon2, so timing can't reveal the username."""
+        with patch(
+            "api.auth.service.verify_password", wraps=service_module.verify_password
+        ) as verify:
+            with pytest.raises(AuthenticationError):
+                auth_service.verify_registration_credentials(
+                    "wrong_username",
+                    MockVaultClient.DEFAULT_TEST_PASSWORD,
+                )
+        verify.assert_called_once()
 
 
 @pytest.mark.unit

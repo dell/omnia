@@ -35,8 +35,56 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Thread, Semaphore
+from threading import Event, Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
+
+# Make the shared BuildStream ``app`` package importable when this service runs
+# standalone under systemd. The directory that contains ``core/`` is this
+# file's grandparent in both the source tree (``src/build_stream/app/``) and
+# the deployed tree (``<OMNIA_DATA_PATH>/build_stream/``). Write-time log
+# redaction (ER-BSM-003 FR-3.1, HLD 5.3.4) reuses the same tiered
+# ``RedactionService`` as the API response-time path so there is a single
+# pattern registry.
+_APP_ROOT = str(Path(__file__).resolve().parent.parent)
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
+
+from core.logs.redaction import (  # noqa: E402  pylint: disable=wrong-import-position
+    RedactionService,
+    RedactionTier,
+)
+
+# Shared, thread-safe (stateless across calls) redaction service used for all
+# write-time log sanitization in this process.
+_REDACTION_SERVICE = RedactionService()
+
+
+# Keys that decide the binaries, paths and playbook mapping the root watcher
+# uses. omnia.env must never set them, whether or not the systemd unit does,
+# otherwise it could redirect what the watcher executes. Prefixed keys (loader
+# and interpreter controls) are never taken from omnia.env either.
+_PROTECTED_ENV_KEYS = frozenset({
+    "PATH",
+    "OMNIA_VENV_PATH",
+    "OMNIA_SRC_PATH",
+    "OMNIA_DATA_PATH",
+    "PLAYBOOK_QUEUE_BASE",
+    "PLAYBOOK_PATHS_CONFIG",
+    "NFS_SHARE_PATH",
+    "NFS_ARTIFACT_BASE",
+    "POLL_INTERVAL_SECONDS",
+    "MAX_CONCURRENT_JOBS",
+    "DEFAULT_TIMEOUT_MINUTES",
+    "LOG_LEVEL",
+})
+_PROTECTED_ENV_PREFIXES = ("LD_", "PYTHON")
+
+
+def _is_protected_env_key(key: str) -> bool:
+    """Return True if omnia.env must not set *key* for the watcher."""
+    if key.startswith(_PROTECTED_ENV_PREFIXES):
+        return True
+    return key in _PROTECTED_ENV_KEYS
 
 
 def _resolve_omnia_env():
@@ -64,6 +112,12 @@ def _resolve_omnia_env():
                 key, value = line.split("=", 1)
                 key = key.strip()
                 value = value.strip().strip('"').strip("'")
+                if _is_protected_env_key(key):
+                    print(
+                        f"WARNING: [omnia.env] ignoring protected key {key}",
+                        file=sys.stderr,
+                    )
+                    continue
                 raw_vars[key] = value
     except OSError:
         return
@@ -120,6 +174,8 @@ REQUESTS_DIR = QUEUE_BASE / "requests"
 RESULTS_DIR = QUEUE_BASE / "results"
 PROCESSING_DIR = QUEUE_BASE / "processing"
 ARCHIVE_DIR = QUEUE_BASE / "archive"
+QUEUE_DIR_MODE = 0o700
+QUEUE_FILE_MODE = 0o600
 
 # Environment configuration (sourced from omnia.env)
 OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
@@ -142,7 +198,7 @@ VALIDATE_LOG_DOMAIN = "orchestrator"
 MAX_STAGE_ATTEMPT = 1000
 
 # Build Stream artifacts directory
-BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
+BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream" / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
@@ -204,6 +260,33 @@ def _resolve_orchestrator_report_dir(test_dir: Path) -> Path:
     if not report_dir.is_absolute():
         report_dir = test_dir / report_dir
     return report_dir.resolve()
+
+
+def _collect_report_run_ids(report_json_path: str) -> set:
+    """Return the set of run_ids already present in a report JSON file.
+
+    The Orchestrator report file is cumulative: every run appends a new entry
+    keyed by ``run_id`` under ``servers[<ip>]["runs"]``. Snapshotting the
+    existing run_ids lets the caller tell which run a fresh attempt added
+    versus stale runs left over from earlier attempts or pipelines.
+
+    Returns an empty set when the file is missing or unparseable, so a brand
+    new report (every run is new) is handled naturally.
+    """
+    run_ids = set()
+    if not os.path.exists(report_json_path):
+        return run_ids
+    try:
+        with open(report_json_path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return run_ids
+    for server_data in (data.get("servers") or {}).values():
+        for run in server_data.get("runs", []):
+            run_id = run.get("run_id")
+            if run_id is not None:
+                run_ids.add(run_id)
+    return run_ids
 
 
 def _load_playbook_paths(config_path: Path) -> dict:
@@ -276,19 +359,28 @@ def _sigusr1_handler(signum, _):
 
 
 def ensure_directories() -> None:
-    """Ensure all required directories exist with proper permissions."""
-    directories = [
+    """Ensure all required directories exist with proper permissions.
+
+    Queue directories are restricted to the owner (root) because their
+    contents drive privileged playbook execution.
+    """
+    queue_directories = [QUEUE_BASE] if QUEUE_BASE.is_absolute() else []
+    queue_directories += [
         REQUESTS_DIR,
         RESULTS_DIR,
         PROCESSING_DIR,
         ARCHIVE_DIR,
         ARCHIVE_DIR / "requests",
         ARCHIVE_DIR / "results",
+    ]
+    directories = queue_directories + [
         HOST_LOG_BASE_DIR,  # NFS log directory
     ]
     for directory in directories:
         try:
             directory.mkdir(parents=True, exist_ok=True)
+            if directory in queue_directories:
+                os.chmod(directory, QUEUE_DIR_MODE)
             log_secure_info(
                 "debug",
                 "Ensured directory exists"
@@ -356,9 +448,11 @@ def validate_job_id(job_id: str) -> bool:
         True if valid, False otherwise
     """
     # Allow UUID format or alphanumeric with hyphens/underscores
-    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    alnum_pattern = r'^[a-zA-Z0-9_-]+$'
-    return bool(re.match(uuid_pattern, job_id) or re.match(alnum_pattern, job_id))
+    uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    alnum_pattern = r'[a-zA-Z0-9_-]{1,64}'
+    return bool(
+        re.fullmatch(uuid_pattern, job_id) or re.fullmatch(alnum_pattern, job_id)
+    )
 
 
 def validate_stage_name(stage_name: str) -> bool:
@@ -369,8 +463,8 @@ def validate_stage_name(stage_name: str) -> bool:
         True if valid, False otherwise
     """
     # Only allow alphanumeric, spaces, hyphens, and underscores
-    pattern = r'^[a-zA-Z0-9 _-]+$'
-    return bool(re.match(pattern, stage_name))
+    pattern = r'[a-zA-Z0-9 _-]{1,64}'
+    return bool(re.fullmatch(pattern, stage_name))
 
 
 # Checkmarx: Constant alphabet used to re-derive identifiers taken from request
@@ -588,6 +682,106 @@ def sanitize_extra_vars(extra_vars: Any, job_id: str) -> dict:
     return sanitized
 
 
+_IMAGE_GROUP_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,255}")
+
+
+def _is_attempt(value: Any) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 1 <= value <= MAX_STAGE_ATTEMPT
+    )
+
+
+def _is_image_group_id(value: Any) -> bool:
+    return isinstance(value, str) and bool(_IMAGE_GROUP_ID_PATTERN.fullmatch(value))
+
+
+def _is_image_group_id_or_empty(value: Any) -> bool:
+    return value == "" or _is_image_group_id(value)
+
+
+_EXTRA_VAR_VALIDATORS = {
+    "job_id": lambda value: isinstance(value, str) and validate_job_id(value),
+    "attempt": _is_attempt,
+    "image_key": _is_image_group_id,
+    "image_group_id": _is_image_group_id_or_empty,
+    "composite_image_group_id": _is_image_group_id,
+    "cleanup_image_pattern": _is_image_group_id,
+    "cadence_sync": lambda value: isinstance(value, bool),
+    "enable_build_stream": lambda value: isinstance(value, bool),
+    "skip_approval": lambda value: value == "true",
+}
+
+# Every request a BuildStream producer writes to the queue, keyed by
+# (playbook name, stage name) -> (required tags or None, allowed extra_vars).
+REQUEST_CONTRACT = {
+    ("repo_manager.yml", "create-local-repository"): (
+        "execute", frozenset({"job_id", "attempt"})),
+    ("repo_sync.yml", "cadence-repo-sync"): (
+        None, frozenset({"job_id", "cadence_sync"})),
+    ("image_build_manager.yml", "build-image"): (
+        "execute", frozenset({"job_id", "attempt"})),
+    ("image_build_manager.yml", "cleanup"): (
+        "cleanup_images", frozenset({
+            "job_id", "cleanup_image_pattern", "composite_image_group_id",
+            "attempt", "skip_approval",
+        })),
+    ("orchestrator.yml", "deploy"): (
+        "provision", frozenset({
+            "job_id", "image_key", "image_group_id",
+            "composite_image_group_id", "attempt",
+        })),
+    ("restart.yml", "restart"): (
+        None, frozenset({
+            "job_id", "image_group_id", "attempt", "enable_build_stream",
+        })),
+}
+
+_FORBIDDEN_REQUEST_FIELDS = ("inventory_file_path", "extra_args")
+
+
+def validate_request_contract(request_data: Dict[str, Any]) -> None:
+    """Reject an ansible-playbook request that no BuildStream producer sends.
+
+    The queue file carries no authenticity, so the watcher accepts only the
+    exact shapes listed in :data:`REQUEST_CONTRACT`: a known playbook and
+    stage pair, its fixed tags, and a fixed set of extra-var keys whose values
+    pass a typed check. Inventory overrides and free-form variables are never
+    accepted, so a forged request cannot do more than the API can.
+
+    Args:
+        request_data: Parsed request dictionary.
+
+    Raises:
+        ValueError: If the request does not match the contract.
+    """
+    for field in _FORBIDDEN_REQUEST_FIELDS:
+        if field in request_data:
+            raise ValueError(f"Request field not allowed: {field}")
+
+    playbook_name = str(
+        request_data.get("playbook_name", request_data.get("playbook_path", ""))
+    )
+    stage_name = str(request_data.get("stage_name", ""))
+    contract = REQUEST_CONTRACT.get((playbook_name, stage_name))
+    if contract is None:
+        raise ValueError("Playbook and stage combination is not allowed")
+    allowed_tags, allowed_keys = contract
+
+    if (request_data.get("tags") or None) != allowed_tags:
+        raise ValueError("Tags are not allowed for this stage")
+
+    extra_vars = request_data.get("extra_vars", {})
+    if not isinstance(extra_vars, dict):
+        raise ValueError("extra_vars must be a dictionary")
+    if not set(extra_vars).issubset(allowed_keys):
+        raise ValueError("extra_vars contains keys not allowed for this stage")
+    for key, value in extra_vars.items():
+        if not _EXTRA_VAR_VALIDATORS[key](value):
+            raise ValueError(f"Invalid value for extra_vars key: {key}")
+
+
 # ── END NEW sanitization functions ──
 
 
@@ -617,7 +811,6 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     ALLOWED_EXTRA_ARGS = [
         "-v",
         "--extra-vars",
-        "--inventory",
         "--tags",
     ]
 
@@ -674,7 +867,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
         i = min_required_length
         while i < len(cmd):
             arg = cmd[i]
-            if arg in ["--inventory", "--extra-vars", "--tags"] and i + 1 < len(cmd):
+            if arg in ["--extra-vars", "--tags"] and i + 1 < len(cmd):
                 i += 2
             elif arg == "-v" or arg.startswith("-v"):
                 i += 1
@@ -697,7 +890,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     SKIP_POSITIONS = [1]  # Position of playbook_path
     i = min_required_length
     while i < len(cmd):
-        if cmd[i] in ("--extra-vars", "--inventory", "--tags") and i + 1 < len(cmd):
+        if cmd[i] in ("--extra-vars", "--tags") and i + 1 < len(cmd):
             SKIP_POSITIONS.append(i + 1)
             i += 2
         else:
@@ -876,22 +1069,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         # Set defaults
         request_data.setdefault("correlation_id", job_id)
 
-        # Check for inventory_file_path
-        if "inventory_file_path" in request_data:
-            inventory_file_path = str(request_data["inventory_file_path"])
-            if not inventory_file_path.startswith("/") or ".." in inventory_file_path:
-                log_secure_info(
-                    "error",
-                    "Invalid inventory file path: possible directory traversal",
-                    job_id[:8]
-                )
-                return None
-            log_secure_info(
-                "info",
-                "Found inventory file path in request",
-                job_id[:8]
-            )
-
         # Check for extra_vars field
         if "extra_vars" in request_data:
             if not isinstance(request_data["extra_vars"], dict):
@@ -904,15 +1081,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 "Found extra_vars in request",
                 job_id[:8]
             )
-
-        # We're no longer using extra_args, so remove it if present
-        if "extra_args" in request_data:
-            log_secure_info(
-                "info",
-                "Found extra_args in request but ignoring it",
-                job_id[:8]
-            )
-            del request_data["extra_args"]
 
         log_secure_info(
             "info",
@@ -1005,6 +1173,15 @@ def build_stage_log_path(  # pylint: disable=too-many-arguments,too-many-positio
     )
 
 
+def _relabel_like_parent(path: Path) -> None:
+    """Give ``path`` the SELinux label of its directory (no-op without SELinux)."""
+    try:
+        label = os.getxattr(path.parent, "security.selinux")
+        os.setxattr(path, "security.selinux", label)
+    except (OSError, AttributeError):
+        pass
+
+
 def publish_stage_log(
     domain_log_path: Path, job_id: str, summary_lines: List[str]
 ) -> str:
@@ -1027,7 +1204,13 @@ def publish_stage_log(
     job_log_path = HOST_LOG_BASE_DIR / job_id / domain_log_path.name
     try:
         job_log_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(str(domain_log_path), str(job_log_path))
+        # copyfile (not copy2): copy2 carries over the source SELinux label
+        # (var_log_t) and 0600 mode, which the BSM container cannot read.
+        # Logs are redacted at write time (Tier 1), so 0644 is acceptable, but
+        # note they still contain operational data such as IPs and hostnames.
+        shutil.copyfile(str(domain_log_path), str(job_log_path))
+        os.chmod(job_log_path, 0o644)
+        _relabel_like_parent(job_log_path)
     except (OSError, shutil.Error):
         log_secure_info(
             "error",
@@ -1080,6 +1263,183 @@ def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
     ]
 
 
+READER_JOIN_TIMEOUT_SECONDS = 5
+
+
+def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    cmd: List[str],
+    playbook_dir: str,
+    env: Dict[str, str],
+    timeout_seconds: int,
+    log_file_path: Path,
+    timestamps: bool = False,
+) -> int:
+    """Run ansible-playbook, capturing output and redacting Tier 1 secrets at write time.
+
+    Implements ER-BSM-003 FR-3.1 (HLD 5.3.4). The previous model set
+    ``ANSIBLE_LOG_PATH`` and used ``subprocess.run(capture_output=False)``,
+    letting Ansible write its own log file and bypassing any stream filtering.
+    This function instead:
+
+    1. Launches ``subprocess.Popen`` with ``stdout=PIPE, stderr=STDOUT`` so the
+       merged stream preserves interleaved task ordering.
+    2. Reads the stream line-by-line in a daemon thread (``errors='replace'``
+       handles non-UTF-8 bytes; the final partial line is flushed on exit).
+    3. Redacts every line through the shared :data:`_REDACTION_SERVICE`
+       (Tier 1 secrets only — operational IPs/host names are preserved) before
+       writing it to ``log_file_path``.
+
+    No unsanitized byte is ever written to disk. Redaction fails closed: a line
+    that cannot be processed is replaced with a suppression marker.
+
+    Args:
+        cmd: Fully built, validated command (``shell=False``).
+        playbook_dir: Working directory (the playbook's parent).
+        env: Subprocess environment; MUST NOT contain ``ANSIBLE_LOG_PATH``.
+        timeout_seconds: Hard wall-clock timeout for the subprocess.
+        log_file_path: Sanitized absolute domain log path to write.
+        timestamps: Prefix every line with ``<time> p=<pid> | `` (the Ansible log
+            format). Only for Ansible playbook runs: the validate report parser
+            reads the log with line-anchored patterns and needs unprefixed lines.
+
+    Returns:
+        The subprocess exit code.
+
+    Raises:
+        subprocess.TimeoutExpired: Execution exceeded ``timeout_seconds``. The
+            output buffered up to the timeout is still redacted and persisted.
+    """
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    state = _REDACTION_SERVICE.new_stream_state()
+    suppressed = {"count": 0}
+
+    with open(log_file_path, "w", encoding="utf-8") as log_file:
+        proc = subprocess.Popen(  # pylint: disable=consider-using-with
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+            cwd=playbook_dir,
+            env=env,
+            start_new_session=True,
+            bufsize=1,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        stop = Event()
+
+        def _drain() -> None:
+            """Read, redact, and write every line from the merged output stream."""
+            if proc.stdout is None:
+                return
+            try:
+                for raw_line in proc.stdout:
+                    if stop.is_set():
+                        return
+                    sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
+                        raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
+                    )
+                    if line_suppressed:
+                        suppressed["count"] += 1
+                    prefix = _log_prefix(getattr(proc, "pid", 0)) if timestamps else ""
+                    log_file.write(f"{prefix}{sanitized}\n")
+                    log_file.flush()
+                    _echo_to_journal(sanitized)
+                log_file.flush()
+            except (ValueError, OSError):
+                pass
+
+        reader = Thread(target=_drain, name="watcher-log-reader", daemon=True)
+        reader.start()
+        try:
+            proc.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            _kill_process_group(proc)
+            proc.wait()
+            _finish_reader(reader, stop, proc)
+            _log_suppressed_lines(suppressed["count"])
+            _log_redaction_summary(state.redacted_patterns, log_file_path)
+            raise
+        _finish_reader(reader, stop, proc)
+
+    _log_suppressed_lines(suppressed["count"])
+    _log_redaction_summary(state.redacted_patterns, log_file_path)
+    return proc.returncode
+
+
+def _log_prefix(pid: int) -> str:
+    """Return the timestamp and pid prefix of a stage log line.
+
+    Ansible's own log file carried ``<time> p=<pid> | ``; the captured stdout does not,
+    so the watcher adds it (ER-BSM-003 FR-3.1: logs keep timestamps). Added after
+    redaction, so it never reaches the redaction service.
+    """
+    now = datetime.now()
+    return f"{now:%Y-%m-%d %H:%M:%S},{now.microsecond // 1000:03d} p={pid} | "
+
+
+def _echo_to_journal(line: str) -> None:
+    """Mirror an already-redacted line to the unit's stdout (journald).
+
+    Restores ``journalctl -u playbook-watcher`` visibility of playbook output
+    that the pipe capture would otherwise hide. Only sanitized text is echoed.
+    """
+    try:
+        sys.stdout.write(f"{line}\n")
+        sys.stdout.flush()
+    except (ValueError, OSError):
+        pass
+
+
+def _kill_process_group(proc: "subprocess.Popen") -> None:
+    """SIGKILL the whole session so ansible workers and ssh children die too."""
+    pid = getattr(proc, "pid", None)
+    if not isinstance(pid, int) or pid <= 1:
+        proc.kill()
+        return
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except OSError:
+        proc.kill()
+
+
+def _finish_reader(reader: Thread, stop: Event, proc: "subprocess.Popen") -> None:
+    """Wait a bounded time for the log reader; never block on orphaned pipe holders."""
+    reader.join(READER_JOIN_TIMEOUT_SECONDS)
+    if reader.is_alive():
+        stop.set()
+        _kill_process_group(proc)
+        reader.join(READER_JOIN_TIMEOUT_SECONDS)
+        log_secure_info(
+            "warning", "Log reader did not drain after process exit; output truncated"
+        )
+
+
+def _log_redaction_summary(count: int, log_file_path: Path) -> None:
+    """Audit event: how many patterns write-time redaction replaced in one log file.
+
+    Only the count and the file name are logged, never the redacted content.
+    """
+    if count:
+        log_secure_info(
+            "info",
+            f"Write-time redaction applied: log_file={log_file_path.name}, "
+            f"redacted_patterns={count}",
+        )
+
+
+def _log_suppressed_lines(count: int) -> None:
+    """Emit a security event when write-time redaction withheld one or more lines."""
+    if count:
+        log_secure_info(
+            "warning",
+            f"Security event: write-time redaction withheld {count} "
+            f"unsanitizable line(s) from the stage log",
+        )
+
+
 def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute Ansible playbook directly on the host via the shared venv.
 
@@ -1103,6 +1463,8 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # After this block, request_data must NOT be referenced for command
     # or env construction.  Each value is re-derived from a constant
     # alphabet so no taint edge survives to the subprocess.run() call.
+
+    validate_request_contract(request_data)
 
     if not validate_job_id(str(request_data["job_id"])):
         raise ValueError("Invalid job_id format")
@@ -1135,14 +1497,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         )
     except ValueError:
         request_id_safe = job_id
-
-    # Sanitize inventory_file_path if present
-    inventory_file_path = None
-    if "inventory_file_path" in request_data:
-        inventory_file_path = sanitize_path(
-            str(request_data["inventory_file_path"]),
-            "/"  # Allow any absolute path but rebuild from safe alphabet
-        )
 
     # Sanitize extra_vars
     raw_extra_vars = request_data.get("extra_vars", {})
@@ -1201,14 +1555,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         playbook_path,  # Validated against strict whitelist
     ]
 
-    # Add inventory file path if present (already sanitized above)
-    if inventory_file_path is not None:
-        cmd.extend(["--inventory", inventory_file_path])
-        log_secure_info(
-            "info", "Using inventory file for playbook",
-            inventory_file_path[:8]
-        )
-
     # Add extra_vars (already sanitized above)
     extra_vars_json = json.dumps(extra_vars)
     cmd.extend(["--extra-vars", extra_vars_json])
@@ -1238,9 +1584,11 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         timeout_seconds = timeout_minutes * 60
 
-        # Set ANSIBLE_LOG_PATH as env var so Ansible writes its log there
+        # Write-time redaction (ER-BSM-003 FR-3.1): ANSIBLE_LOG_PATH is NOT set,
+        # so Ansible does not write its own (unsanitized) log file. The watcher
+        # captures stdout/stderr and writes the redacted output itself.
         env = os.environ.copy()
-        env["ANSIBLE_LOG_PATH"] = log_path_str
+        env.pop("ANSIBLE_LOG_PATH", None)
 
         # Expand shell-style variable references in env values.
         # systemd EnvironmentFile does NOT perform shell expansion, so
@@ -1256,21 +1604,12 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             f"ansible-playbook [playbook] in {playbook_dir[:30]}"
         )
 
-        # Execute directly — shell=False, cwd=playbook directory
-        result = subprocess.run(
-            cmd,
-            capture_output=False,
-            timeout=timeout_seconds,
-            check=False,
-            shell=False,
-            text=False,
-            start_new_session=True,
-            cwd=playbook_dir,
-            env=env,
+        # Execute directly — shell=False, cwd=playbook directory. The merged
+        # stdout/stderr stream is redacted line-by-line and written to
+        # log_file_path; no unsanitized byte reaches disk.
+        returncode = _run_playbook_with_redaction(
+            cmd, playbook_dir, env, timeout_seconds, log_file_path, timestamps=True
         )
-
-        # Wait briefly for log flush
-        time.sleep(0.5)
 
         if not log_file_path.exists():
             log_secure_info(
@@ -1281,7 +1620,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-        status = "success" if result.returncode == 0 else "failed"
+        status = "success" if returncode == 0 else "failed"
 
         dictionary_hits = (
             extract_dictionary_hits(log_file_path)
@@ -1289,7 +1628,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         )
         reported_log = publish_stage_log(log_file_path, job_id, [
             f"stage={stage_name} attempt={attempt} status={status} "
-            f"exit_code={result.returncode} "
+            f"exit_code={returncode} "
             f"duration_seconds={int(duration_seconds)}",
         ])
         log_secure_info(
@@ -1307,7 +1646,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "request_id": request_id_safe,
             "correlation_id": correlation_id,
             "status": status,
-            "exit_code": result.returncode,
+            "exit_code": returncode,
             "attempt": attempt,
             "log_file_path": reported_log,
             "started_at": started_at.isoformat(),
@@ -1323,7 +1662,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         if status == "failed":
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
             result_data["error_summary"] = (
-                f"Playbook exited with code {result.returncode}. "
+                f"Playbook exited with code {returncode}. "
                 f"Check playbook log at {reported_log} for details."
             )
 
@@ -1573,27 +1912,32 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     env["MOLECULE_REPORT_DIR"] = temp_report_dir
     env["REPORT_ID"] = env_report_id
 
+    # The Orchestrator test suite writes to a fixed, shared report file
+    # (orchestrator_test_report.json) that is cumulative across attempts and
+    # even across pipelines. The framework only persists a report when the
+    # pytest session produced results, so a run that fails during setup or
+    # collection leaves the previous attempt's data in place. Snapshot the
+    # run_ids present BEFORE this attempt so we can later distinguish the run
+    # this attempt actually produced from any stale runs already on disk.
+    report_base_name = "orchestrator_test_report"
+    report_source_path = str(report_dir_path / f"{report_base_name}.json")
+    report_html_source_path = str(report_dir_path / f"{report_base_name}.html")
+    pre_run_report_run_ids = _collect_report_run_ids(report_source_path)
+
     log_secure_info("info", "Executing run_validation.sh for job", job_id)
 
     try:
         timeout_seconds = timeout_minutes * 60
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-            shell=False,
-            text=True,
-            env=env,
-            start_new_session=True
+        # Stream the merged test output (every test case as it runs, then the
+        # final summary table) into the per-attempt stage log, redacted line by
+        # line. The log is complete even if the run times out.
+        returncode = _run_playbook_with_redaction(
+            cmd, test_dir, env, timeout_seconds, host_log_file_path
         )
 
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
-
-        # Write test output to the per-attempt stage log
-        _write_test_output(host_log_file_path, result.stdout, result.stderr)
 
         # Copy molecule reports from temp dir to job-specific NFS artifact dir
         try:
@@ -1621,11 +1965,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             artifact_dir, "validate_output.log"
         )
         try:
-            with open(artifact_log_path, 'w') as f:
-                f.write(
-                    f"STDOUT:\n{result.stdout}\n\n"
-                    f"STDERR:\n{result.stderr}\n"
-                )
+            shutil.copyfile(log_file_path, artifact_log_path)
         except OSError:
             log_secure_info(
                 "warning", "Failed to write molecule artifact log", job_id
@@ -1739,205 +2079,236 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     job_id
                 )
 
-        # Read the report from the directory configured by the Orchestrator
-        # test suite. The attempt-specific name prevents a retry from
-        # consuming a stale aggregate from an earlier attempt.
-        report_source_path = str(
-            report_dir_path
-            / (f"{report_id}_orchestrator_report.json" if report_id else "")
+        # Read the report written by the Orchestrator test suite. The suite
+        # writes a fixed, shared report file (orchestrator_test_report.json)
+        # that is cumulative across attempts and pipelines, and it only
+        # persists a report when the pytest session produced results. To avoid
+        # consuming a stale run from an earlier attempt, select the run this
+        # attempt actually added (its run_id is absent from the pre-run
+        # snapshot). Report artifact paths are advertised only when a fresh
+        # report is produced and successfully copied.
+        attempt_report_json_path = os.path.join(
+            artifact_dir, f"{report_base_name}_attempt_{attempt}.json"
         )
-        log_secure_info(
-            'info',
-            f"Attempting to extract test results from {report_source_path}",
-            job_id
+        attempt_report_html_path = os.path.join(
+            artifact_dir, f"{report_base_name}_attempt_{attempt}.html"
         )
-        log_secure_info(
-            'info',
-            f"Extracted report_id from log: {report_id}",
-            job_id
-        )
+        report_json_available = False
+        report_html_available = False
 
-        if not report_id:
-            log_secure_info(
-                'warning',
-                "No report_id found in validate output log, "
-                "skipping JSON extraction",
-                job_id
-            )
-        elif not os.path.exists(report_source_path):
-            log_secure_info(
-                'warning',
-                f"test_report.json not found at {report_source_path}, "
-                f"skipping JSON extraction",
-                job_id
-            )
-        else:
+        # Identify the run produced by this attempt before copying anything.
+        current_run = None
+        full_report = None
+        if os.path.exists(report_source_path):
             try:
                 with open(report_source_path, 'r') as f:
                     full_report = json.load(f)
-
                 log_secure_info(
-                    'info', "Successfully loaded test_report.json", job_id
+                    'info', "Successfully loaded orchestrator_test_report.json",
+                    job_id
                 )
+            except (OSError, json.JSONDecodeError) as e:
+                log_secure_info(
+                    'warning',
+                    f"Failed to load report JSON: {e}",
+                    job_id
+                )
+        else:
+            log_secure_info(
+                'warning',
+                f"Report JSON not found at {report_source_path}",
+                job_id
+            )
 
-                if "servers" not in full_report:
+        if isinstance(full_report, dict) and "servers" in full_report:
+            for server_key, server_data in full_report["servers"].items():
+                for run in server_data.get("runs", []):
+                    if run.get("run_id") not in pre_run_report_run_ids:
+                        current_run = run
+                if current_run is not None:
                     log_secure_info(
-                        'warning',
-                        "test_report.json missing 'servers' key",
+                        'info',
+                        f"Selected fresh run '{current_run.get('run_id')}' "
+                        f"from server '{server_key}' produced by this attempt",
                         job_id
                     )
-                else:
-                    current_run = None
-                    for server_key, server_data in full_report["servers"].items():
-                        runs = server_data.get("runs", [])
-                        for run in runs:
-                            if run.get("report_id") == report_id:
-                                current_run = run
-                                log_secure_info(
-                                    'info',
-                                    f"Found matching run with report_id "
-                                    f"{report_id} under server key "
-                                    f"'{server_key}'",
-                                    job_id
-                                )
-                                break
-                        if current_run:
-                            break
+                    break
+        elif isinstance(full_report, dict):
+            log_secure_info(
+                'warning',
+                "orchestrator_test_report.json missing 'servers' key",
+                job_id
+            )
 
-                    if not current_run:
+        if current_run is None:
+            # No run was added by this attempt (e.g. setup/collection/dependency
+            # failure before pytest produced results). Do NOT fall back to stale
+            # data and do NOT advertise report artifacts for this attempt.
+            log_secure_info(
+                'warning',
+                "No fresh orchestrator run produced by this attempt; "
+                "skipping report extraction and artifact publication",
+                job_id
+            )
+        else:
+            # Copy the fresh report to attempt-specific artifact paths. Only
+            # advertise a path when its copy actually succeeds.
+            try:
+                shutil.copy2(report_source_path, attempt_report_json_path)
+                report_json_available = True
+                log_secure_info(
+                    'info',
+                    f"Copied JSON report to attempt-specific path: "
+                    f"{attempt_report_json_path}",
+                    job_id
+                )
+            except OSError as e:
+                log_secure_info(
+                    'warning', f"Failed to copy JSON report: {e}", job_id
+                )
+
+            if os.path.exists(report_html_source_path):
+                try:
+                    shutil.copy2(
+                        report_html_source_path, attempt_report_html_path
+                    )
+                    report_html_available = True
+                    log_secure_info(
+                        'info',
+                        f"Copied HTML report to attempt-specific path: "
+                        f"{attempt_report_html_path}",
+                        job_id
+                    )
+                except OSError as e:
+                    log_secure_info(
+                        'warning', f"Failed to copy HTML report: {e}", job_id
+                    )
+            else:
+                log_secure_info(
+                    'warning',
+                    f"Report HTML not found at {report_html_source_path}",
+                    job_id
+                )
+
+            try:
+                modules = current_run.get("modules", [])
+                if not modules:
+                    log_secure_info('warning', "Run has no modules", job_id)
+                else:
+                    module_info = modules[0]
+                    scenario = module_info.get("module", "unknown")
+                    molecule_command = module_info.get(
+                        "molecule_command", "verify"
+                    )
+                    test_duration = module_info.get("duration_seconds", 0)
+                    results = module_info.get("results", [])
+                    tests = [
+                        _build_test_entry(r)
+                        for r in results
+                        if r.get("test_name")
+                    ]
+
+                    test_summary["scenario"] = scenario
+                    test_summary["molecule_command"] = molecule_command
+                    test_summary["report_id"] = f"attempt_{attempt}"
+                    test_summary["duration_seconds"] = test_duration
+                    test_summary["tests"] = tests
+
+                    summary_block = current_run.get("summary", {})
+                    log_secure_info(
+                        'info',
+                        f"Summary block from JSON: {summary_block}",
+                        job_id
+                    )
+
+                    if isinstance(summary_block, dict):
+                        test_summary["total"] = summary_block.get("total", 0)
+                        test_summary["passed"] = summary_block.get("passed", 0)
+                        test_summary["failed"] = summary_block.get("failed", 0)
+                        test_summary["skipped"] = summary_block.get(
+                            "skipped", 0
+                        )
+                        test_summary["errors"] = summary_block.get("errors", 0)
                         log_secure_info(
-                            'warning',
-                            f"No run found with report_id {report_id} "
-                            f"in test_report.json",
+                            'info',
+                            f"Populated test_summary from JSON: "
+                            f"{test_summary}",
                             job_id
                         )
                     else:
-                        modules = current_run.get("modules", [])
-                        if not modules:
-                            log_secure_info(
-                                'warning',
-                                f"Run with report_id {report_id} has no "
-                                f"modules",
-                                job_id
-                            )
-                        else:
-                            module_info = modules[0]
-                            scenario = module_info.get("module", "unknown")
-                            molecule_command = module_info.get(
-                                "molecule_command", "verify"
-                            )
-                            test_duration = module_info.get(
-                                "duration_seconds", 0
-                            )
-                            results = module_info.get("results", [])
-                            tests = [
-                                {
-                                    "name": r.get("test_name"),
-                                    "status": r.get("status")
-                                }
-                                for r in results
-                                if r.get("test_name")
-                            ]
+                        log_secure_info(
+                            'warning',
+                            f"Summary block is not a dict: "
+                            f"{type(summary_block)}",
+                            job_id
+                        )
 
-                            test_summary["scenario"] = scenario
-                            test_summary["molecule_command"] = molecule_command
-                            test_summary["report_id"] = report_id
-                            test_summary["duration_seconds"] = test_duration
-                            test_summary["tests"] = tests
+                    log_secure_info(
+                        'info',
+                        f"Test scenario: {scenario}, "
+                        f"command: {molecule_command}, "
+                        f"duration: {test_duration}s, "
+                        f"tests: {len(tests)}, "
+                        f"attempt: {attempt}",
+                        job_id
+                    )
 
-                            summary_block = current_run.get("summary", {})
-                            log_secure_info(
-                                'info',
-                                f"Summary block from JSON: {summary_block}",
-                                job_id
-                            )
-
-                            if isinstance(summary_block, dict):
-                                test_summary["total"] = summary_block.get(
-                                    "total", 0
-                                )
-                                test_summary["passed"] = summary_block.get(
-                                    "passed", 0
-                                )
-                                test_summary["failed"] = summary_block.get(
-                                    "failed", 0
-                                )
-                                test_summary["skipped"] = summary_block.get(
-                                    "skipped", 0
-                                )
-                                test_summary["errors"] = summary_block.get(
-                                    "errors", 0
-                                )
-                                log_secure_info(
-                                    'info',
-                                    f"Populated test_summary from JSON: "
-                                    f"{test_summary}",
-                                    job_id
-                                )
-                            else:
-                                log_secure_info(
-                                    'warning',
-                                    f"Summary block is not a dict: "
-                                    f"{type(summary_block)}",
-                                    job_id
-                                )
-
-                            log_secure_info(
-                                'info',
-                                f"Test scenario: {scenario}, "
-                                f"command: {molecule_command}, "
-                                f"duration: {test_duration}s, "
-                                f"tests: {len(tests)}, "
-                                f"report_id: {report_id}",
-                                job_id
-                            )
-
-                            # Save filtered report to artifact_dir
-                            filtered_report = {
-                                "servers": {
-                                    "": {
-                                        "runs": [current_run],
-                                        "hostname": ""
-                                    }
-                                }
+                    # Save filtered report (this attempt's run only) to
+                    # the attempt artifact directory.
+                    filtered_report = {
+                        "servers": {
+                            "": {
+                                "runs": [current_run],
+                                "hostname": ""
                             }
-                            dest_path = os.path.join(
-                                artifact_dir, "test_report.json"
-                            )
-                            with open(dest_path, 'w') as f:
-                                json.dump(filtered_report, f, indent=2)
-                            log_secure_info(
-                                'info',
-                                f"Extracted report {report_id} to artifact directory",
-                                job_id
-                            )
+                        }
+                    }
+                    dest_path = os.path.join(artifact_dir, "test_report.json")
+                    with open(dest_path, 'w') as f:
+                        json.dump(filtered_report, f, indent=2)
+                    log_secure_info(
+                        'info',
+                        f"Extracted report for attempt {attempt} "
+                        f"to artifact directory",
+                        job_id
+                    )
 
-                            # Keep a cumulative report at the validate stage level while
-                            # preserving the isolated report in every attempt directory.
-                            # Rebuild it from the shared report so retries cannot duplicate
-                            # an attempt or overwrite the result from an earlier attempt.
-                            job_report = {"servers": {}}
-                            report_id_prefix = f"{job_id}_attempt_"
-                            for source_server, source_data in full_report["servers"].items():
-                                job_runs = [
-                                    run for run in source_data.get("runs", [])
-                                    if str(run.get("report_id", "")).startswith(
-                                        report_id_prefix
-                                    )
-                                ]
-                                if job_runs:
-                                    job_report["servers"][source_server] = {
-                                        "runs": job_runs,
-                                        "hostname": source_data.get("hostname", ""),
-                                    }
-
-                            job_report_path = os.path.join(
-                                str(ARTIFACTS_DIR / job_id / "validate"),
-                                "test_report.json",
-                            )
-                            with open(job_report_path, 'w') as f:
-                                json.dump(job_report, f, indent=2)
-                            log_secure_info('info', "Updated cumulative validate report", job_id)
+                    # Keep a cumulative report at the validate stage level while
+                    # preserving the isolated report in every attempt directory.
+                    # Append this attempt's fresh run to any previously recorded
+                    # attempts so retries never duplicate or overwrite results.
+                    cumulative_runs = []
+                    job_report_path = os.path.join(
+                        str(ARTIFACTS_DIR / job_id / "validate"),
+                        "test_report.json",
+                    )
+                    existing_job_report = {}
+                    if os.path.exists(job_report_path):
+                        try:
+                            with open(job_report_path, 'r') as f:
+                                existing_job_report = json.load(f)
+                        except (OSError, json.JSONDecodeError):
+                            existing_job_report = {}
+                    for source_data in (
+                        existing_job_report.get("servers") or {}
+                    ).values():
+                        for run in source_data.get("runs", []):
+                            if run.get("run_id") != current_run.get("run_id"):
+                                cumulative_runs.append(run)
+                    cumulative_runs.append(current_run)
+                    job_report = {
+                        "servers": {
+                            "": {
+                                "runs": cumulative_runs,
+                                "hostname": "",
+                            }
+                        }
+                    }
+                    with open(job_report_path, 'w') as f:
+                        json.dump(job_report, f, indent=2)
+                    log_secure_info(
+                        'info', "Updated cumulative validate report", job_id
+                    )
             except (OSError, json.JSONDecodeError) as e:
                 log_secure_info(
                     'warning', f"Failed to extract report: {e}", job_id
@@ -1959,15 +2330,15 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         elif test_summary["failed"] > 0 or test_summary["errors"] > 0:
             status = "failed"
             exit_code = 1
-        elif result.returncode == 0:
+        elif returncode == 0:
             status = "success"
             exit_code = 0
-        elif result.returncode == 124:
+        elif returncode == 124:
             status = "failed"
             exit_code = 124
         else:
             status = "failed"
-            exit_code = result.returncode
+            exit_code = returncode
 
         reported_log = publish_stage_log(host_log_file_path, job_id, [
             f"stage={stage_type} attempt={attempt} status={status} "
@@ -1993,10 +2364,19 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "test_summary": test_summary,
             "artifact_dir": artifact_dir,
             "log_file_path": reported_log,
+            "report_path": str(report_dir_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
         }
+
+        # Advertise report artifact paths only when the copy actually produced
+        # the file, so consumers (API/GitLab output) never point users at
+        # missing artifacts.
+        if report_json_available:
+            result_data["report_json_path"] = attempt_report_json_path
+        if report_html_available:
+            result_data["report_html_path"] = attempt_report_html_path
 
         # Add error details if failed
         if status == "failed":
@@ -2040,7 +2420,6 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         error_summary = (
             f"Test validation timed out after {timeout_minutes} minutes"
         )
-        _write_test_output(host_log_file_path, exc.stdout, exc.stderr)
         log_secure_info(
             "error", "Test validation timed out for job", job_id
         )
@@ -2078,29 +2457,44 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _write_test_output(
-    log_file_path: Path, stdout: Any, stderr: Any
-) -> None:
-    """Write captured test runner output to the stage log.
+MAX_REASON_CHARS = 500
 
-    Args:
-        log_file_path: Stage log file path.
-        stdout: Captured standard output (str, bytes, or None).
-        stderr: Captured standard error (str, bytes, or None).
+
+def _failure_reason(result: Dict[str, Any]) -> str:
+    """Return a short, redacted reason for a failed or skipped test result.
+
+    Uses the same data the HTML report shows behind the View button: the
+    pytest error for failures, or the ``SKIPPED:`` line for skips.
     """
-    def _as_text(stream: Any) -> str:
-        if isinstance(stream, bytes):
-            return stream.decode("utf-8", errors="replace")
-        return stream or ""
+    status = result.get("status")
+    text = ""
+    if status == "FAILED":
+        text = str(result.get("error") or "")
+        if not text:
+            text = str(result.get("details") or "")
+    elif status == "SKIPPED":
+        match = re.search(r"(?m)^SKIPPED:\s*(.+)$", str(result.get("details") or ""))
+        text = match.group(1) if match else ""
+    if not text:
+        return ""
+    text = re.sub(r"\x1B\[[0-?]*[ -/]*[@-~]", "", text)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    error_lines = [ln for ln in lines if ln.startswith(("E ", "E\t")) or "Error" in ln or "assert" in ln]
+    picked = error_lines[:3] or lines[-3:]
+    reason = " | ".join(picked)
+    reason = _REDACTION_SERVICE.redact(reason, RedactionTier.SECRETS_ONLY)
+    return reason[:MAX_REASON_CHARS]
 
-    try:
-        with open(log_file_path, "w", encoding="utf-8") as log_file:
-            log_file.write(
-                f"STDOUT:\n{_as_text(stdout)}\n\n"
-                f"STDERR:\n{_as_text(stderr)}\n"
-            )
-    except OSError:
-        log_secure_info("warning", "Failed to write test output log")
+
+def _build_test_entry(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Build one ``test_summary['tests']`` entry from a report result."""
+    entry = {"name": result.get("test_name"), "status": result.get("status")}
+    if result.get("tc_id"):
+        entry["tc_id"] = result.get("tc_id")
+    reason = _failure_reason(result)
+    if reason:
+        entry["reason"] = reason
+    return entry
 
 
 def build_rejected_result(
@@ -2168,8 +2562,12 @@ def write_result_file(
         result_filename = original_filename
         result_path = RESULTS_DIR / result_filename
 
-        with open(result_path, 'w', encoding='utf-8') as f:
+        fd = os.open(
+            result_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, QUEUE_FILE_MODE
+        )
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump(result_data, f, indent=2)
+        os.chmod(result_path, QUEUE_FILE_MODE)
 
         log_secure_info(
             "info",

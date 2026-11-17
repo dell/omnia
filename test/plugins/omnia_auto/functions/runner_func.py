@@ -36,7 +36,7 @@ import signal
 import subprocess
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .host_func import (
     load_test_config,
@@ -202,7 +202,7 @@ def run_playbook(
 
     try:
         with sshpass_pipe(oim_auth) as auth_fd:
-            cmd = _wrap_ssh(
+            cmd = _ssh_argv(
                 ansible_cmd, config, credentials, auth_fd=auth_fd,
             )
             return _stream_cmd(
@@ -293,7 +293,17 @@ def _wrap_ssh(
     credentials: Dict,
     auth_fd: Optional[int] = None,
 ) -> str:
-    """Wrap a command in SSH for remote execution."""
+    """Wrap a command in SSH and return it as a shell-quoted string."""
+    return shlex.join(_ssh_argv(cmd, config, credentials, auth_fd))
+
+
+def _ssh_argv(
+    cmd: str,
+    config: Dict,
+    credentials: Dict,
+    auth_fd: Optional[int] = None,
+) -> List[str]:
+    """Build the SSH argument vector for remote execution (no local shell)."""
     host, user = validate_ssh_destination(
         config["oim_server_ip"],
         config.get("oim_ssh_user", "root"),
@@ -323,7 +333,7 @@ def _wrap_ssh(
         f"{user}@{host}",
         cmd,
     ])
-    return shlex.join(parts)
+    return parts
 
 
 # =====================================================================
@@ -331,7 +341,7 @@ def _wrap_ssh(
 # =====================================================================
 
 def _stream_cmd(
-    cmd: str,
+    cmd: Union[str, List[str]],
     playbook: str,
     timeout: int,
     tag: Optional[str],
@@ -356,7 +366,8 @@ def _stream_cmd(
 
     try:
         process = subprocess.Popen(
-            ["bash", "-c", cmd],
+            list(cmd) if isinstance(cmd, (list, tuple)) else ["bash", "-c", cmd],
+            shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=1,

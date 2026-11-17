@@ -45,6 +45,61 @@
         - pg_pre_check.containers | default([]) | length > 0
         - pg_pre_check.containers[0].State.Running | default(false)
 
+    # The job data kept with a retained database is exactly the set of files
+    # its artifact_metadata rows reference (see cleanup_job_data.yml).
+    - name: List artifact files referenced by PostgreSQL
+      ansible.builtin.command:
+        cmd: >-
+          podman exec {{ postgres_container_name }}
+          psql -U {{ postgres_user }} -d build_stream_db -tAc
+          "SELECT DISTINCT artifact_ref->>'key' FROM artifact_metadata
+          WHERE artifact_ref->>'key' IS NOT NULL;"
+      register: referenced_artifacts_query
+      changed_when: false
+      failed_when: false
+      when:
+        - image_groups_table_check is not skipped
+        - image_groups_table_check.stdout | default('') | trim == 't'
+
+    - name: Record the artifact files referenced by PostgreSQL
+      ansible.builtin.set_fact:
+        build_stream_referenced_artifact_keys: >-
+          {{ (referenced_artifacts_query.stdout_lines | default([]) | map('trim') | select | list)
+             if (referenced_artifacts_query is not skipped)
+             else [] }}
+      when: >-
+        (referenced_artifacts_query is not skipped and referenced_artifacts_query.rc | default(1) == 0)
+        or (image_groups_table_check is not skipped
+            and image_groups_table_check.rc | default(1) == 0
+            and image_groups_table_check.stdout | default('') | trim == 'f')
+
+    - name: Count active BuildStream jobs
+      ansible.builtin.command:
+        cmd: >-
+          podman exec {{ postgres_container_name }}
+          psql -U {{ postgres_user }} -d build_stream_db -tAc
+          "SELECT COUNT(*) FROM jobs WHERE tombstoned = false
+          AND job_state IN ('{{ build_stream_active_job_states | join("','") }}');"
+      register: active_jobs_count
+      changed_when: false
+      failed_when: false
+      when:
+        - image_groups_table_check is not skipped
+        - image_groups_table_check.stdout | default('') | trim == 't'
+
+    - name: Record the number of active BuildStream jobs
+      ansible.builtin.set_fact:
+        build_stream_active_job_count: "{{ active_jobs_count.stdout | trim | int }}"
+      when:
+        - active_jobs_count is not skipped
+        - active_jobs_count.rc | default(1) == 0
+        - active_jobs_count.stdout | default('') | trim is match('^[0-9]+$')
+
+    - name: Warn about active BuildStream jobs
+      ansible.builtin.debug:
+        msg: "{{ build_stream_active_jobs_msg }}"
+      when: build_stream_active_job_count | default(0) | int > 0
+
     - name: Count non-CLEANED image_groups records
       ansible.builtin.command:
         cmd: >-

@@ -224,8 +224,7 @@
     verification_enabled: "{{ enable_node_registration | bool }}"
     custom_inventory: "{{ pxeboot_using_custom_inventory | default(false) | bool }}"
     preserve_unselected: >-
-      {{ not (pxeboot_buildstream_active | default(false) | bool)
-         and not (pxeboot_using_custom_inventory | default(false) | bool)
+      {{ not (pxeboot_using_custom_inventory | default(false) | bool)
          and pxeboot_scope_effective | default('pending') == 'pending' }}
     unverified_count: >-
       {{ 0 if enable_node_registration | bool
@@ -239,46 +238,22 @@
   vars:
     orchestrator_lifecycle_status_result: "{{ pxeboot_lifecycle_status }}"
 
-- name: Run BuildStream post-processing
-  when:
-    - enable_build_stream | default(false) | bool
-    - job_id is defined
-    - job_id | string | length > 0
-  block:
-    - name: Write BuildStream node results
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: write_node_results.yml
-
-    - name: Update BuildStream restart state
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: update_restart_state.yml
-
-    - name: Register BuildStream GitLab host
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: gitlab_host.yml
-
-    - name: Upload failed-node report to GitLab
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: upload_to_gitlab.yml
-  rescue:
-    - name: Report non-fatal BuildStream post-processing failure
-      ansible.builtin.debug:
-        msg: >-
-          {{ pxe_boot_reporting_buildstream_failure_msg }}
-          {{ ansible_failed_result | default('unknown') }}
-
-- name: Fail if any nodes failed PXE boot or node-registration
-  ansible.builtin.fail:
-    msg: >-
+- name: Record PXE result for callers
+  ansible.builtin.set_fact:
+    pxeboot_failed: >-
+      {{ (pxe_boot_failed_bmc_ips | default([]) | length > 0)
+         or (node_registration_failed_bmc_ips | default([]) | length > 0) }}
+    pxeboot_failure_message: >-
       {{ pxe_boot_reporting_node_failure_msg }}
       PXE boot failures:
       {{ pxe_boot_failed_bmc_ips | default([]) | join(', ') or 'none' }}
       Node-registration failures:
       {{ node_registration_failed_bmc_ips | default([]) | join(', ') or 'none' }}
-  when: >-
-    (pxe_boot_failed_bmc_ips | default([]) | length > 0)
-    or (node_registration_failed_bmc_ips | default([]) | length > 0)
+    cacheable: true
+
+- name: Fail if any nodes failed PXE boot or node-registration
+  ansible.builtin.fail:
+    msg: "{{ pxeboot_failure_message }}"
+  when:
+    - pxeboot_failed | bool
+    - not (defer_pxe_failure | default(false) | bool)

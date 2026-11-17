@@ -162,17 +162,3 @@ class ArtifactRecord(Base):
 
     # Relationships
     job = relationship("Job", back_populates="artifact_records")
-
-
-class StageLock(Base):
-    """Stage lock model for concurrency control."""
-
-    __tablename__ = "stage_locks"
-
-    # Primary key
-    stage_name = Column(String(50), primary_key=True)
-
-    # Lock attributes
-    locked_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    locked_by = Column(String(128), nullable=False)
-    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)

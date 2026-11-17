@@ -27,7 +27,7 @@ from omnia_auto import (
     run_on_host,
 )
 from ..vars.common_vars import (
-    CMDS,
+    build_cmd,
     DISCOVERY_CONFIG_FILE,
     NETWORK_SPEC_FILE,
     CREDENTIALS_FILE_NAME,
@@ -102,7 +102,7 @@ def check_input_config_exists(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     path = f"{input_path}/{DISCOVERY_CONFIG_FILE}"
-    cmd = CMDS["file_exists"].format(path=path)
+    cmd = build_cmd("file_exists", path=path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -128,7 +128,7 @@ def check_network_spec_exists(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
-    cmd = CMDS["file_exists"].format(path=path)
+    cmd = build_cmd("file_exists", path=path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -154,7 +154,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
-    cmd = CMDS["file_exists"].format(path=cred_path)
+    cmd = build_cmd("file_exists", path=cred_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -179,7 +179,7 @@ def check_output_dir_exists(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["dir_exists"].format(path=output_path)
+    cmd = build_cmd("dir_exists", path=output_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -204,8 +204,8 @@ def check_pxe_mapping_created(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=PXE_MAPPING_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=PXE_MAPPING_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -233,7 +233,7 @@ def check_pxe_mapping_columns(host) -> Dict[str, Any]:
     """
     output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
-    cmd = CMDS["csv_header"].format(path=symlink_path)
+    cmd = build_cmd("csv_header", path=symlink_path)
     result = run_on_host(host, cmd)
     if result.rc != 0 or not result.stdout.strip():
         return {
@@ -272,7 +272,7 @@ def check_pxe_mapping_has_rows(host) -> Dict[str, Any]:
     """
     output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
-    cmd = CMDS["csv_line_count"].format(path=symlink_path)
+    cmd = build_cmd("csv_line_count", path=symlink_path)
     result = run_on_host(host, cmd)
     if result.rc != 0:
         return {
@@ -306,8 +306,8 @@ def check_discovery_report_created(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=DISCOVERY_REPORT_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=DISCOVERY_REPORT_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -335,7 +335,7 @@ def check_pxe_mapping_symlink(host) -> Dict[str, Any]:
     """
     output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
-    cmd = CMDS["readlink"].format(path=symlink_path)
+    cmd = build_cmd("readlink", path=symlink_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and result.stdout.strip():
         target = result.stdout.strip()
@@ -362,7 +362,7 @@ def check_clone_status(host) -> Dict[str, Any]:
     """
     config = load_test_config()
     clone_path = config.get("clone_path", "/root/omnia")
-    cmd = CMDS["dir_exists"].format(path=clone_path)
+    cmd = build_cmd("dir_exists", path=clone_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -387,7 +387,7 @@ def check_output_dir_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["dir_exists"].format(path=output_path)
+    cmd = build_cmd("dir_exists", path=output_path)
     result = run_on_host(host, cmd)
     
     # Directory should not exist or should be empty
@@ -399,7 +399,7 @@ def check_output_dir_removed(host) -> Dict[str, Any]:
         }
     
     # If directory exists, check if it's empty
-    cmd = CMDS["ls_files"].format(path=output_path)
+    cmd = build_cmd("ls_files", path=output_path)
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
     
@@ -428,7 +428,7 @@ def check_credentials_removed(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
-    cmd = CMDS["file_exists"].format(path=cred_path)
+    cmd = build_cmd("file_exists", path=cred_path)
     result = run_on_host(host, cmd)
     
     # Credentials file should not exist after cleanup
@@ -456,8 +456,8 @@ def check_pxe_mapping_files_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=PXE_MAPPING_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=PXE_MAPPING_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -486,8 +486,8 @@ def check_discovery_report_files_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=DISCOVERY_REPORT_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=DISCOVERY_REPORT_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -516,8 +516,7 @@ def check_status_files_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern="discovery_status.yml"
+    cmd = build_cmd("find_csv", path=output_path, pattern="discovery_status.yml"
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -547,7 +546,7 @@ def check_credentials_preserved(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
-    cmd = CMDS["file_exists"].format(path=cred_path)
+    cmd = build_cmd("file_exists", path=cred_path)
     result = run_on_host(host, cmd)
     
     # Credentials file should exist when preserved
@@ -651,7 +650,7 @@ def _read_pxe_mapping_raw(host) -> Dict[str, Any]:
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
 
     # Read entire CSV file
-    cmd = CMDS["cat_file"].format(path=symlink_path)
+    cmd = build_cmd("cat_file", path=symlink_path)
     cmd_result = run_on_host(host, cmd)
 
     if cmd_result.rc != 0 or not cmd_result.stdout.strip():
@@ -680,12 +679,13 @@ def _get_network_spec_subnets(host) -> Dict[str, Any]:
         host: Testinfra host connection.
 
     Returns:
-        Dict with keys: success, admin_subnet, ib_subnet, error.
+        Dict with keys: success, admin_subnet, ib_subnet, ipv6_subnet, error.
     """
     result = {
         "success": False,
         "admin_subnet": "",
         "ib_subnet": "",
+        "ipv6_subnet": "",
         "error": "",
     }
 
@@ -693,7 +693,7 @@ def _get_network_spec_subnets(host) -> Dict[str, Any]:
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
 
     # Read and parse network_spec.yml
-    cmd = CMDS["cat_file"].format(path=path)
+    cmd = build_cmd("cat_file", path=path)
     cmd_result = run_on_host(host, cmd)
 
     if cmd_result.rc != 0 or not cmd_result.stdout.strip():
@@ -712,7 +712,9 @@ def _get_network_spec_subnets(host) -> Dict[str, Any]:
         if "admin_network" in net:
             result["admin_subnet"] = net["admin_network"].get("subnet", "")
         if "ib_network" in net:
-            result["ib_subnet"] = net["ib_network"].get("subnet", "")
+            ib = net["ib_network"]
+            result["ib_subnet"] = ib.get("ipv4_subnet", "") or ib.get("subnet", "")
+            result["ipv6_subnet"] = ib.get("ipv6_subnet", "")
 
     result["success"] = True
     return result
@@ -810,11 +812,11 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
 
 
 def check_ip_correlation(host) -> Dict[str, Any]:
-    """Verify ADMIN_IP and IB_IP correlation with BMC_IP based on network_spec.yml.
+    """Verify ADMIN_IP and IB_IPV4 correlation with BMC_IP based on network_spec.yml.
 
     IP correlation logic from discovery:
     - ADMIN_IP = admin_subnet[0:2] + bmc_ip[2:4]
-    - IB_IP = ib_subnet[0:2] + bmc_ip[2:4]
+    - IB_IPV4 = ib_subnet[0:2] + bmc_ip[2:4]
 
     Args:
         host: Testinfra host connection.
@@ -853,7 +855,8 @@ def check_ip_correlation(host) -> Dict[str, Any]:
         admin_ip_idx = headers.index("ADMIN_IP")
         bmc_ip_idx = headers.index("BMC_IP")
         hostname_idx = headers.index("HOSTNAME")
-        ib_ip_idx = headers.index("IB_IP") if "IB_IP" in headers else -1
+        ib_ipv4_idx = headers.index("IB_IPV4") if "IB_IPV4" in headers else -1
+        ib_nic_idx = headers.index("IB_NIC_NAME") if "IB_NIC_NAME" in headers else -1
     except ValueError as e:
         result["error"] = f"Required column not found: {e}"
         return result
@@ -868,7 +871,8 @@ def check_ip_correlation(host) -> Dict[str, Any]:
         admin_ip = row[admin_ip_idx]
         bmc_ip = row[bmc_ip_idx]
         hostname = row[hostname_idx]
-        ib_ip = row[ib_ip_idx] if ib_ip_idx >= 0 and len(row) > ib_ip_idx else ""
+        ib_nic = row[ib_nic_idx] if ib_nic_idx >= 0 and len(row) > ib_nic_idx else ""
+        ib_ipv4 = row[ib_ipv4_idx] if ib_ipv4_idx >= 0 and len(row) > ib_ipv4_idx else ""
 
         if not admin_ip or not bmc_ip:
             continue
@@ -901,20 +905,19 @@ def check_ip_correlation(host) -> Dict[str, Any]:
             })
             continue
 
-        # Check IB_IP if present and ib_subnet configured
-        if ib_ip and ib_octets and len(ib_octets) == 4:
-            ib_parts = ib_ip.split(".")
+        # Check IB_IPV4 only when IB_NIC_NAME is present and ib_subnet configured
+        if ib_nic and ib_ipv4 and ib_octets and len(ib_octets) == 4:
             expected_ib = (
                 f"{ib_octets[0]}.{ib_octets[1]}."
                 f"{bmc_parts[2]}.{bmc_parts[3]}"
             )
-            if ib_ip != expected_ib:
+            if ib_ipv4 != expected_ib:
                 result["invalid_rows"].append({
                     "hostname": hostname,
-                    "ib_ip": ib_ip,
+                    "ib_ipv4": ib_ipv4,
                     "bmc_ip": bmc_ip,
-                    "expected_ib_ip": expected_ib,
-                    "reason": f"IB_IP mismatch: expected {expected_ib}",
+                    "expected_ib_ipv4": expected_ib,
+                    "reason": f"IB_IPV4 mismatch: expected {expected_ib}",
                 })
                 continue
 
@@ -1109,5 +1112,593 @@ def check_pxe_mapping_orchestrator_contract(host) -> Dict[str, Any]:
                 f"{len(result['required_columns'])} required columns, "
                 f"{len(result['optional_columns'])} optional columns present"
             )
+
+    return result
+
+
+# =============================================================================
+# IB Validation Functions (V016-V021)
+# =============================================================================
+
+
+def check_ib_conditional_population(host) -> Dict[str, Any]:
+    """Verify IB columns are populated consistently with IB_NIC_NAME.
+
+    Rules:
+    - Rows WITH IB_NIC_NAME: must have IB_IPV4 (if ib_subnet configured)
+      and IB_IPV6 (if ipv6_subnet configured)
+    - Rows WITHOUT IB_NIC_NAME: must have empty IB_IPV4 and IB_IPV6
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, valid_count, invalid_rows, details, error.
+    """
+    result = {
+        "success": False,
+        "skipped": False,
+        "valid_count": 0,
+        "invalid_rows": [],
+        "details": "",
+        "error": "",
+    }
+
+    subnets = _get_network_spec_subnets(host)
+    if not subnets["success"]:
+        result["error"] = subnets["error"]
+        return result
+
+    ib_subnet = subnets["ib_subnet"]
+    ipv6_subnet = subnets.get("ipv6_subnet", "")
+
+    if not ib_subnet and not ipv6_subnet:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB subnet configured in network_spec.yml — skipping"
+        )
+        return result
+
+    mapping = _read_pxe_mapping_raw(host)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+
+    headers = mapping["headers"]
+    if "IB_NIC_NAME" not in headers:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = "IB_NIC_NAME column not present — nothing to validate"
+        return result
+
+    try:
+        hostname_idx = headers.index("HOSTNAME")
+        ib_nic_idx = headers.index("IB_NIC_NAME")
+        ib_ipv4_idx = headers.index("IB_IPV4") if "IB_IPV4" in headers else -1
+        ib_ipv6_idx = headers.index("IB_IPV6") if "IB_IPV6" in headers else -1
+    except ValueError as e:
+        result["error"] = f"Required column not found: {e}"
+        return result
+
+    ib_with_nic = 0
+    ib_without_nic = 0
+
+    for row in mapping["rows"]:
+        if len(row) <= max(hostname_idx, ib_nic_idx):
+            continue
+
+        hostname = row[hostname_idx]
+        ib_nic = row[ib_nic_idx]
+        ib_ipv4 = row[ib_ipv4_idx] if ib_ipv4_idx >= 0 and len(row) > ib_ipv4_idx else ""
+        ib_ipv6 = row[ib_ipv6_idx] if ib_ipv6_idx >= 0 and len(row) > ib_ipv6_idx else ""
+
+        if ib_nic:
+            ib_with_nic += 1
+            # IB NIC present — IPs should be populated when subnets are configured
+            if ib_subnet and not ib_ipv4:
+                result["invalid_rows"].append({
+                    "hostname": hostname,
+                    "ib_nic_name": ib_nic,
+                    "reason": "IB_NIC_NAME present but IB_IPV4 is empty (ib_subnet configured)",
+                })
+                continue
+            if ipv6_subnet and not ib_ipv6:
+                result["invalid_rows"].append({
+                    "hostname": hostname,
+                    "ib_nic_name": ib_nic,
+                    "reason": "IB_NIC_NAME present but IB_IPV6 is empty (ipv6_subnet configured)",
+                })
+                continue
+        else:
+            ib_without_nic += 1
+            # No IB NIC — IPs must be empty
+            if ib_ipv4:
+                result["invalid_rows"].append({
+                    "hostname": hostname,
+                    "ib_ipv4": ib_ipv4,
+                    "reason": "IB_IPV4 populated but IB_NIC_NAME is empty",
+                })
+                continue
+            if ib_ipv6:
+                result["invalid_rows"].append({
+                    "hostname": hostname,
+                    "ib_ipv6": ib_ipv6,
+                    "reason": "IB_IPV6 populated but IB_NIC_NAME is empty",
+                })
+                continue
+
+        result["valid_count"] += 1
+
+    total = ib_with_nic + ib_without_nic
+    if result["invalid_rows"]:
+        result["details"] = (
+            f"{len(result['invalid_rows'])} rows have IB conditional population issues "
+            f"(total {total}: {ib_with_nic} with IB_NIC_NAME, {ib_without_nic} without)"
+        )
+        result["error"] = result["details"]
+    else:
+        result["success"] = True
+        result["details"] = (
+            f"All {total} rows consistent: "
+            f"{ib_with_nic} with IB_NIC_NAME (IPs populated), "
+            f"{ib_without_nic} without (IPs empty)"
+        )
+
+    return result
+
+
+def check_ib_ipv4_format(host) -> Dict[str, Any]:
+    """Verify every non-empty IB_IPV4 is a valid IPv4 address.
+
+    Skips when no IB subnet is configured in network_spec.yml.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, skipped, valid_count, invalid_rows, details, error.
+    """
+    import ipaddress as _ipaddress
+
+    result = {
+        "success": False,
+        "skipped": False,
+        "valid_count": 0,
+        "invalid_rows": [],
+        "details": "",
+        "error": "",
+    }
+
+    subnets = _get_network_spec_subnets(host)
+    if not subnets["success"]:
+        result["error"] = subnets["error"]
+        return result
+
+    if not subnets["ib_subnet"]:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB IPv4 subnet configured in network_spec.yml — skipping"
+        )
+        return result
+
+    mapping = _read_pxe_mapping_raw(host)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+
+    headers = mapping["headers"]
+    if "IB_IPV4" not in headers:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = "IB_IPV4 column not present — nothing to validate"
+        return result
+
+    try:
+        hostname_idx = headers.index("HOSTNAME")
+        ib_ipv4_idx = headers.index("IB_IPV4")
+    except ValueError as e:
+        result["error"] = f"Required column not found: {e}"
+        return result
+
+    populated = 0
+    empty = 0
+
+    for row in mapping["rows"]:
+        if len(row) <= max(hostname_idx, ib_ipv4_idx):
+            continue
+
+        hostname = row[hostname_idx]
+        ib_ipv4 = row[ib_ipv4_idx]
+
+        if not ib_ipv4:
+            empty += 1
+            result["valid_count"] += 1
+            continue
+
+        populated += 1
+        try:
+            _ipaddress.IPv4Address(ib_ipv4)
+            result["valid_count"] += 1
+        except (ValueError, _ipaddress.AddressValueError):
+            result["invalid_rows"].append({
+                "hostname": hostname,
+                "ib_ipv4": ib_ipv4,
+                "reason": f"Invalid IPv4 address: {ib_ipv4}",
+            })
+
+    total = populated + empty
+    if result["invalid_rows"]:
+        result["details"] = (
+            f"{len(result['invalid_rows'])} rows have invalid IB_IPV4 format "
+            f"(total {total}: {populated} populated, {empty} empty)"
+        )
+        result["error"] = result["details"]
+    else:
+        result["success"] = True
+        result["details"] = (
+            f"All {total} rows valid: "
+            f"{populated} populated (valid IPv4), {empty} empty (no IB NIC)"
+        )
+
+    return result
+
+
+def check_ib_ipv6_format(host) -> Dict[str, Any]:
+    """Verify every non-empty IB_IPV6 is a valid IPv6 address.
+
+    Skips when no IB IPv6 subnet is configured in network_spec.yml.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, skipped, valid_count, invalid_rows, details, error.
+    """
+    import ipaddress as _ipaddress
+
+    result = {
+        "success": False,
+        "skipped": False,
+        "valid_count": 0,
+        "invalid_rows": [],
+        "details": "",
+        "error": "",
+    }
+
+    subnets = _get_network_spec_subnets(host)
+    if not subnets["success"]:
+        result["error"] = subnets["error"]
+        return result
+
+    if not subnets.get("ipv6_subnet", ""):
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB IPv6 subnet configured in network_spec.yml — skipping"
+        )
+        return result
+
+    mapping = _read_pxe_mapping_raw(host)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+
+    headers = mapping["headers"]
+    if "IB_IPV6" not in headers:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = "IB_IPV6 column not present — nothing to validate"
+        return result
+
+    try:
+        hostname_idx = headers.index("HOSTNAME")
+        ib_ipv6_idx = headers.index("IB_IPV6")
+    except ValueError as e:
+        result["error"] = f"Required column not found: {e}"
+        return result
+
+    populated = 0
+    empty = 0
+
+    for row in mapping["rows"]:
+        if len(row) <= max(hostname_idx, ib_ipv6_idx):
+            continue
+
+        hostname = row[hostname_idx]
+        ib_ipv6 = row[ib_ipv6_idx]
+
+        if not ib_ipv6:
+            empty += 1
+            result["valid_count"] += 1
+            continue
+
+        populated += 1
+        try:
+            _ipaddress.IPv6Address(ib_ipv6)
+            result["valid_count"] += 1
+        except (ValueError, _ipaddress.AddressValueError):
+            result["invalid_rows"].append({
+                "hostname": hostname,
+                "ib_ipv6": ib_ipv6,
+                "reason": f"Invalid IPv6 address: {ib_ipv6}",
+            })
+
+    total = populated + empty
+    if result["invalid_rows"]:
+        result["details"] = (
+            f"{len(result['invalid_rows'])} rows have invalid IB_IPV6 format "
+            f"(total {total}: {populated} populated, {empty} empty)"
+        )
+        result["error"] = result["details"]
+    else:
+        result["success"] = True
+        result["details"] = (
+            f"All {total} rows valid: "
+            f"{populated} populated (valid IPv6), {empty} empty (no IB NIC)"
+        )
+
+    return result
+
+
+def check_ib_ip_uniqueness(host) -> Dict[str, Any]:
+    """Verify IB IP addresses are unique across the PXE mapping.
+
+    Skips when no IB subnet is configured in network_spec.yml (no IB IPs
+    expected).
+
+    Checks:
+    - No duplicate IB_IPV4 across rows
+    - No duplicate IB_IPV6 across rows
+    - IB_IPV4 does not collide with any ADMIN_IP or BMC_IP
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, skipped, duplicates, collisions, details, error.
+    """
+    result = {
+        "success": False,
+        "skipped": False,
+        "duplicates": [],
+        "collisions": [],
+        "details": "",
+        "error": "",
+    }
+
+    # Check whether IB subnets are configured in network_spec.yml
+    subnets = _get_network_spec_subnets(host)
+    if not subnets["success"]:
+        result["error"] = subnets["error"]
+        return result
+
+    ib_subnet = subnets["ib_subnet"]
+    ipv6_subnet = subnets.get("ipv6_subnet", "")
+
+    if not ib_subnet and not ipv6_subnet:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = (
+            "No IB subnet configured in network_spec.yml — skipping"
+        )
+        return result
+
+    mapping = _read_pxe_mapping_raw(host)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+
+    headers = mapping["headers"]
+    ib_ipv4_idx = headers.index("IB_IPV4") if "IB_IPV4" in headers else -1
+    ib_ipv6_idx = headers.index("IB_IPV6") if "IB_IPV6" in headers else -1
+
+    if ib_ipv4_idx < 0 and ib_ipv6_idx < 0:
+        result["success"] = True
+        result["skipped"] = True
+        result["details"] = "No IB IP columns present — nothing to validate"
+        return result
+
+    try:
+        hostname_idx = headers.index("HOSTNAME")
+        admin_ip_idx = headers.index("ADMIN_IP") if "ADMIN_IP" in headers else -1
+        bmc_ip_idx = headers.index("BMC_IP") if "BMC_IP" in headers else -1
+    except ValueError as e:
+        result["error"] = f"Required column not found: {e}"
+        return result
+
+    seen_ipv4: Dict[str, str] = {}
+    seen_ipv6: Dict[str, str] = {}
+    admin_ips: set = set()
+    bmc_ips: set = set()
+
+    # First pass: collect ADMIN_IP and BMC_IP values
+    for row in mapping["rows"]:
+        if admin_ip_idx >= 0 and len(row) > admin_ip_idx and row[admin_ip_idx]:
+            admin_ips.add(row[admin_ip_idx])
+        if bmc_ip_idx >= 0 and len(row) > bmc_ip_idx and row[bmc_ip_idx]:
+            bmc_ips.add(row[bmc_ip_idx])
+
+    # Second pass: check IB IP uniqueness and collisions
+    for row in mapping["rows"]:
+        if len(row) <= hostname_idx:
+            continue
+
+        hostname = row[hostname_idx]
+        ib_ipv4 = row[ib_ipv4_idx] if ib_ipv4_idx >= 0 and len(row) > ib_ipv4_idx else ""
+        ib_ipv6 = row[ib_ipv6_idx] if ib_ipv6_idx >= 0 and len(row) > ib_ipv6_idx else ""
+
+        if ib_ipv4:
+            if ib_ipv4 in seen_ipv4:
+                result["duplicates"].append({
+                    "hostname": hostname,
+                    "ip": ib_ipv4,
+                    "column": "IB_IPV4",
+                    "first_seen": seen_ipv4[ib_ipv4],
+                })
+            else:
+                seen_ipv4[ib_ipv4] = hostname
+
+            if ib_ipv4 in admin_ips:
+                result["collisions"].append({
+                    "hostname": hostname,
+                    "ib_ipv4": ib_ipv4,
+                    "collision_with": "ADMIN_IP",
+                })
+            if ib_ipv4 in bmc_ips:
+                result["collisions"].append({
+                    "hostname": hostname,
+                    "ib_ipv4": ib_ipv4,
+                    "collision_with": "BMC_IP",
+                })
+
+        if ib_ipv6:
+            if ib_ipv6 in seen_ipv6:
+                result["duplicates"].append({
+                    "hostname": hostname,
+                    "ip": ib_ipv6,
+                    "column": "IB_IPV6",
+                    "first_seen": seen_ipv6[ib_ipv6],
+                })
+            else:
+                seen_ipv6[ib_ipv6] = hostname
+
+    issues = result["duplicates"] + result["collisions"]
+    if issues:
+        result["details"] = (
+            f"{len(result['duplicates'])} duplicates, "
+            f"{len(result['collisions'])} collisions found"
+        )
+        result["error"] = result["details"]
+    else:
+        result["success"] = True
+        result["details"] = (
+            f"All IB IPs unique ({len(seen_ipv4)} IPv4, {len(seen_ipv6)} IPv6)"
+        )
+
+    return result
+
+
+# Current 12-column output contract from src/discovery
+_PXE_MAPPING_ALL_COLUMNS = [
+    "FUNCTIONAL_GROUP_NAME",
+    "GROUP_NAME",
+    "SERVICE_TAG",
+    "PARENT_SERVICE_TAG",
+    "HOSTNAME",
+    "ADMIN_MAC",
+    "ADMIN_IP",
+    "BMC_MAC",
+    "BMC_IP",
+    "IB_NIC_NAME",
+    "IB_IPV4",
+    "IB_IPV6",
+]
+
+
+def check_pxe_mapping_all_columns(host) -> Dict[str, Any]:
+    """Verify all 12 columns from the output contract are present in the CSV.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, present, missing, details, error.
+    """
+    result = {
+        "success": False,
+        "present": [],
+        "missing": [],
+        "details": "",
+        "error": "",
+    }
+
+    mapping = _read_pxe_mapping_raw(host)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+
+    file_headers = set(mapping["headers"])
+    expected = set(_PXE_MAPPING_ALL_COLUMNS)
+
+    result["present"] = sorted(list(file_headers & expected))
+    result["missing"] = sorted(list(expected - file_headers))
+
+    extra = sorted(list(file_headers - expected))
+
+    if result["missing"]:
+        result["details"] = (
+            f"Missing {len(result['missing'])} of {len(_PXE_MAPPING_ALL_COLUMNS)} columns: "
+            f"{', '.join(result['missing'])}"
+        )
+        result["error"] = result["details"]
+    else:
+        result["success"] = True
+        extra_note = f"; {len(extra)} extra: {', '.join(extra)}" if extra else ""
+        result["details"] = (
+            f"All {len(_PXE_MAPPING_ALL_COLUMNS)} output contract columns present: "
+            f"{', '.join(sorted(result['present']))}{extra_note}"
+        )
+
+    return result
+
+
+def check_bmc_mac_populated(host) -> Dict[str, Any]:
+    """Verify every row has a non-empty BMC_MAC value.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, valid_count, empty_rows, details, error.
+    """
+    result = {
+        "success": False,
+        "valid_count": 0,
+        "empty_rows": [],
+        "details": "",
+        "error": "",
+    }
+
+    mapping = _read_pxe_mapping_raw(host)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+
+    headers = mapping["headers"]
+    if "BMC_MAC" not in headers:
+        result["error"] = "BMC_MAC column not present in PXE mapping"
+        return result
+
+    try:
+        hostname_idx = headers.index("HOSTNAME")
+        bmc_mac_idx = headers.index("BMC_MAC")
+    except ValueError as e:
+        result["error"] = f"Required column not found: {e}"
+        return result
+
+    for row in mapping["rows"]:
+        if len(row) <= max(hostname_idx, bmc_mac_idx):
+            continue
+
+        hostname = row[hostname_idx]
+        bmc_mac = row[bmc_mac_idx]
+
+        if not bmc_mac:
+            result["empty_rows"].append(hostname)
+        else:
+            result["valid_count"] += 1
+
+    if result["empty_rows"]:
+        result["details"] = (
+            f"{len(result['empty_rows'])} rows have empty BMC_MAC"
+        )
+        result["error"] = result["details"]
+    else:
+        result["success"] = True
+        result["details"] = (
+            f"All {result['valid_count']} rows have non-empty BMC_MAC"
+        )
 
     return result

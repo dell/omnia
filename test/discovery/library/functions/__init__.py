@@ -19,6 +19,8 @@ Common utilities come from the omnia_auto package.
 Module-specific functions remain here.
 """
 
+from typing import Any, Dict
+
 # --- Common (from omnia_auto package) ---
 from omnia_auto import (
     Colors,
@@ -67,6 +69,13 @@ from .discovery_func import (
     check_ip_correlation,
     check_parent_service_tag,
     check_pxe_mapping_orchestrator_contract,
+    # IB Validation (V016-V021)
+    check_ib_conditional_population,
+    check_ib_ipv4_format,
+    check_ib_ipv6_format,
+    check_ib_ip_uniqueness,
+    check_pxe_mapping_all_columns,
+    check_bmc_mac_populated,
 )
 
 # --- OME Integration (V010-V013) ---
@@ -87,7 +96,7 @@ from .validation_func import (
 )
 
 
-def run_playbook(extra_vars=None, **kwargs):
+def run_playbook(extra_vars=None, **kwargs) -> Dict[str, Any]:
     """Wrapper that injects module-specific playbook and workdir."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),

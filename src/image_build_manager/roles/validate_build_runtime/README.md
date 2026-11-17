@@ -19,7 +19,7 @@ Podman, or Ansible versions.
 ## Checks
 
 - `s3_configurations.provider` exists and is `minio` or `powerscale`.
-- Fixed S3 facts are set to `boot-images` and `efi-images`.
+- Fixed S3 facts are set to `boot-images` and `efi`.
 - For PowerScale, `endpoint_url` is present and its endpoint is reachable.
 - An aarch64 build has a configured `aarch64_inventory_host_ip`.
 - `overall_status` is `success` when repository precheck validation is enabled.
@@ -29,9 +29,8 @@ building is enabled, pings the configured host, and dynamically adds the host
 to the `admin_aarch64` inventory group. SSH setup is performed later by
 `prepare_aarch64_node`.
 
-The `efi-images` value set here is a build-time object-prefix convention. The
-local MinIO deployment separately creates an `efi` bucket; current artifacts
-remain in `boot-images`.
+The `efi` fact matches the MinIO bucket name. All boot artifacts (kernel,
+initrd, rootfs) are stored together under `boot-images/<functional_group>/`.
 
 ## Role Variables
 

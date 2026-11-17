@@ -132,6 +132,10 @@ repo_status_missing_section_fail_msg: >-
 image_build_config_not_found_fail_msg: >-
   image_build_config.yml not found at {{ input_project_dir }}/image_build_config.yml.
   This file is required. See docs/contracts/input-contract.md for the expected format.
+image_build_config_invalid_msg: >-
+  image_build_config.yml at {{ input_project_dir }} could not be loaded: it is
+  missing, invalid, or contains prohibited Jinja template syntax. Runtime
+  configuration must contain literal YAML values only.
 repo_url_unreachable_fail_msg: >-
   One or more repo URLs from repo_status.yml are unreachable.
   Unreachable URLs: {{ _unreachable_repos | default([]) | join(', ') }}.

@@ -16,6 +16,8 @@
 
 # pylint: disable=redefined-outer-name
 
+from unittest.mock import patch
+
 import pytest
 
 from api.auth.service import (
@@ -279,3 +281,49 @@ class TestAuthServiceTokenGeneration:
         # Each part should be non-empty
         for part in parts:
             assert len(part) > 0, "JWT parts should not be empty"
+
+    def test_non_grantable_stored_scopes_are_dropped_and_logged(
+        self,
+        mock_jwt_handler: MockJWTHandler,
+        test_client_id: str,
+        test_client_secret: str,
+    ):
+        """Stored admin:* scopes never reach a token and the drop is logged."""
+        vault = MockVaultClient()
+        vault.add_test_client(
+            client_id=test_client_id,
+            allowed_scopes=["admin:write", "catalog:read"],
+        )
+        service = AuthService(vault_client=vault, jwt_handler=mock_jwt_handler)
+
+        with patch("api.auth.service.log_auth_info") as log_mock:
+            result = service.generate_token(
+                client_id=test_client_id,
+                client_secret=test_client_secret,
+            )
+
+        assert result.scope == "catalog:read"
+        assert any(
+            call.args[0] == "warning" and "non-grantable" in call.args[1]
+            for call in log_mock.call_args_list
+        )
+
+    def test_client_with_only_non_grantable_scopes_is_rejected(
+        self,
+        mock_jwt_handler: MockJWTHandler,
+        test_client_id: str,
+        test_client_secret: str,
+    ):
+        """A client left with no grantable scope gets no token."""
+        vault = MockVaultClient()
+        vault.add_test_client(
+            client_id=test_client_id,
+            allowed_scopes=["admin:read", "admin:write"],
+        )
+        service = AuthService(vault_client=vault, jwt_handler=mock_jwt_handler)
+
+        with pytest.raises(InvalidScopeError):
+            service.generate_token(
+                client_id=test_client_id,
+                client_secret=test_client_secret,
+            )

@@ -107,7 +107,7 @@ rather than the git checkout. Use `--deps-only` to skip input file staging in th
 or if you manage input files externally). Dependencies are still installed.
 
 **Dependency caching:** On first run, each domain's `requirements.txt` and
-`requirements.yml` are hashed (MD5). On subsequent runs, if the file hasn't
+`requirements.yml` are hashed (SHA-256). On subsequent runs, if the file hasn't
 changed the install step is skipped entirely — saving 10-30s per domain.
 Use `--force-deps` to bypass the cache. Cache files live at
 `$OMNIA_DATA_PATH/.data/deps-cache/`.

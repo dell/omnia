@@ -56,12 +56,6 @@ class Architecture:
         """Check if architecture is x86_64."""
         return self.value == "x86_64"
 
-    @property
-    def is_aarch64(self) -> bool:
-        """Check if architecture is aarch64."""
-        return self.value == "aarch64"
-
-
 @dataclass(frozen=True)
 class ImageKey:
     """Image key identifier for build image.
@@ -131,10 +125,6 @@ class FunctionalGroups:
                     f"Invalid functional group name: {group}. "
                     f"Must contain only alphanumeric characters, underscores, and hyphens."
                 )
-
-    def to_list(self) -> List[str]:
-        """Return a copy of the groups list."""
-        return list(self.groups)
 
     def __str__(self) -> str:
         """Return string representation."""

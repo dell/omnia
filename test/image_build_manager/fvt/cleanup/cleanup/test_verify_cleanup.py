@@ -23,7 +23,7 @@ Validates that --tags cleanup removed all artifacts:
   s3cmd configuration removed
   build_status.yml removed
   Registry cleaned (no images)
-  Domain credential file and vault key removed
+  Domain credential file and vault key removed or preserved (cleanup_credentials)
 """
 
 import pytest
@@ -35,7 +35,7 @@ from library.functions import (
     check_firewall_ports_removed,
     check_s3_artifacts_removed,
     check_s3cfg_removed,
-    check_credentials_removed,
+    check_credentials_per_flag,
     check_build_output_removed,
     check_registry_cleaned,
 )
@@ -251,22 +251,22 @@ def test_registry_cleaned(host):
 @pytest.mark.sanity
 @pytest.mark.order(8)
 def test_credentials_removed(host):
-    """Verify the credential file and vault key were removed."""
+    """Verify the credential file and vault key follow cleanup_credentials."""
     tc = TC["credentials_removed"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = check_credentials_removed(host)
-    fields = [
+    result = check_credentials_per_flag(host)
+    flag = str(result["remove"]).lower()
+    fields = [("cleanup_credentials", flag)] + [
         ("Credential artifact", f"{item['path']}: {_resource_state(item)}")
         for item in result["results"]
     ]
 
     if result["success"]:
-        tl.passed_fields(LOG["credentials_removed_ok"], fields)
+        key = "credentials_removed_ok" if result["remove"] else "credentials_preserved_ok"
+        tl.passed_fields(LOG[key], fields)
     else:
-        remaining = [item for item in result["results"] if not item["removed"]]
-        tl.failed_fields(
-            LOG["credentials_still_exist"].format(count=len(remaining)),
-            fields,
-        )
+        unexpected = [item for item in result["results"] if not item["expected"]]
+        key = "credentials_still_exist" if result["remove"] else "credentials_not_preserved"
+        tl.failed_fields(LOG[key].format(count=len(unexpected)), fields)
 
     _assert_cleanup_result(result, "Credential artifact")

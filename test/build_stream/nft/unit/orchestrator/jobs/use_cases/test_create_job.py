@@ -309,8 +309,51 @@ class TestCreateJobUseCase:
             use_case.execute(second_command)
 
         assert exc_info.value.idempotency_key == "idem-key-1"
-        assert exc_info.value.existing_job_id == str(first_job_id)
+        assert exc_info.value.existing_job_id == "<withheld>"
+        assert str(first_job_id) not in str(exc_info.value)
         assert exc_info.value.correlation_id == str(second_command.correlation_id)
+
+    def test_idempotency_conflict_same_client_names_existing_job(
+        self,
+        job_repo,
+        stage_repo,
+        idempotency_repo,
+        audit_repo,
+        _job_id_generator,
+        uuid_generator,
+    ):
+        """The owning client still gets its own job id on a fingerprint conflict."""
+        first_job_id = JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11")
+        second_job_id = JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a13")
+        generator = _SequenceJobIdGenerator([first_job_id, second_job_id])
+
+        use_case = CreateJobUseCase(
+            job_repo,
+            stage_repo,
+            idempotency_repo,
+            audit_repo,
+            job_id_generator=generator,
+            uuid_generator=uuid_generator,
+        )
+        first_command = CreateJobCommand(
+            client_id=ClientId("client-1"),
+            request_client_id="req-client-123",
+            client_name="abc123def456",
+            correlation_id=CorrelationId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a12"),
+            idempotency_key=IdempotencyKey("idem-key-1"),
+        )
+        second_command = CreateJobCommand(
+            client_id=ClientId("client-1"),
+            request_client_id="req-client-456",
+            client_name="different-digest",
+            correlation_id=CorrelationId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a14"),
+            idempotency_key=IdempotencyKey("idem-key-1"),
+        )
+        use_case.execute(first_command)
+        with pytest.raises(IdempotencyConflictError) as exc_info:
+            use_case.execute(second_command)
+
+        assert exc_info.value.existing_job_id == str(first_job_id)
 
     def test_job_already_exists_raises_error(
         self,

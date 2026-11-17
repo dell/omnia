@@ -14,8 +14,11 @@
 
 """BuildStream NFT fixtures plus compatibility setup for retained source tests."""
 
-import sys
+import atexit
 import os
+import shutil
+import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -37,6 +40,8 @@ if str(_BUILD_STREAM_APP) not in sys.path:
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
+    from library.functions import cancel_nft_pipeline
+
     # The shared validation runner selects only registered NFT cases. Retained
     # source-level tests are not part of this category.
     collect_ignore = ["unit", "others"]
@@ -60,10 +65,29 @@ if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
         yield
         pipeline_id = int(session_state.get("active_pipeline_id", 0) or 0)
         if pipeline_id:
-            from library.functions import cancel_pipeline  # pylint: disable=import-outside-toplevel
-
-            cancel_pipeline(host, pipeline_id)
+            cancel_nft_pipeline(host, pipeline_id)
 else:
+    # The retained source tests use the dev container (in-memory repositories
+    # and SQLite). api.dependencies reads ENV once at import time and defaults
+    # to "prod", so set it before any test imports the app. pytest.github.ini's
+    # "env" block cannot do this: it needs the pytest-env plugin, which is not
+    # installed.
+    os.environ.setdefault("ENV", "dev")
+
+    # The application writes its logs, artifacts and queue under
+    # $OMNIA_DATA_PATH/build_stream (default /opt/omnia), and several modules
+    # read the path at import time. Point it at a throw-away directory before
+    # any test imports the app, so a run on an OIM never writes into the real
+    # /opt/omnia (job logs, events.log and build_stream_root left behind there
+    # block omnia.sh --cleanup --all). It is overridden even when the shell
+    # exports OMNIA_DATA_PATH (activate-omnia.sh does).
+    _TEST_DATA_PATH = tempfile.mkdtemp(prefix="build_stream_nft_data_")
+    os.environ["OMNIA_DATA_PATH"] = _TEST_DATA_PATH
+    os.environ["NFS_ARTIFACT_BASE"] = os.path.join(
+        _TEST_DATA_PATH, "build_stream", "build_stream_root"
+    )
+    atexit.register(shutil.rmtree, _TEST_DATA_PATH, ignore_errors=True)
+
     # Compatibility shim for developers running the retained source tests
     # directly with their full development dependencies installed.
     import sqlalchemy.dialects.sqlite.base as sqlite_base

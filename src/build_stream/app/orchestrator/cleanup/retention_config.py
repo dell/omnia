@@ -20,6 +20,7 @@ value applies to the next cleanup cycle without restarting the container.
 """
 
 import os
+import re
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -55,10 +56,24 @@ class RetentionConfig:
         return {item.name: getattr(self, item.name) for item in fields(self)}
 
 
+def _validate_project_name(project_name):
+    """Validate OMNIA_PROJECT_NAME is a single safe path segment."""
+    if (
+        not project_name
+        or project_name in ('.', '..')
+        or os.path.basename(project_name) != project_name
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
+    ):
+        raise ValueError("OMNIA_PROJECT_NAME is not a valid single-segment name")
+    return project_name
+
+
 def build_stream_config_path() -> Path:
     """Return the project-scoped ``build_stream_config.yml`` path."""
     omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    project_name = _validate_project_name(
+        os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    )
     return (
         omnia_data_path / "build_stream" / "input" / project_name
         / "build_stream_config.yml"

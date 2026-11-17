@@ -27,7 +27,12 @@ import yaml
 
 from ..messages import orchestrator_messages as msg
 from .network_spec_validator import record_error
-from .pxe_mapping_validator import read_mapping, resolve_mapping_path
+from .pxe_mapping_validator import (
+    CANONICAL_HEADERS,
+    LEGACY_HEADERS,
+    read_mapping,
+    resolve_mapping_path,
+)
 
 
 AddressRange = tuple[ipaddress.IPv4Address, ipaddress.IPv4Address]
@@ -77,7 +82,14 @@ def load_pxe_mapping_rows(input_project_dir: str) -> list[dict[str, str]]:
         return []
 
     try:
-        _, normalized_fields, numbered_rows = read_mapping(mapping_path)
+        raw_header, normalized_fields, numbered_rows = read_mapping(
+            mapping_path
+        )
+        if raw_header == list(LEGACY_HEADERS):
+            normalized_fields = list(CANONICAL_HEADERS)
+            numbered_rows = [
+                (n, vals + [""]) for n, vals in numbered_rows
+            ]
         return [
             dict(zip(normalized_fields, values))
             for _, values in numbered_rows
@@ -249,7 +261,7 @@ def _mapping_addresses(
     addresses: dict[str, set[str]] = {
         "ADMIN_IP": set(),
         "BMC_IP": set(),
-        "IB_IP": set(),
+        "IB_IPV4": set(),
     }
     for row in rows:
         for field in addresses:
@@ -1068,6 +1080,20 @@ def _validate_kubernetes(
     _validate_k8s_networks(
         deployed_clusters, input_project_dir, mapping_rows, errors, logger
     )
+    # Imported here rather than at module scope: k8s_ha_validator imports
+    # helpers from this module, so a top-level import would be circular.
+    # pylint: disable-next=import-outside-toplevel
+    from .k8s_ha_validator import validate_deployed_cluster_ha
+
+    # Only run HA validation on clusters that have enable_k8s_ha configured;
+    # legacy configs without the field are skipped to preserve backward compat.
+    for deployed_cluster in deployed_clusters:
+        if deployed_cluster.get("enable_k8s_ha") is not None:
+            errors.extend(
+                validate_deployed_cluster_ha(
+                    deployed_cluster, input_project_dir, logger
+                )
+            )
     _validate_storage(
         "service_k8s_cluster",
         deployed_clusters,

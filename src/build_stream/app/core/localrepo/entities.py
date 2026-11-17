@@ -126,16 +126,6 @@ class PlaybookResult:
     artifact_dir: Optional[str] = None
     dictionary_hits: Optional[list[Dict[str, str]]] = None
 
-    @property
-    def is_success(self) -> bool:
-        """Check if execution was successful."""
-        return self.status == "success"
-
-    @property
-    def is_failed(self) -> bool:
-        """Check if execution failed."""
-        return self.status == "failed"
-
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "PlaybookResult":
         """Deserialize result from dictionary (parsed from JSON file).

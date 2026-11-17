@@ -36,8 +36,6 @@
     idrac_unreachable: "{{ idrac_unreachable | default([]) }}"
     deleted_idrac_count: "{{ deleted_idrac_count | default(0) }}"
     deleted_idrac_ips: "{{ deleted_idrac_ips | default([]) }}"
-    disabled_telemetry_count: "{{ disabled_telemetry_count | default(0) }}"
-    disabled_telemetry_ips: "{{ disabled_telemetry_ips | default([]) }}"
     telemetry_config: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
     _report_output_dir: >-
       {{ output_project_dir | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default'))) }}

@@ -21,6 +21,11 @@
 from ansible.module_utils.repo_manager.package_manager_cache import (
     prepare_dnf_cache_options,
 )
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_cli_argument,
+    validate_cli_path,
+    validate_positional_argument,
+)
 
 
 DNF_COMMANDS = {
@@ -68,8 +73,12 @@ def build_dnf_download_command(repo_store_path, os_type, os_version,
         repo_store_path, os_type, os_version, arch_key
     ))
     if preferred_repo_option:
+        validate_cli_argument(preferred_repo_option, "preferred repo option")
         command.append(preferred_repo_option)
+    validate_cli_path(destination, "destination path")
     command.append(f"--destdir={destination}")
+    for pkg in packages:
+        validate_positional_argument(pkg, "package name")
     command.extend(packages)
     return command
 
@@ -82,5 +91,7 @@ def build_dnf_info_command(repo_store_path, os_type, os_version,
     command.extend(prepare_dnf_cache_options(
         repo_store_path, os_type, os_version, arch_key
     ))
+    validate_cli_argument(repository_name, "repository name")
+    validate_positional_argument(package_name, "package name")
     command.extend([f"--repo={repository_name}", package_name])
     return command

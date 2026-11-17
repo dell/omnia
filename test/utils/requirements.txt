@@ -2,14 +2,14 @@
 # Install with: pip install -r requirements.txt
 
 # Core test framework
-pytest>=9.0.0
-pytest-testinfra>=10.0.0
+pytest==9.2.0
+pytest-testinfra==10.2.2
 
 # YAML parsing
-PyYAML>=6.0
+PyYAML==6.0.3
 
 # Ansible for playbook execution
-ansible-core>=2.15.0
+ansible-core==2.21.6
 
 # Local omnia-auto plugin (install from test/plugins/dist/)
 # Run: pip install ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

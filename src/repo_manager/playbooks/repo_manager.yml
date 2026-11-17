@@ -88,11 +88,11 @@
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=x86_64_rhel_10.0_epel,aarch64_rhel_10.0_epel"
 #
 #   # Remove only one container tag. Other tags in the same image repository
-#   # remain available. In this example, config-reloader-v0.68.3 is preserved.
-#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/victoriametrics/operator:v0.68.3"
+#   # remain available. In this example, config-reloader-v0.75.0 is preserved.
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/victoriametrics/operator:v0.75.0"
 #
 #   # Remove multiple exact tags from the same image repository.
-#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/victoriametrics/operator:v0.68.3,docker.io/victoriametrics/operator:config-reloader-v0.68.3"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_containers=docker.io/victoriametrics/operator:v0.75.0,docker.io/victoriametrics/operator:config-reloader-v0.75.0"
 #
 #   # An untagged image removes the complete container repository, including
 #   # all its tags, distribution and remote.

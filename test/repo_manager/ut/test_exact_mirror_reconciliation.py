@@ -142,7 +142,6 @@ class ExactMirrorCommandTests(unittest.TestCase):
         self.assertNotIn("--sync-policy", normal)
         self.assertEqual(exact[-2:], ["--sync-policy", "mirror_content_only"])
 
-    @patch.object(process_rpm_config, "urlopen")
     @patch.object(
         process_rpm_config,
         "normalize_pulp_distribution_url",
@@ -154,7 +153,7 @@ class ExactMirrorCommandTests(unittest.TestCase):
         return_value={"base_url": "file:///etc"},
     )
     def test_repomd_validation_rejects_non_https_origin(
-        self, _distribution, _normalize, open_url
+        self, _distribution, _normalize
     ):
         """Publication validation never follows local or custom URL schemes."""
         valid, error = process_rpm_config._validate_served_repomd(
@@ -162,11 +161,9 @@ class ExactMirrorCommandTests(unittest.TestCase):
         )
         self.assertFalse(valid)
         self.assertIn("secure HTTPS origin", error)
-        open_url.assert_not_called()
 
-    @patch.object(process_rpm_config.ssl, "create_default_context")
     @patch.object(process_rpm_config.os.path, "isfile", return_value=True)
-    @patch.object(process_rpm_config, "urlopen")
+    @patch.object(process_rpm_config.requests, "get")
     @patch.object(
         process_rpm_config,
         "normalize_pulp_distribution_url",
@@ -181,24 +178,26 @@ class ExactMirrorCommandTests(unittest.TestCase):
         self,
         _distribution,
         _normalize,
-        open_url,
+        mock_get,
         _isfile,
-        _ssl_context,
     ):
         """Untrusted repository metadata cannot expand XML entities."""
-        response = MagicMock()
-        response.status = 200
-        response.read.return_value = (
+        payload = (
             b'<!DOCTYPE repomd [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
             b"<repomd>&xxe;</repomd>"
         )
-        open_url.return_value.__enter__.return_value = response
+        response = MagicMock()
+        response.status_code = 200
+        response.iter_content.return_value = [payload]
+        response.__enter__ = MagicMock(return_value=response)
+        response.__exit__ = MagicMock(return_value=False)
+        mock_get.return_value = response
 
         valid, error = process_rpm_config._validate_served_repomd(
             REPOSITORY_NAME, "https://pulp.example", LOGGER
         )
         self.assertFalse(valid)
-        self.assertIn("EntitiesForbidden", error)
+        self.assertIn("forbidden declarations", error)
 
 
 class ExactMirrorSafetyTests(unittest.TestCase):
@@ -207,7 +206,9 @@ class ExactMirrorSafetyTests(unittest.TestCase):
     def test_empty_catalog_repository_list_fails_closed(self):
         """A missing catalog worklist never broadens to every Pulp repository."""
         result = process_rpm_config.manage_exact_mirror_repositories(
-            [], LOGGER, "https://pulp.example", run_orphan_cleanup=True
+            [], LOGGER, "https://pulp.example",
+            "/tmp/mirror_index", "rhel", "10.0",
+            run_orphan_cleanup=True,
         )
         self.assertFalse(result[0])
         self.assertEqual(result[3], "not_run")
@@ -218,6 +219,7 @@ class ExactMirrorSafetyTests(unittest.TestCase):
             [REPOSITORY, dict(REPOSITORY)],
             LOGGER,
             "https://pulp.example",
+            "/tmp/mirror_index", "rhel", "10.0",
             run_orphan_cleanup=True,
         )
         self.assertFalse(result[0])
@@ -239,6 +241,7 @@ class ExactMirrorSafetyTests(unittest.TestCase):
             [REPOSITORY],
             LOGGER,
             "https://pulp.example",
+            "/tmp/mirror_index", "rhel", "10.0",
             run_orphan_cleanup=True,
         )
         self.assertTrue(result[0])
@@ -269,6 +272,7 @@ class ExactMirrorSafetyTests(unittest.TestCase):
             [failed, pending],
             LOGGER,
             "https://pulp.example",
+            "/tmp/mirror_index", "rhel", "10.0",
             run_orphan_cleanup=True,
         )
         self.assertFalse(result[0])
@@ -279,11 +283,20 @@ class ExactMirrorSafetyTests(unittest.TestCase):
         )
         execute_task.assert_not_called()
 
+    @patch.object(process_rpm_config, "_verify_exact_repository_state")
     @patch.object(process_rpm_config, "_prune_superseded_repository_state")
     @patch.object(
         process_rpm_config,
         "_validate_served_repomd",
         return_value=(True, "valid"),
+    )
+    @patch.object(
+        process_rpm_config,
+        "_distribution_served_state",
+        return_value=(
+            "/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f97/",
+            "/pulp/api/v3/repositories/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f90/versions/2/",
+        ),
     )
     @patch.object(
         process_rpm_config,
@@ -293,12 +306,12 @@ class ExactMirrorSafetyTests(unittest.TestCase):
     @patch.object(
         process_rpm_config,
         "get_latest_publication_href",
-        return_value="/pulp/api/v3/publications/rpm/rpm/new-publication/",
+        return_value="/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f97/",
     )
     @patch.object(
         process_rpm_config,
         "get_repository_latest_version_href",
-        return_value="/pulp/api/v3/repositories/rpm/rpm/repo-id/versions/2/",
+        return_value="/pulp/api/v3/repositories/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f90/versions/2/",
     )
     @patch.object(process_rpm_config, "create_publication", return_value=(True, ""))
     @patch.object(
@@ -314,12 +327,27 @@ class ExactMirrorSafetyTests(unittest.TestCase):
     )
     @patch.object(
         process_rpm_config,
+        "_persist_exact_repository_checkpoint",
+        return_value=True,
+    )
+    @patch.object(
+        process_rpm_config,
+        "_stored_repository_version_href",
+        return_value=None,
+    )
+    @patch.object(
+        process_rpm_config,
         "_validate_exact_mirror_target",
-        return_value="/pulp/api/v3/publications/rpm/rpm/old-publication/",
+        return_value={
+            "publication_href": "/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f98/",
+            "version_href": "/pulp/api/v3/repositories/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f90/versions/1/",
+        },
     )
     def test_pruning_occurs_after_replacement_validation(
         self,
         _target,
+        _stored_version,
+        _checkpoint,
         _sync,
         _version,
         _metrics,
@@ -327,12 +355,15 @@ class ExactMirrorSafetyTests(unittest.TestCase):
         _version_href,
         _publication,
         switch,
+        _served_state,
         validate_metadata,
         prune,
+        _verify_state,
     ):
         """Old state is deleted only after new metadata is served successfully."""
         success, status = process_rpm_config._exact_mirror_repository(
-            REPOSITORY, "https://pulp.example", LOGGER
+            REPOSITORY, "https://pulp.example",
+            "/tmp/mirror_index", "rhel", "10.0", [REPOSITORY], LOGGER
         )
         self.assertTrue(success)
         self.assertEqual(status["packages_removed"], 8)
@@ -351,12 +382,12 @@ class ExactMirrorSafetyTests(unittest.TestCase):
     @patch.object(
         process_rpm_config,
         "get_latest_publication_href",
-        return_value="/pulp/api/v3/publications/rpm/rpm/new-publication/",
+        return_value="/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f97/",
     )
     @patch.object(
         process_rpm_config,
         "get_repository_latest_version_href",
-        return_value="/pulp/api/v3/repositories/rpm/rpm/repo-id/versions/2/",
+        return_value="/pulp/api/v3/repositories/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f90/versions/2/",
     )
     @patch.object(process_rpm_config, "create_publication", return_value=(True, ""))
     @patch.object(
@@ -372,12 +403,36 @@ class ExactMirrorSafetyTests(unittest.TestCase):
     )
     @patch.object(
         process_rpm_config,
+        "_distribution_served_state",
+        return_value=(
+            "/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f98/",
+            "/pulp/api/v3/repositories/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f90/versions/1/",
+        ),
+    )
+    @patch.object(
+        process_rpm_config,
+        "_persist_exact_repository_checkpoint",
+        return_value=True,
+    )
+    @patch.object(
+        process_rpm_config,
+        "_stored_repository_version_href",
+        return_value=None,
+    )
+    @patch.object(
+        process_rpm_config,
         "_validate_exact_mirror_target",
-        return_value="/pulp/api/v3/publications/rpm/rpm/old-publication/",
+        return_value={
+            "publication_href": "/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f98/",
+            "version_href": "/pulp/api/v3/repositories/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f90/versions/1/",
+        },
     )
     def test_failed_metadata_validation_restores_old_publication(
         self,
         _target,
+        _stored_version,
+        _checkpoint,
+        _served_state,
         _sync,
         _version,
         _metrics,
@@ -391,21 +446,23 @@ class ExactMirrorSafetyTests(unittest.TestCase):
         """A failed replacement rolls distribution back and preserves old state."""
         switch.side_effect = [(True, "updated"), (True, "restored")]
         success, status = process_rpm_config._exact_mirror_repository(
-            REPOSITORY, "https://pulp.example", LOGGER
+            REPOSITORY, "https://pulp.example",
+            "/tmp/mirror_index", "rhel", "10.0", [REPOSITORY], LOGGER
         )
         self.assertFalse(success)
-        self.assertIn("bad repomd", status["error"])
+        self.assertIn("replacement_validation", status["error"])
+        # First call switches to new publication, second rolls back to old
         self.assertEqual(
             switch.call_args_list,
             [
                 call(
                     REPOSITORY_NAME,
-                    "/pulp/api/v3/publications/rpm/rpm/new-publication/",
+                    "/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f97/",
                     LOGGER,
                 ),
                 call(
                     REPOSITORY_NAME,
-                    "/pulp/api/v3/publications/rpm/rpm/old-publication/",
+                    "/pulp/api/v3/publications/rpm/rpm/01a12e22-6d68-7cbb-a2c0-71c8c8761f98/",
                     LOGGER,
                 ),
             ],
@@ -418,7 +475,7 @@ class ExactMirrorSafetyTests(unittest.TestCase):
         "_list_repository_versions",
         return_value=[0, 1, 2, 3],
     )
-    @patch.object(process_rpm_config, "_list_publications")
+    @patch.object(process_rpm_config, "_list_all_publications")
     def test_pruning_preserves_empty_and_current_versions(
         self, publications, _versions, execute_task
     ):

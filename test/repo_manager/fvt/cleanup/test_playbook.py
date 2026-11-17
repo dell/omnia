@@ -16,11 +16,12 @@
 Repo Manager Cleanup — Deploy (cleanup tag).
 
 Deploy repo_manager.yml --tags cleanup_pulp
+(-e cleanup_credentials=false when test_config.yml sets cleanup_credentials: false)
 """
 
 import pytest
 
-from library.functions import TestLogger, run_playbook
+from library.functions import TestLogger, cleanup_credentials_enabled, run_playbook
 from library.vars import TEST_CASES as TC
 from library.messages import (
     TEST_LOG_MSGS as LOG,
@@ -37,7 +38,8 @@ def test_deploy_cleanup(host):
     """Deploy repo_manager --tags cleanup_pulp."""
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(tag="cleanup_pulp")
+    extra_vars = None if cleanup_credentials_enabled() else {"cleanup_credentials": "false"}
+    result = run_playbook(tag="cleanup_pulp", extra_vars=extra_vars)
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(

@@ -56,12 +56,6 @@ class Stage:
     result_detail: Optional[Dict[str, Any]] = None
     version: int = 1
 
-    def _initialize_timestamps(self) -> None:
-        """Initialize timestamps when not provided (rehydration support)."""
-        # Note: Stages don't auto-stamp on creation like Jobs
-        # because they start as PENDING and get stamped when actually started/ended
-        # No initialization needed for stages
-
     def _validate_transition(
         self,
         allowed_states: set[StageState],
@@ -139,17 +133,6 @@ class Stage:
         self.stage_state = StageState.FAILED
         self.error_code = error_code
         self.error_summary = error_summary
-        self._mark_ended()
-
-    def skip(self) -> None:
-        """Transition stage to SKIPPED state.
-
-        Raises:
-            InvalidStateTransitionError: If not in PENDING state.
-            TerminalStateViolationError: If already in terminal state.
-        """
-        self._validate_transition({StageState.PENDING}, StageState.SKIPPED)
-        self.stage_state = StageState.SKIPPED
         self._mark_ended()
 
     def reset(self) -> None:

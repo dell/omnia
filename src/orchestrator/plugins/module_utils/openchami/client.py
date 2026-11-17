@@ -300,6 +300,9 @@ class SMDClient:
     def delete_components(self, xnames: Iterable[str]):
         return self._delete_many("State/Components", xnames)
 
+    def delete_hardware_inventory(self, xnames: Iterable[str]):
+        return self._delete_many("Inventory/Hardware", xnames)
+
     def delete_group_member(self, label: str, xname: str) -> bool:
         """Remove one node from an SMD group, tolerating its absence."""
         path = (

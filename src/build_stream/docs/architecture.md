@@ -1,4 +1,4 @@
-# Build Stream Domain Architecture
+# Build Stream Architecture
 
 > **Version**: Omnia 3.0
 > **Last Updated**: 2026-09-03
@@ -14,7 +14,7 @@ The Build Stream domain provides a FastAPI-based RESTful service that orchestrat
 - **Technology**: FastAPI + PostgreSQL
 - **Purpose**: RESTful API for job orchestration
 - **Endpoints**: Build, Deploy, Boot, Validate, Catalog parsing, Artifact management
-- **Container**: `omnia_build_stream:1.2`
+- **Container**: `omnia_build_stream:1.3`
 
 ### 2. Playbook Watcher Service
 - **Technology**: Python + systemd

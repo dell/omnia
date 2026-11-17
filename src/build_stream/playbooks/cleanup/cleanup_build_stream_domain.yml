@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# cleanup_build_stream_domain.yml — LOCAL BuildStream infrastructure cleanup.
+#
+# This holds the actual local cleanup plays for the BuildStream domain:
+#   1. Stops and removes omnia_build_stream container & quadlet service
+#   2. Stops and removes playbook-watcher service
+#   3. Removes automation framework (molecule/validate)
+#   4. Stops and removes omnia_postgres container & quadlet service
+#   5. Cleans up NFS directories (logs, queue, SSL, inventory, etc.); under
+#      build_stream_root only the artifact files PostgreSQL references are kept
+#      with postgres_backup=true; all of it is deleted with postgres_backup=false
+#   6. Removes build_stream credential files (unless cleanup_credentials=false)
+#
+# It performs NO GitLab cleanup and NO warning/pause. The orchestration
+# (optional GitLab cleanup + the BuildStream-only warning/pause) lives in the
+# wrapper cleanup_build_stream.yml. This separation (per OMN-DEF #1428) avoids
+# recursive imports and lets the combined 'cleanup' flow reuse these plays
+# without re-triggering the standalone warning.
+#
+# Not intended to be run directly by end users — use cleanup_build_stream.yml.
+
+# ── Self-contained setup (input dirs + OIM group + metadata) ─────────
+- name: Build Stream setup (input dirs + OIM group + metadata)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ../../roles/build_stream_setup
+      vars:
+        create_oim_group: true
+
+# ── Container, service, and NFS cleanup on OIM host ──────────────────
+- name: BuildStream domain cleanup (container, postgres, NFS)
+  hosts: oim
+  gather_facts: true
+  roles:
+    - cleanup_build_stream

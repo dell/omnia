@@ -216,6 +216,8 @@ def validate_test_config(
         errors.append("'dataset' is required (use an empty string for source mode)")
     if not isinstance(config.get("sync_repo_manager_input"), bool):
         errors.append("'sync_repo_manager_input' must be true or false")
+    if not isinstance(config.get("cleanup_credentials", True), bool):
+        errors.append("'cleanup_credentials' must be true or false")
 
     errors.extend(_validate_dataset(config))
 

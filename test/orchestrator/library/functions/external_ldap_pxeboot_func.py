@@ -31,6 +31,7 @@ from .external_ldap_func import (
     resolve_proxy_config_path,
     verify_external_ldap_backend,
 )
+from ..vars.prepare_vars import OPENLDAP_SECRET_MODES
 from .openldap_prepare_func import openldap_enabled
 
 
@@ -155,9 +156,11 @@ def check_external_ldap_proxy(host) -> dict[str, Any]:
             ("Config mode", oct(deployed.mode)),
         ]
     )
-    if deployed.user != "root" or deployed.group != "root":
+    if deployed.user != "root" or deployed.group not in {
+        group for group, _ in OPENLDAP_SECRET_MODES
+    }:
         failures.append("config owner")
-    if deployed.mode != 0o600:
+    if (deployed.group, deployed.mode) not in OPENLDAP_SECRET_MODES:
         failures.append("config mode")
     return runtime_result(
         not failures,

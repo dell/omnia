@@ -87,7 +87,7 @@ ACTIVE_STATUSES = {
     ImageGroupStatus.VALIDATING.value,
 }
 
-DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
+DEFAULT_NFS_ARTIFACT_BASE = os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream", "build_stream_root")
 CLEANUP_PLAYBOOK_NAME = "image_build_manager.yml"
 CLEANUP_PLAYBOOK_TAGS = "cleanup_images"
 CLEANUP_TIMEOUT_MINUTES = 30
@@ -352,6 +352,11 @@ class CleanupJobUseCase:
                 },
             )
             self._audit_repo.save(event)
+            # save() only flushes. The cron shares one session and closes it
+            # without a commit when no retention candidate is found, which
+            # rolled this event back.
+            if hasattr(self._audit_repo, "session"):
+                self._audit_repo.session.commit()
         except Exception:  # pylint: disable=broad-except
             log_secure_info(
                 "warning",

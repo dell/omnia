@@ -21,3 +21,10 @@ parameter_validation_error: "Both credential_file_path and vault_password_file m
 vault_key_missing_error: "Encrypted file found but vault key {{ vault_password_file }} is missing"
 file_processing_error: "Failed to process credential file: {{ credential_file_path }}"
 file_not_found_msg: "Credential file {{ credential_file_path }} does not exist, skipping"
+
+# Decrypted credentials are written only to memory-backed storage (tmpfs), never to persistent disk
+credential_tmp_dir: "/dev/shm"
+credential_decrypt_fail_msg: >-
+  Failed to decrypt or load {{ credential_file_path }}. Verify that
+  {{ vault_password_file }} is the correct vault key and that the
+  credential file is not corrupted, then re-run the playbook.

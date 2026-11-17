@@ -95,7 +95,7 @@ if any mismatch is found.
 ## Dependency Caching
 
 On first run, each domain's `requirements.txt` and `requirements.yml` are
-hashed (MD5). On subsequent runs, if the file hasn't changed, the install
+hashed (SHA-256). On subsequent runs, if the file hasn't changed, the install
 step is skipped entirely — saving 10-30 seconds per domain. Cache files
 live at `$OMNIA_DATA_PATH/.data/deps-cache/`.
 

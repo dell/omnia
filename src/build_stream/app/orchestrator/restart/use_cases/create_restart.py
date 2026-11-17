@@ -14,10 +14,10 @@
 
 """CreateRestart use case implementation.
 
-The restart stage invokes the orchestrator playbook with the ``pxeboot``
-tag to perform PXE boot on the provisioned nodes.  The playbook request
-is submitted to the NFS queue for the playbook watcher to pick up and
-execute asynchronously.
+The restart stage invokes the BuildStream restart sequence to calculate the
+effective retry inventory, run Orchestrator PXE boot, and persist the resulting
+restart state. The playbook request is submitted to the NFS queue for the
+playbook watcher to pick up and execute asynchronously.
 
 Guarantees:
 - Stage guard enforcement: Only PENDING stages can be started
@@ -59,8 +59,7 @@ from core.localrepo.value_objects import (
 from orchestrator.restart.commands import CreateRestartCommand
 from orchestrator.restart.dtos import RestartResponse
 
-ORCHESTRATOR_PLAYBOOK_NAME = "orchestrator.yml"
-PXE_BOOT_TAGS = "pxeboot"
+RESTART_PLAYBOOK_NAME = "restart.yml"
 DEFAULT_TIMEOUT_MINUTES = 60
 
 
@@ -72,9 +71,9 @@ def _now_iso() -> str:
 class CreateRestartUseCase:
     """Use case for triggering the restart stage.
 
-    Submits the orchestrator playbook with the ``pxeboot`` tag to the
-    NFS queue.  The playbook watcher picks up the request and executes
-    ``ansible-playbook orchestrator.yml --tags pxeboot`` on the OIM host.
+    Submits the BuildStream-owned restart playbook to the NFS queue. The
+    playbook watcher executes the pre-PXE, Orchestrator PXE, and post-PXE
+    sequence on the OIM host.
 
     Guarantees:
     - Stage guard enforcement: Only PENDING stages can be started
@@ -117,8 +116,7 @@ class CreateRestartUseCase:
         """Execute the restart stage.
 
         Validates preconditions, creates a playbook request for
-        ``orchestrator.yml --tags pxeboot``, submits it to the NFS queue,
-        and emits audit events.
+        ``restart.yml``, submits it to the NFS queue, and emits audit events.
 
         Args:
             command: CreateRestart command with job details.
@@ -152,7 +150,7 @@ class CreateRestartUseCase:
 
         log_secure_info(
             "info",
-            f"Restart stage submitted (orchestrator.yml --tags pxeboot): "
+            f"Restart stage submitted ({RESTART_PLAYBOOK_NAME}): "
             f"job_id={command.job_id}",
             job_id=str(command.job_id),
         )
@@ -248,13 +246,13 @@ class CreateRestartUseCase:
     ) -> PlaybookRequest:
         """Create restart playbook request entity.
 
-        Submits ``orchestrator.yml --tags pxeboot`` with the job_id and
-        image_group_id as extra variables.
+        Submits ``restart.yml`` with the job_id and image_group_id as extra
+        variables.
         """
         return PlaybookRequest(
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
-            playbook_path=PlaybookPath(ORCHESTRATOR_PLAYBOOK_NAME),
+            playbook_path=PlaybookPath(RESTART_PLAYBOOK_NAME),
             extra_vars=ExtraVars(values={
                 "job_id": str(command.job_id),
                 "image_group_id": image_group_id,
@@ -265,7 +263,6 @@ class CreateRestartUseCase:
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=_now_iso(),
             request_id=str(self._uuid_generator.generate()),
-            tags=PXE_BOOT_TAGS,
         )
 
     def _submit_to_queue(
@@ -342,8 +339,7 @@ class CreateRestartUseCase:
             timestamp=datetime.now(timezone.utc),
             details={
                 "stage_name": StageType.RESTART.value,
-                "playbook": ORCHESTRATOR_PLAYBOOK_NAME,
-                "tags": PXE_BOOT_TAGS,
+                "playbook": RESTART_PLAYBOOK_NAME,
             },
         )
         self._audit_repo.save(event)

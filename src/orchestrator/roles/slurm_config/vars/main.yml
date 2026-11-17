@@ -99,7 +99,6 @@ mysql: mysql
 root_user: root
 root_group: root
 plugin_slurm_dir: "/usr/lib64/slurm"
-munge_key_cmd: "dd if=/dev/urandom bs=1 count=1024"
 slurm_ctld_parameters: ['enable_configless']
 partitions: {}
 _clean_before_install: false
@@ -159,6 +158,9 @@ nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
 # Benchmark pull script path
 pull_benchmarks_script_path: "{{ hpc_tools_path }}/scripts/pull_benchmarks.sh"
 benchmark_tools_list_path: "{{ hpc_tools_path }}/scripts/benchmark_tools.list"
+
+# Slurm node names must match this allowlist before they are passed to scontrol
+slurm_node_name_pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$'
 
 backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
 # Centralized failure messages

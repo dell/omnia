@@ -107,7 +107,6 @@
           {{ (_s3_listing.stdout_lines | default([]))
              | select('search', 's3://boot-images/')
              | map('split', 's3://boot-images/', 1) | map('last')
-             | map('regex_replace', '^efi-images/', '')
              | map('split', '/') | map('first') | unique | list }}
       when: _s3_listing.rc == 0
 

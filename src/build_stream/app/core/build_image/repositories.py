@@ -15,7 +15,6 @@
 """Repository interfaces for Build Image module."""
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Optional
 
 from core.build_image.value_objects import InventoryHost
@@ -36,24 +35,5 @@ class BuildStreamConfigRepository(ABC):
 
         Raises:
             ConfigFileError: If config file cannot be read.
-        """
-        raise NotImplementedError
-
-class BuildImageInventoryRepository(ABC):  # pylint: disable=too-few-public-methods
-    """Repository for creating and managing inventory files for aarch64 builds."""
-
-    @abstractmethod
-    def create_inventory_file(self, inventory_host: InventoryHost, job_id: str) -> Path:
-        """Create an inventory file for aarch64 builds.
-
-        Args:
-            inventory_host: The inventory host IP address.
-            job_id: Job identifier for tracking.
-
-        Returns:
-            Path to the created inventory file.
-
-        Raises:
-            IOError: If inventory file cannot be created.
         """
         raise NotImplementedError

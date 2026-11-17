@@ -267,10 +267,19 @@ def test_ufm_disabled_state(host):
             f"{resource['kind']}/{resource['name']}: "
             f"{'absent' if resource['absent'] else 'STILL PRESENT'}"
         )
-    detail_lines.append(
-        f"Credentials secret: "
-        f"{'preserved' if absent['secret_preserved'] else 'MISSING'}"
-    )
+    if absent["secret_present"]:
+        secret_state = "preserved"
+    elif absent["previously_enabled"] is None:
+        secret_state = "MISSING (previous UFM enable could not be determined)"
+    elif absent["previously_enabled"]:
+        secret_state = (
+            f"MISSING (UFM was enabled before: {absent['manifest_path']} exists)"
+        )
+    else:
+        secret_state = (
+            f"not present (UFM never enabled: {absent['manifest_path']} absent)"
+        )
+    detail_lines.append(f"Credentials secret: {secret_state}")
     detail_lines.append(
         f"VictoriaMetrics quiet window ({quiet_ended - quiet_started:.1f}s): "
         f"metrics_found={len(vm_quiet['found'])}/{vm_quiet['expected_metric_count']}"

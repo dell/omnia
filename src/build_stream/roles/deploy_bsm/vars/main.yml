@@ -24,18 +24,25 @@ build_stream_container_omnia_path: "/opt/omnia"  # opt-omnia-waiver: container-i
 # Build Stream Image (Docker Hub)
 build_stream_dockerhub_registry: "docker.io/dellhpcomniaaisolution"
 build_stream_image_name: "{{ build_stream_dockerhub_registry }}/omnia_build_stream"
-build_stream_image_tag: "1.2"
+build_stream_image_tag: "1.3"
 
 # Ports & Logs — passed as host vars from prepare_build_stream.yml
 build_stream_log_dir: "{{ omnia_path }}/build_stream/log"
 build_stream_nfs_path_error_msg: "Directory {{ omnia_path }}/build_stream is missing; ensure oim_shared_path is mounted and populated correctly."
+build_stream_src_in_data_path_msg: >-
+  OMNIA_SRC_PATH ({{ omnia_src_path | realpath }}) is inside the Omnia data path
+  ({{ omnia_path | realpath }}), which is mounted read-write into the BuildStream
+  API container. The root playbook watcher runs from OMNIA_SRC_PATH, so keep the
+  Omnia source tree outside the data path.
 omnia_default_dir: "/omnia"
 
 # Build Stream watcher service
 watcher_service_name: "playbook-watcher.service"
 watcher_service_src_path: "templates/playbook_watcher.service.j2"
 watcher_systemd_path: "/etc/systemd/system"
-build_stream_watcher_exec: "/usr/bin/python3 {{ omnia_path }}/build_stream/playbook-watcher/playbook_watcher_service.py"
+# The root watcher runs from the source tree, which is not mounted into the
+# API container, so a compromised container cannot replace the code it runs.
+build_stream_watcher_exec: "/usr/bin/python3 {{ (omnia_src_path ~ '/build_stream/app/playbook-watcher/playbook_watcher_service.py') | realpath }}"
 omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default(playbook_dir ~ '/../../../', true) }}"
 venv_path: "{{ lookup('env', 'OMNIA_VENV_PATH') | default('/opt/omnia/venv', true) }}"
 system_admin_nic_ipv4: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
@@ -44,10 +51,26 @@ watcher_restart_sec: 10
 watcher_startup_delay_seconds: 20
 watcher_no_new_privileges: true
 watcher_private_tmp: true
-watcher_limit_nofile: 4096
-watcher_memory_max: "512M"
-watcher_cpu_quota: "50%"
-build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/playbook_queue"
+watcher_limit_nofile: 16384
+watcher_memory_max: "2G"
+watcher_cpu_quota: "100%"
+build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/build_stream/playbook_queue"
+build_stream_queue_subdirs:
+  - requests
+  - results
+  - processing
+  - archive
+  - archive/requests
+  - archive/results
+build_stream_queue_dir_mode: "0700"
+# Upload destinations written by the API (PUT /jobs/{id}/upload). Relative to
+# omnia_path; mounted at the same relative path inside the API container.
+build_stream_upload_dirs:
+  - catalog
+  - "repo_manager/input/{{ project_name }}"
+  - "image_build_manager/input/{{ project_name }}"
+  - "orchestrator/input/{{ project_name }}"
+  - "input/{{ project_name }}"
 watcher_poll_interval_seconds: 2
 watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150
@@ -59,7 +82,7 @@ build_stream_dir_mode: "0755"
 build_stream_jwt_script_mode: "0755"
 
 # SSL certificate configuration for build_stream
-build_stream_ssl_dir: "{{ omnia_path }}/build_stream_ssl/ssl"
+build_stream_ssl_dir: "{{ omnia_path }}/build_stream/ssl"
 build_stream_ssl_cert: "{{ build_stream_ssl_dir }}/bs_cert.pem"
 build_stream_ssl_key: "{{ build_stream_ssl_dir }}/bs_key.pem"
 build_stream_ssl_days: 365
@@ -67,10 +90,10 @@ build_stream_ssl_file_mode: "0600"
 
 # JWT key configuration
 build_stream_jwt_keys_script: "{{ omnia_path }}/build_stream/scripts/generate_jwt_keys.sh"
-build_stream_jwt_keys_dir: "{{ omnia_path }}/build_stream_root/api/.auth/keys"
+build_stream_jwt_keys_dir: "{{ omnia_path }}/build_stream/build_stream_root/api/.auth/keys"
 
 # Project configuration
-build_stream_root_dir: "{{ omnia_path }}/build_stream_root"
+build_stream_root_dir: "{{ omnia_path }}/build_stream/build_stream_root"
 
 # Quadlet
 quadlet_dir: "/etc/containers/systemd"

@@ -34,7 +34,7 @@ language: "en_US.UTF-8"
 default_lease_time: "86400"
 
 # DNS enabled flag
-dns_enabled: false
+dns_enabled: true
 
 # Additional cloud-init config file
 additional_cloud_init_config_file: ""

@@ -26,7 +26,7 @@ from core.localrepo.entities import PlaybookResult
 
 
 DEFAULT_QUEUE_BASE = str(
-    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "playbook_queue"
+    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream" / "playbook_queue"
 )
 RESULTS_DIR_NAME = "results"
 ARCHIVE_DIR_NAME = "archive/results"
@@ -85,7 +85,9 @@ class NfsPlaybookQueueResultRepository:
         """
         try:
             with open(result_path, "r", encoding="utf-8") as result_file:
-                data = json.load(result_file)
+                data = json.JSONDecoder().decode(result_file.read())
+            if not isinstance(data, dict):
+                raise ValueError(f"Result file {result_path} is not a JSON object")
 
             required_fields = {"job_id", "stage_name", "status"}
             missing = required_fields - set(data.keys())

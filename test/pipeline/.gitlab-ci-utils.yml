@@ -1023,6 +1023,7 @@ summary:
     - export TARGET_USER="${TARGET_USER}"
     - export TARGET_PASS="${TARGET_PASS}"
     - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
+    - export OMNIA_BRANCH="${OMNIA_BRANCH}"
     - export UTILS_ENABLE="${UTILS_ENABLE}"
     - export UTILS_MODE="${UTILS_MODE}"
     - echo "Sending email notification with test reports..."

@@ -42,7 +42,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ k8s_master_dir_stat.results }}"
       when: not (item.stat.isdir | default(false))
 
@@ -89,7 +89,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ k8s_master_files.results }}"
       when: not (item.stat.isreg | default(false))
 
@@ -130,7 +130,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ k8s_worker_files.results }}"
       when: not (item.stat.isreg | default(false))
 

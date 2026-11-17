@@ -19,31 +19,33 @@ Functions to verify BSM API health, database tables,
 playbook paths, venv, TLS certs, and watcher service.
 """
 
-import json
 from typing import Any, Dict
 
 from omnia_auto import read_remote_yaml, run_on_host
+
+from library.cleanup_inspection import PATH_ABSENT, PATH_EXISTS, classify_path_probe
+from library.functions.probe_func import Probe, run_cmd, summarize_probes
+from library.vars.common_vars import (
+    BSM_HEALTH_PATH,
+    BSM_HOST_IP_KEY,
+    BSM_PORT_KEY,
+    BUILD_STREAM_CONFIG_FILE,
+    BUILDSTREAM_RUNTIME_DIRECTORIES,
+    CMDS,
+    EXPECTED_TABLES,
+    POSTGRES_CONTAINER_NAME,
+    POSTGRES_DB_NAME,
+    POSTGRES_USER,
+)
 
 from ._config_helpers import (
     resolve_build_stream_input_path,
     resolve_omnia_path,
     resolve_omnia_venv_path,
 )
-from .host_func import resolve_target_source_root
-
-from library.vars.common_vars import (
-    BSM_HEALTH_PATH,
-    BSM_HOST_IP_KEY,
-    BSM_PORT_KEY,
-    BUILD_STREAM_CONFIG_FILE,
-    CMDS,
-    EXPECTED_PLAYBOOK_ENTRIES,
-    EXPECTED_TABLES,
-    PLAYBOOK_PATHS_YML,
-    POSTGRES_CONTAINER_NAME,
-    POSTGRES_DB_NAME,
-    POSTGRES_USER,
-)
+from .bsm_api_func import bsm_tls
+from .credentials_func import load_server_credentials
+from .http_func import http_exchange
 
 
 def _get_bsm_config_path(host) -> str:
@@ -147,19 +149,15 @@ def check_build_stream_health(host) -> Dict[str, Any]:
     url = f"https://{host_ip}:{port}{BSM_HEALTH_PATH}"
     result["url"] = url
 
-    http_cmd = CMDS["curl_health"].format(
-        host=host_ip, port=port, path=BSM_HEALTH_PATH,
-    )
-    http_result = run_on_host(host, http_cmd)
-    http_code = http_result.stdout.strip()
+    try:
+        response = http_exchange(bsm_tls(host), "GET", url)
+    except RuntimeError as exc:
+        result["status"] = "unreachable"
+        result["error"] = f"GET {url} not attempted: {exc}"
+        return result
+    body = response["body"].strip()
 
-    if http_result.rc == 0 and http_code == "200":
-        body_cmd = CMDS["curl_health_body"].format(
-            host=host_ip, port=port, path=BSM_HEALTH_PATH,
-        )
-        body_result = run_on_host(host, body_cmd)
-        body = body_result.stdout.strip()
-
+    if response["success"] and response["status"] == 200:
         if '"healthy"' in body.replace(" ", ""):
             result["success"] = True
             result["status"] = "healthy"
@@ -172,8 +170,8 @@ def check_build_stream_health(host) -> Dict[str, Any]:
 
     result["status"] = "unreachable"
     result["error"] = (
-        f"GET {url} unreachable. HTTP: {http_code or 'N/A'} "
-        f"(curl rc={http_result.rc})"
+        f"GET {url} unreachable. HTTP: {response['status'] or 'N/A'} "
+        f"({response['error'] or 'TLS verified against bs_cert.pem'})"
     )
     return result
 
@@ -195,9 +193,12 @@ def check_postgres_tables(host) -> Dict[str, Any]:
         "error": "",
     }
 
+    # The deployed database user comes from the BuildStream credential store.
+    credentials = load_server_credentials(host)
+    user = credentials.get("postgres_user", "") or POSTGRES_USER
     cmd = CMDS["psql_list_tables"].format(
         container=POSTGRES_CONTAINER_NAME,
-        user=POSTGRES_USER,
+        user=user,
         db=POSTGRES_DB_NAME,
     )
     cmd_result = run_on_host(host, cmd)
@@ -209,6 +210,7 @@ def check_postgres_tables(host) -> Dict[str, Any]:
             f"Container '{POSTGRES_CONTAINER_NAME}' may not be running. "
             f"Check: podman ps --filter name={POSTGRES_CONTAINER_NAME}"
             + (f" | stderr: {stderr}" if stderr else "")
+            + (f" | credentials: {credentials['_error']}" if credentials.get("_error") else "")
         )
         return result
 
@@ -227,102 +229,6 @@ def check_postgres_tables(host) -> Dict[str, Any]:
     result["success"] = len(result["missing"]) == 0
     result["details"] = (
         f"{len(result['found'])}/{len(EXPECTED_TABLES)} tables found"
-    )
-    return result
-
-
-def check_playbook_paths_yml(host) -> Dict[str, Any]:
-    """Verify playbook_paths.yml exists and contains expected entries.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, found, missing, details, error.
-    """
-    result = {
-        "success": False,
-        "found": [],
-        "missing": [],
-        "details": "",
-        "error": "",
-    }
-
-    source_root = resolve_target_source_root()
-    full_path = f"{source_root}/{PLAYBOOK_PATHS_YML}"
-
-    cat_cmd = CMDS["cat_file"].format(path=full_path)
-    cat_result = run_on_host(host, cat_cmd)
-
-    if cat_result.rc != 0 or not cat_result.stdout.strip():
-        result["error"] = f"playbook_paths.yml not found at {full_path}"
-        return result
-
-    content = cat_result.stdout.strip()
-    for entry in EXPECTED_PLAYBOOK_ENTRIES:
-        if entry in content:
-            result["found"].append(entry)
-        else:
-            result["missing"].append(entry)
-
-    result["success"] = len(result["missing"]) == 0
-    result["details"] = (
-        f"Entries found: {', '.join(result['found'])}"
-    )
-    return result
-
-
-def check_playbook_paths_resolvable(host) -> Dict[str, Any]:
-    """Verify all paths in playbook_paths.yml resolve to existing files.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, resolved, unresolved, details, error.
-    """
-    result = {
-        "success": False,
-        "resolved": [],
-        "unresolved": [],
-        "details": "",
-        "error": "",
-    }
-
-    source_root = resolve_target_source_root()
-    full_path = f"{source_root}/{PLAYBOOK_PATHS_YML}"
-
-    cmd = (
-        f"python3 -c \""
-        f"import yaml; data=yaml.safe_load(open('{full_path}'));"
-        f"paths=data.get('playbook_paths',{{}});"
-        f"[print(v) for v in paths.values()]"
-        f"\" 2>/dev/null"
-    )
-    cmd_result = run_on_host(host, cmd)
-
-    if cmd_result.rc != 0:
-        result["error"] = "Failed to parse playbook_paths.yml"
-        return result
-
-    paths = [
-        p.strip() for p in cmd_result.stdout.strip().split("\n")
-        if p.strip()
-    ]
-
-    for playbook_path in paths:
-        if not playbook_path.startswith("/"):
-            playbook_path = f"{clone_path}/{playbook_path}"
-        check_cmd = CMDS["file_exists"].format(path=playbook_path)
-        check_result = run_on_host(host, check_cmd)
-        if check_result.stdout.strip() == "exists":
-            result["resolved"].append(playbook_path)
-        else:
-            result["unresolved"].append(playbook_path)
-
-    result["success"] = len(result["unresolved"]) == 0
-    result["details"] = (
-        f"{len(result['resolved'])}/{len(paths)} paths resolved"
     )
     return result
 
@@ -363,7 +269,7 @@ def check_bsm_tls_certificate(host) -> Dict[str, Any]:
         Dict with keys: success, details, error.
     """
     cert_path = resolve_omnia_path(
-        host, "build_stream_ssl", "ssl", "bs_cert.pem"
+        host, "build_stream", "ssl", "bs_cert.pem"
     )
     cmd = CMDS["openssl_verify_cert"].format(cert_path=cert_path)
     cmd_result = run_on_host(host, cmd)
@@ -390,7 +296,7 @@ def check_nfs_queue_directory(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, path, details, error.
     """
-    queue_dir = resolve_omnia_path(host, "playbook_queue")
+    queue_dir = resolve_omnia_path(host, "build_stream", "playbook_queue")
     cmd = CMDS["dir_exists"].format(path=queue_dir)
     cmd_result = run_on_host(host, cmd)
 
@@ -407,6 +313,33 @@ def check_nfs_queue_directory(host) -> Dict[str, Any]:
         "details": "",
         "error": f"NFS queue directory not found: {queue_dir}",
     }
+
+
+def _directory_present_probe(host, name: str) -> Probe:
+    """Probe that the runtime directory ``name`` (below OMNIA_DATA_PATH) exists."""
+    path = resolve_omnia_path(host, name)
+    probe = run_cmd(host, "dir_exists", path=path)
+    state = classify_path_probe(probe.rc, probe.stdout)
+    if state == PATH_EXISTS:
+        return f"Directory {path}", "present", True
+    if state == PATH_ABSENT:
+        return f"Directory {path}", "MISSING", False
+    return f"Directory {path}", f"INSPECTION FAILED (rc={probe.rc})", False
+
+
+def check_buildstream_directories_present(host) -> Dict[str, Any]:
+    """Verify every runtime directory that prepare creates exists (one line each).
+
+    The list matches the directories created by the deploy_bsm and postgres
+    roles of build_stream.yml --tags prepare.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    return summarize_probes(
+        "bsm_directories_present",
+        [_directory_present_probe(host, name) for name in BUILDSTREAM_RUNTIME_DIRECTORIES],
+    )
 
 
 def check_playbook_watcher(host) -> Dict[str, Any]:

@@ -9,6 +9,10 @@ The `test_config.yml` file configures the test environment.
 - `project_name`: Project name (default: `project_default`)
 - `report_path`: Path for test reports (default: `/opt/omnia/reports`)
 - `sync_repo_manager_input`: Synchronize the selected public input files
+- `cleanup_credentials`: `true` (default) lets `--tags cleanup_pulp` remove the
+  credential store; `false` runs the cleanup with `-e cleanup_credentials=false`
+  so `repo_manager_config_credentials.yml` and its vault key are kept
+  (`RM_FVT_CLEANUP_V004` verifies either)
 
 The selected dataset is validated at pytest startup. A named dataset must be a
 safe direct child of `datasets/` and must contain both

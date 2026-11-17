@@ -3,7 +3,7 @@ galaxy_info:
   role_name: discovery_common
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia discovery role: discovery_common"
+  description: "Shared task library (Vault and OME endpoint helpers); included with `tasks_from`, not run standalone"
   license: Apache-2.0
   min_ansible_version: "2.14"
   platforms:

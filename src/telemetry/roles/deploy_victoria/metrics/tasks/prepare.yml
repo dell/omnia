@@ -71,15 +71,23 @@
       no_log: true
 
 - name: Generate VictoriaMetrics TLS secret manifest
-  ansible.builtin.template:
-    src: "{{ role_path }}/metrics/templates/victoria-tls-secret.yaml.j2"
-    dest: "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
-    mode: "{{ victoria_file_mode }}"
-    force: true
-  when:
-    - victoria_server_cert_b64 is defined
-    - victoria_server_key_b64 is defined
-    - victoria_ca_cert_b64 is defined
+  block:
+    - name: Generate VictoriaMetrics TLS secret manifest
+      ansible.builtin.template:
+        src: "{{ role_path }}/metrics/templates/victoria-tls-secret.yaml.j2"
+        dest: "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
+        mode: "{{ victoria_file_mode }}"
+        force: true
+      when:
+        - victoria_server_cert_b64 is defined
+        - victoria_server_key_b64 is defined
+        - victoria_ca_cert_b64 is defined
+      no_log: true
+  rescue:
+    - name: Generate VictoriaMetrics TLS secret manifest | Report failure
+      ansible.builtin.fail:
+        msg: "{{ victoria_tls_secret_manifest_fail_msg }}"
+      no_log: true
 
 - name: Generate VictoriaMetrics RBAC manifest
   ansible.builtin.template:

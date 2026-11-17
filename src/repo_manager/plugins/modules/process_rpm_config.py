@@ -407,6 +407,12 @@ def _run_pulp_cli(
     This helper is intended for read-only show/list/task queries. Mutations use
     one dispatch attempt and reconcile an uncertain response by correlation ID.
     """
+    if (
+        isinstance(command, (str, bytes))
+        or not isinstance(command, (list, tuple))
+        or not all(isinstance(argument, str) for argument in command)
+    ):
+        raise TypeError("Pulp CLI command must be an argv list of strings")
     command = list(command)
     if command and command[0] == "pulp":
         command[0] = PULP_CLI_EXECUTABLE
@@ -487,10 +493,10 @@ def _parse_task_href(output):
 
 def execute_command(command, log, type_json=None, seconds=None, repo_name=None):
     """
-    Executes a shell command and returns its output.
+    Executes a Pulp CLI command and returns its output.
 
     Args:
-        command (str or list): Pulp command represented as text or argv.
+        command (list or tuple): Pulp command as an argument vector.
         log (logging.Logger): Logger instance for logging the process and errors.
         type_json (bool, optional): If set to `True`, the function will attempt to
             parse the command's output as JSON.
@@ -500,16 +506,21 @@ def execute_command(command, log, type_json=None, seconds=None, repo_name=None):
 
     Returns:
         str or bool: Returns the command's output as a string, or `False` if the command failed.
+
+    Raises:
+        TypeError: If command is not a list or tuple.
     """
+    if not isinstance(command, (list, tuple)):
+        raise TypeError(
+            "execute_command requires a list or tuple, "
+            f"got {type(command).__name__}. "
+            "Build commands as argument lists to prevent injection."
+        )
 
     try:
         tag = f"[{repo_name}] - " if repo_name else ""
         log.info("%sExecuting command: %s", tag, mask_sensitive_data(command))
-        cmd_list = (
-            [str(value) for value in command]
-            if isinstance(command, (list, tuple))
-            else shlex.split(command)
-        )
+        cmd_list = [str(value) for value in command]
         cmd = _run_pulp_cli(
             cmd_list,
             log,
@@ -537,7 +548,7 @@ def execute_command(command, log, type_json=None, seconds=None, repo_name=None):
     except subprocess.SubprocessError:
         log.error("Pulp subprocess failed")
         return False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Unexpected failure while executing Pulp command")
         return False
 
@@ -555,6 +566,7 @@ def check_repository_synced(repo_name, log):
             repository state could not be queried.
     """
     try:
+        repo_name = validate_repository_id(repo_name)
         result = _run_pulp_cli(
             pulp_rpm_commands["show_repository"] % repo_name,
             log,
@@ -583,7 +595,7 @@ def check_repository_synced(repo_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error checking repository")
         return None
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Error checking repository")
         return None
 
@@ -636,7 +648,7 @@ def create_rpm_repository(repo, log):
             repo.get('package', 'unknown')
         )
         return False, repo.get("package", "unknown")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error(
             "Unexpected error while creating repository '%s'",
             repo.get('package', 'unknown')
@@ -671,7 +683,10 @@ def show_rpm_repository(repo_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error while checking repository '%s'", repo_name)
         return None
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        log.error("Unexpected error while checking repository '%s'", repo_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Unexpected error while checking repository '%s'", repo_name)
         return None
 
@@ -761,7 +776,7 @@ def create_rpm_remote(repo, log):
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Subprocess error while creating remote '%s'", repo_name_for_error)
         return False, repo_name_for_error, False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Unexpected error while creating remote '%s'", repo_name_for_error)
         return False, repo_name_for_error, False
@@ -821,7 +836,10 @@ def show_rpm_remote(remote_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error while checking remote '%s'", remote_name)
         return None
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        log.error("Unexpected error while checking remote '%s'", remote_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Unexpected error while checking remote '%s'", remote_name)
         return None
     finally:
@@ -833,15 +851,16 @@ def show_rpm_remote(remote_name, log):
 def _get_repository_href(repo_name, log):
     """
     Return the Pulp href for a repository.
-    
+
     Args:
         repo_name (str): Repository name
         log (logging.Logger): Logger instance
-    
+
     Returns:
         str: Validated repository href or None if not found.
     """
     try:
+        repo_name = validate_repository_id(repo_name)
         result = _run_pulp_cli(
             pulp_rpm_commands["show_repository"] % repo_name,
             log,
@@ -853,7 +872,10 @@ def _get_repository_href(repo_name, log):
         repo_data = json.loads(result.stdout)
         href = repo_data.get("pulp_href", "")
         return validate_pulp_href(href) if href else None
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        _log(log, "warning", repo_name, "Error getting repository HREF")
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "warning", repo_name, "Error getting repository HREF")
         return None
 
@@ -944,7 +966,10 @@ def _find_pulp_task_by_cid(task_cid, repository_href, log, repo_name):
     except (json.JSONDecodeError, ValueError):
         _log(log, "warning", repo_name, "Unable to identify sync task")
         return None
-    except Exception:
+    except (AttributeError, TypeError):
+        _log(log, "warning", repo_name, "Error identifying sync task")
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "warning", repo_name, "Error identifying sync task")
         return None
 
@@ -1006,7 +1031,7 @@ def _list_active_repository_tasks(repository_href, log, repo_name):
             "Invalid unfinished-task response",
         )
         return None
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(
             log, "error", repo_name,
             "Error checking unfinished Pulp tasks",
@@ -1099,7 +1124,7 @@ def _get_pulp_task_progress(task_href, log, repo_name):
     except (json.JSONDecodeError, ValueError):
         _log(log, "warning", repo_name, "Unable to read sync task")
         return -1, None, "query-error", "Invalid Pulp task response"
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "warning", repo_name, "Error reading sync task")
         return -1, None, "query-error", "Unable to read Pulp task"
 
@@ -1107,12 +1132,12 @@ def _get_pulp_task_progress(task_href, log, repo_name):
 def _cancel_pulp_task(task_href, log, repo_name):
     """
     Cancel a Pulp task by href.
-    
+
     Args:
         task_href (str): Pulp task href to cancel
         log (logging.Logger): Logger instance
         repo_name (str): Repository name for logging
-    
+
     Returns:
         bool: True if cancellation succeeded, False otherwise
     """
@@ -1134,7 +1159,7 @@ def _cancel_pulp_task(task_href, log, repo_name):
                 f"{_command_output(result) or 'no CLI response'}",
             )
             return False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "error", repo_name, "Error cancelling Pulp task")
         return False
 
@@ -1246,12 +1271,13 @@ def _execute_pulp_task(command, log, repo_name, repository_href=None,
     unique CID is used to recover the server-side task instead of repeating the
     operation.
     """
+    if not isinstance(command, (list, tuple)):
+        raise TypeError(
+            "_execute_pulp_task requires a list or tuple, "
+            f"got {type(command).__name__}."
+        )
     task_cid = str(uuid.uuid4())
-    command_args = (
-        [str(value) for value in command]
-        if isinstance(command, (list, tuple))
-        else shlex.split(command)
-    )
+    command_args = [str(value) for value in command]
     command_args[1:1] = ["--background", "--cid", task_cid]
     _log(log, "debug", repo_name, f"Pulp correlation ID: {task_cid}")
 
@@ -1352,7 +1378,7 @@ def _cleanup_partial_repo(repo_name, previous_version, log):
                 return False
         _log(log, "info", repo_name, "Incomplete versions removed; repository retained")
         return True
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "error", repo_name, "Error during safe version rollback")
         return False
 
@@ -1362,21 +1388,21 @@ def sync_rpm_repository_with_monitoring(
         sync_policy=None):
     """
     Sync RPM repository with progress-based stuck detection.
-    
+
     Drop-in replacement for sync_rpm_repository().
     Same args, same return format.
-    
+
     Dispatches the CLI command in background mode and monitors its exact Pulp
     task. If no progress is reported for RPM_SYNC_STUCK_TIMEOUT seconds while
     the API remains healthy, the exact task is canceled.
-    
+
     Args:
         repo (dict): Repository configuration
         log (logging.Logger): Logger instance
         resync_repos (str/list): Controls sync behavior
         force_sync_repos (iterable): Remotes whose URL or policy changed.
         sync_policy (str): Optional operation-level Pulp sync policy.
-    
+
     Returns:
         tuple: (success, repo_name, actually_synced, version_changed)
     """
@@ -1527,7 +1553,7 @@ def sync_rpm_repository_with_monitoring(
         _log(log, "info", repo_name, f"=== END REPO — SUCCESS ({elapsed}s) ===")
         return True, repo_name, True, version_changed
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         elapsed = int(time.time() - start)
         _log(log, "error", repo_name, "Repository synchronization failed")
         _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
@@ -1549,6 +1575,7 @@ def get_repo_version(repo_name, log):
             when Pulp state cannot be queried.
     """
     try:
+        repo_name = validate_repository_id(repo_name)
         command = pulp_rpm_commands["get_repo_version"] % repo_name
         result = _run_pulp_cli(command, log, repo_name=repo_name)
 
@@ -1579,26 +1606,30 @@ def get_repo_version(repo_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error getting version for '%s'", repo_name)
         return None
-    except Exception:
+    except (AttributeError, TypeError):
+        log.error("Error getting version for '%s'", repo_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Error getting version for '%s'", repo_name)
         return None
 
 
 def get_repository_latest_version_href(repo_name, log):
     """Return the exact latest repository-version HREF, or None on failure."""
-    result = _run_pulp_cli(
-        pulp_rpm_commands["show_repository"] % repo_name,
-        log,
-        repo_name=repo_name,
-    )
-    if result is None or result.returncode != 0:
-        _log(
-            log, "error", repo_name,
-            "Unable to read latest repository version: "
-            f"{_command_output(result) or 'no CLI response'}",
-        )
-        return None
     try:
+        repo_name = validate_repository_id(repo_name)
+        result = _run_pulp_cli(
+            pulp_rpm_commands["show_repository"] % repo_name,
+            log,
+            repo_name=repo_name,
+        )
+        if result is None or result.returncode != 0:
+            _log(
+                log, "error", repo_name,
+                "Unable to read latest repository version: "
+                f"{_command_output(result) or 'no CLI response'}",
+            )
+            return None
         href = json.loads(result.stdout).get("latest_version_href")
         return validate_repository_version_href(href) if href else None
     except (json.JSONDecodeError, ValueError, AttributeError):
@@ -1731,7 +1762,10 @@ def get_latest_publication_href(repo_name, log, repository_version_href=None):
             repo_name, publication_href,
         )
         return publication_href
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        log.error("Error getting latest publication for '%s'", repo_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Error getting latest publication for '%s'", repo_name)
         return None
 
@@ -1823,7 +1857,7 @@ def create_publication(repo, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         _log(log, "error", repo.get("package", "unknown"), "Pulp subprocess failed")
         return False, repo.get("package", "unknown")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "error", repo.get("package", "unknown"), "Publication failed")
         return False, repo.get("package", "unknown")
 
@@ -1991,7 +2025,7 @@ def create_distribution(repo, log, cluster_os_type, cluster_os_version):
             repo.get("package", "unknown"),
         )
         return False, repo.get("package", "unknown")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error(
             "Unexpected error during distribution update for repository '%s'",
             repo.get("package", "unknown"),
@@ -2953,7 +2987,7 @@ def create_aggregated_publication(repo_name, log):
         log.info("Publication created with href: %s", publication_href)
         return True, publication_href
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Exception during publication creation")
         return False, None
 
@@ -3215,7 +3249,7 @@ def _list_all_publications(repo_name, log):
         publications.extend(page)
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += len(page)
+        offset += _PULP_LIST_PAGE_SIZE
     return publications
 
 
@@ -3244,7 +3278,7 @@ def _list_repository_versions(repo_name, log):
         versions.extend(page_identity)
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += len(page)
+        offset += _PULP_LIST_PAGE_SIZE
     return sorted(set(versions))
 
 
@@ -3296,10 +3330,7 @@ def _validate_served_repomd(repo_name, pulp_base_url, log):
         )
         metadata_url = f"{base_url.rstrip('/')}/repodata/repomd.xml"
         parsed_url = urlsplit(metadata_url)
-        credentials_present = (
-            parsed_url.username is not None
-            or parsed_url.password is not None
-        )
+        credentials_present = "@" in parsed_url.netloc
         if parsed_url.scheme != "https" or not parsed_url.hostname:
             return False, "Published metadata URL is not a secure HTTPS origin"
         if credentials_present or parsed_url.query or parsed_url.fragment:
@@ -3490,7 +3521,7 @@ def _list_repository_content_hrefs(repo_name, version_href, log):
         content_hrefs.update(page_hrefs)
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += len(page)
+        offset += _PULP_LIST_PAGE_SIZE
     return content_hrefs
 
 
@@ -3589,10 +3620,10 @@ def _list_owned_source_objects(aggregate_name, resource, log):
         for item in page:
             name = item.get("name") if isinstance(item, dict) else None
             if name and str(name).startswith(prefix):
-                objects.append(validate_repository_id(name))
+                objects.append(shlex.quote(validate_repository_id(name)))
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += len(page)
+        offset += _PULP_LIST_PAGE_SIZE
     return sorted(set(objects))
 
 
@@ -4832,6 +4863,30 @@ def write_complete_repo_file(
     return True, "DNF repository file includes additional repositories"
 
 
+def drop_numeric_no_log_values(no_log_values):
+    """Stop Ansible from masking numbers in the module result.
+
+    Ansible replaces every numeric value of the result whose digits contain a
+    no_log string. The no_log parameters hold repository definitions with
+    short numeric strings (ports, versions), so a counter such as
+    ``packages_added`` became VALUE_SPECIFIED_IN_NO_LOG_PARAMETER whenever its
+    digits matched one of them. Numeric strings of up to 6 digits are the only
+    ones that can occur inside a package counter, and they are not secrets, so
+    they are removed from the masked set. Longer values are still masked.
+
+    Args:
+        no_log_values: Set of strings Ansible masks (``module.no_log_values``).
+            Modified in place.
+
+    Returns:
+        The same set, for convenience.
+    """
+    no_log_values.difference_update(
+        {v for v in no_log_values if v.isdigit() and len(v) <= 6}
+    )
+    return no_log_values
+
+
 def main():
     """
     The main function of the module.
@@ -4889,6 +4944,8 @@ def main():
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=False)
+
+    drop_numeric_no_log_values(module.no_log_values)
 
     # Get the local_config parameter from the module
     rpm_config = module.params["local_config"]
@@ -4958,9 +5015,9 @@ def main():
                     "gpgkey": repo.get("gpgkey", ""),
                     "policy": resolved_policy,  # Use resolved Pulp policy
                     "caching": caching,
-                    "sslcacert": repo.get("sslcacert", ""),
-                    "sslclientkey": repo.get("sslclientkey", ""),
-                    "sslclientcert": repo.get("sslclientcert", ""),
+                    "ca_cert": repo.get("sslcacert", ""),
+                    "client_key": repo.get("sslclientkey", ""),
+                    "client_cert": repo.get("sslclientcert", ""),
                     "sw_arch": arch,
                     "os_type": cluster_os_type,
                     "os_version": cluster_os_version,

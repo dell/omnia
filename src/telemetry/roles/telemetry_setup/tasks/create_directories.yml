@@ -36,7 +36,30 @@
     - "{{ input_project_dir }}"
     - "{{ output_project_dir }}"
     - "{{ log_dir }}"
-    - "{{ telemetry_log_dir }}"
+  become: true
+
+- name: Ensure Ansible log directory exists with restricted permissions
+  ansible.builtin.file:
+    path: "{{ telemetry_log_dir }}"
+    state: directory
+    mode: "{{ telemetry_log_dir_mode }}"
+  become: true
+
+- name: Find existing Ansible log files
+  ansible.builtin.find:
+    paths: "{{ telemetry_log_dir }}"
+    patterns: "*.log*"
+    file_type: file
+  register: _telemetry_log_files
+  become: true
+
+- name: Restrict permissions on existing Ansible log files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ telemetry_log_file_mode }}"
+  loop: "{{ _telemetry_log_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
   become: true
 
 - name: Validate runtime directories were created

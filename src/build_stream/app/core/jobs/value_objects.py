@@ -149,14 +149,6 @@ class StageName:
                 f"Must be one of: {sorted([stage.value for stage in StageType])}"
             ) from exc
 
-    def as_enum(self) -> StageType:
-        """Convert stage name to StageType enum.
-        
-        Returns:
-            StageType: The corresponding enum value.
-        """
-        return StageType(self.value)
-
     def __str__(self) -> str:
         """Return string representation."""
         return self.value

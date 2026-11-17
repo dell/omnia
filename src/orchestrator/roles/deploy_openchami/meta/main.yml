@@ -16,7 +16,7 @@ galaxy_info:
   role_name: deploy_openchami
   namespace: omnia
   author: Dell Technologies
-  description: "Omnia orchestrator role: deploy_openchami"
+  description: "Install or refresh the OpenCHAMI deployment and start its services on the OIM"
   license: Apache-2.0
   min_ansible_version: "2.20"
   platforms:

@@ -178,6 +178,7 @@
       {% for registry_name, registry_config in (repo_manager_config_data.registries | default({}) or {}).items() %}
       {% set auth = registry_config.auth | default({}) %}
       {% if auth.type | default('none') == 'basic' %}
+      {% set tls = registry_config.tls | default({}) %}
       {% set _ = requirements.append({
         'registry_name': registry_name,
         'vault_path': auth.credentials.vault_path,
@@ -187,6 +188,10 @@
           'host': registry_config.base_url |
             ansible.builtin.urlsplit('hostname') | lower,
           'port': registry_config.port | int
+        },
+        'tls': {
+          'ca_path': tls.ca_path | default(''),
+          'insecure': tls.insecure | default(false) | bool
         }
       }) %}
       {% endif %}

@@ -128,9 +128,13 @@ bao login
 bao secrets enable -path=secret kv-v2
 ```
 
-### 2.2 Store Domain Credentials
+### 2.2 Store Domain and Test Credentials
 
-Store credentials for each domain you plan to deploy:
+Store credentials for each domain you plan to deploy and test:
+
+#### Domain Credentials
+
+Domain credentials are used during deployment (playbook execution):
 
 **Repo Manager credentials:**
 
@@ -165,29 +169,57 @@ bao kv put secret/omnia/orchestrator \
     csi_password=""
 ```
 
+**Orchestrator test credentials:**
+
+```bash
+bao kv put secret/omnia/test_orchestrator \
+    oim_password="<OimSshPassword>" \
+    ldap_username="<LdapTestUser>" \
+    ldap_password="<LdapTestPassword>" \
+    external_ldap_bind_password="<ExternalLdapBindPassword>"
+```
+
 **Telemetry credentials:**
 
 ```bash
 bao kv put secret/omnia/telemetry \
     bmc_username="admin" \
     bmc_password="<BmcPassword>" \
-    mysqldb_user="admin" \
-    mysqldb_password="<MysqlPwd>" \
-    mysqldb_root_password="<MysqlRootPwd>" \
     csi_username="admin" \
     csi_password="<CsiPassword>" \
     ldms_sampler_password="<LdmsPwd>" \
-    ufm_username="admin" \
-    ufm_password="<UfmPassword>" \
-    vast_username="admin" \
-    vast_password="<VastPassword>"
+    mysqldb_user="admin" \
+    mysqldb_password="<MysqlPwd>" \
+    mysqldb_root_password="<MysqlRootPwd>" \
+    openldap_db_username="admin" \
+    openldap_db_password="<OpenLdapPassword>" \
+    provision_password="<ProvisionPassword>" \
+    slurm_db_password="<SlurmPassword>"
 ```
+
+**Telemetry test credentials:**
+
+```bash
+bao kv put secret/omnia/test_telemetry \
+    oim_password="<OimSshPassword>" \
+    ome_username="<OmeUsername>" \
+    ome_password="<OmePassword>" \
+    pfx_secret="<PfxSecret>"
+```
+
+#### Test Credentials
+
+Test credentials are used during validation tests (test_orchestrator, test_telemetry, etc.). These are fetched from OpenBao during the test stages and encrypted locally with ansible-vault for secure storage.
+
+**Test credentials are optional** — if not provided in OpenBao, the pipeline will continue with existing credentials or defaults.
 
 ### 2.3 Verify Secrets
 
 ```bash
 bao kv list secret/omnia/
 bao kv get secret/omnia/repo_manager
+bao kv get secret/omnia/test_orchestrator
+bao kv get secret/omnia/test_telemetry
 ```
 
 ---

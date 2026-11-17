@@ -17,9 +17,10 @@ import pytest
 
 from library.functions import (
     TestLogger,
-    cancel_pipeline,
+    skip_test,
+    build_child_pipeline_id,
+    cancel_nft_pipeline,
     get_bsm_job_details,
-    get_child_pipeline_id,
     load_test_config,
     restart_service,
     stop_service,
@@ -39,8 +40,8 @@ def _case(name):
 
 def _enabled(config, key, logger):
     if not config.get(key, False):
-        logger.skipped(f"Set {key}: true to authorize this disruptive NFT")
-        pytest.skip(f"{key} is false")
+        pytest.skip(skip_test(
+            logger, f"{key} is false: set {key}: true to authorize this disruptive NFT"))
 
 
 def _job_id(config, nft_state):
@@ -53,15 +54,10 @@ def _job_id(config, nft_state):
 @pytest.mark.order(1)
 def test_gitlab_cancel_then_create_new_job(host, nft_state):
     """Cancel only the test-created GitLab pipeline, then require a new BSM job."""
-    # pylint: disable=too-many-locals
     logger = _case("gitlab_cancel_then_create_new_job")
     config = load_test_config()
     _enabled(config, "nft_allow_pipeline_cancel", logger)
-    catalog_path = str(config.get("catalog_path", "") or "")
-    pipeline_timeout = int(config.get("nft_pipeline_timeout_seconds", 300))
-    assert catalog_path, "catalog_path is required for the cancellation NFT"
-
-    first = trigger_catalog_job(host, catalog_path, pipeline_timeout)
+    first = trigger_catalog_job(host, config, logger.info)
     first_pipeline = int(first.get("pipeline_id", 0))
     first_job = str(first.get("job_id", ""))
     if first_pipeline:
@@ -73,14 +69,14 @@ def test_gitlab_cancel_then_create_new_job(host, nft_state):
     assert first_pipeline > 0 and first_job
     logger.check(f"Created pipeline #{first_pipeline} for job {first_job[:8]}...")
 
-    cancelled = cancel_pipeline(host, first_pipeline)
+    cancelled = cancel_nft_pipeline(host, first_pipeline)
     assert cancelled["success"], cancelled["error"]
     timeout = int(config.get("nft_recovery_timeout_seconds", 120))
     terminal = wait_for_pipeline_status(
         host, first_pipeline, {"canceled", "cancelled"}, timeout,
     )
     assert terminal["success"], terminal["error"]
-    child = get_child_pipeline_id(host, first_pipeline)
+    child = build_child_pipeline_id(host, first_pipeline)
     if child.get("success") and child.get("child_pipeline_id"):
         child_terminal = wait_for_pipeline_status(
             host, int(child["child_pipeline_id"]),
@@ -89,7 +85,7 @@ def test_gitlab_cancel_then_create_new_job(host, nft_state):
         assert child_terminal["success"], child_terminal["error"]
     nft_state.update({"active_pipeline_id": 0, "active_job_id": ""})
 
-    second = trigger_catalog_job(host, catalog_path, pipeline_timeout)
+    second = trigger_catalog_job(host, config, logger.info)
     second_pipeline = int(second.get("pipeline_id", 0))
     second_job = str(second.get("job_id", ""))
     if second_pipeline:

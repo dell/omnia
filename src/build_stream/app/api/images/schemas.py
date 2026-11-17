@@ -15,7 +15,7 @@
 """Pydantic schemas for Images API requests and responses."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel, Field
 
 
@@ -58,13 +58,6 @@ class ListImagesResponse(BaseModel):
     """Response for GET /api/v1/images."""
     image_groups: List[ImageGroupResponse]
     pagination: PaginationResponse
-
-
-class ListImagesQueryParams(BaseModel):
-    """Internal validation model for query parameters."""
-    status: Optional[str] = Field(default="BUILT", description="Filter by ImageGroup status")
-    limit: int = Field(default=100, ge=1, le=1000)
-    offset: int = Field(default=0, ge=0)
 
 
 class ErrorResponse(BaseModel):

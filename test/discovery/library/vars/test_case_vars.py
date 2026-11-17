@@ -97,7 +97,7 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
     "ip_correlation": {
         "id": "DISCOVERY_FVT_EXECUTE_V008",
-        "title": "Verify ADMIN_IP/IB_IP correlation with BMC_IP",
+        "title": "Verify ADMIN_IP/IB_IPV4 correlation with BMC_IP",
     },
     "parent_service_tag": {
         "id": "DISCOVERY_FVT_EXECUTE_V009",
@@ -126,6 +126,32 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "pxe_mapping_orchestrator_contract": {
         "id": "DISCOVERY_FVT_EXECUTE_V014",
         "title": "Verify PXE mapping CSV format for Orchestrator compatibility",
+    },
+
+    # ── Execute — IB Validation (V016-V021) ─────────────────────────────────
+    "ib_conditional_population": {
+        "id": "DISCOVERY_FVT_EXECUTE_V016",
+        "title": "Verify IB columns populated consistently with IB_NIC_NAME",
+    },
+    "ib_ipv4_format": {
+        "id": "DISCOVERY_FVT_EXECUTE_V017",
+        "title": "Verify IB_IPV4 values are valid IPv4 addresses",
+    },
+    "ib_ipv6_format": {
+        "id": "DISCOVERY_FVT_EXECUTE_V018",
+        "title": "Verify IB_IPV6 values are valid IPv6 addresses",
+    },
+    "ib_ip_uniqueness": {
+        "id": "DISCOVERY_FVT_EXECUTE_V019",
+        "title": "Verify IB IP addresses are unique across PXE mapping",
+    },
+    "pxe_mapping_all_columns": {
+        "id": "DISCOVERY_FVT_EXECUTE_V020",
+        "title": "Verify all 12 output contract columns present in PXE mapping",
+    },
+    "bmc_mac_populated": {
+        "id": "DISCOVERY_FVT_EXECUTE_V021",
+        "title": "Verify BMC_MAC populated for every row",
     },
 
     # ── Discovery (Full Run) ────────────────────────────────────────────────

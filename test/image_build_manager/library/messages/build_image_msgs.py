@@ -270,6 +270,12 @@ TEST_LOG_MSGS = {
     "s3cfg_still_exists": "s3cmd configuration still exists",
     "credentials_removed_ok": "All credentials files removed",
     "credentials_still_exist": "{count} credential file(s) still exist",
+    "credentials_preserved_ok": (
+        "Credential file and vault key preserved (cleanup_credentials: false)"
+    ),
+    "credentials_not_preserved": (
+        "{count} credential file(s) removed although cleanup_credentials is false"
+    ),
     "build_output_removed_ok": "build_status.yml removed",
     "build_output_still_exists": "build_status.yml still exists",
     "registry_cleaned_ok": "Registry cleaned (no images)",

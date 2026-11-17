@@ -86,6 +86,13 @@ class GetStageResponse(BaseModel):
     attempt: int = Field(default=1, description="Stage attempt number (1-indexed, +1 per retry)")
     log_file_path: Optional[str] = Field(default=None, description="Ansible log file path on OIM host (NFS share)")
     result_detail: Optional[Dict[str, Any]] = Field(default=None, description="Detailed stage results (JSONB) including log_path, test_summary, artifact_dir")
+    has_log: bool = Field(
+        default=False,
+        description="True when the stage log can be fetched from GET /jobs/{job_id}/logs",
+    )
+    log_lines: int = Field(
+        default=0, description="Number of lines in the stage log (0 when has_log is false)"
+    )
 
 
 class CreateJobResponse(BaseModel):

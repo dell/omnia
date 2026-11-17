@@ -146,13 +146,30 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.input_validation.core import config
 from ansible.module_utils.input_validation.messages import en_us_validation_msg
 
-def validate_csv_structure(csv_file_path, logger=None) -> bool:
+
+def _is_path_within(path, parent):
+    """Return whether *path* is a strict descendant of *parent*."""
+    normalized_path = os.path.abspath(os.path.normpath(path))
+    normalized_parent = os.path.abspath(os.path.normpath(parent))
+    try:
+        return (
+            os.path.commonpath((normalized_path, normalized_parent))
+            == normalized_parent
+            and normalized_path != normalized_parent
+        )
+    except ValueError:
+        return False
+
+
+def validate_csv_structure(csv_file_path, logger=None, allowed_dir=None) -> bool:
     """
     Validate CSV structure for PXE mapping files.
     
     Args:
         csv_file_path (str): Path to the CSV file to validate
         logger (logging.Logger): Logger instance for logging
+        allowed_dir (str, optional): If provided, the CSV file must reside
+            within this directory (realpath containment check).
         
     Returns:
         bool: True if validation passes, False otherwise
@@ -166,16 +183,33 @@ def validate_csv_structure(csv_file_path, logger=None) -> bool:
             if logger:
                 logger.error(error_msg)
             raise ValueError(error_msg)
-        
-        with open(csv_file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            try:
-                header = next(reader)
-            except StopIteration:
-                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+
+        real_csv = os.path.realpath(csv_file_path)
+        if os.path.islink(csv_file_path):
+            error_msg = f"CSV ERROR: Symbolic links are not allowed - {csv_file_path}"
+            if logger:
+                logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        if allowed_dir:
+            real_allowed = os.path.realpath(allowed_dir)
+            if not _is_path_within(real_csv, real_allowed):
+                error_msg = (
+                    f"CSV ERROR: Path escapes the allowed directory - {csv_file_path}"
+                )
                 if logger:
                     logger.error(error_msg)
                 raise ValueError(error_msg)
+
+        with open(real_csv, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration as exc:
+                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+                if logger:
+                    logger.error(error_msg)
+                raise ValueError(error_msg) from exc
                 
             expected_columns = len(header)
             
@@ -210,7 +244,7 @@ def createlogger(project_name, tag_name=None) -> logging.Logger:
     Creates a logger object for the given project name and tag name.
 
     Args:
-        project_name (str): The name of the project.
+        project_name (str): The name of the project (must be pre-validated).
         tag_name (str, optional): The name of the tag. Defaults to None.
 
     Returns:
@@ -223,6 +257,12 @@ def createlogger(project_name, tag_name=None) -> logging.Logger:
         project_name,
         log_filename
     )
+    log_file_path = os.path.realpath(log_file_path)
+    real_log_base = os.path.realpath(config.INPUT_VALIDATOR_LOG_PATH)
+    if not log_file_path.startswith(real_log_base + os.sep):
+        raise ValueError(
+            f"Log path escapes the log directory: {log_file_path}"
+        )
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     logging.basicConfig(
         filename=log_file_path,
@@ -259,6 +299,12 @@ def main() -> None:
     tag_names = module.params["tag_names"]
     csv_file_path = module.params.get("csv_file_path", "")
 
+    # Validate project_name is a safe single-segment directory name.
+    try:
+        config.validate_project_name(project_name)
+    except ValueError as exc:
+        module.fail_json(msg=str(exc))
+
     schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
     input_dir_path = os.path.join(omnia_base_dir, project_name)
     input_files = []
@@ -280,8 +326,8 @@ def main() -> None:
         error_message = f"The input directory {input_dir_path} does not exist."
         module.fail_json(msg=error_message)
 
-    input_files = fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
-    input_files = input_files + fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
+    input_files = fetch.files_recursively(os.path.join(omnia_base_dir, project_name), extensions['json'])
+    input_files = input_files + fetch.files_recursively(os.path.join(omnia_base_dir, project_name), extensions['yml'])
 
     input_file_dict = { fetch.file_name_from_path(file_path): file_path for file_path in input_files }
 
@@ -309,9 +355,18 @@ def main() -> None:
                     logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
         except Exception:
             logger.warning("Failed to check build_stream status from build_stream_config.yml")
-    
+
+    unknown_tags = sorted(set(tag_names) - set(input_file_inventory))
+    if unknown_tags or (not tag_names and not csv_file_path):
+        error_message = (
+            f"Unknown or missing tag(s): {unknown_tags or tag_names}. "
+            f"Valid tags are: {sorted(input_file_inventory)}."
+        )
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
     for tag_name in tag_names:
-        for name in input_file_inventory.get(tag_name, []):
+        for name in input_file_inventory[tag_name]:
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
@@ -334,7 +389,7 @@ def main() -> None:
 
             if input_file_path is None:
                 error_message = (
-                    f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
+                    f"{fname} file not found in directory: {os.path.join(omnia_base_dir, project_name)}"
                 )
                 logger.error(error_message)
                 module.fail_json(msg=error_message)
@@ -383,7 +438,7 @@ def main() -> None:
     # Optional CSV validation
     if csv_file_path:
         try:
-            validate_csv_structure(csv_file_path, logger)
+            validate_csv_structure(csv_file_path, logger, allowed_dir=input_dir_path)
             validation_status["tag"].append("csv_structure")
             vstatus.append(True)
         except ValueError as csv_error:
@@ -391,9 +446,13 @@ def main() -> None:
             validation_status["Failed"].append(csv_file_path)
             vstatus.append(False)
 
-    if not validation_status:
-        message = "No validation has been performed. \
-            Please provide tags or include individual file names."
+    if not vstatus:
+        message = (
+            "No validation has been performed. "
+            f"Tag(s) provided: {tag_names}. "
+            "Please provide valid tags or include individual file names."
+        )
+        logger.error(message)
         module.fail_json(msg=message)
 
     logger.error(en_us_validation_msg.get_footer())
@@ -404,7 +463,7 @@ def main() -> None:
         "validate_telemetry_input.log"
     )
 
-    status_bool = all(vstatus)
+    status_bool = bool(vstatus) and all(vstatus)
     status_str = "completed" if status_bool else "failed"
 
     message = [f"Input validation {status_str} for: {project_name} input configuration(s).",

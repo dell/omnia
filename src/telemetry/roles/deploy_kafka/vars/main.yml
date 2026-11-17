@@ -57,10 +57,19 @@ kafka_crd_wait_delay: 2
 kafka_secret_wait_retries: 30
 kafka_secret_wait_delay: 2
 kafka_download_timeout: 300
+kafka_topic_ready_retries: 3
+kafka_topic_ready_delay: 30
 
 # File modes
 kafka_dir_mode: "0755"
 kafka_file_mode: "0644"
+
+# Pod security context fsGroup for Kafka broker/controller pods.
+# Strimzi defaults the pod fsGroup to 0 for pods with persistent storage, but the
+# PowerScale CSI driver rejects fsGroup 0 ("invalid fsGroup value '0': must be positive")
+# when applying ownership to export-backed volumes, leaving pods stuck in ContainerCreating.
+# 1001 matches the UID the Strimzi Kafka container runs as; the fsGroup grants GID 1001 as a supplementary group.
+kafka_pod_fs_group: 1001
 
 # Error messages
 kafka_strimzi_tarball_not_found_msg: >-

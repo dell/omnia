@@ -13,10 +13,16 @@
 # limitations under the License.
 ---
 - name: Podman login
-  ansible.builtin.command: >-
-    podman login docker.io
-    -u {{ hostvars['localhost']['docker_username'] }}
-    -p {{ hostvars['localhost']['docker_password'] }}
+  ansible.builtin.command:
+    argv:
+      - podman
+      - login
+      - docker.io
+      - --username
+      - "{{ hostvars['localhost']['docker_username'] }}"
+      - --password-stdin
+    stdin: "{{ hostvars['localhost']['docker_password'] }}"
+    stdin_add_newline: true
   changed_when: true
   register: podman_login_output
   retries: "{{ retry_count }}"

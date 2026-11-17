@@ -15,47 +15,37 @@
 
 import base64
 import json
+import re
 import shlex
 import time
+import urllib.parse
 import uuid
 from pathlib import PurePosixPath
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, TypedDict, Unpack
 
 from omnia_auto import run_on_host
 
-from library.functions import pipeline_func
+from library.functions import gitlab_api_func
+from library.functions.bsm_api_func import bsm_access_token, get_api_job, load_bsm_context
+from library.functions.config_func import installation_settings
+from library.functions.pipeline_trigger_func import _trigger_build
 from library.functions._config_helpers import (
     resolve_omnia_data_path,
     resolve_omnia_path,
 )
 from library.functions.build_stream_func import check_build_stream_health
-from library.vars.common_vars import CMDS
+from library.functions.http_func import http_exchange, multipart_body
+from library.vars.execute_vars import (
+    BSM_API_PREFIX,
+    BSM_CI_CLIENT_ID_VAR,
+    BSM_CI_CLIENT_SECRET_VAR,
+    GITLAB_BRIDGE_BUILD,
+)
 
 
-def _parse_http_response(output: str) -> Dict[str, Any]:
-    """Split a curl body followed by its numeric HTTP status."""
-    body, separator, status_text = (output or "").rpartition("\n")
-    if not separator or not status_text.strip().isdigit():
-        return {
-            "success": False,
-            "status": 0,
-            "body": body,
-            "json": None,
-            "error": "HTTP response did not contain a status code",
-        }
-    parsed = None
-    if body.strip():
-        try:
-            parsed = json.loads(body)
-        except json.JSONDecodeError:
-            parsed = None
-    return {
-        "success": True,
-        "status": int(status_text.strip()),
-        "body": body,
-        "json": parsed,
-        "error": "",
-    }
+# test_config.yml of this domain (library/functions/ -> domain root).
+OVERSIZED_UPLOAD_BYTES = 5 * 1024 * 1024 + 1
+TEST_CONFIG_PATH = str(PurePosixPath(__file__).parents[2] / "test_config.yml")
 
 
 def _jwt_client_id(token: str) -> str:
@@ -74,82 +64,81 @@ def _jwt_client_id(token: str) -> str:
 
 def get_bsm_context(host) -> Dict[str, Any]:
     """Return the installed BSM endpoint, token, and authenticated client ID."""
-    config = pipeline_func._get_gitlab_config(host)  # pylint: disable=protected-access
-    token = pipeline_func._get_bsm_access_token(host)  # pylint: disable=protected-access
-    hostname = config.get("build_stream_host_ip", "")
-    port = config.get("build_stream_port", "")
-    client_id = _jwt_client_id(token)
-    success = bool(hostname and port and token and client_id)
+    context = load_bsm_context(host)
+    if not context["success"]:
+        return {"success": False, "base_url": "", "token": "", "client_id": "",
+                "context": context, "error": context["error"]}
+    token = bsm_access_token(context)
+    client_id = _jwt_client_id(token["token"])
+    success = token["success"] and bool(client_id)
     return {
         "success": success,
-        "base_url": f"https://{hostname}:{port}/api/v1" if hostname and port else "",
-        "token": token,
+        "base_url": f"{context['bsm_url']}{BSM_API_PREFIX}",
+        "token": token["token"],
         "client_id": client_id,
-        "error": "" if success else "BSM endpoint or OAuth credentials unavailable",
+        "context": context,
+        "error": "" if success else (token["error"] or "BSM OAuth token has no client ID"),
     }
 
 
-def bsm_request(
-    host,
-    method: str,
-    path: str,
-    token: Optional[str] = None,
-    json_body: Optional[dict] = None,
-    form_body: Optional[Dict[str, str]] = None,
-    headers: Optional[Dict[str, str]] = None,
-) -> Dict[str, Any]:
-    """Execute one bounded BSM request and return body plus HTTP status."""
-    # pylint: disable=too-many-arguments,too-many-positional-arguments
+class BsmRequestOptions(TypedDict, total=False):
+    """Optional ``bsm_request`` keywords."""
+
+    token: Optional[str]
+    json_body: Optional[dict]
+    form_body: Optional[Dict[str, str]]
+    headers: Optional[Dict[str, str]]
+
+
+def _request_body(options: BsmRequestOptions) -> Tuple[Optional[bytes], Dict[str, str]]:
+    """Return the body and headers of one BSM request (secrets stay in memory)."""
+    headers = dict(options.get("headers") or {})
+    token, json_body = options.get("token"), options.get("json_body")
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    if json_body is not None:
+        headers["Content-Type"] = "application/json"
+        return json.dumps(json_body, separators=(",", ":")).encode(), headers
+    form_body = options.get("form_body")
+    if form_body:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        return urllib.parse.urlencode(form_body).encode(), headers
+    return None, headers
+
+
+def bsm_request(host, method: str, path: str,
+                **options: Unpack[BsmRequestOptions]) -> Dict[str, Any]:
+    """Execute one bounded BSM request and return body plus HTTP status.
+
+    ``options`` takes token (bearer, None = no Authorization header),
+    json_body, form_body and headers.
+    """
     context = get_bsm_context(host)
     if not context["base_url"]:
         return {
             "success": False, "status": 0, "body": "", "json": None,
             "error": context["error"],
         }
-    parts = [
-        "curl", "-sk", "--max-time", "30", "-X", method.upper(),
-        "-w", "\n%{http_code}",
-    ]
-    if token is not None:
-        parts.extend(["-H", f"Authorization: Bearer {token}"])
-    if headers:
-        for name, value in headers.items():
-            parts.extend(["-H", f"{name}: {value}"])
-    if json_body is not None:
-        parts.extend(["-H", "Content-Type: application/json"])
-        parts.extend(["--data", json.dumps(json_body, separators=(",", ":"))])
-    if form_body:
-        for name, value in form_body.items():
-            parts.extend(["--data-urlencode", f"{name}={value}"])
-    parts.append(f"{context['base_url']}{path}")
-    command = shlex.join(parts)
-    response = run_on_host(host, command)
-    if response.rc != 0:
-        return {
-            "success": False, "status": 0, "body": response.stdout or "",
-            "json": None, "error": f"curl failed with rc={response.rc}",
-        }
-    return _parse_http_response(response.stdout)
+    body, headers = _request_body(options)
+    return http_exchange(context["context"]["bsm_tls"], method.upper(),
+                         f"{context['base_url']}{path}", headers=headers, body=body)
 
 
 def get_scoped_token(host, scope: str) -> Dict[str, Any]:
-    """Request a token restricted to one allowed OAuth scope."""
+    """Request a token restricted to one allowed OAuth scope.
+
+    The pipeline client stored in GitLab CI/CD is used; its secret stays in
+    this process and is never logged.
+    """
     context = get_bsm_context(host)
-    api_base = pipeline_func._get_gitlab_api_base(host)  # pylint: disable=protected-access
-    if not context["success"] or not api_base["success"]:
+    if not context["base_url"]:
         return {"success": False, "token": "", "error": "OAuth context unavailable"}
-    command = CMDS["gitlab_api_list_variables"].format(
-        token=api_base["token"], api_url=api_base["api_url"],
-        project_id=api_base["project_id"],
-    )
-    variables_response = run_on_host(host, command)
-    try:
-        variables = json.loads(variables_response.stdout or "[]")
-        values = {item["key"]: item["value"] for item in variables}
-        client_id = values["BSM_CLIENT_ID"]
-        client_secret = values["BSM_CLIENT_SECRET"]
-    except (json.JSONDecodeError, KeyError, TypeError):
+    client_id = gitlab_api_func.ci_variable_value(context["context"], BSM_CI_CLIENT_ID_VAR)
+    client_secret = gitlab_api_func.ci_variable_value(context["context"],
+                                                      BSM_CI_CLIENT_SECRET_VAR)
+    if not client_id["success"] or not client_secret["success"]:
         return {"success": False, "token": "", "error": "OAuth variables unavailable"}
+    client_id, client_secret = client_id["value"], client_secret["value"]
     response = bsm_request(
         host, "POST", "/auth/token", token=None,
         form_body={
@@ -192,105 +181,115 @@ def upload_inline_file(
     host, job_id: str, filename: str, content: str, token: str
 ) -> Dict[str, Any]:
     """Upload controlled inline content with an explicitly supplied filename."""
+    return _upload(host, job_id, token, [("files", filename, content.encode())])
+
+
+def _upload(host, job_id: str, token: str, files, timeout: int = 30) -> Dict[str, Any]:
+    """PUT ``files`` as multipart/form-data to the job upload endpoint."""
     context = get_bsm_context(host)
-    request_id = str(uuid.uuid4())
-    parts = [
-        "curl", "-sk", "--max-time", "30", "-X", "PUT",
-        "-H", f"Authorization: Bearer {token}",
-        "-H", f"X-Correlation-ID: {request_id}",
-        "-F", f"files={content};filename={filename}",
-        "-w", "\n%{http_code}",
-        f"{context['base_url']}/jobs/{job_id}/upload",
-    ]
-    result = run_on_host(host, shlex.join(parts))
-    if result.rc != 0:
-        return {"success": False, "status": 0, "body": "", "error": f"curl rc={result.rc}"}
-    return _parse_http_response(result.stdout)
+    if not context["base_url"]:
+        return {"success": False, "status": 0, "body": "", "json": None,
+                "error": context["error"]}
+    body, content_type = multipart_body(files)
+    headers = {"Authorization": f"Bearer {token}", "X-Correlation-ID": str(uuid.uuid4()),
+               "Content-Type": content_type}
+    return http_exchange(context["context"]["bsm_tls"], "PUT",
+                         f"{context['base_url']}/jobs/{job_id}/upload",
+                         headers=headers, body=body, timeout=timeout)
 
 
 def upload_oversized_file(host, job_id: str, token: str) -> Dict[str, Any]:
-    """Upload a 5 MiB + 1 byte file and remove the temporary source afterward."""
-    context = get_bsm_context(host)
-    temp_result = run_on_host(host, "mktemp -t bsm_nft_oversized_XXXXXXXX.yml")
-    temp_path = (temp_result.stdout or "").strip()
-    valid_path = (
-        temp_result.rc == 0
-        and bool(temp_path)
-        and "\n" not in temp_path
-        and PurePosixPath(temp_path).name.startswith("bsm_nft_oversized_")
-    )
-    if not valid_path:
-        return {
-            "success": False,
-            "status": 0,
-            "body": "",
-            "error": "Cannot create temporary test file",
-        }
-    try:
-        create_result = run_on_host(
-            host, f"head -c 5242881 /dev/zero > {shlex.quote(temp_path)}"
-        )
-        if create_result.rc != 0:
-            return {
-                "success": False,
-                "status": 0,
-                "body": "",
-                "error": "Cannot create test payload",
-            }
-        parts = [
-            "curl", "-sk", "--max-time", "60", "-X", "PUT",
-            "-H", f"Authorization: Bearer {token}",
-            "-H", f"X-Correlation-ID: {uuid.uuid4()}",
-            "-F", f"files=@{temp_path};filename=build_stream_config.yml",
-            "-w", "\n%{http_code}",
-            f"{context['base_url']}/jobs/{job_id}/upload",
-        ]
-        response = run_on_host(host, shlex.join(parts))
-        if response.rc != 0:
-            return {"success": False, "status": 0, "body": "", "error": f"curl rc={response.rc}"}
-        return _parse_http_response(response.stdout)
-    finally:
-        run_on_host(host, f"rm -f -- {shlex.quote(temp_path)}")
+    """Upload a 5 MiB + 1 byte file built in memory (nothing is written to disk)."""
+    return _upload(host, job_id, token,
+                   [("files", "build_stream_config.yml", bytes(OVERSIZED_UPLOAD_BYTES))],
+                   timeout=60)
+
+
+def _gitlab_context(host) -> Dict[str, Any]:
+    """Return the GitLab/BuildStream context, raising on failure."""
+    context = load_bsm_context(host)
+    if not context["success"]:
+        raise RuntimeError(f"BuildStream context unavailable: {context['error']}")
+    return context
 
 
 def pipeline_status(host, pipeline_id: int) -> Dict[str, Any]:
     """Read one GitLab pipeline status."""
-    api_base = pipeline_func._get_gitlab_api_base(host)  # pylint: disable=protected-access
-    if not api_base["success"]:
-        return {"success": False, "status": "", "error": api_base["error"]}
-    command = CMDS["gitlab_api_pipeline_status"].format(
-        token=api_base["token"], api_url=api_base["api_url"],
-        project_id=api_base["project_id"], pipeline_id=int(pipeline_id),
-    )
-    response = run_on_host(host, command)
     try:
-        data = json.loads(response.stdout or "{}")
-    except json.JSONDecodeError:
-        return {"success": False, "status": "", "error": "Invalid pipeline response"}
-    return {"success": response.rc == 0, "status": data.get("status", ""), "error": ""}
+        context = _gitlab_context(host)
+    except RuntimeError as exc:
+        return {"success": False, "status": "", "error": str(exc)}
+    pipeline = gitlab_api_func.get_pipeline(context, pipeline_id)
+    if not pipeline:
+        return {"success": False, "status": "", "error": f"cannot read pipeline #{pipeline_id}"}
+    return {"success": True, "status": pipeline.get("status", ""), "error": ""}
 
 
-def trigger_catalog_job(
-    host, catalog_path: str, job_wait_timeout: int = 300,
-) -> Dict[str, Any]:
-    """Push one uniquely rendered catalog and return only its new pipeline/job."""
-    pipelines = pipeline_func.list_pipelines(host, per_page=5)
-    if not pipelines["success"]:
-        return {"success": False, "error": pipelines["error"]}
-    initial_pipeline_id = (
-        int(pipelines["pipelines"][0].get("id", 0))
-        if pipelines.get("pipelines") else 0
-    )
-    latest_job = pipeline_func.get_latest_job(host)
-    initial_job_id = latest_job.get("job_id", "") if latest_job.get("success") else ""
-    pushed = pipeline_func.push_catalog_from_examples(host, catalog_path)
-    if not pushed["success"]:
-        return {"success": False, "error": pushed["error"]}
-    return pipeline_func.trigger_build_pipeline_auto(
-        host, initial_pipeline_id=initial_pipeline_id,
-        initial_job_id=initial_job_id,
-        job_wait_timeout=job_wait_timeout,
-    )
+def cancel_nft_pipeline(host, pipeline_id: int) -> Dict[str, Any]:
+    """Cancel one test-created GitLab pipeline."""
+    try:
+        context = _gitlab_context(host)
+    except RuntimeError as exc:
+        return {"success": False, "error": str(exc)}
+    response = gitlab_api_func.cancel_pipeline(context, pipeline_id)
+    return {"success": response["success"], "error": response.get("error", "")}
+
+
+def build_child_pipeline_id(host, pipeline_id: int) -> Dict[str, Any]:
+    """Return the build child pipeline that ``pipeline_id`` triggered."""
+    try:
+        context = _gitlab_context(host)
+    except RuntimeError as exc:
+        return {"success": False, "child_pipeline_id": 0, "error": str(exc)}
+    child = gitlab_api_func.downstream_pipeline(context, pipeline_id, GITLAB_BRIDGE_BUILD)
+    return {"success": bool(child), "child_pipeline_id": int(child.get("id", 0) or 0),
+            "error": "" if child else f"pipeline #{pipeline_id} has no build child pipeline"}
+
+
+def trigger_catalog_job(host, config: Dict[str, Any], emit) -> Dict[str, Any]:
+    """Commit installation.catalog (next unused version) and return its pipeline and job.
+
+    This is the automatic build trigger of the execute suite, so the NFT
+    creates a job exactly as a catalog commit does.
+    """
+    try:
+        context = _gitlab_context(host)
+    except RuntimeError as exc:
+        return {"success": False, "pipeline_id": 0, "job_id": "", "error": str(exc)}
+    result: Dict[str, Any] = {"fields": [], "failures": []}
+    ids = _trigger_build(host, context, installation_settings(config), result, emit)
+    return {"success": not ids["error"], "pipeline_id": int(ids.get("pipeline_id") or 0),
+            "job_id": ids.get("job_id", ""), "error": ids["error"]}
+
+
+def get_bsm_job_details(host, job_id: str) -> Dict[str, Any]:
+    """Read one job through the BuildStream API.
+
+    Returns:
+        Dict with keys: success, job (job_id, job_state, stages), error.
+    """
+    try:
+        context = _gitlab_context(host)
+    except RuntimeError as exc:
+        return {"success": False, "job": {}, "error": str(exc)}
+    api = get_api_job(context, job_id)
+    job = {"job_id": api.get("job_id", ""), "job_state": api["job_state"],
+           "stages": list(api["stages"])}
+    return {"success": api["success"], "job": job if api["success"] else {},
+            "error": api["error"]}
+
+
+def update_job_id_in_config(job_id: str, config_path: str = TEST_CONFIG_PATH) -> bool:
+    """Write ``job_id`` to the top-level job_id key of test_config.yml."""
+    with open(config_path, encoding="utf-8") as stream:
+        content = stream.read()
+    content, replacements = re.subn(r'^(job_id:\s*).*$', f'job_id: "{job_id}"', content,
+                                    flags=re.MULTILINE)
+    if replacements != 1:
+        return False
+    with open(config_path, "w", encoding="utf-8") as stream:
+        stream.write(content)
+    return True
 
 
 def wait_for_pipeline_status(
@@ -344,7 +343,7 @@ def stop_service(host, service: str) -> Dict[str, Any]:
 def wait_for_queue_entry(host, job_id: str, timeout: int) -> Dict[str, Any]:
     """Wait for the exact NFT job request and return its queue filename."""
     deadline = time.monotonic() + timeout
-    queue_path = resolve_omnia_path(host, "playbook_queue")
+    queue_path = resolve_omnia_path(host, "build_stream", "playbook_queue")
     command = (
         f"find {shlex.quote(f'{queue_path}/requests')} "
         f"{shlex.quote(f'{queue_path}/processing')} -maxdepth 1 -type f "
@@ -367,7 +366,7 @@ def wait_for_queue_claimed(host, entry: str, timeout: int) -> Dict[str, Any]:
     """Wait until the restarted watcher removes one request from pending."""
     deadline = time.monotonic() + timeout
     pending_path = (
-        f"{resolve_omnia_path(host, 'playbook_queue', 'requests')}/{entry}"
+        f"{resolve_omnia_path(host, 'build_stream', 'playbook_queue', 'requests')}/{entry}"
     )
     while time.monotonic() < deadline:
         pending = run_on_host(host, f"test -e {shlex.quote(pending_path)}")
@@ -381,7 +380,7 @@ def artifact_path_absent(host, job_id: str, filename: str) -> bool:
     """Confirm one rejected upload did not appear in the job artifact directory."""
     safe_filename = shlex.quote(filename)
     artifact_path = resolve_omnia_path(
-        host, "build_stream_root", "artifacts", job_id
+        host, "build_stream", "build_stream_root", "artifacts", job_id
     )
     command = (
         f"test ! -e {shlex.quote(artifact_path)}/{safe_filename}"

@@ -136,11 +136,6 @@ class TestExecutionTimeout:
         timeout = ExecutionTimeout.default()
         assert timeout.minutes == 30
 
-    def test_to_seconds(self):
-        """to_seconds should convert correctly."""
-        timeout = ExecutionTimeout(minutes=10)
-        assert timeout.to_seconds() == 600
-
     def test_minimum_timeout(self):
         """Minimum timeout of 1 minute should be accepted."""
         timeout = ExecutionTimeout(minutes=1)

@@ -1,6 +1,6 @@
 # deploy_openchami
 
-Installs or refreshes the OpenCHAMI 0.2.0 Fabrica deployment and starts the
+Installs or refreshes the OpenCHAMI 0.2.1 Fabrica deployment and starts the
 `openchami.target` services on the OIM.
 
 ## What It Does

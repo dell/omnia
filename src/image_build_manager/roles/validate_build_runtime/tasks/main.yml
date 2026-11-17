@@ -28,7 +28,7 @@
 - name: Set fixed S3 bucket names (NOT user-modifiable)
   ansible.builtin.set_fact:
     s3_boot_bucket: "{{ s3_boot_images_bucket }}"
-    s3_efi_bucket: "{{ s3_efi_images_bucket }}"
+    s3_efi_bucket: "{{ s3_efi_bucket }}"
 
 - name: Run PowerScale S3 endpoint validation
   ansible.builtin.include_tasks: powerscale_check.yml

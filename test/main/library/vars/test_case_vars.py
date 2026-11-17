@@ -203,7 +203,27 @@ TEST_CASES = {
     # -- CLEANUP --
     "deploy_cleanup": {
         "id": "MAIN_FVT_CLEANUP_E001",
-        "title": 'Execute omnia.sh --cleanup',
+        "title": 'Execute omnia.sh --cleanup (--all when cleanup_all is true)',
+    },
+    "cleanup_system_env_removed": {
+        "id": "MAIN_FVT_CLEANUP_V001",
+        "title": 'Verify cleanup removed /etc/omnia/omnia.env and the profile drop-in',
+    },
+    "cleanup_venv_removed": {
+        "id": "MAIN_FVT_CLEANUP_V002",
+        "title": 'Verify cleanup removed the Omnia venv',
+    },
+    "cleanup_cli_removed": {
+        "id": "MAIN_FVT_CLEANUP_V003",
+        "title": 'Verify cleanup removed omnia-cli and its Bash completion',
+    },
+    "cleanup_data_helpers_removed": {
+        "id": "MAIN_FVT_CLEANUP_V004",
+        "title": 'Verify cleanup removed activate-omnia.sh and the dependency cache',
+    },
+    "cleanup_data_path": {
+        "id": "MAIN_FVT_CLEANUP_V005",
+        "title": 'Verify OMNIA_DATA_PATH removed with --all, kept without it',
     },
     # -- INIT --
     "domain_log_dirs": {

@@ -47,6 +47,8 @@ from .repo_manager_func import (
     check_pulp_cli_removed,
     check_pulp_cli_preserved,
     check_pulp_directories_removed,
+    check_credentials_per_flag,
+    cleanup_credentials_enabled,
     check_repo_policy,
     check_repo_caching,
     check_pulp_mode,
@@ -81,6 +83,11 @@ from .repo_manager_func import (
     check_user_registry_tls_pair_consistent,
     check_user_registry_auth_type,
     check_user_registry_credentials,
+    check_user_registry_wrong_credentials,
+    check_user_registry_duplicate_hosts,
+    check_user_registry_https_cert_no_cn,
+    check_user_registry_distributions,
+    check_user_registry_remotes_in_pulp,
 )
 # Host sync functions
 from .host_func import (

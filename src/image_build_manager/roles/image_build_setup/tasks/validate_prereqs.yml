@@ -20,8 +20,9 @@
 # Dual-mode: "config" checks package_groups.yml, "catalog" checks CATALOG_FILE_PATH env var.
 
 - name: Load image_build_config.yml to get repo_manager_output_path
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/image_build_config.yml"
+  ansible.builtin.include_tasks: load_image_build_config.yml
+  vars:
+    image_build_config_file_required: false
 
 - name: Set build config facts from config (single source of truth)
   vars:
@@ -36,7 +37,6 @@
     build_image_backup_s3_images: "{{ build_image.backup_s3_images | default(false) | bool }}"
     repo_ssl_verify: "{{ build_image.repo_ssl_verify | default(true) | bool }}"
     functional_groups_source: "{{ functional_groups_source | default('config') }}"
-    image_build_type: "{{ image_build_type | default('image-thrillhouse') }}"
     catalog_file: "{{ lookup('ansible.builtin.env', 'CATALOG_FILE_PATH') | default('', true) }}"
     cacheable: true
   when: build_image is defined

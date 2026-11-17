@@ -89,16 +89,6 @@ class PlaybookQueueResultRepository(Protocol):
 class InputDirectoryRepository(Protocol):
     """Repository port for managing input directory paths."""
 
-    def get_source_input_repository_path(self, job_id: str) -> Path:
-        """Get source input directory path for a job.
-
-        Args:
-            job_id: Job identifier.
-
-        Returns:
-            Path like <build_stream_root>/artifacts/{job_id}/input/
-        """
-
     def get_destination_input_repository_path(self) -> Path:
         """Get destination input directory path expected by playbook.
 

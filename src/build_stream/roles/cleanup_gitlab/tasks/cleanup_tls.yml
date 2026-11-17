@@ -41,7 +41,7 @@
   failed_when: false
 
 - name: Update system CA trust store
-  ansible.builtin.command: "{{ gitlab_ca_trust_update_command }}"
+  ansible.builtin.command: "{{ gitlab_ca_trust_update_command | quote }}"
   register: ca_trust_update
   changed_when: false
   failed_when: false

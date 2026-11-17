@@ -198,15 +198,16 @@ def run_cmd(cmd: Union[str, Sequence[str]], logger,
             timeout: int = PULP_COMMAND_TIMEOUT) -> Dict[str, Any]:
     """Execute a command without a shell and return its result.
 
-    Cleanup code should pass a list so user-derived values remain one argument.
-    String support is retained for existing internal command templates.
+    All callers must pass a list so that user-derived values remain one
+    argument and cannot inject additional CLI options via whitespace.
+    String commands are rejected to prevent argument/option injection
+    (CWE-88, Finding-50).
     """
+    if isinstance(cmd, str):
+        logger.error("Cleanup command rejected: string commands are not supported")
+        return {"rc": 1, "stdout": "", "stderr": "Unable to execute command"}
     try:
-        if isinstance(cmd, str):
-            import shlex  # Local compatibility import for legacy templates.
-            cmd_list = shlex.split(cmd)
-        else:
-            cmd_list = [str(value) for value in cmd]
+        cmd_list = [str(value) for value in cmd]
         result = subprocess.run(
             cmd_list,
             shell=False,
@@ -1055,7 +1056,7 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
         result["status"] = "Success"
         result["message"] = "; ".join(messages)
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Repository cleanup operation failed"
 
     return result
@@ -1181,7 +1182,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
         result["message"] = "; ".join(messages)
         result["pulp_repo_name"] = pulp_name
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Container cleanup operation failed"
 
     return result
@@ -1282,7 +1283,7 @@ def cleanup_pip_module(name: str, base_path: str, repo_store_path: str, logger,
         else:
             result["message"] = f"pip_module '{name}' not found in Pulp or filesystem"
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Python package cleanup operation failed"
 
     return result
@@ -1393,7 +1394,7 @@ def cleanup_file_repository(name: str, file_type: str, base_path: str,
         else:
             result["message"] = f"{file_type} '{name}' not found in Pulp, status files, or filesystem"
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "File repository cleanup operation failed"
 
     return result
@@ -1787,7 +1788,7 @@ def cleanup_content_directory(content_name: str, content_type: str,
                                  f"'{content_name}' under {types_to_search}")
             logger.info(result["message"])
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Filesystem cleanup error: cleanup operation failed"
         logger.error("Failed to clean up repository content")
 
@@ -1878,7 +1879,7 @@ def cleanup_all_file_content_directories(repo_store_path: str, logger,
             result["message"] = "Requested filesystem content already absent"
             logger.info(result["message"])
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Bulk filesystem cleanup error: cleanup operation failed"
         logger.error("Failed bulk filesystem cleanup")
 
@@ -1894,8 +1895,10 @@ def _get_mirror_index_path(base_path: str, cluster_os_type: str, cluster_os_vers
 
     Path: {base_path}/{os_type}/{os_version}/mirror_status/pulp_mirror_index.json
     """
-    return os.path.join(base_path, cluster_os_type, cluster_os_version,
-                        MIRROR_STATUS_DIR, MIRROR_INDEX_FILENAME)
+    return validate_cleanup_child(
+        base_path, cluster_os_type, cluster_os_version,
+        MIRROR_STATUS_DIR, MIRROR_INDEX_FILENAME
+    )
 
 
 def remove_from_mirror_index(base_path: str, cluster_os_type: str, cluster_os_version: str,
@@ -1917,7 +1920,8 @@ def remove_from_mirror_index(base_path: str, cluster_os_type: str, cluster_os_ve
     """
     if all_versions:
         mirror_index_paths = sorted(glob.glob(os.path.join(
-            base_path, cluster_os_type, "*", MIRROR_STATUS_DIR,
+            glob.escape(validate_cleanup_child(base_path, cluster_os_type)),
+            "*", MIRROR_STATUS_DIR,
             MIRROR_INDEX_FILENAME
         )))
         return sum(
@@ -2607,7 +2611,7 @@ def remove_repos_from_pulp_repo_file(cleaned_repos: List[str], pulp_repo_file: s
             f"Permission denied while updating {pulp_repo_file}. Run with elevated privileges."
         )
         return False, False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("Failed to update the Pulp repository file after cleanup")
         return False, False
 
@@ -2778,7 +2782,7 @@ def run_module():
                     repo, base_path, cluster_os_type, cluster_os_version, logger)
                 state_changed = state_changed or removed > 0
                 logger.info(f"Removed {removed} entries from pulp_mirror_index.json for repo '{repo}'")
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 all_results.append({
                     "name": repo,
                     "type": "local_state",
@@ -2822,7 +2826,7 @@ def run_module():
             state_changed = (
                 state_changed or rpm_fs_result.get("changed", False)
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             all_results.append({
                 "name": "all_rpm_state",
                 "type": "local_state",
@@ -2852,7 +2856,7 @@ def run_module():
                         container, 'image', base_path, cluster_os_type,
                         cluster_os_version, logger)
                 state_changed = state_changed or removed > 0
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 all_results.append({
                     "name": container,
                     "type": "local_state",
@@ -2875,7 +2879,7 @@ def run_module():
             removed = remove_all_type_from_mirror_index(
                 'image', base_path, cluster_os_type, cluster_os_version, logger)
             state_changed = state_changed or removed > 0
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             all_results.append({
                 "name": "all_container_state",
                 "type": "local_state",
@@ -2901,7 +2905,7 @@ def run_module():
                     cluster_os_version, logger, arch=result.get('arch'),
                     os_version=result.get('os_version'))
                 state_changed = state_changed or removed > 0
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 all_results.append({
                     "name": result['name'],
                     "type": "local_state",
@@ -2953,7 +2957,7 @@ def run_module():
             state_changed = (
                 state_changed or file_fs_result.get("changed", False)
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             all_results.append({
                 "name": "all_file_state",
                 "type": "local_state",

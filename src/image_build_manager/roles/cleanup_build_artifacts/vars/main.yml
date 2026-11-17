@@ -165,6 +165,9 @@ cleanup_completed_msg:
   - "  - Domain data directories (s3, registry, oci, workdir, openchami, aarch64)"
   - "  - Runtime log and output directories (contents removed; empty roots preserved)"
   - "  - Ansible log files (/var/log/omnia/image_build_manager/)"
+cleanup_credentials_preserved_msg:
+  - "cleanup_credentials=false: image_build_credentials.yml and its vault key are preserved"
+  - "Location: {{ image_build_credentials_file }}"
 minio_skip_msg: "S3 provider is '{{ s3_provider }}' — skipping MinIO cleanup (external S3)."
 
 # Image cleanup messages

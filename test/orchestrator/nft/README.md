@@ -23,6 +23,8 @@ tests.
 | 60012 | `ORCH_NFT_012` | `test_clean_baseline` | `lifecycle`, `destructive` | The OIM starts from a clean baseline before a fresh install. |
 | 60013 | `ORCH_NFT_013` | `test_lifecycle_fresh_install` | `lifecycle`, `destructive` | The complete fresh-install lifecycle succeeds from the clean baseline. |
 | 60014 | `ORCH_NFT_014` | `test_lifecycle_provision_verify` | `lifecycle` | Provision and node state are valid after the fresh-install lifecycle. |
+| 60101 | `ORCH_NFT_015` | `test_ipoib_allocation_validation_latency` | `performance`, `ipoib` | ER-ORCH-005 allocation preflight (schema, semantic, per-node) p95 is below 100 ms/record at 500 records and normalizes every node (TC-NFT-001). |
+| 60102 | `ORCH_NFT_016` | `test_ipoib_artifact_generation_throughput` | `performance`, `ipoib` | ER-ORCH-005 NM/cloud-init/SMD rendering p95 is below 30 s/node at 500 nodes, and identical input keeps a stable `config_hash` (TC-NFT-002). |
 
 `ORCH_NFT_001` and `ORCH_NFT_006` use the current `precheck` lifecycle. They
 retain the stable IDs formerly associated with the retired standalone
@@ -30,6 +32,11 @@ validation operation.
 
 Orders use the NFT block `60000` in `TEST_ORDER_BLOCKS`; the sequence follows
 the lifecycle phase each contract exercises.
+
+The IPoIB contracts use the NFT `ipoib` block `60100`. They load the shipped
+`ib_ipv6_allocation_validator.py` and `nm_renderer.py` from the source tree
+and run in-process against a synthetic allocation export, so they need no
+cluster.
 
 ## Performance thresholds
 

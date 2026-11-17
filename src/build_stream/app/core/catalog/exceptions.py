@@ -46,49 +46,6 @@ class CatalogNotUploadedError(CatalogParseError):
     """
 
 
-class CatalogSchemaValidationError(CatalogParseError):
-    """Catalog JSON fails schema validation."""
-
-    def __init__(
-        self,
-        message: str,
-        schema_path: str = "",
-        correlation_id: Optional[str] = None,
-    ) -> None:
-        super().__init__(message, correlation_id=correlation_id)
-        self.schema_path = schema_path
-
-
-class FileTooLargeError(CatalogParseError):
-    """Uploaded file exceeds the maximum allowed size."""
-
-    def __init__(
-        self,
-        actual_size: int,
-        max_size: int,
-        correlation_id: Optional[str] = None,
-    ) -> None:
-        super().__init__(
-            f"File size {actual_size} bytes exceeds maximum {max_size} bytes",
-            correlation_id=correlation_id,
-        )
-        self.actual_size = actual_size
-        self.max_size = max_size
-
-
-class AdapterPolicyValidationError(CatalogParseError):
-    """Adapter policy fails schema validation."""
-
-    def __init__(
-        self,
-        message: str,
-        policy_path: str = "",
-        correlation_id: Optional[str] = None,
-    ) -> None:
-        super().__init__(message, correlation_id=correlation_id)
-        self.policy_path = policy_path
-
-
 class UnsupportedSchemaVersionError(CatalogParseError):
     """Catalog schema_version is missing or not in the supported set.
 
@@ -119,7 +76,3 @@ class UnsupportedSchemaVersionError(CatalogParseError):
         super().__init__(msg, correlation_id=correlation_id)
         self.schema_version = schema_version
         self.supported = supported
-
-
-class ConfigGenerationError(CatalogParseError):
-    """Omnia config generation fails during adapter transformation."""

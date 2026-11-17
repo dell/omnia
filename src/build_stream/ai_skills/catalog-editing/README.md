@@ -49,7 +49,7 @@ Pin RHEL to 10.2 in the slurm catalog
 | Schema Validation | Validates catalog against schema after edits |
 | Path Boundary Enforcement | Restricts writes to catalog repository only |
 | Source Merging | Updating a package keeps its sources for other architectures and OS versions |
-| Every-Layer Additions | Adds a package to every functional layer, including both `base_os` groups of a hybrid catalog |
+| Every-Layer Additions | Adds a package to every functional layer, including both `baseos` groups of a hybrid catalog |
 | Changelog | Records each approved edit as a reversible diff and changelog (apply the reverse diff to undo it); the pre-edit snapshot itself is deleted after the changelog is copied |
 
 ## Write-Path Security

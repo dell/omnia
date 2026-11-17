@@ -113,7 +113,7 @@ def main():
                 )
         else:
             result["msg"] = "All certificate checks passed for repositories."
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         # Catching general exception at top level to return a clean failure via Ansible
         result["failed"] = True
         result["msg"] = "Certificate validation failed unexpectedly."

@@ -48,7 +48,7 @@
       when: _regctl_download_result is failed
 
 - name: Verify regctl binary is functional
-  ansible.builtin.command: "{{ regctl_bin_path }} version"
+  ansible.builtin.command: "{{ regctl_bin_path | quote }} version"
   register: _regctl_version
   changed_when: false
   failed_when: _regctl_version.rc != 0
@@ -65,7 +65,7 @@
          else hostvars['localhost']['oim_hostname'] }}
 
 - name: Configure regctl to use HTTP for local registry
-  ansible.builtin.command: "{{ regctl_bin_path }} registry set --tls disabled {{ _aarch64_registry_host }}:5000"
+  ansible.builtin.command: "{{ regctl_bin_path | quote }} registry set --tls disabled {{ _aarch64_registry_host | quote }}:5000"
   register: regctl_result
   changed_when: regctl_result.rc == 0
   become: true

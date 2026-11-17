@@ -168,6 +168,10 @@ def validate_test_config() -> Dict[str, Any]:
             "underscores, hyphens"
         )
 
+    # --- Cleanup flags ---
+    if not isinstance(config.get("cleanup_credentials", True), bool):
+        errors.append("cleanup_credentials must be true or false (without quotes)")
+
     # --- Remote mode checks ---
     # test_config.yml defines local mode with an empty oim_server_ip.  Keep
     # validation self-contained by using the config already loaded above.

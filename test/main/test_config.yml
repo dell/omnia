@@ -72,6 +72,20 @@ clone_path: "/root/omnia"
 #   - OMNIA_VENV_PATH
 
 # =============================================================================
+# CLEANUP  (fvt/cleanup, test_deploy_cleanup; destructive, explicit only)
+# =============================================================================
+# cleanup_all: true | false (default: false).
+#   false: omnia.sh --cleanup. Removes the Omnia venv, /etc/omnia/omnia.env,
+#          omnia-cli and the dependency cache; runtime data under
+#          OMNIA_DATA_PATH (input, output, logs) is kept.
+#   true:  omnia.sh --cleanup --all --skip-approval. Also removes every
+#          domain's input and log artifacts and the whole OMNIA_DATA_PATH
+#          (credential stores included). omnia.sh refuses, and removes
+#          nothing, while a domain still holds deployed state or log/output
+#          files: run each domain's cleanup first.
+cleanup_all: false
+
+# =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.

@@ -12,7 +12,7 @@ Build custom RPM packages for Omnia components. Currently supports LDMS (OVIS) R
 ./build_rpm.sh
 
 # Specify LDMS version
-./build_rpm.sh -v 4.5.2 -u <SLURM_REPO_URL> -n <SLURM_REPO_NAME>
+./build_rpm.sh -v 4.5.3 -u <SLURM_REPO_URL> -n <SLURM_REPO_NAME>
 ```
 
 ## Directory Layout
@@ -31,7 +31,7 @@ src/telemetry/rpm_build/
 ## How It Works
 
 1. **`build_rpm.sh`** clones the [OVIS repository](https://github.com/ovis-hpc/ovis.git) at the specified version tag
-2. **`start_build_container.rockylinux10.bash`** launches a Rocky Linux 10 Podman container with the OVIS source mounted
+2. **`start_build_container.rockylinux10.bash`** launches a Rocky Linux 10.2 (`rockylinux:10.2`) Podman container with the OVIS source mounted
 3. Inside the container, **`build_ldms.rockylinux10.bash`** compiles LDMS and produces the RPM
 
 The build runs inside a container to ensure a clean, reproducible environment.
@@ -51,7 +51,7 @@ No separate scripts are needed — the same `start_build_container.rockylinux10.
 
 | Parameter | Flag | Default | Description |
 |-----------|------|---------|-------------|
-| LDMS version | `-v`, `--version` | `4.5.2` | OVIS LDMS version tag to build |
+| LDMS version | `-v`, `--version` | `4.5.3` | OVIS LDMS version tag to build |
 | Slurm repo URL | `-u`, `--url` | — | YUM repo URL for Slurm (required for Slurm metrics) |
 | Slurm repo name | `-n`, `--name` | — | YUM repo name for Slurm |
 
@@ -63,13 +63,38 @@ No separate scripts are needed — the same `start_build_container.rockylinux10.
 ## Prerequisites
 
 - **Podman** installed on the build host
-- Internet access to clone OVIS and pull the Rocky Linux 10 base image
+- Internet access to clone OVIS and pull the Rocky Linux 10.2 base image
 - (Optional) Slurm YUM repository URL for Slurm metrics support
 
 ## Output
 
 The built RPM is produced inside the container under the OVIS build directory.
 Bind-mounted paths ensure the output is accessible on the host after the build completes.
+
+Each LDMS version is cloned into its own directory, `$HOME/ovis-code/ovis-<LDMS_VERSION>`,
+and the RPM is written there, e.g.:
+
+```
+~/ovis-code/ovis-4.5.3/ovis-ldms-4.5.3.x86_64.rpm
+```
+
+If that directory already exists at a different tag, the build stops instead of
+silently rebuilding the old version.
+
+The package is named `ovis-ldms-<LDMS_VERSION>.<arch>.rpm`
+(e.g. `ovis-ldms-4.5.3.x86_64.rpm`).
+
+## Build Input Integrity
+
+- `epel-release` is installed only from the Rocky Linux repository (GPG-verified
+  by dnf), not downloaded by URL.
+- `fpm` 1.15.1 and `dotenv` 2.8.1 are fetched from `https://rubygems.org` only
+  and checked against pinned SHA-256 values (`GEM_CHECKSUMS` in
+  `build_ldms.rockylinux10.bash`) before installation. A mismatch stops the build.
+  To change a gem version, update the version and its hash; get the hash from
+  `https://rubygems.org/api/v1/versions/<gem>.json` (`sha` field).
+- fpm's transitive gem dependencies are resolved from the same pinned source but
+  are not hash-checked.
 
 ## Relationship to Container Builds
 

@@ -16,11 +16,12 @@
 #!/usr/bin/env python3
 """Generate updated catalog_rhel.json from input/config directory."""
 
+import argparse
 import csv
 import json
+import logging
 import os
 import re
-import argparse
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -492,7 +493,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[
         is_infra = bool(bundles & _INFRA_BUNDLES)
         is_misc = _MISC_BUNDLE in bundles
         is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
-        has_base_os_bundle = bool(bundles & _BASE_OS_BUNDLES)
+        has_baseos_bundle = bool(bundles & _BASE_OS_BUNDLES)
 
         # --- Infrastructure ---
         if is_infra:
@@ -515,7 +516,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[
         if is_os_layer_bundle and has_os_roles and key in package_id_map:
             func_pkg_id = package_id_map[key]
             functional_packages[func_pkg_id] = create_package_entry(pkg_data)
-            # Also add to OS so adapter_policy can generate ldms.json from base_os.json
+            # Also add to OS so adapter_policy can generate ldms.json from baseos.json
             pkg_name = pkg_data['name']
             pkg_type = pkg_data['type']
             pkg_version = pkg_data.get('version') or pkg_data.get('tag')
@@ -527,7 +528,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[
         # A package goes to BaseOS if:
         #   (a) it belongs to at least one non-functional, non-infra bundle, OR
         #   (b) it does not belong to any functional or infra bundle at all
-        if has_base_os_bundle or (not is_functional and not is_infra):
+        if has_baseos_bundle or (not is_functional and not is_infra):
             pkg_name = pkg_data['name']
             pkg_type = pkg_data['type']
             pkg_version = pkg_data.get('version') or pkg_data.get('tag')
@@ -772,13 +773,22 @@ def create_infra_package_entry(pkg_data) -> dict[str, Any]:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate catalog_rhel.json from input/config')
+    _project = os.getenv('OMNIA_PROJECT_NAME', 'project_default')
+    if (
+        not _project
+        or _project in ('.', '..')
+        or os.path.basename(_project) != _project
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
+    ):
+        logging.warning("Invalid OMNIA_PROJECT_NAME; using project_default")
+        _project = 'project_default'
     parser.add_argument(
         '--base-dir',
         default=os.path.join(
             os.getenv('OMNIA_DATA_PATH', '/opt/omnia'),
             'build_stream',
             'input',
-            os.getenv('OMNIA_PROJECT_NAME', 'project_default'),
+            _project,
         ),
         help='Project base directory containing input/ and build_stream/ folders',
     )

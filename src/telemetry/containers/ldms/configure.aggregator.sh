@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 echo "[>>] configure"
-CFLAGS="-std=gnu17 -ggdb3 -O0" \
+CFLAGS="-std=gnu17 -ggdb3 -O0 -DDCGM_PUBLIC_API" \
 CYTHON=cython3 \
 ./configure \
  --prefix="/opt/ovis-ldms" \

@@ -24,11 +24,14 @@ PING_RETRY_DELAY_SECONDS = 5
 SSH_RETRIES = 3
 SSH_RETRY_DELAY_SECONDS = 10
 
-KUBERNETES_TEST_IMAGE_DEFAULT = "docker.io/library/busybox:1.36"
+KUBERNETES_TEST_IMAGE_DEFAULT = "docker.io/library/busybox:1.38"
 KUBERNETES_WAIT_TIMEOUT_SECONDS = 300
 RECOVERY_WAIT_TIMEOUT_SECONDS = 900
 RECOVERY_POLL_SECONDS = 15
 SLURM_JOB_TIMEOUT_SECONDS = 180
+# Node states in which a targeted job can start or queue for a bounded time; a node in any
+# other state (down, drained, unknown, missing) would keep the job pending (ReqNodeNotAvail).
+SLURM_JOB_READY_STATES = ("idle", "mix", "mixed", "alloc", "allocated", "comp", "completing")
 SLURM_ACCOUNTING_TIMEOUT_SECONDS = 30
 SLURM_ACCOUNTING_POLL_SECONDS = 2
 SLURM_TEST_JOB_COMMAND = "hostname -s"
@@ -327,6 +330,11 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl version -o json"
     ),
     "kubeadm_version": "kubeadm version -o short",
+    "kubeadm_token_list": "kubeadm token list",
+    "join_file_stat": "stat -c '%%a %%U %%G' %s",
+    "join_file_line_count": "wc -l < %s",
+    "join_file_content": "cat %s",
+    "join_refresh_script": "bash %s",
     "kubelet_version": "kubelet --version",
     "crio_version": "crio --version",
     "kubernetes_namespace_create": (
@@ -435,7 +443,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
     "slurm_nodes": "scontrol show nodes --oneliner",
     "slurm_partitions": "sinfo --noheader --Node --format='%N|%P|%T|%a'",
-    "slurm_node_state": "sinfo --noheader --nodes=%s --format='%T'",
+    "slurm_node_state": "sinfo --noheader --nodes=%s --format='%%T'",
     "slurm_srun_node": (
         "timeout 60 srun --nodes=1 --ntasks=1 --nodelist=%s --immediate=30 "
         '/bin/sh -c \'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; '
@@ -493,7 +501,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "sinfo --noheader --nodes=%s --format='%%T' | head -1"
     ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
-    "slurm_cancel_job": "scancel %s",
+    "slurm_cancel_job": "timeout 30 scancel %s",
     "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
@@ -666,10 +674,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "find %s -type f -exec sha256sum {} + 2>/dev/null | sort"
     ),
     "hpc_benchmarks_run_pull_script_bg": (
-        "nohup timeout %s %s %s >%s 2>&1 & echo $!"
+        "nohup bash -c 'timeout %s %s %s >%s 2>&1; echo $? >%s.exitcode' &>/dev/null & echo $!"
     ),
     "hpc_benchmarks_wait_pid": (
-        "tail --pid=%s -f /dev/null 2>/dev/null; wait %s 2>/dev/null; echo $?"
+        "tail --pid=%s -f /dev/null 2>/dev/null; cat %s.exitcode 2>/dev/null || echo 1"
     ),
     "coresmd_container_ps": (
         "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
@@ -795,6 +803,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "grep -v -E '\\.(pyc|pem|pub|crt|key)$' | head -20"
     ),
     "minimal_os_ldms_service_state": "systemctl is-active ldmsd",
+    # ── Additional cloud-init: compatibility / idempotency ─────────────
+    "aci_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
     # ── DCGM / CUDA verification ──────────────────────────────────────
     "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
     "dcgm_cuda_version": (

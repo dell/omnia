@@ -6,6 +6,9 @@
 """Isolated package-manager cache paths for Repo Manager contexts."""
 
 import os
+import re
+
+_CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def get_package_manager_cache_path(repo_store_path, package_manager, os_type,
@@ -14,6 +17,12 @@ def get_package_manager_cache_path(repo_store_path, package_manager, os_type,
     values = (package_manager, os_type, os_version, architecture)
     if any(not str(value or "").strip() for value in values):
         raise ValueError("Package-manager cache context values must not be empty")
+    for value in values:
+        if _CONTROL_CHAR_PATTERN.search(str(value)):
+            raise ValueError(
+                "Package-manager cache context values cannot contain "
+                "control characters"
+            )
     return os.path.join(
         repo_store_path, ".data", "package_manager_cache",
         str(package_manager), str(os_type), str(os_version), str(architecture)

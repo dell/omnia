@@ -36,31 +36,22 @@ ENABLE_UT: bool = False
 # =====================================================================
 
 FVT_TAGS: List[str] = [
-    "buildstream_install",
-    "build_pipeline",
-    "deploy_pipeline",
-    "cadence_pipeline",
-    "automatic_cleanup",
-    "buildstream_cleanup",
+    "prepare_base",
+    "precheck",
+    "prepare",
+    "execute",
+    "cleanup",
 ]
 
 # A no-tag FVT command follows this lifecycle.  ``test`` performs
 # exec + verify for each scenario before advancing to the next one.
+# No default marker: without --marker every collected test runs.
 ALL_EXEC_TAGS: List[str] = [
-    "buildstream_install",
-    "cadence_pipeline",
+    "precheck",
+    "prepare",
+    "execute",
 ]
-ALL_EXEC_MARKER: str = "sanity"
-
-# Named lifecycle groups use the same ordered exec + verify engine as the
-# default lifecycle. They are selected before normal tag dispatch in _run.py.
-NAMED_LIFECYCLES: Dict[str, List[str]] = {
-    "build_deploy_lifecycle": [
-        "buildstream_install",
-        "build_pipeline",
-        "deploy_pipeline",
-    ],
-}
+ALL_EXEC_MARKER: str = ""
 
 # =====================================================================
 # Pytest markers supported by this domain
@@ -68,8 +59,15 @@ NAMED_LIFECYCLES: Dict[str, List[str]] = {
 
 MARKERS: List[str] = [
     "sanity",
-    "manual",
     "deploy",
+    "pipeline",
+    "build_pipeline",
+    "deploy_pipeline",
+    "cadence",
+    "cleanup_pipeline",
+    "automatic_cleanup",
+    "automatic_execution",
+    "manual_execution",
     "nft",
     "resilience",
     "security",
@@ -81,38 +79,29 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "buildstream_install": ["health", "buildstream_install"],
-    "buildstream_cleanup": [
-        "gitlab_cleanup",
-        "buildstream_cleanup",
-        "cleanup_pipeline",
+    "prepare_base": ["readiness"],
+    "precheck": ["environment", "containers", "credentials"],
+    "prepare": ["build_stream"],
+    "execute": [
+        "gitlab_server",
+        "gitlab_runner",
+        "gitlab_project",
+        "build_automatic",
+        "build_manual",
+        "deploy_automatic",
+        "deploy_manual",
+        "cadence",
+        "auto_cleanup",
+        "pipeline_cleanup",
     ],
-    "build_pipeline": ["build_pipeline", "manual"],
-    "deploy_pipeline": ["deploy_pipeline", "manual"],
-    "cadence_pipeline": ["cadence_pipeline"],
-    "automatic_cleanup": ["automatic_cleanup"],
+    "cleanup": ["gitlab", "build_stream"],
 }
-
-# Explicit manual execution owns its trigger. This prevents the normal sanity
-# trigger at the tag root from being collected and reported as skipped.
-SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
-    "build_pipeline": ["manual"],
-    "deploy_pipeline": ["manual"],
-    "buildstream_cleanup": [
-        "gitlab_cleanup",
-        "buildstream_cleanup",
-        "cleanup_pipeline",
-    ],
-    "automatic_cleanup": ["automatic_cleanup"],
-}
-
-# Cleanup operations are destructive and have different targets. Require the
-# caller to select exactly one suite so GitLab cleanup, BuildStream cleanup,
-# and image cleanup-pipeline execution can never be mixed accidentally.
-REQUIRED_SUITE_TAGS: List[str] = ["buildstream_cleanup", "automatic_cleanup"]
 
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
 # =====================================================================
 
-EXCLUDE_TAGS: List[str] = ["buildstream_cleanup", "automatic_cleanup"]
+EXCLUDE_TAGS: List[str] = [
+    "prepare_base",
+    "cleanup",
+]

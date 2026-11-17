@@ -158,9 +158,18 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
             ig.transition_status(new_status)
 
     def list_by_status(
-        self, status: ImageGroupStatus, limit: int, offset: int
+        self,
+        status: ImageGroupStatus,
+        limit: int,
+        offset: int,
+        client_id: Optional[str] = None,
     ) -> Tuple[List[ImageGroup], int]:
-        """List ImageGroups by status with pagination."""
+        """List ImageGroups by status with pagination.
+
+        The in-memory (dev/test) store keeps no job ownership, so
+        ``client_id`` is accepted for interface parity and not applied.
+        """
+        del client_id
         filtered = [
             ig for ig in self._store.values()
             if ig.status == status
@@ -171,7 +180,7 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
         return page, total
 
     def list_post_built(
-        self, limit: int, offset: int
+        self, limit: int, offset: int, client_id: Optional[str] = None
     ) -> Tuple[List[ImageGroup], int]:
         """List ImageGroups in all post-BUILT states with pagination.
 
@@ -181,10 +190,13 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
         Args:
             limit: Maximum number of results.
             offset: Number of results to skip.
+            client_id: Accepted for interface parity; the in-memory store
+                keeps no job ownership, so it is not applied.
 
         Returns:
             Tuple of (image_groups_with_images, total_count).
         """
+        del client_id
         post_built_states = {
             ImageGroupStatus.BUILT,
             ImageGroupStatus.DEPLOYING,

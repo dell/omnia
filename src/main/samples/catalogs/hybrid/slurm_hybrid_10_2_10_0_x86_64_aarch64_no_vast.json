@@ -10,7 +10,6 @@
         "name": "os_rhel_10_2_x86_64",
         "components": [
           "baseos_group_10.2",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -79,7 +78,6 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group_10.0",
-          "image_builder_aarch64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -88,7 +86,6 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group_10.0",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -287,24 +284,6 @@
           "nvhpc"
         ]
       },
-      "image_builder_x86_64_group": {
-        "name": "image_builder_x86_64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for x86_64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
-        ]
-      },
-      "image_builder_aarch64_group": {
-        "name": "image_builder_aarch64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for AArch64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
-        ]
-      },
       "imagethrillhouse": {
         "name": "imagethrillhouse",
         "type": "group",
@@ -316,7 +295,7 @@
       },
       "baseos_group_10.0": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.0",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.0 multiarch cluster nodes",
@@ -359,7 +338,7 @@
       },
       "baseos_group_10.2": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.2",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.2 multiarch cluster nodes",
@@ -2039,22 +2018,6 @@
           }
         ]
       },
-      "docker_io/dellhpcomniaaisolution/image_build_aarch64": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-aarch64",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
       "iputils": {
         "name": "iputils",
         "packagetype": "rpm",
@@ -2071,22 +2034,6 @@
           {
             "architecture": "aarch64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/image_build_el10": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.2",
@@ -3582,7 +3529,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

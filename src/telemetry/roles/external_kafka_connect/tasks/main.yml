@@ -155,27 +155,48 @@
 # =============================================================================
 
 - name: Read Kafka cluster CA certificate
-  ansible.builtin.command: >-
-    kubectl get secret {{ kafka_cluster_ca_secret }} -n {{ kafka_namespace }}
-    -o jsonpath='{.data.ca\.crt}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - secret
+      - "{{ kafka_cluster_ca_secret }}"
+      - -n
+      - "{{ kafka_namespace }}"
+      - -o
+      - "jsonpath={.data.ca\\.crt}"
   register: _kafka_ca_crt_b64
   changed_when: false
   failed_when: _kafka_ca_crt_b64.rc != 0 or (_kafka_ca_crt_b64.stdout | trim | length == 0)
   no_log: true
 
 - name: Read Kafka client certificate
-  ansible.builtin.command: >-
-    kubectl get secret {{ kafka_client_secret }} -n {{ kafka_namespace }}
-    -o jsonpath='{.data.user\.crt}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - secret
+      - "{{ kafka_client_secret }}"
+      - -n
+      - "{{ kafka_namespace }}"
+      - -o
+      - "jsonpath={.data.user\\.crt}"
   register: _kafka_user_crt_b64
   changed_when: false
   failed_when: _kafka_user_crt_b64.rc != 0 or (_kafka_user_crt_b64.stdout | trim | length == 0)
   no_log: true
 
 - name: Read Kafka client key
-  ansible.builtin.command: >-
-    kubectl get secret {{ kafka_client_secret }} -n {{ kafka_namespace }}
-    -o jsonpath='{.data.user\.key}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - secret
+      - "{{ kafka_client_secret }}"
+      - -n
+      - "{{ kafka_namespace }}"
+      - -o
+      - "jsonpath={.data.user\\.key}"
   register: _kafka_user_key_b64
   changed_when: false
   failed_when: _kafka_user_key_b64.rc != 0 or (_kafka_user_key_b64.stdout | trim | length == 0)
