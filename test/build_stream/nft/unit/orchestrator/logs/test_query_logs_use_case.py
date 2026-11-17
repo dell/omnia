@@ -159,6 +159,16 @@ class TestTailSemantics:
         assert "hunter2" not in content
         assert REDACTED in content
 
+    def test_response_time_redaction_is_logged_as_missed_at_write_time(self, use_case):
+        """NFR-4: a catch by response-time redaction is reported as missed at write time."""
+        with patch("orchestrator.logs.use_cases.query_logs.log_secure_info") as logged:
+            use_case.execute(_cmd(stage="build-image"))
+        events = [call.args for call in logged.call_args_list]
+        caught = [a for a in events if "missed at write time" in a[1]]
+        assert caught and caught[0][0] == "warning"
+        assert "stage=build-image" in caught[0][1] and "lines_redacted=" in caught[0][1]
+        assert all("hunter2" not in a[1] for a in events)  # never the content
+
 
 class TestOwnership:
     """TC-UT-002."""

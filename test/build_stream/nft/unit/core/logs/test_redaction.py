@@ -210,6 +210,20 @@ class TestStreamingRedaction:
         assert plain == "ok: [oim] 10.5.0.1"
         assert not s1 and not s2
 
+    def test_redacted_patterns_are_counted_without_content(self, service):
+        """NFR-4: the stream state counts replaced patterns and never holds the content."""
+        state = service.new_stream_state()
+        service.redact_stream_line("ok: [oim] 10.5.0.1", state)
+        assert state.redacted_patterns == 0
+        service.redact_stream_line("token glpat-abc123secret", state)
+        assert state.redacted_patterns >= 1
+        before = state.redacted_patterns
+        service.redact_stream_line("\x2d----BEGIN RSA PRIVATE KEY-----", state)
+        service.redact_stream_line("MIIEowIBAAKCAQEA-body", state)
+        service.redact_stream_line("\x2d----END RSA PRIVATE KEY-----", state)
+        assert state.redacted_patterns >= before + 2  # key block lines count too
+        assert "glpat-abc123secret" not in repr(state)
+
     def test_multi_line_pem_block_redacted_across_calls(self, service):
         """A PEM key split over several streamed lines never leaks its body."""
         state = service.new_stream_state()
