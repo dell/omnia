@@ -119,10 +119,14 @@ catalog_facts_fail_msg: >-
 build_status_missing_fail_msg: >-
   build_status.yml not found at '{{ _build_status_path }}'.
   Run image_build_manager before orchestrator to generate build_status.yml.
+accepted_image_build_types:
+  - image-thrillhouse
+  - oci-image-ingest
 build_status_invalid_fail_msg: >-
   build_status.yml does not contain a successful, supported image build
-  and a valid S3 endpoint. Run image_build_manager successfully before
-  running Orchestrator.
+  and a valid S3 endpoint. Accepted image_build_type values:
+  {{ accepted_image_build_types | join(', ') }}. Run image_build_manager
+  (or the utils oci_image_ingest tag) successfully before running Orchestrator.
 boot_artifacts_fail_msg: |-
   Boot artifacts for '{{ functional_group_name }}' are not accessible from the OIM:
   {% for failure in _orchestrator_validations_boot_artifact_failures %}
