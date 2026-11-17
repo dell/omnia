@@ -22,6 +22,7 @@ supported_tags:
   - setup
   - collect
   - install_os
+  - oci_image_ingest
   - backup_oim_logs
   - slurm_config_backup
   - slurm_config_cleanup
@@ -29,6 +30,7 @@ supported_tags:
   - cleanup
   - cleanup_logs
   - cleanup_install_os
+  - cleanup_oci_image_ingest
   - cleanup_backup_oim_logs
   - cleanup_slurm_config_backups
   - upgrade
