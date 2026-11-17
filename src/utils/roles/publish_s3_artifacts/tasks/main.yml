@@ -51,7 +51,8 @@
 
     - name: Parse the uploaded object sizes
       ansible.builtin.set_fact:
-        _oci_s3_uploaded_sizes: "{{ _oci_s3_verify.results | map(attribute='stdout') | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
+        _oci_s3_uploaded_sizes: "{{ _oci_s3_verify.results | map(attribute='stdout')
+          | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
         _oci_s3_local_sizes: "{{ oci_ingest_artifacts | map(attribute='size_bytes') | map('int') | list }}"
 
     - name: Verify uploaded sizes match the local artifacts
@@ -72,7 +73,9 @@
           artifacts: "{{ oci_ingest_artifacts }}"
 
     - name: Upload the marker last
-      ansible.builtin.command: "s3cmd put --no-progress {{ oci_ingest_pull.workdir }}/{{ oci_ingest_marker_name }} s3://{{ _oci_s3_prefix }}/{{ oci_ingest_marker_name }}"
+      ansible.builtin.command: >-
+        s3cmd put --no-progress {{ oci_ingest_pull.workdir }}/{{ oci_ingest_marker_name }}
+        s3://{{ _oci_s3_prefix }}/{{ oci_ingest_marker_name }}
       changed_when: true
   rescue:
     - name: Remove partial objects of the failed mapping

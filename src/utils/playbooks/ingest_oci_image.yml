@@ -51,7 +51,7 @@
             name: validate_registry_connection
 
         - name: Ingest each image mapping
-          ansible.builtin.include_tasks: ingest_oci_image_mapping.yml
+          ansible.builtin.include_tasks: oci_image_ingest/ingest_oci_image_mapping.yml
           loop: "{{ oci_ingest_config.image_mappings }}"
           loop_control:
             loop_var: oci_ingest_mapping

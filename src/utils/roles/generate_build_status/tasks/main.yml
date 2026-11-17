@@ -47,7 +47,12 @@
         endpoint_url: "{{ oci_ingest_s3_endpoint | trim }}"
         bucket: "{{ oci_ingest_bucket }}"
       functional_group_images: >-
-        {% set out = [] %}{% for a in oci_ingest_status_arches %}{% set e = _oci_status_entries | selectattr('functional_group', 'match', '.*_' ~ a ~ '$') | list %}{% if e %}{% set _ = out.append({a: e}) %}{% endif %}{% endfor %}{{ out }}
+        {%- set out = [] -%}
+        {%- for a in oci_ingest_status_arches -%}
+        {%- set e = _oci_status_entries | selectattr('functional_group', 'match', '.*_' ~ a ~ '$') | list -%}
+        {%- if e -%}{%- set _ = out.append({a: e}) -%}{%- endif -%}
+        {%- endfor -%}
+        {{ out }}
       oci_sources: "{{ _oci_status_sources }}"
 
 - name: Write build_status.yml atomically

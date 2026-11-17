@@ -109,8 +109,10 @@
     oci_ingest_lock_dir: "{{ oci_ingest_base_workdir }}/.lock"
     oci_ingest_status_path: "{{ output_project_dir }}/build_status.yml"
     oci_ingest_s3_endpoint: >-
-      {{ 'https' if (lookup('ini', 'use_https section=default file=' ~ oci_ingest_s3cfg_path, errors='ignore') | default('False') | lower == 'true') else 'http' }}://{{
-      lookup('ini', 'host_base section=default file=' ~ oci_ingest_s3cfg_path) }}
+      {{ 'https'
+         if (lookup('ini', 'use_https section=default file=' ~ oci_ingest_s3cfg_path, errors='ignore')
+             | default('False') | lower == 'true')
+         else 'http' }}://{{ lookup('ini', 'host_base section=default file=' ~ oci_ingest_s3cfg_path) }}
     oci_ingest_results: []
 
 - name: Ensure base workdir exists

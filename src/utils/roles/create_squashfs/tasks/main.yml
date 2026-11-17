@@ -71,4 +71,8 @@
 - name: Expose artifact metadata
   ansible.builtin.set_fact:
     oci_ingest_artifacts: >-
-      {% set out = [] %}{% for r in _oci_artifact_stats.results %}{% set _ = out.append({'name': r.item, 'size_bytes': r.stat.size, 'sha256': r.stat.checksum}) %}{% endfor %}{{ out }}
+      {%- set out = [] -%}
+      {%- for r in _oci_artifact_stats.results -%}
+      {%- set _ = out.append({'name': r.item, 'size_bytes': r.stat.size, 'sha256': r.stat.checksum}) -%}
+      {%- endfor -%}
+      {{ out }}

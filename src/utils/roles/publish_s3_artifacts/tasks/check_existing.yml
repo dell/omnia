@@ -69,7 +69,8 @@
 
     - name: Parse the recorded object sizes
       ansible.builtin.set_fact:
-        _oci_marker_sizes: "{{ _oci_marker_info.results | map(attribute='stdout') | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
+        _oci_marker_sizes: "{{ _oci_marker_info.results | map(attribute='stdout')
+          | map('regex_replace', '(?s).*File size:\\s+(\\d+).*', '\\1') | map('int') | list }}"
       when: _oci_marker_info.results is defined
 
     - name: Decide whether the publication is complete
