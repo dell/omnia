@@ -29,6 +29,12 @@ An empty value ("" / []) clears the text or plain list in the file, so a value
 removed from user_inputs.yml is removed there too; it never changes a boolean,
 a number, a block or a list of items, and it never adds a new list item.
 
+PowerVault (powervault_config of storage_config.yml, a comment in the shipped file): the user
+gives ip (a list or comma separated), iscsi_initiator and volume_id; POWERVAULT_DEFAULTS fills the
+other keys. The item is merged like any list item (the key is created when the file has none).
+Without an ip the item is ignored and a block of an earlier run is removed; with an ip and no
+iscsi_initiator or volume_id the run stops and names the empty ones.
+
 Mount switch (vast_storage, nfs_slurm, nfs_k8s): without a source for the mount in
 user_inputs.yml, the whole shipped mount in storage_config.yml is commented out with a
 reversible marker, and the user's item for it is not merged (it would add a mount without a
@@ -40,9 +46,9 @@ define referenced storage").
 
 import csv
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .dataset_edit import (
     Change,
@@ -63,7 +69,31 @@ IDENTITY_KEYS = ("name", "cluster_name", "address", "subnet")
 # schema rejects an empty value: an empty value in user_inputs.yml removes them from the file.
 # ib_addr_mode: with it the orchestrator runs the IPoIB pipeline for the rows that have an
 # IB_NIC_NAME; without it the pipeline is skipped (a cluster without InfiniBand).
-REMOVE_WHEN_EMPTY = ("ib_addr_mode",)
+REMOVE_WHEN_EMPTY = ("ib_addr_mode", "powervault_config")
+# Keys the shipped file only has as a comment: created (an empty list that the items are
+# merged into) when user_inputs.yml gives a value, removed again when it is emptied.
+CREATE_WHEN_GIVEN = ("powervault_config",)
+# The user's values of a PowerVault. Without ip the item is ignored (no PowerVault); with an ip
+# the other two are required.
+POWERVAULT_REQUIRED = ("ip", "iscsi_initiator", "volume_id")
+# The other keys of a PowerVault item: the Slurm control node's /mnt/slurm with the MariaDB and
+# Slurm spool directories bound per host. A key given in user_inputs.yml overrides its default.
+POWERVAULT_DEFAULTS = {
+    "port": 3260,
+    "mount_point": "/mnt/slurm",
+    "fs_type": "xfs",
+    "mnt_opts": "defaults,_netdev,noatime",
+    "node_key": "local_hostname",
+    "node_mount_point": ["/var/lib/mysql", "/var/spool/slurm"],
+    "functional_group_prefix": ["slurm_control_node"],
+    "permissions": {"owner": "slurm", "group": "slurm", "mode": "0750"},
+}
+POWERVAULT_OPTIONAL = ("name", "dump_freq", "fsck_pass", "mount_params")
+# Path keys of omnia_config that may use $NAME / ${NAME} of omnia.env (the project folder differs
+# per installation); they are written as absolute paths, which the product requires.
+ENV_PATH_KEYS = ("csi_powerscale_driver_secret_file_path", "csi_powerscale_driver_values_file_path")
+ENV_DEFAULTS = {"OMNIA_DATA_PATH": "/opt/omnia", "OMNIA_PROJECT_NAME": "project_default"}
+_ENV_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
 # Mounts that are switched off in storage_config.yml when user_inputs.yml gives no source:
 # (mount name, label of the marker, title).
 SWITCHES = (
@@ -110,6 +140,11 @@ def merge_yaml(node: Any, wanted: Dict[str, Any], changes: List[Change], label: 
     for key, value in wanted.items():
         here = f"{where}.{key}" if where else str(key)
         file_key = _file_key(node, key)
+        if file_key is None and key in CREATE_WHEN_GIVEN and has_value(value):
+            node[key] = CommentedSeq()
+            file_key = key
+        elif file_key is None and key in REMOVE_WHEN_EMPTY and not has_value(value):
+            continue
         if file_key is None:
             raise EditError(f"{label}: '{here}' is not a key of this file (check the spelling)")
         current = node[file_key]
@@ -123,7 +158,8 @@ def merge_yaml(node: Any, wanted: Dict[str, Any], changes: List[Change], label: 
             merge_list(current, value, changes, label, here)
         elif key in REMOVE_WHEN_EMPTY and not has_value(value):
             del node[file_key]
-            changes.append((label, here, str(current), "(removed)"))
+            old = f"{len(current)} item(s)" if isinstance(current, list) else str(current)
+            changes.append((label, here, old, "(removed)"))
         else:
             set_value(node, file_key, typed(value, current), changes, label, where)
 
@@ -285,9 +321,45 @@ def _row_number(key: Any) -> int:
 RENDERERS = {"yaml": render_yaml, "env": render_env, "csv": render_csv_rows}
 
 
+def parse_env(text: str) -> Dict[str, str]:
+    """Return the KEY=value lines of an omnia.env text (references to earlier keys resolved).
+
+    ORCHESTRATOR_DATA_PATH and the other domain paths are commented out in the shipped file; the
+    orchestrator's is then OMNIA_DATA_PATH/orchestrator.
+    """
+    env = dict(ENV_DEFAULTS)
+    for line in text.splitlines():
+        match = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
+        if match:
+            value = match.group(2).split(" #", 1)[0].strip().strip("\"'")
+            env[match.group(1)] = _ENV_REF.sub(
+                lambda ref: env.get(ref.group(1) or ref.group(2), ref.group(0)), value)
+    env.setdefault("ORCHESTRATOR_DATA_PATH", f"{env['OMNIA_DATA_PATH']}/orchestrator")
+    return env
+
+
+def _expand_env_paths(node: Any, env: Dict[str, str], label: str) -> Any:
+    """Return ``node`` with $NAME / ${NAME} of omnia.env expanded in the ENV_PATH_KEYS values."""
+    if isinstance(node, list):
+        return [_expand_env_paths(item, env, label) for item in node]
+    if not isinstance(node, dict):
+        return node
+    result = {}
+    for key, value in node.items():
+        if key in ENV_PATH_KEYS and isinstance(value, str) and "$" in value:
+            unknown = sorted({ref.group(1) or ref.group(2) for ref in _ENV_REF.finditer(value)}
+                             - set(env))
+            if unknown:
+                raise EditError(f"{label}: {key}: {', '.join(unknown)} is not in omnia.env "
+                                f"(known: {', '.join(sorted(env))})")
+            value = _ENV_REF.sub(lambda ref: env[ref.group(1) or ref.group(2)], value)
+        result[key] = _expand_env_paths(value, env, label)
+    return result
+
+
 def render_target(text: str, target: Dict[str, Any], inputs: Dict[str, Any],
-                  changes: List[Change]) -> str:
-    """Return the new content of one target file."""
+                  changes: List[Change], env: Optional[Dict[str, str]] = None) -> str:
+    """Return the new content of one target file (``env``: the omnia.env this run writes)."""
     section = inputs
     for key in target["section"].split("."):
         section = (section or {}).get(key) if isinstance(section, dict) else None
@@ -303,7 +375,50 @@ def render_target(text: str, target: Dict[str, Any], inputs: Dict[str, Any],
             section = _without_mounts(section, off)
         user_mounts = isinstance(section, dict) and bool(section.get("mounts"))
         text = switch_mounts_key(text, user_mounts, changes, label)
+        section = _powervault_given(section, label)
+    if env and isinstance(section, dict):
+        section = _expand_env_paths(section, env, label)
     return RENDERERS[target["format"]](text, section or {}, changes, label)
+
+
+def _powervault_item(item: Dict[str, Any], number: int, label: str) -> Dict[str, Any]:
+    """Return the storage_config item of one PowerVault: the user's three values on top of
+    POWERVAULT_DEFAULTS (keys given in user_inputs.yml override the defaults)."""
+    given = {key: value for key, value in item.items() if has_value(value)}
+    unknown = sorted(set(given) - set(POWERVAULT_REQUIRED) - set(POWERVAULT_DEFAULTS)
+                     - set(POWERVAULT_OPTIONAL))
+    if unknown:
+        raise EditError(f"{label}: powervault_config item {number}: unknown key(s) "
+                        f"{', '.join(unknown)} (allowed: "
+                        f"{', '.join((*POWERVAULT_REQUIRED, *POWERVAULT_DEFAULTS))})")
+    empty = [key for key in POWERVAULT_REQUIRED if not has_value(item.get(key))]
+    if empty:
+        raise EditError(f"{label}: powervault_config item {number} has an ip, so it also needs "
+                        f"{', '.join(empty)} (leave ip empty for no PowerVault)")
+    ip = given["ip"]
+    addresses = [part.strip() for part in ip.split(",") if part.strip()] if isinstance(ip, str) \
+        else list(ip)
+    rest = {**POWERVAULT_DEFAULTS, **{key: value for key, value in given.items()
+                                      if key not in ("name", *POWERVAULT_REQUIRED)}}
+    return {"name": str(given.get("name") or f"powervault{number}"), "ip": addresses,
+            "port": rest.pop("port"), "iscsi_initiator": given["iscsi_initiator"],
+            "volume_id": given["volume_id"], **rest}
+
+
+def _powervault_given(section: Any, label: str) -> Any:
+    """Return the storage_config section with the PowerVault items that have an ip, complete.
+
+    An item without an ip is ignored (so ``powervault_config`` is removed or never created).
+    """
+    if not isinstance(section, dict) or "powervault_config" not in section:
+        return section
+    items = []
+    for number, item in enumerate(section["powervault_config"] or [], 1):
+        if not isinstance(item, dict):
+            raise EditError(f"{label}: powervault_config item {number} must be a mapping")
+        if has_value(item.get("ip")):
+            items.append(_powervault_item(item, number, label))
+    return {**section, "powervault_config": items}
 
 
 def _without_mounts(section: Any, names: List[str]) -> Any:

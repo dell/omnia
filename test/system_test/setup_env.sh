@@ -57,6 +57,11 @@
 #                            only field names are shown
 #   credential-json-provider | ./setup_env.sh --domain-creds-stdin
 #                            JSON keyed by domain, e.g. {"repo_manager": {...}}
+#   --stage-files            only with enable_powerscale_csi true: copy secret.yaml and
+#                            values.yaml (next to user_inputs.yml) to the paths of
+#                            omnia_config.yml, by default the orchestrator's project
+#                            input folder; both files must exist. Runs after the install,
+#                            which creates that folder (with no action it is the last step)
 #   --status                 the steps and the readiness checks, in a box
 #   Then: ./run_validation.sh svt_<theme> all
 #
@@ -129,6 +134,7 @@ while [ $# -gt 0 ]; do
         --configure)           set_action configure; shift ;;
         --cleanup)             set_action cleanup; shift ;;
         --install)             set_action install; shift ;;
+        --stage-files)         set_action files; shift ;;
         --status)              set_action status; shift ;;
         --set-domain-creds|--update-domain-creds|--domain-creds-stdin|--domain-creds-from-openbao)
             set_action creds; DRIVER_ARGS+=("--flag=$1"); shift ;;

@@ -39,6 +39,7 @@ from ..vars.pxeboot_vars import (
     RECOVERY_POLL_SECONDS,
     SLURM_COMPILER_PREFIX,
     SLURM_CONTROL_PREFIX,
+    SLURM_JOB_READY_STATES,
     SLURM_JOB_TIMEOUT_SECONDS,
     SLURM_LOGIN_PREFIX,
 )
@@ -51,6 +52,7 @@ from ._pxeboot_helpers import (
 )
 from ._workload_helpers import ldap_identity_skip as _ldap_identity_skip
 from ._workload_helpers import ldap_test_username as _ldap_username
+from ._workload_helpers import mapped_compute_readiness as _mapped_compute_readiness
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import require_functional as _require_functional
 from ._workload_helpers import slurm_compute_rows as _compute_rows
@@ -835,6 +837,19 @@ def _wait_job_state(host, control, job_id: str, expected: str) -> tuple[bool, st
     return False, last
 
 
+def _compute_not_ready_reason(readiness: dict) -> str:
+    """Return why a mapped compute node cannot run a targeted job soon ('' when it can).
+
+    A job pinned with --nodelist to a down, drained, unknown or unlisted node stays PENDING
+    (ReqNodeNotAvail), so such a node is reported instead of being submitted to.
+    """
+    states = {item.strip() for item in readiness["state"].split(",") if item.strip()}
+    availability = {item.strip() for item in readiness["availability"].split(",") if item.strip()}
+    if states <= set(SLURM_JOB_READY_STATES) and availability == {"up"}:
+        return ""
+    return f"state={readiness['state']}, availability={readiness['availability']}"
+
+
 def _check_slurm_role_pam_job_access(
     host,
     role_prefix,
@@ -1247,6 +1262,10 @@ def _check_slurm_role_ldap_jobs(
         if reason:
             return _skip(summary, reason)
         username = _ldap_username()
+        compute_readiness = {
+            item["row"]["HOSTNAME"]: item
+            for item in _mapped_compute_readiness(host, control, computes)
+        }
         workspace_info = _prepare_ldap_workspace(
             host,
             context,
@@ -1262,12 +1281,34 @@ def _check_slurm_role_ldap_jobs(
         for submit_row in submit_rows:
             target_results = []
             for compute_row in computes:
+                readiness = compute_readiness[compute_row["HOSTNAME"]]
+                not_ready = _compute_not_ready_reason(readiness)
+                if not_ready:
+                    failures.append(
+                        f"{submit_row['HOSTNAME']}->{compute_row['HOSTNAME']}"
+                    )
+                    target_results.append(
+                        {
+                            "row": compute_row,
+                            "job_id": "not submitted",
+                            "submitted": False,
+                            "state": readiness["state"],
+                            "completed": False,
+                            "allocated_node": "not allocated",
+                            "allocated_ok": False,
+                            "stdout": "none",
+                            "output_ok": False,
+                            "stderr": f"compute node is not ready: {not_ready}",
+                            "stderr_ok": False,
+                            "success": False,
+                        }
+                    )
+                    continue
                 command = _ldap_sbatch_command(
                     username,
                     workspace,
                     "hostname -s",
                     target_node=compute_row["HOSTNAME"],
-                    wait=True,
                 )
                 result = remote_command(host, submit_row, command)
                 output_lines = [
