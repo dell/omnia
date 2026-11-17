@@ -242,6 +242,34 @@ else
 
     if [ "$CSI_READY" -eq 1 ]; then
       echo "CSI PowerScale driver installed successfully."
+      # Apply NFS mount options to the node plugin through /etc/nfsmount.conf.
+      # StorageClass mountOptions are not used because the driver re-applies them
+      # on the bind-mount remount, where options such as rsize/wsize fail.
+      NFSMOUNT_CONF="/opt/omnia/{{ csi_powerscale_dir }}/nfsmount.conf"
+      if [ -f "$NFSMOUNT_CONF" ]; then
+        echo "===== Applying PowerScale CSI NFS mount options ====="
+        CM_RESULT=$(kubectl create configmap isilon-nfsmount-conf -n isilon \
+          --from-file=nfsmount.conf="$NFSMOUNT_CONF" --dry-run=client -o yaml | kubectl apply -f -)
+        echo "$CM_RESULT"
+        DRIVER_IDX=$(kubectl get ds isilon-node -n isilon \
+          -o jsonpath='{range .spec.template.spec.containers[*]}{.name}{"\n"}{end}' | grep -n '^driver$' | cut -d: -f1)
+        if [ -z "$DRIVER_IDX" ]; then
+          echo "WARNING: driver container not found in isilon-node DaemonSet. NFS mount options not applied."
+        elif ! kubectl get ds isilon-node -n isilon -o jsonpath='{.spec.template.spec.volumes[*].name}' | grep -qw omnia-nfsmount-conf; then
+          DRIVER_IDX=$((DRIVER_IDX - 1))
+          kubectl patch ds isilon-node -n isilon --type=json -p="[
+            {\"op\": \"add\", \"path\": \"/spec/template/spec/volumes/-\",
+             \"value\": {\"name\": \"omnia-nfsmount-conf\", \"configMap\": {\"name\": \"isilon-nfsmount-conf\"} } },
+            {\"op\": \"add\", \"path\": \"/spec/template/spec/containers/${DRIVER_IDX}/volumeMounts/-\",
+             \"value\": {\"name\": \"omnia-nfsmount-conf\", \"mountPath\": \"/etc/nfsmount.conf\", \"subPath\": \"nfsmount.conf\", \"readOnly\": true} }
+          ]"
+        elif echo "$CM_RESULT" | grep -qw configured; then
+          # subPath mounts are not refreshed in place; restart to pick up changed options
+          kubectl rollout restart daemonset isilon-node -n isilon
+        fi
+        kubectl rollout status daemonset isilon-node -n isilon --timeout=300s || \
+          echo "WARNING: isilon-node rollout did not complete. Verify /etc/nfsmount.conf in the driver container."
+      fi
       if [ -f "/opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml" ]; then
         kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml
         echo "PowerScale StorageClass applied successfully."

@@ -62,7 +62,8 @@
           {{ deployed_service_k8s_cluster.get(
              'csi_powerscale_driver_values_file_path', '') }}
         csi_powerscale_mount_options: >-
-          {{ (deployed_service_k8s_cluster.get('csi_powerscale_mount_options', '')
+          {{ (deployed_service_k8s_cluster.get('csi_powerscale_mount_options',
+                csi_powerscale_default_mount_options)
               | default('', true) | string | trim).split(',')
              | map('trim') | select | list }}
 

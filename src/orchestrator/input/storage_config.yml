@@ -56,8 +56,13 @@
 #                   Default: "noatime,nolock" (Kubernetes) and "defaults,_netdev" (Slurm)
 #                   PowerScale with RHEL 10.x clients: if Input/output errors occur with the
 #                   default 1 MiB transfer size, set for example
-#                   "noatime,nolock,rsize=1044480,wsize=1044480" (Kubernetes) or
-#                   "defaults,_netdev,rsize=1044480,wsize=1044480" (Slurm)
+#                   "noatime,nolock,rsize=524288,wsize=524288,nosharecache" (Kubernetes) or
+#                   "defaults,_netdev,rsize=524288,wsize=524288,nosharecache" (Slurm)
+#                   nosharecache makes the transfer size take effect even if the same
+#                   export is already mounted on the node. The kernel rounds rsize/wsize
+#                   down to a power of two, so values such as 1044480 become 524288.
+#                   PowerScale CSI volumes are configured separately through
+#                   csi_powerscale_mount_options in omnia_config.yml.
 #
 # Node-specific bind mounts (node_key and node_mount_point are paired):
 #   - node_key:         Per-node subdirectory isolation variable. Optional

@@ -186,10 +186,18 @@ slurm_cluster:
 # File path for the values.yml file which will contain the Powerscale driver configuration parameters.
 # csi_powerscale_driver_values_file_path: User need to download values.yaml file and fill required data.
 # Provided the path of the values.yaml file here.
-# csi_powerscale_mount_options: Optional comma-separated NFS mount options applied to
-# PowerScale CSI volumes through the ps01 StorageClass mountOptions. Leave empty to use
-# the kernel defaults. For RHEL 10.x clients that report Input/output errors on PowerScale
-# volumes with the default 1 MiB transfer size, use "rsize=1044480,wsize=1044480".
+# csi_powerscale_mount_options: Optional comma-separated NFS mount options for PowerScale
+# CSI volumes. Omnia writes them to /etc/nfsmount.conf in the CSI PowerScale node plugin
+# (isilon-node), so they apply when the driver mounts a volume. They are not set as ps01
+# StorageClass mountOptions, because the driver re-applies those on a bind-mount remount,
+# where options such as rsize/wsize fail and the volume cannot be mounted.
+# Default: "rsize=524288,wsize=524288,nosharecache". RHEL 10.x clients get Input/output
+# errors on PowerScale volumes at the negotiated 1 MiB transfer size (MySQL, for example,
+# cannot initialize). nosharecache is required so the transfer size is applied even when
+# other volumes from the same PowerScale are already mounted on the node.
+# Omitting the key also applies this default. Set "" to use the NFS client defaults.
+# Applies only to volumes mounted after the change; existing pods must be restarted
+# to remount their volumes.
 # mention configurable values
 
 # - k8s_crio_storage_size: Specifies the disk size allocated for CRI-O container storage.
@@ -228,6 +236,6 @@ service_k8s_cluster:
     enable_powerscale_csi: false
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
-    csi_powerscale_mount_options: ""
+    csi_powerscale_mount_options: "rsize=524288,wsize=524288,nosharecache"
     enable_k8s_ha: true
     virtual_ip_address: "172.16.107.1"

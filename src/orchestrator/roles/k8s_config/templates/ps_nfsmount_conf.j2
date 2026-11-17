@@ -1,0 +1,15 @@
+# Managed by Omnia. Do not edit on the node.
+# NFS client defaults for the Dell CSI PowerScale node plugin (isilon-node).
+# Rendered from service_k8s_cluster.csi_powerscale_mount_options in omnia_config.yml
+# and mounted into the driver container as /etc/nfsmount.conf, so mount.nfs applies
+# these options when the driver stages PowerScale volumes.
+[ NFSMount_Global_Options ]
+{% for opt in csi_powerscale_mount_options %}
+{% if '=' in opt %}
+{{ opt }}
+{% elif opt.startswith('no') %}
+{{ opt[2:] | capitalize }}=False
+{% else %}
+{{ opt | capitalize }}=True
+{% endif %}
+{% endfor %}
