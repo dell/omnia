@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Playbook timeout now kills the whole process group and bounds the log reader join, so orphaned ansible/ssh children cannot stall the watcher queue.
 - Stage logs are written at write time with Tier 1 redaction and published with mode 0644 (and the parent directory SELinux label) so the BSM container can read them. They are redacted of secrets but still contain operational data such as IPs and hostnames.
 - Playbook output is captured through a pipe (stdout+stderr merged), not `ANSIBLE_LOG_PATH`. Redacted lines are echoed to the unit stdout so `journalctl -u playbook-watcher` continues to show playbook output.
-- Stage log lines no longer carry Ansible's timestamp/pid prefix. Log consumers in the watcher (`extract_dictionary_hits`, validate report parsing) use line-anchored or key=value regexes and do not depend on the prefix.
+- Ansible playbook stage logs keep a timestamp and pid prefix (`<time> p=<pid> | `), added by the watcher after redaction; the validate stage log stays unprefixed because its report parser is line-anchored. Stage logs are flushed per line, so live tails and a watcher crash lose nothing.
 
 ## [2.3.0] - 2026-09-03
 

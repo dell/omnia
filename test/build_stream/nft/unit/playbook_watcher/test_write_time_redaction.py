@@ -26,8 +26,10 @@ Secret-looking values below are synthetic fixtures, not real credentials.
 """
 
 import importlib.util
+import re
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -202,7 +204,8 @@ def test_no_ansible_log_path_in_subprocess_env(tmp_path, monkeypatch):
     """execute_playbook must not hand ANSIBLE_LOG_PATH to the subprocess env."""
     captured = {}
 
-    def _fake_run(cmd, playbook_dir, env, timeout_seconds, log_file_path):  # pylint: disable=unused-argument
+    def _fake_run(  # pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
+            cmd, playbook_dir, env, timeout_seconds, log_file_path, timestamps=False):
         """Stand in for _run_playbook_with_redaction, recording the subprocess env."""
         captured["env"] = env
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -248,3 +251,50 @@ def test_write_time_redaction_throughput_budget(tmp_path):
     assert len(text.splitlines()) == 10000
     assert "10.0.0.5" in text
     assert elapsed < 2.0
+
+
+def test_playbook_lines_have_timestamp_and_pid_prefix(tmp_path):
+    """FR-3.1: playbook stage log lines keep a timestamp and pid, as the Ansible log did."""
+    log_path = tmp_path / "stage.log"
+    env = {k: v for k, v in WATCHER.os.environ.items() if k != "ANSIBLE_LOG_PATH"}
+    WATCHER._run_playbook_with_redaction(
+        _python_cmd("print('one'); print('two')"), str(tmp_path), env, 30, log_path,
+        timestamps=True,
+    )
+    lines = [line for line in log_path.read_text(encoding="utf-8").splitlines() if line]
+    assert len(lines) == 2
+    for line, body in zip(lines, ("one", "two")):
+        assert re.match(
+            r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} p=\d+ \| " + body + "$", line)
+
+
+def test_validate_style_output_stays_unprefixed_for_the_report_parser(tmp_path):
+    """The validate report parser is line-anchored, so by default no prefix is added."""
+    body = ("print('  Suite       : buildstream'); print('FAILED test_x - assert 0'); "
+            "print('  3 passed, 1 failed, 0 skipped / 4 total')")
+    _, text = _run(tmp_path, _python_cmd(body))
+    assert re.search(r"(?m)^FAILED (.+)$", text)
+    assert re.search(r"(?m)^\s*Suite\s*:\s*buildstream", text)
+    assert re.search(r"(?m)^\s*(\d+) passed,\s*(\d+) failed", text)
+
+
+def test_log_is_flushed_per_line_while_running(tmp_path):
+    """A live reader sees each line before the playbook ends, not after an 8 KB buffer."""
+    log_path = tmp_path / "stage.log"
+    env = {k: v for k, v in WATCHER.os.environ.items() if k != "ANSIBLE_LOG_PATH"}
+    body = ("import sys,time; print('early line', flush=True); time.sleep(3); print('late')")
+    seen = {}
+
+    def _watch():
+        deadline = time.monotonic() + 2.5
+        while time.monotonic() < deadline:
+            if log_path.exists() and "early line" in log_path.read_text(encoding="utf-8"):
+                seen["early"] = time.monotonic()
+                return
+            time.sleep(0.05)
+
+    watcher = threading.Thread(target=_watch)
+    watcher.start()
+    WATCHER._run_playbook_with_redaction(_python_cmd(body), str(tmp_path), env, 30, log_path)
+    watcher.join()
+    assert "early" in seen, "line was not visible while the process was still running"

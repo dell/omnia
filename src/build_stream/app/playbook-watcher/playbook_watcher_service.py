@@ -1272,6 +1272,7 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
     env: Dict[str, str],
     timeout_seconds: int,
     log_file_path: Path,
+    timestamps: bool = False,
 ) -> int:
     """Run ansible-playbook, capturing output and redacting Tier 1 secrets at write time.
 
@@ -1297,6 +1298,9 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
         env: Subprocess environment; MUST NOT contain ``ANSIBLE_LOG_PATH``.
         timeout_seconds: Hard wall-clock timeout for the subprocess.
         log_file_path: Sanitized absolute domain log path to write.
+        timestamps: Prefix every line with ``<time> p=<pid> | `` (the Ansible log
+            format). Only for Ansible playbook runs: the validate report parser
+            reads the log with line-anchored patterns and needs unprefixed lines.
 
     Returns:
         The subprocess exit code.
@@ -1339,7 +1343,9 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
                     )
                     if line_suppressed:
                         suppressed["count"] += 1
-                    log_file.write(f"{sanitized}\n")
+                    prefix = _log_prefix(getattr(proc, "pid", 0)) if timestamps else ""
+                    log_file.write(f"{prefix}{sanitized}\n")
+                    log_file.flush()
                     _echo_to_journal(sanitized)
                 log_file.flush()
             except (ValueError, OSError):
@@ -1359,6 +1365,17 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
 
     _log_suppressed_lines(suppressed["count"])
     return proc.returncode
+
+
+def _log_prefix(pid: int) -> str:
+    """Return the timestamp and pid prefix of a stage log line.
+
+    Ansible's own log file carried ``<time> p=<pid> | ``; the captured stdout does not,
+    so the watcher adds it (ER-BSM-003 FR-3.1: logs keep timestamps). Added after
+    redaction, so it never reaches the redaction service.
+    """
+    now = datetime.now()
+    return f"{now:%Y-%m-%d %H:%M:%S},{now.microsecond // 1000:03d} p={pid} | "
 
 
 def _echo_to_journal(line: str) -> None:
@@ -1576,7 +1593,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # stdout/stderr stream is redacted line-by-line and written to
         # log_file_path; no unsanitized byte reaches disk.
         returncode = _run_playbook_with_redaction(
-            cmd, playbook_dir, env, timeout_seconds, log_file_path
+            cmd, playbook_dir, env, timeout_seconds, log_file_path, timestamps=True
         )
 
         if not log_file_path.exists():
