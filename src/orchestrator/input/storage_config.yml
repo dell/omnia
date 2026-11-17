@@ -171,7 +171,7 @@ mounts:
 # PowerScale profile (powerscale_nfs):
 #   RHEL 10.x clients can get Input/output errors on PowerScale at the default
 #   1 MiB NFS transfer size. This profile sets rsize/wsize to 512 KiB on the
-#   main mount and on the per-node sub-mounts, for Kubernetes and Slurm. Example:
+#   per-node sub-mounts, for Kubernetes and Slurm. Example:
 #     - name: "nfs_k8s"
 #       source: "<powerscale_ip>:/ifs/<path>"
 #       mount_point: "/opt/omnia/k8s_mount"
@@ -199,7 +199,7 @@ mount_params:
   # PowerScale NFS share (Kubernetes or Slurm nfs_storage_name)
   powerscale_nfs:
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr,rsize=524288,wsize=524288,nosharecache"
+    mnt_opts: "nosuid,rw,sync,hard,intr"
     node_nfs_mnt_opts: "rsize=524288,wsize=524288,nosharecache"
 
 # -----------------------------Powervault-------------------------------------------
