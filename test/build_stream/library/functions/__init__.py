@@ -195,6 +195,30 @@ from library.functions.pipeline_steps_func import (
     verify_restart_node_results,
 )
 
+# --- Execute: pipeline log observability (ER-BSM-003, log_query suite) ---
+from library.functions.log_query_func import (
+    resolve_log_target,
+    verify_log_errors,
+    verify_log_full,
+    verify_log_job_metadata,
+    verify_log_scopes,
+    verify_log_stage_filter,
+    verify_log_tail,
+)
+from library.functions.log_redaction_func import verify_write_time_redaction
+from library.functions.log_ci_func import verify_ci_log_preview, verify_ci_log_templates
+from library.functions.log_fixture_func import (
+    release_log_fixture_job,
+    verify_log_concurrency_limit,
+    verify_log_full_truncation,
+    verify_log_job_ownership,
+    verify_log_missing_file,
+    verify_log_path_violation,
+    verify_log_rate_limit,
+    verify_log_response_redaction,
+    verify_log_unavailable_reasons,
+)
+
 # --- Validation ---
 from library.functions.validation_func import (
     validate_test_config,
@@ -400,6 +424,26 @@ __all__ = [
     "verify_oauth_client",
     "verify_repo_manager_status",
     "verify_restart_node_results",
+    # Execute: pipeline log observability (ER-BSM-003)
+    "release_log_fixture_job",
+    "resolve_log_target",
+    "verify_ci_log_preview",
+    "verify_ci_log_templates",
+    "verify_log_concurrency_limit",
+    "verify_log_errors",
+    "verify_log_full",
+    "verify_log_full_truncation",
+    "verify_log_job_metadata",
+    "verify_log_job_ownership",
+    "verify_log_scopes",
+    "verify_log_missing_file",
+    "verify_log_path_violation",
+    "verify_log_rate_limit",
+    "verify_log_response_redaction",
+    "verify_log_stage_filter",
+    "verify_log_tail",
+    "verify_log_unavailable_reasons",
+    "verify_write_time_redaction",
     # Validation
     "validate_test_config",
     "validate_all",

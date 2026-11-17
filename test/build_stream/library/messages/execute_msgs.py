@@ -269,6 +269,66 @@ STEP_MSGS: Dict[str, str] = {
         "IMAGE_GROUP_ID of the deploy pipeline"
     ),
     "verify_only_nothing": "verify-only mode: no {step} is performed for an existing job",
+    # --- log_query (ER-BSM-003 pipeline log observability) ---
+    "log_no_job": (
+        "No BuildStream job with stage logs is known in this run. HOW TO RUN IT: set "
+        "pipeline.build_job_id in test_config.yml to a completed build job (its deploy "
+        "adds the deploy, restart and validate logs), or run build_automatic (and "
+        "deploy_automatic) in the same run: ./run_validation.sh fvt_build_stream execute "
+        "verify --marker automatic_execution,log_observability"
+    ),
+    "log_no_target": (
+        "the log query target job was not resolved (see the 'log query target' test of "
+        "this suite)"
+    ),
+    "log_job_unreadable": (
+        "GET /api/v1/jobs/{job_id} returned HTTP {status}: the job does not exist, is "
+        "owned by another client or was cleaned (tombstoned). HOW TO FIX: give a job that "
+        "is not cleaned in pipeline.build_job_id (the cleanup suites delete their own jobs)"
+    ),
+    "log_feature_missing": (
+        "GET /api/v1/jobs/{job_id} has no has_log/log_lines stage fields: the BuildStream "
+        "API does not include ER-BSM-003. HOW TO FIX: deploy the current app tree and "
+        "restart omnia_build_stream and playbook-watcher.service"
+    ),
+    "log_no_logged_stage": (
+        "no playbook stage of job {job_id} reports has_log=true: the job ran before "
+        "ER-BSM-003 was deployed, or the watcher did not publish its logs. HOW TO FIX: run "
+        "a new build pipeline after restarting playbook-watcher.service"
+    ),
+    "log_mutation_disabled": (
+        "nft_allow_security_mutation is false: set nft_allow_security_mutation: true in "
+        "test_config.yml to let this test create one disposable job and plant fixture "
+        "stage logs on it"
+    ),
+    "log_pipelines_busy": (
+        "GitLab pipeline(s) {pipelines} are running: they share the pipeline client's "
+        "log query budget, so exhausting it would hide their CI log preview. Run this test "
+        "when no pipeline runs"
+    ),
+    "log_ci_no_log_notice": (
+        "{label}: stage {stage} has no published execution log, so its console must print "
+        "'[LOG PREVIEW] Execution log not yet available' and no preview. A failed job of "
+        "this kind is expected when its request was rejected before the playbook ran. "
+        "HOW TO FIX: check the after_script of this job and the BSM stage row"
+    ),
+    "log_ci_not_found": (
+        "no GitLab job of the newest {count} pipelines (and their child pipelines) "
+        "previews job {job_id}: the pipeline ran before the hosted_gitlab role pushed the "
+        "ER-BSM-003 CI templates. HOW TO FIX: rerun build_stream.yml --tags execute and "
+        "run a new pipeline"
+    ),
+    "log_concurrency_budget": (
+        "log_query_rate_limit ({rate}) does not allow more than log_query_max_concurrent "
+        "({concurrent}) requests per minute, so the concurrency limit cannot be exceeded"
+    ),
+    "log_concurrency_not_reached": (
+        "no request of {attempts} bursts of {count} parallel full=true requests returned "
+        "HTTP 503 (log_query_max_concurrent={concurrent}); the requests did not overlap"
+    ),
+    "log_fixture_job_failed": "cannot create the disposable log query job: {error}",
+    "log_fixture_failed": "cannot plant fixture {name} on stage {stage}: {error}",
+    "log_release_failed": "disposable job {job_id} was not fully reset: {error}",
     "step_ok": "{step} passed",
     "step_failed": "{step} failed: {count} check(s)",
     "step_skipped": "{step} skipped: {reason}",
