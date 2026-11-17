@@ -62,6 +62,11 @@ def _jwt_client_id(token: str) -> str:
         return ""
 
 
+def jwt_client_id(token: str) -> str:
+    """Return the OAuth client ID claim of a BSM access token ("" when unreadable)."""
+    return _jwt_client_id(token)
+
+
 def get_bsm_context(host) -> Dict[str, Any]:
     """Return the installed BSM endpoint, token, and authenticated client ID."""
     context = load_bsm_context(host)

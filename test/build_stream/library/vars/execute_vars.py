@@ -321,6 +321,155 @@ AUTO_CLEANUP_LOG_RE = {
 }
 
 # =============================================================================
+# PIPELINE LOG OBSERVABILITY (ER-BSM-003: GET /api/v1/jobs/{id}/logs, CI console)
+# =============================================================================
+# Contract source: src/build_stream/app/api/logs, orchestrator/logs, core/logs,
+# infra/logs and the after_script of the hosted_gitlab CI templates.
+BSM_API_LOGS_PATH = "/api/v1/jobs/{job_id}/logs"
+LOG_CORRELATION_HEADER = "X-Correlation-Id"
+# Per-job API log the BSM writes through log_secure_info (security events, audit).
+LOG_API_JOB_LOG = "{job_id}.log"
+LOG_SECURITY_EVENT = "Security event: log path violation"
+LOG_AUDIT_409 = "status=409"
+# core/logs/playbook_stages.py: only these stages run a playbook and have a log.
+LOG_PLAYBOOK_STAGES = ("create-local-repository", "build-image", "validate", "restart",
+                       "deploy")
+# Stages whose log is Ansible output (validate runs the test runner instead).
+LOG_ANSIBLE_STAGES = ("create-local-repository", "build-image", "restart", "deploy")
+# build_stream_config.yml operator inputs -> built-in default (common/config.py).
+LOG_INPUT_DEFAULTS = {
+    "log_tail_lines_default": 50,
+    "log_tail_lines_max": 10000,
+    "max_log_response_bytes": 10 * 1024 * 1024,
+    "log_query_rate_limit": 60,
+    "log_query_max_concurrent": 5,
+}
+LOG_CI_PREVIEW_KEY = "log_ci_preview_lines"
+LOG_CI_PREVIEW_VARIABLE = "BSM_LOG_TAIL_LINES"
+LOG_STAGE_PARAM_MAX = 64
+LOG_RATE_WINDOW = 60
+# Seconds added to the rate window and to Retry-After waits (clock skew, RTT).
+LOG_RATE_MARGIN = 2
+# API contract (status, detail.error, detail.message); {max} = log_tail_lines_max.
+LOG_API_ERRORS = {
+    "job_not_found": (404, "JOB_NOT_FOUND", "Job not found"),
+    "invalid_job_id": (400, "INVALID_JOB_ID", "Invalid job_id format"),
+    "stage_not_found": (404, "STAGE_NOT_FOUND", "Stage not found for job"),
+    "tail_range": (400, "INVALID_TAIL_LINES", "tail_lines must be between 1 and {max}"),
+    "full_and_tail": (400, "INVALID_PARAMETERS", "full and tail_lines are mutually exclusive"),
+    "path_violation": (409, "LOG_PATH_VIOLATION", "Log path violation"),
+    "not_text": (422, "LOG_CONTENT_UNREADABLE", "Stage log is not readable text"),
+    "not_available": (404, "LOG_NOT_AVAILABLE", "Log file not available for this stage"),
+    "not_yet_available": (404, "LOG_NOT_AVAILABLE", "Stage log not yet available"),
+    "rate_limited": (429, "RATE_LIMIT_EXCEEDED", "Rate limit exceeded"),
+    "busy": (503, "LOG_QUERY_BUSY", "Log query capacity exhausted; retry later"),
+    "missing_token": (401, "missing_token", ""),
+    "invalid_token": (401, "invalid_token", ""),
+    "insufficient_scope": (403, "insufficient_scope", ""),
+}
+# Scopes: the pipeline client (.gitlab-ci-build.yml registration) holds
+# catalog:read, catalog:write and job:write; the log route accepts job:read or
+# job:write, so a catalog-only token must be refused with 403.
+LOG_SCOPES_DENIED = ("catalog:read", "catalog:write")
+LOG_SCOPE_ALLOWED = "job:write"
+# FastAPI query validation (stage longer than 64, non-integer tail_lines).
+HTTP_UNPROCESSABLE = 422
+# core/logs/exceptions.py LogUnavailableReason values.
+LOG_REASON_MISSING = "MISSING"
+LOG_REASON_NOT_YET = "NOT_YET_AVAILABLE"
+LOG_REASON_NOT_RECORDED = "NOT_RECORDED"
+LOG_REASON_NOT_PUBLISHED = "NOT_PUBLISHED"
+LOG_REASON_NOT_TEXT = "NOT_TEXT"
+LOG_REDACTED = "***REDACTED***"
+LOG_REDACTION_SUPPRESSED = "[REDACTION ERROR \u2014 line suppressed]"
+# Tier 2 markers must never appear in execution logs (HLD 5.3.4).
+LOG_TIER2_MARKERS = ("<REDACTED_IP>", "<REDACTED_EMAIL>")
+# Tier 1 leak detectors for logs on disk (mirror core/logs/redaction_patterns.py:
+# a match means a secret the write-time pass should have replaced).
+LOG_SECRET_DETECTORS = {
+    "private key": re.compile(r"-----BEGIN (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----"),
+    "GitLab token": re.compile(
+        r"\b(?:glpat|glprt|glrt|gldt|glptt|glcbt|glimt|glagent|gloas|glsoat|glffct|glft)"
+        r"-[A-Za-z0-9_-]{8,256}"),
+    "JWT": re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}"),
+    "bearer token": re.compile(r"(?i)\bbearer\s{1,5}(?!\*\*\*REDACTED\*\*\*)[A-Za-z0-9._~+/=-]+"),
+    "URL credential": re.compile(
+        r"(?i)\b[a-z][a-z0-9+.-]{1,20}://[^\s:/@]{1,128}:(?!\*\*\*REDACTED\*\*\*@)[^\s@/]{1,256}@"),
+    "secret key=value": re.compile(
+        r"(?i)(?<![\w.-])[\"']?[\w.-]{0,40}?"
+        r"(?:password|passwd|pwd|secret|token|api[_-]?key|apikey|credential|private[_-]?key)"
+        r"[\w.-]{0,40}[\"']?\s{0,3}[:=]\s{0,3}"
+        r"(?![\"']?\*\*\*REDACTED\*\*\*)(?:\"[^\"\n]{0,4096}\"|'[^'\n]{0,4096}'|"
+        r"[^\s,;\"'}\])]{1,4096})"),
+}
+# Ansible's own log_path prefix: absent once the watcher captures stdout (PR #5809).
+LOG_ANSIBLE_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} p=\d+ u=\S+ n=")
+LOG_TASK_MARKER = "TASK ["
+LOG_PUBLISHED_MODE = "644"
+# build_stream_credentials.yml values checked against every stage log (never printed).
+LOG_KNOWN_SECRET_KEY_RE = re.compile(r"(?i)(password|token|secret)(?!.*_hash$)")
+LOG_KNOWN_SECRET_MIN_LENGTH = 8
+LOG_CI_SECRET_VARIABLES = ("BSM_CLIENT_SECRET", "GITLAB_API_TOKEN")
+# GitLab CI stage -> BSM stage previewed by after_script (non-playbook jobs: none).
+LOG_CI_STAGE_MAP = {
+    "configure-local-repository": "create-local-repository",
+    "build-images": "build-image",
+    "deploy": "deploy",
+    "restart": "restart",
+    "validate": "validate",
+}
+LOG_CI_NON_PLAYBOOK_STAGES = ("parse-catalog", "summary")
+LOG_CI_FINISHED = ("success", "failed")
+LOG_CI_SCAN_PIPELINES = 30
+LOG_CI_SCAN_DEPTH = 2
+LOG_CI_PREVIEW_BANNER = "Execution Log (last {lines} lines) - stage {stage}"
+LOG_CI_PREVIEW_RULE = "=" * 60
+LOG_CI_PREVIEW_NOTICE = "[LOG PREVIEW]"
+LOG_CI_JOB_MARKER = "/api/v1/jobs/{job_id}/logs"
+LOG_CI_TEMPLATES = {
+    "token request": "/api/v1/auth/token",
+    "client placeholders": "client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>",
+    "bearer placeholder": "Authorization: Bearer <TOKEN>",
+    "full log command": "/api/v1/jobs/{job_id}/logs?full=true'",
+}
+LOG_CI_STAGE_TEMPLATE = "/api/v1/jobs/{job_id}/logs?stage={stage}'"
+LOG_CI_SECRET_LEAKS = {
+    "JWT": LOG_SECRET_DETECTORS["JWT"],
+    "client secret": re.compile(r"client_secret=(?!<CLIENT_SECRET>|\$\{|\[MASKED\])[^&\s'\"]+"),
+}
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\r")
+# Disposable job (nft_allow_security_mutation) and its fixture logs.
+LOG_FVT_CLIENT_NAME = "omnia-fvt-log-query"
+LOG_FIXTURE_NAME_RE = re.compile(r"fvt_[a-z0-9_-]{1,64}\.log")
+# Stored paths written to job_stages.log_file_path (no quote can reach the SQL).
+LOG_STORED_PATH_RE = re.compile(r"/[A-Za-z0-9._/-]{1,500}")
+LOG_FOREIGN_CLIENT_ID = "bld_fvt_foreign_owner"
+CLIENT_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,128}")
+LOG_FIXTURE_WIDTH = 99
+# Large fixture for the concurrency check (full=true reads, redacts and returns it).
+LOG_CONCURRENCY_FIXTURE_BYTES = 4 * 1024 * 1024
+LOG_CONCURRENCY_FACTOR = 4
+LOG_CONCURRENCY_ATTEMPTS = 3
+LOG_HTTP_TIMEOUT = 120
+# Synthetic secrets: not real credentials.
+LOG_REDACTION_FIXTURE = (
+    "TASK [deploy : configure] host 192.0.2.10\n"
+    "password=cleartext-fvt\n"
+    '{"gitlab_api_token": "glpat-fvtfixture0001"}\n'  # gitleaks:allow - test fixture
+    "Authorization: Bearer eyJhbGciOiJSUzI1.eyJzdWIiOiJmdnQ.c2lnbmF0dXJl\n"  # gitleaks:allow - test fixture
+    "-----BEGIN RSA PRIVATE KEY-----\n"  # gitleaks:allow - test fixture
+    "MIIEfvtfixturebody\n"
+    "-----END RSA PRIVATE KEY-----\n"
+    f"already {LOG_REDACTED}\n"
+)
+LOG_REDACTION_SECRETS = ("cleartext-fvt", "glpat-fvtfixture0001",  # gitleaks:allow - test fixture
+                         "eyJhbGciOiJSUzI1", "MIIEfvtfixturebody")
+LOG_REDACTION_EXPECTED = ("host 192.0.2.10", f"password={LOG_REDACTED}",
+                          f"Authorization: Bearer {LOG_REDACTED}", f"already {LOG_REDACTED}")
+LOG_BINARY_FIXTURE = b"fvt line\n\x00\x01binary\n"
+LOG_PLAIN_FIXTURE = b"TASK [fvt : fixture] ok\nfvt fixture line\n"
+
+# =============================================================================
 # CLEANUP
 # =============================================================================
 
@@ -398,6 +547,24 @@ CMDS = {
         "\"${{OMNIA_VENV_PATH:+$OMNIA_VENV_PATH/bin/}}ansible-vault\" view {path}"
         " --vault-password-file {key}"
     ),
+    # --- Log observability fixtures (disposable job only, fvt_*.log names) ---
+    # Mode 0644 and the directory's SELinux label, as publish_stage_log sets them
+    # (chcon is skipped where SELinux is not available).
+    "log_write_b64": (
+        "mkdir -p {directory} && printf %s {data} | base64 -d > {path} && chmod 0644 {path}"
+        " && {{ chcon --reference={directory} {path} 2>/dev/null || true; }}"
+    ),
+    "log_fill": (
+        "mkdir -p {directory} && head -c {size} /dev/zero | tr '\\0' x | fold -w {width}"
+        " > {path} && chmod 0644 {path}"
+        " && {{ chcon --reference={directory} {path} 2>/dev/null || true; }}"
+    ),
+    "log_read_b64": "base64 -w0 {path}",
+    "log_remove": "rm -f {path}",
+    # Placeholders are quoted; the glob suffix stays outside the quotes.
+    "log_remove_fixtures": "rm -f {directory}/fvt_*.log",
+    "log_stat": "stat -c '%a|%C' {path}",
+    "log_domain_copies": "ls -1 {base}/*/{name} 2>/dev/null",
     "omnia_sh": "cd {workdir} && ./omnia.sh {arguments}",
     "ansible_playbook": (
         "set -a && . {env_file} && set +a && "
@@ -486,6 +653,14 @@ SQL = {
         "FROM image_groups ORDER BY created_at;"
     ),
     "auto_cleanup_statuses": "SELECT id, status FROM image_groups;",
+    # --- log observability (disposable FVT job only; values validated first) ---
+    "log_stage_set": (
+        "UPDATE job_stages SET stage_state='{state}', log_file_path={path} "
+        "WHERE job_id='{job_id}' AND stage_name='{stage}' RETURNING stage_name;"
+    ),
+    "log_job_owner_set": (
+        "UPDATE jobs SET client_id='{client_id}' WHERE job_id='{job_id}' RETURNING job_id;"
+    ),
     "jobs_tombstoned": "SELECT job_id, tombstoned FROM jobs WHERE job_id IN ({job_ids});",
     "auto_cleanup_audit_since": (
         "SELECT event_type, job_id, coalesce(details->>'image_group_id','') "
