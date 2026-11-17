@@ -194,6 +194,18 @@ def test_publish_keeps_domain_log_and_copies(log_root, domain_root):
     assert "[playbook-watcher] done" in domain_log.read_text(encoding="utf-8")
 
 
+def test_published_log_is_world_readable(log_root, domain_root):
+    """The BSM container needs read access to the published copy (mode 0644)."""
+    domain_log = domain_root / "orchestrator" / "deploy_x.yml_ts_attempt1.log"
+    domain_log.parent.mkdir(parents=True)
+    domain_log.write_text("PLAY\n", encoding="utf-8")
+    domain_log.chmod(0o600)
+
+    reported = WATCHER.publish_stage_log(domain_log, "job-9", ["done"])
+
+    assert (Path(reported).stat().st_mode & 0o777) == 0o644
+
+
 def test_publish_reports_domain_log_when_copy_fails(log_root, domain_root):
     """If the copy fails, the existing /var/log/omnia log is reported."""
     domain_log = domain_root / "x" / "a.log"
