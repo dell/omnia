@@ -79,6 +79,22 @@
       ansible.builtin.include_vars:
         file: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/vars/functional_group_classification.yml"
 
+    - name: Load functional_group_config.yml (ER-ORCH-009)
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['orchestrator_input_dir'] }}/functional_group_config.yml"
+      when:
+        - fg_operation in ['add', 'configure']
+      failed_when: false
+      register: _fg_config_load
+
+    - name: Set functional_group_config fact
+      ansible.builtin.set_fact:
+        functional_group_config: "{{ _fg_config_load.ansible_facts | default({}) }}"
+      when:
+        - fg_operation in ['add', 'configure']
+        - _fg_config_load is defined
+        - _fg_config_load.failed | default(false) | bool == false
+
     - name: Validate requested lifecycle operation
       ansible.builtin.assert:
         that:
@@ -95,6 +111,28 @@
           Unsupported configure_scope '{{ configure_scope }}'. Supported scopes
           are 'both', 'boot', and 'cloud_init'.
       when: fg_operation == 'configure'
+
+    - name: Select flexible functional groups
+      ansible.builtin.set_fact:
+        target_functional_groups: >-
+          {{ functional_groups
+             | selectattr('name', 'match', '^fg_')
+             | selectattr('name', 'equalto', fg_target_group)
+             | list
+             if fg_target_group is defined and fg_target_group | length > 0
+             else functional_groups
+                  | selectattr('name', 'match', '^fg_')
+                  | list }}
+
+    - name: Fail when a requested target is not a mapped flexible group
+      ansible.builtin.fail:
+        msg: >-
+          Requested flexible group '{{ fg_target_group }}' is not an fg_-prefixed
+          functional group in the active PXE mapping.
+      when:
+        - fg_target_group is defined
+        - fg_target_group | length > 0
+        - target_functional_groups | length == 0
 
     - name: Verify no mapped nodes remain before removal (FR-4.2)
       ansible.builtin.assert:
@@ -122,27 +160,28 @@
         - fg_operation == 'remove'
         - target_group_nodes | length > 0
 
-    - name: Select flexible functional groups
-      ansible.builtin.set_fact:
-        target_functional_groups: >-
-          {{ functional_groups
-             | selectattr('name', 'match', '^fg_')
-             | selectattr('name', 'equalto', fg_target_group)
-             | list
-             if fg_target_group is defined and fg_target_group | length > 0
-             else functional_groups
-                  | selectattr('name', 'match', '^fg_')
-                  | list }}
+    - name: Acquire project mutation lock (FR-5.1)
+      functional_group_lifecycle:
+        action: acquire_lock
+        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+        operation: "{{ fg_operation }}"
+        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
+        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+      register: _lifecycle_lock
+      when: target_functional_groups | length > 0
 
-    - name: Fail when a requested target is not a mapped flexible group
-      ansible.builtin.fail:
-        msg: >-
-          Requested flexible group '{{ fg_target_group }}' is not an fg_-prefixed
-          functional group in the active PXE mapping.
-      when:
-        - fg_target_group is defined
-        - fg_target_group | length > 0
-        - target_functional_groups | length == 0
+    - name: Start transition journal (FR-5.1)
+      functional_group_lifecycle:
+        action: start_journal
+        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+        operation: "{{ fg_operation }}"
+        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
+        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+        planned_stages: "{{ ['metadata', 'bss', 'smd_group'] if fg_operation == 'remove' else (['bss'] if configure_scope == 'boot' else (['metadata'] if configure_scope == 'cloud_init' else ['smd_group', 'bss', 'metadata'])) }}"
+      register: _lifecycle_journal
+      when: target_functional_groups | length > 0
 
     - name: Report resolved flexible targets
       ansible.builtin.debug:
@@ -150,6 +189,26 @@
           fg_operation={{ fg_operation }};
           {{ 'configure_scope=' + configure_scope + '; '
              if fg_operation == 'configure' else '' }}targets={{ target_functional_groups | map(attribute='name') | list }}
+
+    - name: Resolve functional group configuration for each target
+      ansible.builtin.set_fact:
+        resolved_fg_config: >-
+          {{ resolved_fg_config | default({}) | combine({
+               item.name: (item.name | resolve_functional_group_config(functional_group_config | default({})))
+             }) }}
+      loop: "{{ target_functional_groups }}"
+      loop_control:
+        loop_var: item
+      when:
+        - functional_group_config is defined
+        - fg_operation in ['add', 'configure']
+
+    - name: Report resolved configuration
+      ansible.builtin.debug:
+        msg: "Resolved config for {{ item.key }}: {{ item.value }}"
+      loop: "{{ resolved_fg_config | default({}) | dict2items }}"
+      when:
+        - resolved_fg_config is defined
 
   roles:
     # Add: publish OpenCHAMI group, Boot Service, and Metadata Service state
@@ -169,14 +228,14 @@
     # Remove: delete owned records using scoped OpenCHAMI reconciliation
     # primitives (FR-4.2). Order: metadata → BSS → SMD group. Recalculate
     # shared ssh/chrony groups from remaining groups.
-    - name: Remove flexible group records
+    - name: Prune metadata for removed group
       openchami_reconcile:
-        action: delete_groups
+        action: prune_metadata_groups
         cluster_uri: "{{ openchami_api_uri }}"
         access_token: "{{ ochami_env[cluster_env_key] }}"
         ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
         group_names: "{{ target_functional_groups | map(attribute='name') | list }}"
-      register: _group_delete
+      register: _metadata_prune
       when:
         - fg_operation == 'remove'
         - target_functional_groups | length > 0
@@ -193,14 +252,14 @@
         - fg_operation == 'remove'
         - target_functional_groups | length > 0
 
-    - name: Prune metadata for removed group
+    - name: Remove flexible group records
       openchami_reconcile:
-        action: prune_metadata_groups
+        action: delete_groups
         cluster_uri: "{{ openchami_api_uri }}"
         access_token: "{{ ochami_env[cluster_env_key] }}"
         ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
         group_names: "{{ target_functional_groups | map(attribute='name') | list }}"
-      register: _metadata_prune
+      register: _group_delete
       when:
         - fg_operation == 'remove'
         - target_functional_groups | length > 0
@@ -215,3 +274,24 @@
       when:
         - fg_operation == 'remove'
         - target_functional_groups | length > 0
+
+  post_tasks:
+    - name: Finish transition journal (FR-5.1)
+      functional_group_lifecycle:
+        action: finish_journal
+        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        terminal_result: succeeded
+      when:
+        - target_functional_groups | length > 0
+        - _lifecycle_journal is defined
+        - _lifecycle_journal.changed | default(false)
+
+    - name: Release project mutation lock (FR-5.1)
+      functional_group_lifecycle:
+        action: release_lock
+        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+      when:
+        - target_functional_groups | length > 0
+        - _lifecycle_lock is defined
+        - _lifecycle_lock.changed | default(false)
