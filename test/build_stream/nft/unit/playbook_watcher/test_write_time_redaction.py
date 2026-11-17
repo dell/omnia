@@ -198,6 +198,7 @@ def test_no_ansible_log_path_in_subprocess_env(tmp_path, monkeypatch):
         "job_id": job_id,
         "stage_name": "build-image",
         "playbook_name": "image_build_manager.yml",
+        "tags": "execute",
         "extra_vars": {"job_id": job_id},
     })
     assert result["status"] == "success"
