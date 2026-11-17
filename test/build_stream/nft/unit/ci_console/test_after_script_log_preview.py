@@ -208,26 +208,36 @@ def test_log_not_yet_available_returns_graceful_message(tmp_path, bsm_server):
 
 
 def test_no_job_id_skips_preview(tmp_path, bsm_server):
-    """With no BSM job associated, the preview is skipped entirely."""
+    """With no BSM job associated, a playbook stage skips the preview with a note."""
     proc = _run(tmp_path, "build", {
-        "CI_JOB_STAGE": "initialization",
+        "CI_JOB_STAGE": "build-images",
         "BSM_API_URL": bsm_server.url,
     })
     assert proc.returncode == 0
     assert "No BSM job associated" in proc.stdout
+    assert "Execution Log (last" not in proc.stdout
 
 
-def test_non_playbook_stage_prints_templates_without_preview(tmp_path, bsm_server):
-    """Non-playbook stages print CLI templates but no inline execution-log preview."""
-    proc = _run(tmp_path, "build", {
-        "CI_JOB_STAGE": "parse-catalog",
-        "JOB_ID": "job-1",
-        "BSM_API_URL": bsm_server.url,
-    })
+API_ONLY_STAGES = {
+    "build": ("initialization", "parse-catalog", "summary"),
+    "cadence": ("initialization", "parse-catalog", "summary"),
+    "deploy_child": ("summary",),
+}
+API_ONLY_CASES = [(key, stage) for key, stages in API_ONLY_STAGES.items() for stage in stages]
+
+
+@pytest.mark.parametrize("template_key,stage", API_ONLY_CASES)
+@pytest.mark.parametrize("with_job", [True, False])
+def test_api_only_stage_prints_nothing(tmp_path, bsm_server, template_key, stage, with_job):
+    """Stages that run no playbook have no execution log, so the hook prints nothing."""
+    env = {"CI_JOB_STAGE": stage, "BSM_API_URL": bsm_server.url}
+    if with_job:
+        env["JOB_ID"] = "job-1"
+    proc = _run(tmp_path, template_key, env)
     assert proc.returncode == 0
-    assert "Execution Log (last" not in proc.stdout  # no playbook stage => no preview
-    assert "jobs/job-1/logs?full=true" in proc.stdout  # full-log template still shown
-    assert "?stage=" not in proc.stdout  # no per-stage template for a non-playbook stage
+    assert proc.stdout == ""
+    assert proc.stderr == ""
+    assert _LogHandler.token_requests == 0  # no API call is made either
 
 
 @pytest.mark.parametrize("template_key", list(TEMPLATES))
