@@ -70,9 +70,13 @@ class StreamRedactionState:
     Attributes:
         in_key_block: True while the stream is between a PEM BEGIN marker and
             its matching END marker.
+        redacted_patterns: Number of redaction patterns that changed a line so far
+            (plus one per line inside a private-key block), for the per-file audit event.
+            It never holds the redacted content.
     """
 
     in_key_block: bool = False
+    redacted_patterns: int = 0
 
 
 class RedactionService:
@@ -133,11 +137,14 @@ class RedactionService:
             if state.in_key_block:
                 if PRIVATE_KEY_END.search(line):
                     state.in_key_block = False
+                state.redacted_patterns += 1
                 return REDACTED, False
             begin = PRIVATE_KEY_BEGIN.search(line)
             if begin and not PRIVATE_KEY_END.search(line, begin.end()):
                 state.in_key_block = True
-            return _apply_rules(line, rules), False
+            output, matches = _apply_rules_counted(line, rules)
+            state.redacted_patterns += matches
+            return output, False
         except (re.error, RecursionError, TypeError):
             return REDACTION_SUPPRESSED_LINE, True
 
@@ -181,6 +188,17 @@ def _apply_rules(line: str, rules: Sequence[RedactionRule]) -> str:
     for pattern, replacement in rules:
         line = pattern.sub(replacement, line)
     return line
+
+
+def _apply_rules_counted(line: str, rules: Sequence[RedactionRule]) -> Tuple[str, int]:
+    """Apply every rule to a single line; count the patterns that changed it."""
+    patterns = 0
+    for pattern, replacement in rules:
+        redacted = pattern.sub(replacement, line)
+        if redacted != line:
+            patterns += 1
+            line = redacted
+    return line, patterns
 
 
 def _leading_key_block_end(lines: Sequence[str]) -> int:

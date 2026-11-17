@@ -1360,10 +1360,12 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
             proc.wait()
             _finish_reader(reader, stop, proc)
             _log_suppressed_lines(suppressed["count"])
+            _log_redaction_summary(state.redacted_patterns, log_file_path)
             raise
         _finish_reader(reader, stop, proc)
 
     _log_suppressed_lines(suppressed["count"])
+    _log_redaction_summary(state.redacted_patterns, log_file_path)
     return proc.returncode
 
 
@@ -1412,6 +1414,19 @@ def _finish_reader(reader: Thread, stop: Event, proc: "subprocess.Popen") -> Non
         reader.join(READER_JOIN_TIMEOUT_SECONDS)
         log_secure_info(
             "warning", "Log reader did not drain after process exit; output truncated"
+        )
+
+
+def _log_redaction_summary(count: int, log_file_path: Path) -> None:
+    """Audit event: how many patterns write-time redaction replaced in one log file.
+
+    Only the count and the file name are logged, never the redacted content.
+    """
+    if count:
+        log_secure_info(
+            "info",
+            f"Write-time redaction applied: log_file={log_file_path.name}, "
+            f"redacted_patterns={count}",
         )
 
 

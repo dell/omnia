@@ -298,3 +298,25 @@ def test_log_is_flushed_per_line_while_running(tmp_path):
     WATCHER._run_playbook_with_redaction(_python_cmd(body), str(tmp_path), env, 30, log_path)
     watcher.join()
     assert "early" in seen, "line was not visible while the process was still running"
+
+
+def test_write_time_redaction_logs_pattern_count_per_file(tmp_path, monkeypatch):
+    """NFR-4: one audit event per log file with the redacted-pattern count, not the content."""
+    events = []
+    monkeypatch.setattr(WATCHER, "log_secure_info", lambda *a, **k: events.append(a))
+    body = "print('token glpat-abc123secret'); print('plain 10.5.0.1'); print('p\\x61ssword=leakedpw')"
+    _run(tmp_path, _python_cmd(body))
+    applied = [e for e in events if "Write-time redaction applied" in e[1]]
+    assert len(applied) == 1
+    assert "log_file=stage.log" in applied[0][1]
+    match = re.search(r"redacted_patterns=(\d+)", applied[0][1])
+    assert match and int(match.group(1)) >= 2
+    assert all("glpat-abc123secret" not in e[1] and "leakedpw" not in e[1] for e in events)
+
+
+def test_no_audit_event_when_nothing_was_redacted(tmp_path, monkeypatch):
+    """No redaction, no event: the log is not noisy for clean playbook output."""
+    events = []
+    monkeypatch.setattr(WATCHER, "log_secure_info", lambda *a, **k: events.append(a))
+    _run(tmp_path, _python_cmd("print('ok: [oim] 10.5.0.1')"))
+    assert not [e for e in events if "Write-time redaction applied" in e[1]]
