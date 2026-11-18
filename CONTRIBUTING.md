@@ -47,8 +47,7 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
 Gitleaks scans pull requests for passwords, API keys, tokens, and other
 credentials. If a secret is detected, the `Scan for secrets` check fails with
 exit code 1. Repository administrators must configure this check as required in
-the branch protection rules for `main` and `staging` to prevent merging when it
-fails.
+the branch protection rules for `main` to prevent merging when it fails.
 
 If the check fails:
 
@@ -65,7 +64,7 @@ Never allowlist a real credential.
 A GitHub workflow (`.github/workflows/credential-no-log.yml`) validates
 that credential-bearing module arguments and Ansible tasks declare `no_log`
 to prevent credential leakage in logs (CWE-532). This check runs automatically
-on pull requests to `main`, `staging`, and release branches.
+on pull requests to `main` and release branches.
 
 The check validates:
 - Custom module argument specs (`plugins/modules/*.py`): every argument whose
@@ -84,11 +83,23 @@ The check validates:
 The checker's own tests live in `.github/scripts/tests/` and run in the same
 workflow: `python -m pytest .github/scripts/tests`.
 
-## Omnia Branches and Contribution Flow
-Omnia development targets the repository's current default branch (`main`). Use
-short-lived feature or fix branches and merge changes through reviewed pull
-requests. Release branches and tags are maintained according to the applicable
-release plan.
+## Branching Strategy
+
+Omnia uses a simplified development workflow with `main` as the single source of truth for active development.
+
+### Development Workflow
+
+- **Main branch**: The primary development branch for all active development. All new features and defect fixes must be merged directly into `main` through reviewed pull requests.
+- **Feature branches**: All new features must be developed in dedicated feature branches (use `feature/<story-or-er-id>-<short-name>` naming convention) and merged directly into `main` once development, review, and validation are complete.
+- **Fix branches**: Defect fixes should be submitted directly to `main` using fix branches (use `fix/<issue-short-name>` naming convention), unless the fix is part of an ongoing feature, in which case it should be delivered through the corresponding feature branch.
+
+### Validation and Stability
+
+To ensure the stability of `main`, automated validation pipelines run against the branch to maintain code quality and enable faster delivery of new features and fixes.
+
+### Release Process
+
+Release branches and tags are maintained according to the applicable release plan. The staging branch is no longer maintained.
 
 ## Developer Certificate of Origin
 Contributions to Omnia must be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/):
