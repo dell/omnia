@@ -176,6 +176,117 @@ These cases verify combined cleanup functionality.
 
 ---
 
+## OCI Image Ingest Test Cases (ER-UTIL-001-registry-automation)
+
+These cases verify the OCI image ingest pipeline: declarative config validation,
+Harbor registry connectivity, credential management, OCI image pull via regctl,
+boot artifact extraction, SquashFS creation, S3 upload, build_status.yml
+generation, tag routing, cleanup, and Orchestrator acceptance.
+
+### Input Validation
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 101 | UTILS_FVT_OCI_IMAGE_INGEST_V001 | `test_oci_valid_harbor_config` | sanity | Config accepted with registries and image_mappings. |
+| 102 | UTILS_FVT_OCI_IMAGE_INGEST_V007 | `test_oci_config_without_credentials` | sanity | Config accepted; credentials from Vault file. |
+| 103 | UTILS_FVT_OCI_IMAGE_INGEST_V002 | `test_oci_unsupported_registry_type` | negative | Playbook rejects with "not yet supported". |
+| 104 | UTILS_FVT_OCI_IMAGE_INGEST_V003 | `test_oci_unsupported_operation` | negative | Playbook rejects with "not yet supported". |
+| 105 | UTILS_FVT_OCI_IMAGE_INGEST_V004 | `test_oci_credentials_in_config_rejected` | negative | Playbook rejects; credential value not echoed. |
+| 106 | UTILS_FVT_OCI_IMAGE_INGEST_V005 | `test_oci_missing_required_fields` | negative | Playbook rejects with missing field message. |
+| 107 | UTILS_FVT_OCI_IMAGE_INGEST_V006 | `test_oci_unresolved_registry_reference` | negative | Playbook rejects with unresolved reference. |
+
+### Registry Connection and Credentials
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 110 | UTILS_FVT_OCI_IMAGE_INGEST_V008 | `test_oci_harbor_auth_success` | sanity | Authentication succeeds via V2 API. |
+| 111 | UTILS_FVT_OCI_IMAGE_INGEST_V009 | `test_oci_invalid_credentials` | negative | Fails; no credential leakage. |
+| 112 | UTILS_FVT_OCI_IMAGE_INGEST_V010 | `test_oci_unreachable_endpoint` | negative | Fails within timeout. |
+| 113 | UTILS_FVT_OCI_IMAGE_INGEST_V011 | `test_oci_inaccessible_namespace` | negative | Namespace error before pull. |
+| 114 | UTILS_FVT_OCI_IMAGE_INGEST_V012 | `test_oci_credentials_in_vault` | sanity | Vault-encrypted with 0600. |
+| 115 | UTILS_FVT_OCI_IMAGE_INGEST_V013 | `test_oci_credentials_no_leakage` | functional | Zero credential occurrences. |
+| 116 | UTILS_FVT_OCI_IMAGE_INGEST_V014 | `test_oci_credentials_tag_conditional` | functional | No registry prompt for collect. |
+
+### Pipeline (Pull, Extraction, SquashFS, S3)
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 120 | UTILS_FVT_OCI_IMAGE_INGEST_V015 | `test_oci_image_pull_by_tag` | functional | Digest recorded in oci_sources. |
+| 121 | UTILS_FVT_OCI_IMAGE_INGEST_V016 | `test_oci_image_pull_by_digest` | functional | Digest matches requested. |
+| 122 | UTILS_FVT_OCI_IMAGE_INGEST_V017 | `test_oci_image_not_found` | negative | Reports missing image. |
+| 123 | UTILS_FVT_OCI_IMAGE_INGEST_V018 | `test_oci_architecture_mismatch` | negative | Rejected before extraction. |
+| 130 | UTILS_FVT_OCI_IMAGE_INGEST_V019 | `test_oci_boot_set_extracted` | functional | Kernel + initramfs in status. |
+| 131 | UTILS_FVT_OCI_IMAGE_INGEST_V020 | `test_oci_missing_kernel` | negative | Reports "kernel not found". |
+| 132 | UTILS_FVT_OCI_IMAGE_INGEST_V021 | `test_oci_missing_initramfs` | negative | Reports "initramfs not found". |
+| 133 | UTILS_FVT_OCI_IMAGE_INGEST_V022 | `test_oci_multiple_boot_sets` | negative | Fails listing candidates. |
+| 140 | UTILS_FVT_OCI_IMAGE_INGEST_V023 | `test_oci_squashfs_created` | functional | SquashFS in oci_sources. |
+| 141 | UTILS_FVT_OCI_IMAGE_INGEST_V024 | `test_oci_insufficient_storage` | negative | Pre-check error (partial). |
+| 142 | UTILS_FVT_OCI_IMAGE_INGEST_V025 | `test_oci_mksquashfs_failure` | negative | Error with exit code (partial). |
+| 150 | UTILS_FVT_OCI_IMAGE_INGEST_V026 | `test_oci_s3_upload_success` | functional | boot-images/ paths in status. |
+| 151 | UTILS_FVT_OCI_IMAGE_INGEST_V027 | `test_oci_s3_unreachable` | negative | Handled safely. |
+| 152 | UTILS_FVT_OCI_IMAGE_INGEST_V028 | `test_oci_s3_partial_upload` | negative | No inconsistent state. |
+
+### Advanced Extraction and Platform
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 160 | UTILS_FVT_OCI_IMAGE_INGEST_V038 | `test_oci_whiteout_semantics` | functional | Pipeline completes with valid squashfs. |
+| 161 | UTILS_FVT_OCI_IMAGE_INGEST_V039 | `test_oci_multiplatform_select` | functional | Correct platform in oci_sources. |
+| 162 | UTILS_FVT_OCI_IMAGE_INGEST_V040 | `test_oci_tag_pinned_digest` | functional | sha256 digest in oci_sources. |
+| 163 | UTILS_FVT_OCI_IMAGE_INGEST_V041 | `test_oci_rescue_kernel_excluded` | functional | No rescue kernel selected. |
+| 164 | UTILS_FVT_OCI_IMAGE_INGEST_V042 | `test_oci_missing_module_tree` | negative | Rejected before SquashFS (partial). |
+| 165 | UTILS_FVT_OCI_IMAGE_INGEST_V043 | `test_oci_layer_escape_rejected` | negative | Rejected with offending entry (partial). |
+
+### Advanced S3 and Status
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 170 | UTILS_FVT_OCI_IMAGE_INGEST_V045 | `test_oci_release_prefix_idempotent` | functional | Idempotent re-run verified. |
+| 171 | UTILS_FVT_OCI_IMAGE_INGEST_V046 | `test_oci_acl_rejected` | negative | Blocks publication (partial). |
+| 172 | UTILS_FVT_OCI_IMAGE_INGEST_V050 | `test_oci_release_prefix_sanitized` | functional | Correct sanitized S3 prefix. |
+
+### Build Status Contract
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 180 | UTILS_FVT_OCI_IMAGE_INGEST_V029 | `test_oci_build_status_valid` | functional | Required fields; type=oci-image-ingest. |
+| 181 | UTILS_FVT_OCI_IMAGE_INGEST_V030 | `test_oci_source_traceability` | functional | Provenance fields and checksums. |
+| 182 | UTILS_FVT_OCI_IMAGE_INGEST_V031 | `test_oci_failed_preserves_status` | functional | Checksum unchanged after failure. |
+| 183 | UTILS_FVT_OCI_IMAGE_INGEST_V047 | `test_oci_status_merge_by_group` | functional | Earlier entries preserved. |
+| 184 | UTILS_FVT_OCI_IMAGE_INGEST_V051 | `test_oci_ibm_output_not_written` | functional | Correct build type in Utils path. |
+| 185 | UTILS_FVT_OCI_IMAGE_INGEST_V052 | `test_oci_reingest_restores_release` | functional | Consistent status after re-ingest. |
+
+### Cleanup
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 190 | UTILS_FVT_OCI_IMAGE_INGEST_V036 | `test_oci_cleanup_after_success` | functional | workdir cleaned after success. |
+| 191 | UTILS_FVT_OCI_IMAGE_INGEST_V037 | `test_oci_cleanup_after_failure` | functional | workdir cleaned after failure. |
+
+### Boot Validation (ENV-04)
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 200 | UTILS_FVT_OCI_IMAGE_INGEST_V034 | `test_oci_node_boot_success` | functional | Boot contract valid (partial). |
+| 201 | UTILS_FVT_OCI_IMAGE_INGEST_V035 | `test_oci_boot_failure_attribution` | functional | Digest available for attribution (partial). |
+
+### Tag Routing and Prerequisites
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 210 | UTILS_FVT_OCI_IMAGE_INGEST_V032 | `test_oci_tag_routes_correctly` | sanity | No OCI steps in collect output. |
+| 211 | UTILS_FVT_OCI_IMAGE_INGEST_V033 | `test_oci_config_template_delivered` | sanity | Config template exists. |
+| 212 | UTILS_FVT_OCI_IMAGE_INGEST_V044 | `test_oci_missing_prerequisite` | sanity | Prerequisites check functional. |
+| 213 | UTILS_FVT_OCI_IMAGE_INGEST_V048 | `test_oci_concurrent_run_rejected` | functional | Lock check functional. |
+
+### Orchestrator Acceptance
+
+| Sequence | TC ID | Test | Markers | Pass criteria |
+|----------|-------|------|---------|---------------|
+| 220 | UTILS_FVT_OCI_IMAGE_INGEST_V049 | `test_oci_orchestrator_accepts_types` | functional | Both types accepted; unknown rejected. |
+
+---
+
 ## Registry Summary
 
 | Phase | Execution IDs | Verification IDs | Total |
@@ -184,12 +295,13 @@ These cases verify combined cleanup functionality.
 | Setup | 1 | 4 | 5 |
 | Collect | 4 | 12 | 16 |
 | Install OS | 5 | 8 | 13 |
+| OCI Image Ingest | 1 | 52 | 53 |
 | Cleanup Logs | 1 | 3 | 4 |
 | Cleanup Install OS | 1 | 3 | 4 |
 | Cleanup (combined) | 1 | 2 | 3 |
 | Negative (Collect) | 0 | 3 | 3 |
 | Negative (Install OS) | 0 | 4 | 4 |
-| **Total** | **14** | **44** | **58** |
+| **Total** | **15** | **96** | **111** |
 
 ---
 
