@@ -25,6 +25,15 @@
     name: pull_oci_image
     tasks_from: pin.yml
 
+- name: Log the pinned image
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      mapping={{ oci_ingest_mapping.mapping_name }} registry={{ oci_ingest_pull.registry }}
+      namespace={{ oci_ingest_mapping.namespace_name }} image={{ oci_ingest_mapping.image }}
+      digest={{ oci_ingest_pull.digest }} platform={{ oci_ingest_pull.platform }}
+      operation={{ oci_ingest_mapping.operation }}
+
 - name: Skip the mapping when its digest is already published
   ansible.builtin.include_role:
     name: publish_s3_artifacts
@@ -49,6 +58,14 @@
     - name: Publish to S3
       ansible.builtin.include_role:
         name: publish_s3_artifacts
+
+- name: Log the publication result
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      mapping={{ oci_ingest_mapping.mapping_name }} result={{ 'no-op (already published)' if oci_ingest_skip | bool else 'published' }}
+      s3_prefix={{ _oci_s3_prefix }} artifacts={{ (oci_ingest_results | last).artifacts | to_json }}
+      elapsed_seconds={{ (now(utc=true).timestamp() | int) - (oci_ingest_started_epoch | int) }}
 
 - name: Remove this mapping's working data
   ansible.builtin.file:
