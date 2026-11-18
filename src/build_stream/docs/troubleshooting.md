@@ -15,6 +15,11 @@ Run `./omnia.sh --run build_stream --tags precheck` to check that the Repository
 | `The deployment of the <postgres> container has failed` | Typically database initialization issues when data from a previous deployment exists | Option 1: re-run with the same PostgreSQL credentials used before to reuse the existing database. Option 2 (permanently deletes the preserved database): run `playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false --skip-tags credentials` from `src/build_stream`, then `sudo ./omnia.sh --init build_stream`, then re-run `--tags prepare` |
 | `OMNIA_SRC_PATH ... is inside the Omnia data path` | The data path is mounted read-write into the Build Stream API container and the root playbook watcher runs from `OMNIA_SRC_PATH` | Keep the Omnia source tree outside the data path |
 | NFS data path warning during precheck | The data path is on NFS, and the playbook queue under it drives root playbook execution | Export it with `root_squash` and only to trusted clients (`exportfs -ra`) |
+| `GET /api/v1/jobs/{job_id}/logs` returns 404 | The job or stage does not exist, or the stage ran no playbook (initialization, parse-catalog, summary have no execution log), or its log is not written yet | Query a playbook stage (`create-local-repository`, `build-image`, `deploy`, `restart`, `validate`) and retry after it started |
+| Log API returns 403 | The token has neither `job:read` nor `job:write` scope | Request a token with one of these scopes |
+| Log API returns 429 or 503 | More than `log_query_rate_limit` requests per minute per client, or `log_query_max_concurrent` requests already running | Wait (503 sends `Retry-After`), or raise the setting in `build_stream_config.yml` and re-run Build Stream |
+| Log API returns 422 | The stage log is not readable text | Read the file in `<data_path>/build_stream/log/<job_id>/` |
+| GitLab job console shows no execution-log preview | Only playbook stages preview logs; the API was unreachable or the token expired (`Log preview unavailable (HTTP ...)`); job result is unaffected | Use the curl templates printed under the preview, or `GET /api/v1/jobs/{job_id}/logs` |
 
 Credentials: `--tags credentials` runs setup, validation, and the credential prompt only.
 
@@ -25,3 +30,4 @@ Credentials: `--tags credentials` runs setup, validation, and the credential pro
 | Top-level playbook | `/var/log/omnia/build_stream/build_stream.log` |
 | Job, stage, cadence, and validation logs | `<data_path>/build_stream/log/` |
 | Playbook queue | `<data_path>/build_stream/playbook_queue/` |
+| Stage log through the API | `GET /api/v1/jobs/{job_id}/logs` (see the README, Pipeline log observability) |

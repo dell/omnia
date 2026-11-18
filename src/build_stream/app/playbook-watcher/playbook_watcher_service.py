@@ -35,7 +35,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Thread, Semaphore
+from threading import Event, Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
 
 # Make the shared BuildStream ``app`` package importable when this service runs
@@ -1206,6 +1206,8 @@ def publish_stage_log(
         job_log_path.parent.mkdir(parents=True, exist_ok=True)
         # copyfile (not copy2): copy2 carries over the source SELinux label
         # (var_log_t) and 0600 mode, which the BSM container cannot read.
+        # Logs are redacted at write time (Tier 1), so 0644 is acceptable, but
+        # note they still contain operational data such as IPs and hostnames.
         shutil.copyfile(str(domain_log_path), str(job_log_path))
         os.chmod(job_log_path, 0o644)
         _relabel_like_parent(job_log_path)
@@ -1261,12 +1263,16 @@ def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
     ]
 
 
+READER_JOIN_TIMEOUT_SECONDS = 5
+
+
 def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     cmd: List[str],
     playbook_dir: str,
     env: Dict[str, str],
     timeout_seconds: int,
     log_file_path: Path,
+    timestamps: bool = False,
 ) -> int:
     """Run ansible-playbook, capturing output and redacting Tier 1 secrets at write time.
 
@@ -1292,6 +1298,9 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
         env: Subprocess environment; MUST NOT contain ``ANSIBLE_LOG_PATH``.
         timeout_seconds: Hard wall-clock timeout for the subprocess.
         log_file_path: Sanitized absolute domain log path to write.
+        timestamps: Prefix every line with ``<time> p=<pid> | `` (the Ansible log
+            format). Only for Ansible playbook runs: the validate report parser
+            reads the log with line-anchored patterns and needs unprefixed lines.
 
     Returns:
         The subprocess exit code.
@@ -1319,33 +1328,106 @@ def _run_playbook_with_redaction(  # pylint: disable=too-many-arguments,too-many
             errors="replace",
         )
 
+        stop = Event()
+
         def _drain() -> None:
             """Read, redact, and write every line from the merged output stream."""
             if proc.stdout is None:
                 return
-            for raw_line in proc.stdout:
-                sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
-                    raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
-                )
-                if line_suppressed:
-                    suppressed["count"] += 1
-                log_file.write(f"{sanitized}\n")
-            log_file.flush()
+            try:
+                for raw_line in proc.stdout:
+                    if stop.is_set():
+                        return
+                    sanitized, line_suppressed = _REDACTION_SERVICE.redact_stream_line(
+                        raw_line.rstrip("\n"), state, RedactionTier.SECRETS_ONLY
+                    )
+                    if line_suppressed:
+                        suppressed["count"] += 1
+                    prefix = _log_prefix(getattr(proc, "pid", 0)) if timestamps else ""
+                    log_file.write(f"{prefix}{sanitized}\n")
+                    log_file.flush()
+                    _echo_to_journal(sanitized)
+                log_file.flush()
+            except (ValueError, OSError):
+                pass
 
         reader = Thread(target=_drain, name="watcher-log-reader", daemon=True)
         reader.start()
         try:
             proc.wait(timeout=timeout_seconds)
         except subprocess.TimeoutExpired:
-            proc.kill()
+            _kill_process_group(proc)
             proc.wait()
-            reader.join()
+            _finish_reader(reader, stop, proc)
             _log_suppressed_lines(suppressed["count"])
+            _log_redaction_summary(state.redacted_patterns, log_file_path)
             raise
-        reader.join()
+        _finish_reader(reader, stop, proc)
 
     _log_suppressed_lines(suppressed["count"])
+    _log_redaction_summary(state.redacted_patterns, log_file_path)
     return proc.returncode
+
+
+def _log_prefix(pid: int) -> str:
+    """Return the timestamp and pid prefix of a stage log line.
+
+    Ansible's own log file carried ``<time> p=<pid> | ``; the captured stdout does not,
+    so the watcher adds it (ER-BSM-003 FR-3.1: logs keep timestamps). Added after
+    redaction, so it never reaches the redaction service.
+    """
+    now = datetime.now()
+    return f"{now:%Y-%m-%d %H:%M:%S},{now.microsecond // 1000:03d} p={pid} | "
+
+
+def _echo_to_journal(line: str) -> None:
+    """Mirror an already-redacted line to the unit's stdout (journald).
+
+    Restores ``journalctl -u playbook-watcher`` visibility of playbook output
+    that the pipe capture would otherwise hide. Only sanitized text is echoed.
+    """
+    try:
+        sys.stdout.write(f"{line}\n")
+        sys.stdout.flush()
+    except (ValueError, OSError):
+        pass
+
+
+def _kill_process_group(proc: "subprocess.Popen") -> None:
+    """SIGKILL the whole session so ansible workers and ssh children die too."""
+    pid = getattr(proc, "pid", None)
+    if not isinstance(pid, int) or pid <= 1:
+        proc.kill()
+        return
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except OSError:
+        proc.kill()
+
+
+def _finish_reader(reader: Thread, stop: Event, proc: "subprocess.Popen") -> None:
+    """Wait a bounded time for the log reader; never block on orphaned pipe holders."""
+    reader.join(READER_JOIN_TIMEOUT_SECONDS)
+    if reader.is_alive():
+        stop.set()
+        _kill_process_group(proc)
+        reader.join(READER_JOIN_TIMEOUT_SECONDS)
+        log_secure_info(
+            "warning", "Log reader did not drain after process exit; output truncated"
+        )
+
+
+def _log_redaction_summary(count: int, log_file_path: Path) -> None:
+    """Audit event: how many patterns write-time redaction replaced in one log file.
+
+    Only the count and the file name are logged, never the redacted content.
+    """
+    if count:
+        log_secure_info(
+            "info",
+            f"Write-time redaction applied: log_file={log_file_path.name}, "
+            f"redacted_patterns={count}",
+        )
 
 
 def _log_suppressed_lines(count: int) -> None:
@@ -1526,7 +1608,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # stdout/stderr stream is redacted line-by-line and written to
         # log_file_path; no unsanitized byte reaches disk.
         returncode = _run_playbook_with_redaction(
-            cmd, playbook_dir, env, timeout_seconds, log_file_path
+            cmd, playbook_dir, env, timeout_seconds, log_file_path, timestamps=True
         )
 
         if not log_file_path.exists():

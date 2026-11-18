@@ -386,7 +386,11 @@ default:
         validate) _LOG_STAGE="validate" ;;
         *)        _LOG_STAGE="" ;;
       esac
-      if [ -z "${_LOG_JOB}" ]; then
+      if [ -z "${_LOG_STAGE}" ]; then
+        # API-only stages (initialization, parse-catalog, summary) run no playbook,
+        # so there is no execution log to preview or point to: print nothing.
+        :
+      elif [ -z "${_LOG_JOB}" ]; then
         echo "  [LOG PREVIEW] No BSM job associated with this stage; skipping execution-log preview."
       else
         if [ -n "${_LOG_STAGE}" ] && command -v curl >/dev/null 2>&1; then
