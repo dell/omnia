@@ -105,6 +105,8 @@ def check_member(member: tarfile.TarInfo, root: str, layer_symlinks: set[str]) -
     path = _normalize(member.name)
     if not path:
         return path
+    if member.ischr() or member.isblk() or member.isfifo():
+        raise UnsafeLayerError(f"device node or FIFO in layer: {member.name}")
     parent = posixpath.dirname(path)
     _reject_layer_symlink_path(parent, layer_symlinks, member.name)
     resolve_in_root(root, parent)
