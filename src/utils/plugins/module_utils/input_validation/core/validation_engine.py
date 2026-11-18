@@ -41,7 +41,7 @@ def schema(data, schema_def, file_label, errors, logger, formatter=None):
         errors: List to append error messages to.
         logger: Logger instance.
         formatter: Optional callable(jsonschema error) -> str used instead of the
-            default message, for example to avoid echoing secret values.
+            default message, for example to keep secret values out of the message.
     """
     if not schema_def:
         return

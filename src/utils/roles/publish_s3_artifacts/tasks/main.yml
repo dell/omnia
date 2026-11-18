@@ -13,7 +13,7 @@
 # limitations under the License.
 # ****
 # Secure code generated utilizing Code Guardian.
-# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6, CG-INPUT-001.3
 # ****
 
 ---
@@ -25,24 +25,39 @@
 
 - name: Fix the publication timestamp
   ansible.builtin.set_fact:
-    _oci_published_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+    _oci_published_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
 
 - name: Upload artifacts
   block:
     - name: Replace an incomplete prefix left by a failed run
-      ansible.builtin.command: "s3cmd del --recursive s3://{{ _oci_s3_prefix }}/"
+      ansible.builtin.command:
+        argv:
+          - s3cmd
+          - del
+          - --recursive
+          - "s3://{{ _oci_s3_prefix }}/"
       when: _oci_s3_has_objects | default(false) | bool
       changed_when: true
 
     - name: Upload each artifact
-      ansible.builtin.command: "s3cmd put --no-progress {{ oci_ingest_pull.workdir }}/{{ item.name }} s3://{{ _oci_s3_prefix }}/{{ item.name }}"
+      ansible.builtin.command:
+        argv:
+          - s3cmd
+          - put
+          - --no-progress
+          - "{{ oci_ingest_pull.workdir }}/{{ item.name }}"
+          - "s3://{{ _oci_s3_prefix }}/{{ item.name }}"
       loop: "{{ oci_ingest_artifacts }}"
       loop_control:
         label: "{{ item.name }}"
       changed_when: true
 
     - name: Read back the uploaded object sizes
-      ansible.builtin.command: "s3cmd info s3://{{ _oci_s3_prefix }}/{{ item.name }}"
+      ansible.builtin.command:
+        argv:
+          - s3cmd
+          - info
+          - "s3://{{ _oci_s3_prefix }}/{{ item.name }}"
       loop: "{{ oci_ingest_artifacts }}"
       loop_control:
         label: "{{ item.name }}"
@@ -63,7 +78,7 @@
     - name: Verify the uploaded SHA-256 matches the local artifacts
       ansible.builtin.shell: |
         set -o pipefail
-        s3cmd get -q --force s3://{{ _oci_s3_prefix }}/{{ item.name }} - | sha256sum | cut -d' ' -f1
+        s3cmd get -q --force {{ ('s3://' ~ _oci_s3_prefix ~ '/' ~ item.name) | quote }} - | sha256sum | cut -d' ' -f1
       args:
         executable: /bin/bash
       loop: "{{ oci_ingest_artifacts }}"
@@ -100,13 +115,22 @@
           artifacts: "{{ _oci_artifacts_marked }}"
 
     - name: Upload the marker last
-      ansible.builtin.command: >-
-        s3cmd put --no-progress {{ oci_ingest_pull.workdir }}/{{ oci_ingest_marker_name }}
-        s3://{{ _oci_s3_prefix }}/{{ oci_ingest_marker_name }}
+      ansible.builtin.command:
+        argv:
+          - s3cmd
+          - put
+          - --no-progress
+          - "{{ oci_ingest_pull.workdir }}/{{ oci_ingest_marker_name }}"
+          - "s3://{{ _oci_s3_prefix }}/{{ oci_ingest_marker_name }}"
       changed_when: true
   rescue:
     - name: Remove partial objects of the failed mapping
-      ansible.builtin.command: "s3cmd del --recursive s3://{{ _oci_s3_prefix }}/"
+      ansible.builtin.command:
+        argv:
+          - s3cmd
+          - del
+          - --recursive
+          - "s3://{{ _oci_s3_prefix }}/"
       changed_when: true
       failed_when: false
 
@@ -120,7 +144,13 @@
              | default(ansible_failed_result.item.name | default('unknown')) }}
 
 - name: Set public-read ACL on the release prefix only
-  ansible.builtin.command: "s3cmd setacl --acl-public --recursive s3://{{ _oci_s3_prefix }}/"
+  ansible.builtin.command:
+    argv:
+      - s3cmd
+      - setacl
+      - --acl-public
+      - --recursive
+      - "s3://{{ _oci_s3_prefix }}/"
   register: _oci_s3_acl
   changed_when: true
   failed_when: false
