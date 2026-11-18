@@ -356,6 +356,40 @@
   changed_when: false
   failed_when: false
 
+# --- Create the OTEL Collector TLS certificate ---
+# The chart creates the selfsigned Issuer and the otel-collector Certificate in
+# templates/cert-manager.yaml, which is removed above. Without them the
+# otel-collector-tls secret is never issued, and otel-collector and
+# karavi-metrics-powerscale stay in ContainerCreating. Create them here, once the
+# cert-manager webhook is ready.
+
+- name: Create OTEL Collector selfsigned Issuer and Certificate
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "-"
+    stdin: "{{ lookup('ansible.builtin.template', 'otel-collector-tls.yaml.j2') }}"
+  register: _otel_cert_apply
+  retries: 6
+  delay: 10
+  until: _otel_cert_apply.rc == 0
+  changed_when: "'created' in (_otel_cert_apply.stdout | default('')) or 'configured' in (_otel_cert_apply.stdout | default(''))"
+
+- name: Wait for OTEL Collector TLS certificate to be issued
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready certificate/{{ ps_otel_certificate_name }}
+    -n {{ csm_observability_namespace | quote }} --timeout=120s
+  register: _otel_cert_ready
+  changed_when: false
+  failed_when: false
+
+- name: Fail if OTEL Collector TLS certificate was not issued
+  ansible.builtin.fail:
+    msg: "{{ ps_otel_cert_not_ready_msg }}"
+  when: _otel_cert_ready.rc != 0
+
 - name: Wait for OTEL Collector rollout
   ansible.builtin.command: >
     kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace | quote }} --timeout=120s

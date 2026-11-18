@@ -326,7 +326,7 @@
         # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
         - mkdir -p {{ client_mount_path }}/slurm/ssh
         - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages
-        - echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - mount -av
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
@@ -351,19 +351,19 @@
         - mkdir -pv {{ client_mount_path }}/slurm/ssh
          # Create directories for nfs and mount all
         - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/slurm      /etc/slurm       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/my.cnf.d   /etc/my.cnf.d    nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/mariadb /var/log/mariadb nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_ctld_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/slurm      /etc/slurm       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/my.cnf.d   /etc/my.cnf.d    nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/mariadb /var/log/mariadb nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_ctld_log_dir_effective }}   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 {% if slurmdbd_log_dir_effective != slurm_ctld_log_dir_effective %}
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurmdbd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurmdbd_log_dir_effective }}   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 {% endif %}
-        - if ! mountpoint -q /var/lib/mysql; then echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/lib/mysql /var/lib/mysql nfs defaults,_netdev 0 0" >> /etc/fstab; fi
-        - if ! mountpoint -q {{ slurm_state_save_location_effective }}; then echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmctld {{ slurm_state_save_location_effective }} nfs defaults,_netdev 0 0" >> /etc/fstab; fi
-        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ metadata_svc_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
+        - if ! mountpoint -q /var/lib/mysql; then echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/lib/mysql /var/lib/mysql nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab; fi
+        - if ! mountpoint -q {{ slurm_state_save_location_effective }}; then echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmctld {{ slurm_state_save_location_effective }} nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab; fi
+        - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/packages  /var/lib/packages   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
         - mount -av
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ home_dir }}
@@ -392,9 +392,9 @@
 {% if hostvars['localhost']['openldap_support'] %}
         - /usr/local/bin/update_ldap_conf.sh
         - mkdir /ldapcerts
-        - echo "{{ metadata_svc_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path_openldap }}/certs                /ldapcerts       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         # TODO: This mount may be redundant, remove this
-        - echo "{{ metadata_svc_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path_openldap }}/ldapuser /home nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
         - mount -a
         - yes | cp /ldapcerts/* /etc/openldap/certs
