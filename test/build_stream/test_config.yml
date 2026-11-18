@@ -85,6 +85,10 @@ sync_build_stream_input: false
 #   auto_cleanup      one automated cleanup pass; builds its own image
 #                     first and deletes it (marked FAILED first)
 #                     marker: automatic_cleanup
+#   log_query         pipeline log query API, stage logs on disk and CI
+#                     console logs of pipeline.build_job_id (else of the
+#                     deploy/build suite run in the same run); no trigger
+#                     marker: log_observability
 # Every pipeline suite also has "pipeline"; the manual suites have no sanity.
 # =============================================================================
 installation:
@@ -181,7 +185,8 @@ pipeline:
   # (default: "").
   #   ""      TRIGGER mode: the suite commits or triggers a new pipeline.
   #   job ID  VERIFY-ONLY mode: the suite only verifies that existing job.
-  #   build_job_id    used by build_automatic and build_manual.
+  #   build_job_id    used by build_automatic and build_manual, and by
+#                   log_query as the job whose stage logs it reads.
   #   deploy_job_id   used by deploy_automatic and deploy_manual. Deploy
   #                   stages are recorded on the BUILD job of the deployed
   #                   image group, so give that build job.
@@ -304,6 +309,10 @@ nft_allow_watcher_restart: false
 # Allows security NFTs to create one disposable, audit-labelled BSM job and
 # submit invalid path-traversal and oversized-file uploads, then verify the
 # rejected uploads leave no file or stage-state changes.
+# The log_query FVT fixture-log cases (ER-BSM-003) also use it: they create one
+# disposable job (omnia-fvt-log-query), plant synthetic fvt_*.log files and
+# job_stages rows on it, exhaust the log query rate budget once, and reset the
+# job at the end.
 nft_allow_security_mutation: false
 # Maximum seconds to wait for a service restart, GitLab cancellation, queue
 # transition or other recovery condition (integer >= 10).
