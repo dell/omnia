@@ -26,6 +26,7 @@ are verified without a live cluster.
 import http.server
 import json
 import os
+import re
 import subprocess
 import threading
 import time
@@ -323,3 +324,31 @@ def test_hook_never_fails_under_errexit(tmp_path, bsm_server, template_key):
                           env=env, check=False)
     assert proc.returncode == 0
     assert "Retrieve complete execution logs" in proc.stdout
+
+
+# Same expression the Secure Code Review SEC-14 rule uses for predictable temp paths.
+_PREDICTABLE_TMP = re.compile(r"[\"' =]/tmp/[\w{$.-]+|[\"' =]/var/tmp/[\w{$.-]+")
+
+
+@pytest.mark.parametrize("template_key", sorted(TEMPLATES))
+def test_after_script_uses_no_predictable_tmp_path(template_key):
+    """SEC-14: scratch files and the token never use a fixed /tmp path."""
+    script = _after_script(TEMPLATES[template_key])
+    assert not _PREDICTABLE_TMP.findall(script)
+    assert "mktemp -d" in script
+
+
+@pytest.mark.parametrize("template_key", sorted(TEMPLATES))
+def test_private_scratch_dir_removed_after_preview(tmp_path, bsm_server, template_key):
+    """The mktemp scratch directory is deleted once the preview has been printed."""
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    proc = _run(tmp_path, template_key, {
+        "CI_JOB_STAGE": PLAYBOOK_STAGE[template_key],
+        "JOB_ID": "job-1",
+        "BSM_API_URL": bsm_server.url,
+        "TMPDIR": str(scratch),
+    })
+    assert proc.returncode == 0
+    assert "Execution Log (last 50 lines)" in proc.stdout
+    assert not list(scratch.iterdir())

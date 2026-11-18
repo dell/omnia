@@ -38,7 +38,7 @@ from core.logs.redaction_patterns import (
 class RedactionTier(str, Enum):
     """Which pattern tiers to apply."""
 
-    SECRETS_ONLY = "secrets_only"
+    SECRETS_ONLY = "secrets_only"  # nosec: tier name for the secret pattern set, not a credential
     FULL = "full"
 
 
