@@ -106,6 +106,64 @@ ROLLBACK_LIMIT_INVALID_MSG = (
 )
 
 # =============================================================================
+# OCI IMAGE INGEST MESSAGES
+# =============================================================================
+
+OCI_CONFIG_NOT_MAPPING_MSG = (
+    "oci_image_ingest_config.yml must be a YAML mapping with registries and image_mappings"
+)
+OCI_CREDENTIAL_KEYS_MSG = (
+    "credentials must be provided in oci_image_ingest_credentials.yml "
+    "(found credential key(s): {keys})"
+)
+OCI_REGISTRIES_EMPTY_MSG = (
+    "registries: define at least one Harbor registry "
+    "(see the commented example in oci_image_ingest_config.yml)"
+)
+OCI_MAPPINGS_EMPTY_MSG = (
+    "image_mappings: define at least one image mapping "
+    "(see the commented example in oci_image_ingest_config.yml)"
+)
+OCI_HOSTNAME_PORT_MSG = (
+    "registries[{name}]: registry_hostname must not include a port; use registry_port"
+)
+OCI_HOSTNAME_FORMAT_MSG = (
+    "registry_hostname must be a host name or IPv4 address without a port; use registry_port"
+)
+OCI_FUNCTIONAL_GROUP_ARCH_MSG = (
+    "functional_group must end in _x86_64 or _aarch64 (for example slurm_node_rhel_10_2_x86_64)"
+)
+OCI_IMAGE_FORMAT_MSG = (
+    "image must be <repository>:<tag> or <repository>@sha256:<64 hex digest>"
+)
+OCI_CRED_REQUIRED_MSG = "oci_image_ingest_credentials: required field '{field}' is missing or empty"
+OCI_CRED_INVALID_MSG = (
+    "oci_image_ingest_credentials: '{field}' is invalid (value not shown): it must be a "
+    "non-empty string without control characters; the username must not contain whitespace"
+)
+OCI_CRED_NOT_MAPPING_MSG = (
+    "oci_image_ingest_credentials must be a mapping with registry_username and registry_password"
+)
+
+
+def oci_unsupported_value_msg(path, value, supported):
+    """Returns message for an unsupported registry_type or operation."""
+    return f"{path}: {value} is not yet supported; supported: {supported}"
+
+
+def oci_duplicate_msg(section, key, name):
+    """Returns message for a duplicated identifying value."""
+    return f"{section}: duplicate {key} '{name}'"
+
+
+def oci_unknown_registry_msg(mapping, registry):
+    """Returns message for a mapping that references an undefined registry."""
+    return (
+        f"image_mappings[{mapping}]: registry_name '{registry}' is not defined in registries"
+    )
+
+
+# =============================================================================
 # SCHEMA VALIDATION MESSAGES
 # =============================================================================
 
