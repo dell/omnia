@@ -1176,12 +1176,20 @@ def verify_orchestrator_boot_contract(
 
 
 def run_production_validation(host, config_dict) -> Dict[str, Any]:
-    """Invoke the production validate_oci_image_ingest_config.run_validation().
+    """Invoke the production validate_config() and normalize() API.
 
-    Passes config_dict to the production Python validation module as a
-    base64-encoded argument (no temporary file is created), validates it
-    against the real JSON schema, and returns the result including any
-    error messages.
+    Calls the upstream production entry points exposed by
+    src/utils/plugins/modules/validate_oci_image_ingest_config.py:
+        validate_config(config, schema_def, logger) -> list[str]
+        normalize(config) -> dict
+
+    The configuration is passed as a base64-encoded YAML string (no
+    temporary file is created).  A lightweight ``ansible.module_utils``
+    namespace shim is constructed so the production module's
+    ``from ansible.module_utils.*`` imports resolve to the real
+    ``plugins/module_utils/`` tree without requiring a full Ansible
+    collection loader.  A no-op ValidationLogger is constructed via the
+    production ``create_logger('', 'fvt')``.
 
     This ensures negative input tests exercise the actual production
     validation code path rather than recreating validation logic.
@@ -1198,15 +1206,30 @@ def run_production_validation(host, config_dict) -> Dict[str, Any]:
     ).stdout.strip()
     if not src_path:
         src_path = "/root/main/omnia/src/utils"
+    mu_path = f"{src_path}/plugins/module_utils"
+    schema_path = (f"{mu_path}/input_validation/schema"
+                   "/oci_image_ingest_config.json")
     script = (
-        "import base64, json, sys, yaml; "
+        "import sys, types, base64, json, yaml; "
+        # Shim ansible.module_utils → real plugins/module_utils tree
+        f"mu='{mu_path}'; sys.path.insert(0, mu); "
+        "a=types.ModuleType('ansible'); a.__path__=[]; "
+        "amu=types.ModuleType('ansible.module_utils'); amu.__path__=[mu]; "
+        "ab=types.ModuleType('ansible.module_utils.basic'); "
+        "ab.AnsibleModule=type('AnsibleModule',(),{}); "
+        "a.module_utils=amu; amu.basic=ab; "
+        "sys.modules.update({'ansible':a,"
+        "'ansible.module_utils':amu,'ansible.module_utils.basic':ab}); "
+        # Import the real production module
         f"sys.path.insert(0, '{src_path}/plugins/modules'); "
-        "from validate_oci_image_ingest_config import run_validation; "
-        f"c = yaml.safe_load(base64.b64decode('{encoded}')); "
-        f"s = json.load(open('{src_path}/plugins/module_utils"
-        "/input_validation/schema/oci_image_ingest_config.json')); "
-        "e, n = run_validation(c, s); "
-        "print(json.dumps(dict(errors=e, success=len(e) == 0)))"
+        "from validate_oci_image_ingest_config import validate_config, normalize; "
+        "from input_validation.core.utils import create_logger; "
+        # Run validation
+        f"c=yaml.safe_load(base64.b64decode('{encoded}')); "
+        f"s=json.load(open('{schema_path}')); "
+        "lg=create_logger('','fvt'); "
+        "e=validate_config(c,s,lg); "
+        "print(json.dumps(dict(errors=e, success=len(e)==0)))"
     )
     result = run_on_host(host, f'python3 -c "{script}"')
     try:
