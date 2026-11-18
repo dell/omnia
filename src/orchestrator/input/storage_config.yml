@@ -47,6 +47,25 @@
 #                   If specified, takes PRIORITY over mount_params profile
 #   - mount_on_oim: Mount this filesystem on the OIM node as well. Optional. Default: false
 #                   Ensure storage is network-accessible from OIM before enabling
+#   - node_nfs_mnt_opts: Mount options for the per-node NFS sub-mounts that Omnia creates
+#                   from the storage entry referenced by nfs_storage_name in omnia_config.yml.
+#                   Optional. Applies to Kubernetes (/var/lib/kubelet, /var/lib/etcd,
+#                   /etc/kubernetes, /var/log/pods, /var/lib/packages) and Slurm/login
+#                   (/etc/slurm, /etc/munge, /var/spool/slurmd, /var/log/slurm, /cert, ...).
+#                   For Kubernetes it is also passed to the nfs-client provisioner.
+#                   Default: "noatime,nolock" (Kubernetes) and "defaults,_netdev" (Slurm)
+#                   PowerScale with RHEL 10.x clients: if Input/output errors occur with the
+#                   default 1 MiB transfer size, set for example
+#                   "noatime,nolock,rsize=946176,wsize=946176,nosharecache" (Kubernetes) or
+#                   "defaults,_netdev,rsize=946176,wsize=946176,nosharecache" (Slurm)
+#                   nosharecache makes the transfer size take effect even if the same
+#                   export is already mounted on the node. Over TCP the kernel rounds
+#                   rsize/wsize down to a multiple of 4096 (946176 = 231 x 4096).
+#                   Instead of setting these options on the entry, set mount_params to
+#                   the powerscale_nfs profile below.
+#                   If specified, takes PRIORITY over mount_params profile
+#                   PowerScale CSI volumes are configured separately through
+#                   csi_powerscale_mount_options in omnia_config.yml.
 #
 # Node-specific bind mounts (node_key and node_mount_point are paired):
 #   - node_key:         Per-node subdirectory isolation variable. Optional
@@ -121,7 +140,8 @@ mounts:
     source: "172.16.107.121:/mnt/share/omnia_k8s"
     mount_point: "/opt/omnia/k8s_mount"
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mount_params: "powerscale_nfs"  # Only for PowerScale NFS. For normal NFS, remove this line
+    # mnt_opts: "nosuid,rw,sync,hard,intr"  # Uncomment for normal NFS
     mount_on_oim: true
     functional_group_prefix: ["service_kube"]
 
@@ -138,6 +158,25 @@ mounts:
 # Optional profile fields:
 #   - dump_freq: Default dump frequency. Optional. Allowed values: "0"-"2"
 #   - fsck_pass: Default fsck pass number. Optional. Allowed values: "0"-"9"
+#   - node_nfs_mnt_opts: Extra options for the per-node NFS sub-mounts (and, for
+#                Kubernetes, the nfs-client provisioner). Optional.
+#                Appended to the default sub-mount options: "noatime,nolock"
+#                (Kubernetes) or "defaults,_netdev" (Slurm).
+#                Used only when the mount entry does not set node_nfs_mnt_opts
+#                (an entry value replaces the default instead of being appended).
+#
+# A profile value is used only for fields that are not set on the mount entry.
+# To use a profile for mnt_opts or node_nfs_mnt_opts, remove them from the mount entry.
+#
+# PowerScale profile (powerscale_nfs):
+#   RHEL 10.x clients can get Input/output errors on PowerScale at the default
+#   1 MiB NFS transfer size. This profile sets rsize/wsize to 946176 (924 KiB) on the
+#   per-node sub-mounts, for Kubernetes and Slurm. Example:
+#     - name: "nfs_k8s"
+#       source: "<powerscale_ip>:/ifs/<path>"
+#       mount_point: "/opt/omnia/k8s_mount"
+#       mount_params: "powerscale_nfs"
+#       functional_group_prefix: ["service_kube"]
 #
 
 mount_params:
@@ -156,6 +195,12 @@ mount_params:
   vast_tcp:
     fs_type: "nfs"
     mnt_opts: "nosuid,rw,sync,hard"
+
+  # PowerScale NFS share (Kubernetes or Slurm nfs_storage_name)
+  powerscale_nfs:
+    fs_type: "nfs"
+    mnt_opts: "nosuid,rw,sync,hard,intr,rsize=946176,wsize=946176,nosharecache"
+    node_nfs_mnt_opts: "rsize=946176,wsize=946176,nosharecache"
 
 # -----------------------------Powervault-------------------------------------------
 # powervault_config

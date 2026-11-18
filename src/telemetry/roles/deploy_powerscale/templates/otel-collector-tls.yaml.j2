@@ -1,0 +1,53 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# OTEL Collector TLS - selfsigned cert-manager Issuer and Certificate
+# Replaces the Issuer and Certificate from the Karavi chart's templates/cert-manager.yaml,
+# which is removed during install. Applied by helm_install_karavi.yml.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ ps_otel_issuer_name }}
+  namespace: {{ csm_observability_namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ ps_otel_certificate_name }}
+  namespace: {{ csm_observability_namespace }}
+spec:
+  secretName: {{ ps_otel_tls_secret_name }}
+  duration: 2160h
+  renewBefore: 360h
+  subject:
+    organizations:
+      - dellemc
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - otel-collector
+    - otel-collector.{{ csm_observability_namespace }}.svc
+    - otel-collector.{{ csm_observability_namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ ps_otel_issuer_name }}
+    kind: Issuer
+    group: cert-manager.io

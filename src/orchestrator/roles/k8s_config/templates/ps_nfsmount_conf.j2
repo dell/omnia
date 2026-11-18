@@ -1,0 +1,28 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NFS client defaults for the Dell CSI PowerScale node plugin (isilon-node).
+# Rendered from service_k8s_cluster.csi_powerscale_mount_options in omnia_config.yml
+# and mounted into the driver container as /etc/nfsmount.conf, so mount.nfs applies
+# these options when the driver stages PowerScale volumes.
+[ NFSMount_Global_Options ]
+{% for opt in csi_powerscale_mount_options %}
+{% if '=' in opt %}
+{{ opt }}
+{% elif opt.startswith('no') %}
+{{ opt[2:] | capitalize }}=False
+{% else %}
+{{ opt | capitalize }}=True
+{% endif %}
+{% endfor %}
