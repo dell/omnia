@@ -1009,6 +1009,14 @@ def test_external_health_monitor_container(host):
         )
         pytest.skip("CSI driver not deployed - health monitor verification skipped")
 
+    # If the health monitor sidecar is not deployed, skip (controller.healthMonitor.enabled is false)
+    if not result.get("health_monitor_deployed", True):
+        tl.skipped(
+            "health monitor not deployed",
+            "controller.healthMonitor.enabled is false - skipping",
+        )
+        pytest.skip("Health monitor container not present in isilon-controller pod")
+
     if result["success"]:
         tl.passed(
             LOG_MSGS["health_monitor_container"],
