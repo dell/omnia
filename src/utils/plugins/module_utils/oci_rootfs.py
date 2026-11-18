@@ -91,17 +91,22 @@ def resolve_in_root(root: str, rel: str, strict_absolute: bool = True) -> str:
     return os.path.join(root, *resolved)
 
 
+def _reject_layer_symlink_path(path: str, layer_symlinks: set[str], name: str) -> None:
+    """Reject a path that runs through a symlink created earlier in the same layer."""
+    parts = path.split("/") if path else []
+    for idx in range(len(parts)):
+        if "/".join(parts[: idx + 1]) in layer_symlinks:
+            raise UnsafeLayerError(
+                f"entry written through a symlink created in the same layer: {name}")
+
+
 def check_member(member: tarfile.TarInfo, root: str, layer_symlinks: set[str]) -> str:
     """Validate one layer entry and return its normalized path."""
     path = _normalize(member.name)
     if not path:
         return path
     parent = posixpath.dirname(path)
-    parts = parent.split("/") if parent else []
-    for idx in range(len(parts)):
-        if "/".join(parts[: idx + 1]) in layer_symlinks:
-            raise UnsafeLayerError(
-                f"entry written through a symlink created in the same layer: {member.name}")
+    _reject_layer_symlink_path(parent, layer_symlinks, member.name)
     resolve_in_root(root, parent)
     if member.issym():
         if not member.linkname.startswith("/"):
@@ -110,7 +115,9 @@ def check_member(member: tarfile.TarInfo, root: str, layer_symlinks: set[str]) -
                 raise UnsafeLayerError(f"symlink escapes the extraction root: {member.name}")
         layer_symlinks.add(path)
     elif member.islnk():
-        _normalize(member.linkname)
+        target = _normalize(member.linkname)
+        _reject_layer_symlink_path(target, layer_symlinks, member.name)
+        resolve_in_root(root, posixpath.dirname(target))
     return path
 
 
