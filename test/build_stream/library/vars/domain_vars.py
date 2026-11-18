@@ -72,6 +72,7 @@ MARKERS: List[str] = [
     "resilience",
     "security",
     "disruptive",
+    "log_observability",
 ]
 
 # =====================================================================
@@ -93,6 +94,7 @@ SUITES: Dict[str, List[str]] = {
         "cadence",
         "auto_cleanup",
         "pipeline_cleanup",
+        "log_query",
     ],
     "cleanup": ["gitlab", "build_stream"],
 }

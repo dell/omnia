@@ -18,6 +18,7 @@
 
 ---
 oci_ingest_config_filename: oci_image_ingest_config.yml
+oci_ingest_validation_log_dir: "{{ omnia_data_path }}/utils/log/{{ project_name }}"
 oci_ingest_schema_path: "{{ role_path }}/../../plugins/module_utils/input_validation/schema/oci_image_ingest_config.json"
 
 config_file_missing_msg: >-

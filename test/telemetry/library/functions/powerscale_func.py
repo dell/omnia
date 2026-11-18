@@ -1102,8 +1102,11 @@ def verify_external_health_monitor_container(host):
     - external-health-monitor-controller container is ready
 
     Returns:
-        dict with keys: success, pod_name, container_ready, details, error, pod_found.
-        When pod is not found, returns pod_found=False and success=True (not a failure).
+        dict with keys: success, pod_name, container_ready, details, error,
+        pod_found, health_monitor_deployed.
+        When the pod is not found, returns pod_found=False and success=True.
+        When the health monitor sidecar is not present (controller.healthMonitor.enabled
+        is false), returns health_monitor_deployed=False and success=True.
     """
     from .k8s_func import get_pods_by_label
 
@@ -1122,6 +1125,39 @@ def verify_external_health_monitor_container(host):
 
     pod_name = pods[0].get("name", "")
 
+    # Check whether the external-health-monitor-controller container is present
+    # in the pod spec. When controller.healthMonitor.enabled is false (the
+    # default Helm value), the CSI chart does not include this sidecar, so the
+    # container is absent and the feature is simply not deployed.
+    present_cmd = f"kubectl get pod {pod_name} -n isilon -o jsonpath='{{.spec.containers[?(@.name==\"external-health-monitor-controller\")].name}}'"
+    present_result = run_on_kube_vip(host, present_cmd)
+
+    # A failed lookup must not be mistaken for "sidecar absent" (that would skip a real failure)
+    if present_result.rc != 0:
+        return {
+            "success": False,
+            "pod_found": True,
+            "health_monitor_deployed": True,
+            "pod_name": pod_name,
+            "container_ready": False,
+            "details": f"Pod: {pod_name}, could not read pod spec: {present_result.stderr.strip()}",
+            "error": "failed to query external-health-monitor-controller container spec",
+        }
+
+    health_monitor_deployed = present_result.stdout.strip() == "external-health-monitor-controller"
+
+    if not health_monitor_deployed:
+        return {
+            "success": True,  # Not a failure - health monitor sidecar is not deployed
+            "pod_found": True,
+            "health_monitor_deployed": False,
+            "pod_name": pod_name,
+            "container_ready": False,
+            "details": f"Pod: {pod_name}, external-health-monitor-controller container not present "
+                       "(controller.healthMonitor.enabled is false)",
+            "error": "",
+        }
+
     # Check if external-health-monitor-controller container is ready
     # We need to check the container status using kubectl
     cmd = f"kubectl get pod {pod_name} -n isilon -o jsonpath='{{.status.containerStatuses[?(@.name==\"external-health-monitor-controller\")].ready}}'"
@@ -1134,6 +1170,7 @@ def verify_external_health_monitor_container(host):
     return {
         "success": container_ready,
         "pod_found": True,
+        "health_monitor_deployed": True,
         "pod_name": pod_name,
         "container_ready": container_ready,
         "details": details,

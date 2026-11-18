@@ -94,6 +94,7 @@ _FVT_SUITE_ORDER = {
         "": 0, "gitlab_server": 1, "gitlab_runner": 2, "gitlab_project": 3,
         "build_automatic": 4, "build_manual": 5, "deploy_automatic": 6,
         "deploy_manual": 7, "cadence": 8, "auto_cleanup": 9, "pipeline_cleanup": 10,
+        "log_query": 11,
     },
     "cleanup": {"": 0, "gitlab": 1, "build_stream": 2},
 }
@@ -164,6 +165,7 @@ def pytest_configure(config):
         "resilience": "Service and pipeline recovery test",
         "security": "Authentication, authorization, and input security test",
         "disruptive": "Explicitly enabled test that changes live service state",
+        "log_observability": "Pipeline log query API and CI console logs (log_query, ER-BSM-003)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

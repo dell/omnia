@@ -98,6 +98,13 @@
            }}) }}
   no_log: true
 
+- name: Log the validated registry
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      registry validated: endpoint={{ _oci_host_ref | trim }} protocol={{ reg.registry_protocol }}
+      namespaces={{ _oci_namespaces | join(',') }}
+
 - name: Record the registry reference host
   ansible.builtin.set_fact:
     oci_ingest_registry_refs: "{{ oci_ingest_registry_refs | default({}) | combine({reg.registry_name: _oci_host_ref | trim}) }}"

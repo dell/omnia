@@ -30,3 +30,14 @@
 - name: Compute the S3 prefix
   ansible.builtin.set_fact:
     _oci_s3_prefix: "{{ oci_ingest_bucket }}/{{ oci_ingest_mapping.functional_group }}/{{ oci_ingest_pull.repo_name }}-ingest/{{ _oci_release }}"
+
+- name: Verify the S3 prefix is safe for recursive operations
+  ansible.builtin.assert:
+    that:
+      - _oci_s3_prefix.split('/') | length == 4
+      - _oci_s3_prefix.split('/')[0] == oci_ingest_bucket
+      - _oci_s3_prefix.split('/') | select('in', ['', '.', '..']) | list | length == 0
+    fail_msg: >-
+      Refusing to run a recursive S3 operation: the release prefix '{{ _oci_s3_prefix }}' is not of the form
+      <bucket>/<functional_group>/<image_name>-ingest/<release>.
+    quiet: true

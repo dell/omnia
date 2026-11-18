@@ -27,9 +27,9 @@
 # registries: Harbor connection details (one entry per registry).
 #   registry_name      unique label referenced by image_mappings
 #   registry_type      only "harbor" is supported in this increment
-#   registry_protocol  http | https
+#   registry_protocol  https (the only supported value)
 #   registry_hostname  host name or IP of the registry
-#   registry_port      optional; defaults to 443 (https) or 80 (http)
+#   registry_port      optional; defaults to 443
 registries: []
 # Example:
 #  - registry_name: harbor-local
