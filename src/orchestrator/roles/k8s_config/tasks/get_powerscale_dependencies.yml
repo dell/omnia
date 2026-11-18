@@ -306,6 +306,24 @@
         group: "{{ group_value }}"
         mode: "{{ permission_644 }}"
 
+    # StorageClass mountOptions cannot be used for transfer-size options: the CSI
+    # PowerScale driver re-applies them on the bind-mount remount, which fails.
+    # Mount options are applied through the node plugin's /etc/nfsmount.conf instead.
+    - name: Transfer PowerScale CSI NFS mount configuration to nfs share (inside versioned directory)
+      ansible.builtin.template:
+        src: ps_nfsmount_conf.j2
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/nfsmount.conf"
+        owner: "{{ owner_value }}"
+        group: "{{ group_value }}"
+        mode: "{{ permission_644 }}"
+      when: csi_powerscale_mount_options | default([]) | length > 0
+
+    - name: Remove PowerScale CSI NFS mount configuration when no mount options are set
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/nfsmount.conf"
+        state: absent
+      when: csi_powerscale_mount_options | default([]) | length == 0
+
     - name: Copy PowerScale CSI secret file to target path (inside versioned directory)
       ansible.builtin.copy:
         src: "{{ powerscale_secret_work_file.path }}"
