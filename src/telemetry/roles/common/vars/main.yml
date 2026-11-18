@@ -58,6 +58,7 @@ pulp_os_name: "rhel"
 # This is implementation metadata and is intentionally not user-configurable.
 telemetry_pip_distribution_names:
   pymysql: "PyMySQL"
+  cryptography: "cryptography"
 
 # Offline Python packages directory - derived from telemetry_data_path
 # This is a fallback when repo_url is not accessible
