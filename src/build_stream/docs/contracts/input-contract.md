@@ -69,6 +69,10 @@ Precedence: `build_stream_config.yml` > `[log_query]` in
 published per-job logs, default `${OMNIA_DATA_PATH}/build_stream/log`) >
 built-in defaults.
 
+The rate and concurrency limits are kept in the memory of the API container's single
+uvicorn process: they are per process and reset when the container restarts. If more
+worker processes were ever started, each worker would apply them separately.
+
 **CI/CD variable** — managed by Omnia, not hand-edited. The GitLab CI pipelines
 (`build`, `cadence`, `deploy`) preview the last N execution-log lines in the job
 console on completion (playbook stages only):

@@ -23,124 +23,109 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 
 try:
-    import jsonschema
-    HAS_JSONSCHEMA = True
-except ImportError:  # pragma: no cover
-    HAS_JSONSCHEMA = False
+    from ansible.module_utils.input_validation.core.utils import create_logger
+    from ansible.module_utils.input_validation.core.validation_engine import (
+        credential_keys_oci_image_ingest_config,
+        format_oci_image_ingest_config_error,
+        logic_oci_image_ingest_config,
+        schema as validate_against_schema,
+    )
+    HAS_ENGINE = True
+except ImportError:  # jsonschema or the validation package is unavailable
+    HAS_ENGINE = False
 
 DOCUMENTATION = r"""
 ---
 module: validate_oci_image_ingest_config
-short_description: Validate the OCI image ingest input file
+short_description: Validate oci_image_ingest_config.yml
+version_added: "2.3.0"
 description:
-  - Validates oci_image_ingest_config.yml against its JSON Schema.
+  - Runs L1 (JSON Schema) and L2 (business logic) validation through the utils input validation engine.
   - Rejects credential keys without echoing their values.
-  - Rejects unsupported registry types and operations with a "not yet supported" message.
-  - Verifies that every image mapping references a defined registry.
+  - Returns the configuration with the default registry port applied.
 options:
   config_path:
     description: Path to oci_image_ingest_config.yml.
     type: path
     required: true
   schema_path:
-    description: Path to the JSON Schema file.
+    description: Path to oci_image_ingest_config.json.
     type: path
     required: true
+  log_dir:
+    description: Directory for the utils log file; no log is written when empty.
+    type: path
+    default: ""
+author:
+  - Dell Omnia Team
 """
 
-CREDENTIAL_KEYS = {
-    "username", "password", "token", "auth", "credentials", "secret",
-    "registry_username", "registry_password", "registry_token", "api_key",
-}
-SUPPORTED = {"registry_type": ["harbor"], "operation": ["repo_to_bucket"]}
-CREDENTIAL_MSG = ("credentials must be provided in oci_image_ingest_credentials.yml "
-                  "(found credential key(s): {keys})")
+EXAMPLES = r"""
+- name: Validate the OCI image ingest configuration
+  validate_oci_image_ingest_config:
+    config_path: /opt/omnia/utils/input/project_default/oci_image_ingest_config.yml
+    schema_path: "{{ role_path }}/../../plugins/module_utils/input_validation/schema/oci_image_ingest_config.json"
+"""
+
+RETURN = r"""
+config:
+  description: Normalized registries and image_mappings.
+  returned: success
+  type: dict
+errors:
+  description: Validation errors.
+  returned: failure
+  type: list
+  elements: str
+"""
+
+LOG_NAME = "oci_image_ingest"
 DEFAULT_PORTS = {"https": 443, "http": 80}
+FILE_LABEL = "oci_image_ingest_config"
 
 
-def find_credential_keys(config: dict) -> list[str]:
-    """Return credential-like key names found in registries and mappings (never values)."""
-    found = set()
-    for section in ("registries", "image_mappings"):
-        for entry in config.get(section) or []:
-            if isinstance(entry, dict):
-                found.update(k for k in entry if str(k).lower() in CREDENTIAL_KEYS)
-    found.update(k for k in config if str(k).lower() in CREDENTIAL_KEYS)
-    return sorted(found)
-
-
-def format_schema_error(err: Any) -> str:
-    """Convert a jsonschema error into an actionable message."""
-    path = "/".join(str(p) for p in err.absolute_path) or "<root>"
-    field = str(err.absolute_path[-1]) if err.absolute_path else ""
-    if err.validator == "enum" and field in SUPPORTED:
-        supported = ", ".join(SUPPORTED[field])
-        return f"{path}: {err.instance} is not yet supported; supported: {supported}"
-    if err.validator == "required":
-        return f"{path}: {err.message}"
-    if field == "functional_group":
-        return (f"{path}: functional_group must end in _x86_64 or _aarch64 "
-                "(for example slurm_node_rhel_10_2_x86_64)")
-    if field == "image":
-        return f"{path}: image must be <repository>:<tag> or <repository>@sha256:<64 hex digest>"
-    return f"{path}: {err.message}"
-
-
-def semantic_errors(config: dict) -> list[str]:
-    """Cross-reference checks that JSON Schema cannot express."""
-    errors = []
-    names = [r["registry_name"] for r in config["registries"]]
-    for dup in sorted({n for n in names if names.count(n) > 1}):
-        errors.append(f"registries: duplicate registry_name '{dup}'")
-    maps = [m["mapping_name"] for m in config["image_mappings"]]
-    for dup in sorted({n for n in maps if maps.count(n) > 1}):
-        errors.append(f"image_mappings: duplicate mapping_name '{dup}'")
-    for mapping in config["image_mappings"]:
-        if mapping["registry_name"] not in names:
-            errors.append(f"image_mappings[{mapping['mapping_name']}]: registry_name "
-                          f"'{mapping['registry_name']}' is not defined in registries")
-    return errors
-
-
-def run_validation(config: Any, schema: dict) -> tuple[list[str], dict]:
-    """Return (errors, normalized config)."""
+def validate_config(config, schema_def, logger):
+    """Return the list of L1 and L2 errors for a parsed configuration."""
     if not isinstance(config, dict):
         return ["oci_image_ingest_config.yml must be a YAML mapping with registries "
-                "and image_mappings"], {}
-    cred_keys = find_credential_keys(config)
-    if cred_keys:
-        return [CREDENTIAL_MSG.format(keys=", ".join(cred_keys))], {}
-    validator = jsonschema.Draft7Validator(schema)
-    found = sorted(validator.iter_errors(config), key=lambda e: list(map(str, e.absolute_path)))
-    errors = [format_schema_error(e) for e in found]
+                "and image_mappings"]
+    cred_errors = credential_keys_oci_image_ingest_config(config)
+    if cred_errors:
+        return cred_errors
+    errors = []
+    validate_against_schema(config, schema_def, FILE_LABEL, errors, logger,
+                            formatter=format_oci_image_ingest_config_error)
     if errors:
-        return errors, {}
-    errors = semantic_errors(config)
-    if errors:
-        return errors, {}
-    normalized = {"registries": [], "image_mappings": config["image_mappings"]}
+        return errors
+    return logic_oci_image_ingest_config(config, logger)
+
+
+def normalize(config):
+    """Apply the default registry port."""
+    registries = []
     for reg in config["registries"]:
         reg = dict(reg)
         reg.setdefault("registry_port", DEFAULT_PORTS[reg["registry_protocol"]])
-        normalized["registries"].append(reg)
-    return [], normalized
+        registries.append(reg)
+    return {"registries": registries, "image_mappings": config["image_mappings"]}
 
 
 def main() -> None:
     """Module entry point."""
     module = AnsibleModule(
         argument_spec={"config_path": {"type": "path", "required": True},
-                       "schema_path": {"type": "path", "required": True}},
+                       "schema_path": {"type": "path", "required": True},
+                       "log_dir": {"type": "path", "default": ""}},
         supports_check_mode=True,
     )
-    if not HAS_JSONSCHEMA:
-        module.fail_json(msg="python jsonschema library is required")
+    if not HAS_ENGINE:
+        module.fail_json(msg="python jsonschema library and the utils input validation "
+                             "package are required")
     for key in ("config_path", "schema_path"):
         if not os.path.isfile(module.params[key]):
             module.fail_json(msg=f"{key} not found: {module.params[key]}")
@@ -148,13 +133,16 @@ def main() -> None:
         with open(module.params["config_path"], encoding="utf-8") as handle:
             config = yaml.safe_load(handle)
         with open(module.params["schema_path"], encoding="utf-8") as handle:
-            schema = json.load(handle)
+            schema_def = json.load(handle)
     except (yaml.YAMLError, json.JSONDecodeError) as exc:
         module.fail_json(msg=f"Failed to parse input: {type(exc).__name__}")
-    errors, normalized = run_validation(config, schema)
+    logger = create_logger(module.params["log_dir"], LOG_NAME)
+    errors = validate_config(config, schema_def, logger)
     if errors:
         module.fail_json(msg="oci_image_ingest_config.yml validation failed", errors=errors)
-    module.exit_json(changed=False, msg="oci_image_ingest_config.yml is valid", config=normalized)
+    logger.info("oci_image_ingest_config.yml validated")
+    module.exit_json(changed=False, msg="oci_image_ingest_config.yml is valid",
+                     config=normalize(config))
 
 
 if __name__ == "__main__":
