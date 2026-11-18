@@ -1107,6 +1107,8 @@ def verify_external_health_monitor_container(host):
         When the pod is not found, returns pod_found=False and success=True.
         When the health monitor sidecar is not present (controller.healthMonitor.enabled
         is false), returns health_monitor_deployed=False and success=True.
+        success reports whether the check itself passed, not whether the monitor
+        is present; use is_health_monitor_available() to test availability.
     """
     from .k8s_func import get_pods_by_label
 
@@ -1178,6 +1180,15 @@ def verify_external_health_monitor_container(host):
     }
 
 
+def is_health_monitor_available(result):
+    """Return True only if the health monitor sidecar is deployed and ready."""
+    return bool(
+        result.get("pod_found", False)
+        and result.get("health_monitor_deployed", False)
+        and result.get("success", False)
+    )
+
+
 def verify_csi_exporter_skipped_without_health_monitor(host):
     """Verify CSI volume exporter deployment is skipped when health monitor is not available.
 
@@ -1191,8 +1202,7 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
     from .k8s_func import get_pods_by_label
 
     # Check if health monitor is available
-    health_monitor_result = verify_external_health_monitor_container(host)
-    health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
+    monitor_available = is_health_monitor_available(verify_external_health_monitor_container(host))
 
     # Check if CSI volume exporter is deployed
     # Try multiple label selectors
@@ -1205,13 +1215,10 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
     # Expected behavior:
     # - If health monitor is NOT available → exporter should NOT be deployed
     # - If health monitor IS available → exporter SHOULD be deployed
-    if health_monitor_available:
-        expected_behavior = exporter_deployed
-    else:
-        expected_behavior = not exporter_deployed
+    expected_behavior = exporter_deployed if monitor_available else not exporter_deployed
 
     details = (
-        f"Health monitor available: {health_monitor_available}, "
+        f"Health monitor available: {monitor_available}, "
         f"Exporter deployed: {exporter_deployed}, "
         f"Expected behavior: {expected_behavior}"
     )
@@ -1219,7 +1226,7 @@ def verify_csi_exporter_skipped_without_health_monitor(host):
     return {
         "success": expected_behavior,
         "exporter_deployed": exporter_deployed,
-        "health_monitor_available": health_monitor_available,
+        "health_monitor_available": monitor_available,
         "details": details,
         "error": "" if expected_behavior else "CSI volume exporter deployment logic incorrect",
     }
@@ -1235,15 +1242,14 @@ def verify_health_monitor_warning_message(host):
         dict with keys: success, warning_expected, details, error.
     """
     # Check if health monitor is available
-    health_monitor_result = verify_external_health_monitor_container(host)
-    health_monitor_available = health_monitor_result.get("pod_found", False) and health_monitor_result["success"]
+    monitor_available = is_health_monitor_available(verify_external_health_monitor_container(host))
 
     # Warning should be displayed when health monitor is not available
     # If health monitor IS available, warning should NOT be displayed
-    warning_expected = not health_monitor_available
+    warning_expected = not monitor_available
 
     details = (
-        f"Health monitor available: {health_monitor_available}, "
+        f"Health monitor available: {monitor_available}, "
         f"Warning expected: {warning_expected}"
     )
 
