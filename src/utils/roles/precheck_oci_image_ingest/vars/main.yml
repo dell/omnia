@@ -28,8 +28,10 @@ oci_ingest_prepare_tools:
 oci_ingest_os_tools:
   - name: mksquashfs
     package: squashfs-tools
-# - name: tar
-#   package: tar
+
+# Session registry credentials live on tmpfs, never under OMNIA_DATA_PATH, so a killed run cannot
+# leave them on persistent storage.
+oci_ingest_secret_root: /run/omnia/oci_image_ingest
 
 oci_ingest_base_workdir: "{{ omnia_data_path }}/utils/workdir/{{ project_name }}/oci-image-ingest"
 

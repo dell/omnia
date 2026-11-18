@@ -30,5 +30,5 @@ s3_acl_fail_msg: >-
   artifacts anonymously, so enable ACLs on the bucket or grant anonymous read with a bucket policy. build_status.yml
   was not updated.
 s3_verify_fail_msg: >-
-  Uploaded object sizes under s3://{{ _oci_s3_prefix }}/ do not match the local artifacts (phase: upload).
-  build_status.yml was not updated.
+  Uploaded object '{{ _oci_s3_failed_item | default('unknown') }}' under s3://{{ _oci_s3_prefix }}/ does not match
+  the local artifact by size or SHA-256 (phase: upload). Partial objects were removed. build_status.yml was not updated.

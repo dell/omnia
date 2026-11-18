@@ -38,6 +38,11 @@
   tasks:
     - name: OCI image ingest pipeline
       block:
+        - name: Validate the configuration when utils.yml skipped validation
+          ansible.builtin.include_role:
+            name: validate_oci_image_ingest_config
+          when: oci_ingest_config is not defined
+
         - name: Precheck prerequisites and take the project lock
           ansible.builtin.include_role:
             name: precheck_oci_image_ingest
@@ -64,6 +69,18 @@
         - name: Catalog derivation hook (reserved, not implemented)
           ansible.builtin.include_role:
             name: derive_oci_ingest_catalog
+      rescue:
+        - name: Log the failure
+          oci_ingest_log:
+            log_dir: "{{ oci_ingest_log_dir | default(omnia_data_path ~ '/utils/log/' ~ project_name) }}"
+            level: error
+            message: >-
+              run failed in task '{{ ansible_failed_task.name | default('unknown') }}':
+              {{ ansible_failed_result.msg | default('') | regex_replace('\\s+', ' ') | truncate(500) }}
+
+        - name: Fail with the original message
+          ansible.builtin.fail:
+            msg: "{{ ansible_failed_result.msg | default('OCI image ingest failed') }}"
       always:
         - name: Cleanup working directory and release the lock
           ansible.builtin.include_role:

@@ -38,6 +38,7 @@
   validate_oci_image_ingest_config:
     config_path: "{{ _oci_ingest_config_path }}"
     schema_path: "{{ oci_ingest_schema_path }}"
+    log_dir: "{{ oci_ingest_validation_log_dir }}"
   register: _oci_ingest_validation
 
 - name: Expose validated configuration

@@ -20,10 +20,25 @@
 # ingest_oci_image_mapping.yml - one image mapping (repo_to_bucket). oci_ingest_mapping is the loop item.
 # The digest is pinned first; a digest that is already completely published is a no-op.
 
+- name: Refresh the project lock heartbeat
+  ansible.builtin.file:
+    path: "{{ oci_ingest_lock_dir }}"
+    state: touch
+    mode: "0700"
+
 - name: Pin the image digest
   ansible.builtin.include_role:
     name: pull_oci_image
     tasks_from: pin.yml
+
+- name: Log the pinned image
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      mapping={{ oci_ingest_mapping.mapping_name }} registry={{ oci_ingest_pull.registry }}
+      namespace={{ oci_ingest_mapping.namespace_name }} image={{ oci_ingest_mapping.image }}
+      digest={{ oci_ingest_pull.digest }} platform={{ oci_ingest_pull.platform }}
+      operation={{ oci_ingest_mapping.operation }}
 
 - name: Skip the mapping when its digest is already published
   ansible.builtin.include_role:
@@ -38,6 +53,12 @@
         name: pull_oci_image
         tasks_from: export.yml
 
+    - name: Refresh the project lock heartbeat after the export
+      ansible.builtin.file:
+        path: "{{ oci_ingest_lock_dir }}"
+        state: touch
+        mode: "0700"
+
     - name: Extract the boot artifacts
       ansible.builtin.include_role:
         name: extract_boot_artifacts
@@ -46,9 +67,23 @@
       ansible.builtin.include_role:
         name: create_squashfs
 
+    - name: Refresh the project lock heartbeat after the SquashFS build
+      ansible.builtin.file:
+        path: "{{ oci_ingest_lock_dir }}"
+        state: touch
+        mode: "0700"
+
     - name: Publish to S3
       ansible.builtin.include_role:
         name: publish_s3_artifacts
+
+- name: Log the publication result
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      mapping={{ oci_ingest_mapping.mapping_name }} result={{ 'no-op (already published)' if oci_ingest_skip | bool else 'published' }}
+      s3_prefix={{ _oci_s3_prefix }} artifacts={{ (oci_ingest_results | last).artifacts | to_json }}
+      elapsed_seconds={{ (now(utc=true).timestamp() | int) - (oci_ingest_started_epoch | int) }}
 
 - name: Remove this mapping's working data
   ansible.builtin.file:
