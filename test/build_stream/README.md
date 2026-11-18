@@ -177,7 +177,7 @@ cd datasets/generator
 | `prepare_base` | `readiness` | Prerequisite domains ready for BuildStream |
 | `precheck` | `environment`, `containers`, `credentials` | Environment, prerequisite containers and credential stores |
 | `prepare` | `build_stream` | BuildStream service, API, database, venv, TLS, queue |
-| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup` | GitLab, then each pipeline as one test case per step |
+| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` | GitLab, then each pipeline as one test case per step, then the pipeline log query API and CI console logs (ER-BSM-003) |
 | `cleanup` | `gitlab`, `build_stream` | Removed and intentionally preserved resources |
 
 Every test case, with its order, ID, markers and check, is listed in
@@ -219,6 +219,7 @@ Every test case, with its order, ID, markers and check, is listed in
 | `cadence` | Cadence pipeline and the cadence disable / re-enable tests |
 | `cleanup_pipeline` | `PIPELINE_TYPE=cleanup` pipeline: `pipeline_cleanup` |
 | `automatic_cleanup` | Automated cleanup pass on an image the suite builds: `auto_cleanup` |
+| `log_observability` | Pipeline log query API, write-time redaction and CI console logs: `log_query` (fixture-log cases also carry `security` and need `nft_allow_security_mutation: true`) |
 | `nft`, `resilience`, `security`, `disruptive` | NFT selection; `disruptive` also needs its `nft_allow_*` key |
 
 Combine markers with `+` (AND) and `,` (OR), for example
@@ -270,6 +271,7 @@ Combine markers with `+` (AND) and `,` (OR), for example
 | `execute` (all pipelines) | `pipeline.allow_pipeline_cancel`, `pipeline.poll_interval`, `debug_mode` |
 | `execute` (`pipeline_cleanup`) | `pipeline.cleanup_image_group_id`. Empty = the suite builds its own image first (this session or `reports/state/pipeline_cleanup_build.json`); an image group ID = nothing is built, that group is used |
 | `execute` (`auto_cleanup`) | `pipeline.auto_cleanup_image_group_id`. Empty = the suite builds its own image first (this session or `reports/state/auto_cleanup_build.json`); an image group ID = nothing is built, that group is used. The group is set to FAILED in the database first |
+| `execute` (`log_query`) | `pipeline.build_job_id` (job under test when no build/deploy suite ran in the same run), `nft_allow_security_mutation` (fixture-log cases). Limits are read from the target `build_stream_config.yml` |
 | `cleanup` | `cleanup.postgres_backup`, `cleanup.cleanup_credentials` |
 
 **Build:** the build suites commit `installation.catalog` with the next unused
