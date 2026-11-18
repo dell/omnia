@@ -82,6 +82,7 @@ PLAYBOOK_BACKUP_OIM_LOGS = "playbooks/backup_oim_logs/backup_oim_logs.yml"
 PLAYBOOK_SLURM_CONFIG_UTIL = "playbooks/slurm_config_util/slurm_config_util.yml"
 PLAYBOOK_CLEANUP_SLURM_CONFIG_BACKUPS = "playbooks/slurm_config_util/cleanup_slurm_config_backups.yml"
 PLAYBOOK_WORKDIR = "src/utils"
+SRC_UTILS_PATH = "src/utils"
 
 # Valid playbook tags for collect.yml
 COLLECT_PLAYBOOK_TAGS = [
@@ -320,4 +321,120 @@ CMDS = {
     "journalctl_since": (
         "journalctl -u {service} --since '{since}' --no-pager 2>/dev/null"
     ),
+
+    # --- OCI Image Ingest ---
+    "s3cmd_ls": "s3cmd ls {path} 2>/dev/null",
+    "s3cmd_ls_bucket": "s3cmd ls s3://{bucket}/ 2>/dev/null",
+    "s3cmd_info": "s3cmd info {path} 2>/dev/null",
+    "regctl_version": "regctl version 2>/dev/null",
+    "check_s3cfg": "test -f {path} && echo exists || echo missing",
+    "vault_check_header": "head -1 {path} 2>/dev/null",
+    "file_permissions": "stat -c '%a' {path} 2>/dev/null",
+    "yaml_parse": (
+        "python3 -c \"import yaml,sys; "
+        "d=yaml.safe_load(open('{path}')); "
+        "print(d)\" 2>/dev/null"
+    ),
+    "yaml_key_check": (
+        "python3 -c \"import yaml; "
+        "d=yaml.safe_load(open('{path}')); "
+        "print(d.get('{key}', ''))\" 2>/dev/null"
+    ),
+    "grep_credential_scan": (
+        "grep -rl '{pattern}' {path} 2>/dev/null || echo 'clean'"
+    ),
+    "unsquashfs_stat": "unsquashfs -s {path} 2>/dev/null",
+    "sha256sum": "sha256sum {path} 2>/dev/null | awk '{{print $1}}'",
+    "s3cmd_get_checksum": (
+        "s3cmd info {path} 2>/dev/null | grep 'MD5\\|ETag' || echo ''"
+    ),
+    "find_build_status": (
+        "find {path} -name 'build_status.yml' -type f 2>/dev/null | head -1"
+    ),
+    "check_lock_file": "test -f {path} && echo locked || echo unlocked",
+    "list_s3_objects": "s3cmd ls -r s3://{bucket}/{prefix} 2>/dev/null",
+    "ssh_uname": (
+        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
+        "root@{ip} 'uname -r' 2>/dev/null"
+    ),
+    "ssh_ls_modules": (
+        "ssh -o StrictHostKeyChecking=no {ip} "
+        "'ls /lib/modules/{kv}/' 2>&1 | head -5"
+    ),
+    "ping_host": "ping -c1 -W5 {ip} >/dev/null 2>&1 && echo ok",
+    "curl_registry_v2": (
+        "curl -sk -o /dev/null -w '%{{http_code}}' "
+        "{endpoint}/v2/ --connect-timeout 10 2>&1"
+    ),
+    "curl_head_artifact": (
+        "curl -skI -L --connect-timeout 15 --max-time 30 "
+        "-o /dev/null -w '%{{http_code}}' '{url}'"
+    ),
+    "test_file_exists": "test -f {path} && echo exists || echo missing",
+    "cat_file": "cat {path}",
+    "head_file": "head -{n} {path}",
+    "copy_file": "cp -f {src} {dst}",
+    "write_temp_file": "cat > {path} << 'ENDOFCFG'\n{content}ENDOFCFG",
+    "playbook_utils_oci": "playbooks/utils.yml --tags oci_image_ingest",
+    "df_check": "df -B1 {path} 2>/dev/null | tail -1",
+    "credential_scan": (
+        "grep -rl '{pattern}' {path} --include='*.yml' --include='*.log' "
+        "--include='*.json' 2>/dev/null || echo clean"
+    ),
 }
+
+# =============================================================================
+# OCI IMAGE INGEST CONSTANTS
+# =============================================================================
+
+# OCI Image Ingest input files
+OCI_IMAGE_INGEST_CONFIG_FILE = "oci_image_ingest_config.yml"
+OCI_IMAGE_INGEST_CREDENTIALS_FILE = "oci_image_ingest_credentials.yml"
+
+# OCI Image Ingest playbook
+PLAYBOOK_OCI_IMAGE_INGEST = "playbooks/oci_image_ingest/ingest_oci_image.yml"
+
+# OCI Image Ingest tag
+OCI_IMAGE_INGEST_TAG = "oci_image_ingest"
+
+# Supported values (this increment)
+OCI_SUPPORTED_REGISTRY_TYPES = ["harbor"]
+OCI_SUPPORTED_OPERATIONS = ["repo_to_bucket"]
+
+# Architecture suffix to OCI platform mapping
+OCI_ARCH_SUFFIX_MAP = {
+    "_x86_64": "linux/amd64",
+    "_aarch64": "linux/arm64",
+}
+
+# Build status fields
+OCI_BUILD_STATUS_FILE = "build_status.yml"
+OCI_IMAGE_BUILD_TYPE = "oci-image-ingest"
+OCI_ACCEPTED_BUILD_TYPES = ["image-thrillhouse", "oci-image-ingest"]
+# S3 bucket is read from build_status.yml s3_configurations.bucket at runtime
+# No hardcoded bucket name — each environment configures its own
+
+# Boot artifact patterns
+OCI_VMLINUZ_PATTERN = r"vmlinuz-[\w.\-]+"
+OCI_INITRAMFS_PATTERN = r"initramfs-[\w.\-]+\.img"
+OCI_ROOTFS_FILE = "rootfs.squashfs"
+
+# Rescue/debug kernel exclusion patterns
+OCI_RESCUE_KERNEL_PATTERN = r".*rescue.*"
+OCI_DEBUG_KERNEL_PATTERN = r".*\+debug$"
+
+# Credential fields that must NOT appear in config
+OCI_CREDENTIAL_FIELDS = ["username", "password", "token", "auth", "registry_username", "registry_password"]
+
+# Prerequisite binaries
+OCI_PREREQUISITE_BINARIES = ["regctl", "s3cmd", "mksquashfs"]
+OCI_PREREQUISITE_FILES = [".s3cfg"]
+
+# Working directory pattern
+OCI_WORKDIR_PATTERN = "utils/workdir/{project}/oci-image-ingest"
+
+# S3 path pattern
+OCI_S3_PATH_PATTERN = "{bucket}/{functional_group}/{image_name}-ingest/{release}/"
+
+# Release prefix safe character pattern
+OCI_SAFE_CHAR_PATTERN = re.compile(r"[^A-Za-z0-9._-]")
