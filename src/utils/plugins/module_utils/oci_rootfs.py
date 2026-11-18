@@ -117,7 +117,9 @@ def check_member(member: tarfile.TarInfo, root: str, layer_symlinks: set[str]) -
     elif member.islnk():
         target = _normalize(member.linkname)
         _reject_layer_symlink_path(target, layer_symlinks, member.name)
-        resolve_in_root(root, posixpath.dirname(target))
+        resolve_in_root(root, target)
+        if os.path.islink(os.path.join(root, target)):
+            raise UnsafeLayerError(f"hardlink target is a symlink: {member.name}")
     return path
 
 

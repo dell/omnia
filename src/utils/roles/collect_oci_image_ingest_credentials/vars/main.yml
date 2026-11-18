@@ -29,6 +29,6 @@ oci_ingest_credentials_schema_path: >-
 credential_empty_msg: "Failed. {{ _oci_cred_field }} is required and cannot be empty."
 credential_mismatch_msg: "Failed. Passwords do not match."
 credential_decrypt_fail_msg: >-
-  Failed to read the stored OCI image ingest credentials. Check that the vault key matches the
-  credential file, or delete the stored credential file and its vault key from the project input
-  directory to enter the credentials again.
+  The stored OCI image ingest credentials could not be read or failed validation. Fix the listed
+  fields, check that the vault key matches the credential file, or delete the stored credential file
+  and its vault key from the project input directory to enter the credentials again.

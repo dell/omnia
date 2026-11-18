@@ -53,6 +53,12 @@
         name: pull_oci_image
         tasks_from: export.yml
 
+    - name: Refresh the project lock heartbeat after the export
+      ansible.builtin.file:
+        path: "{{ oci_ingest_lock_dir }}"
+        state: touch
+        mode: "0700"
+
     - name: Extract the boot artifacts
       ansible.builtin.include_role:
         name: extract_boot_artifacts
@@ -60,6 +66,12 @@
     - name: Create the SquashFS root filesystem
       ansible.builtin.include_role:
         name: create_squashfs
+
+    - name: Refresh the project lock heartbeat after the SquashFS build
+      ansible.builtin.file:
+        path: "{{ oci_ingest_lock_dir }}"
+        state: touch
+        mode: "0700"
 
     - name: Publish to S3
       ansible.builtin.include_role:
