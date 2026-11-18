@@ -161,6 +161,7 @@
     headers:
       Authorization: "Bearer {{ openchami_access_token }}"
   register: ms_groups
+  no_log: true
 
 - name: Build list of metadata-service configured group names
   ansible.builtin.set_fact:
