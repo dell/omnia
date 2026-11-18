@@ -199,7 +199,7 @@ mount_params:
   # PowerScale NFS share (Kubernetes or Slurm nfs_storage_name)
   powerscale_nfs:
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mnt_opts: "nosuid,rw,sync,hard,intr,rsize=946176,wsize=946176,nosharecache"
     node_nfs_mnt_opts: "rsize=946176,wsize=946176,nosharecache"
 
 # -----------------------------Powervault-------------------------------------------
