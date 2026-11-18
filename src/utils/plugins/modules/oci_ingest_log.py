@@ -21,6 +21,8 @@
 
 from __future__ import annotations
 
+import re
+
 from ansible.module_utils.basic import AnsibleModule
 
 try:
@@ -86,7 +88,7 @@ def main() -> None:
     logger = create_logger(module.params["log_dir"], LOG_NAME)
     if not logger.log_file:
         module.fail_json(msg="cannot write the OCI image ingest log directory")
-    getattr(logger, module.params["level"])(module.params["message"].replace("\n", " "))
+    getattr(logger, module.params["level"])(re.sub(r"[\x00-\x1f\x7f]", " ", module.params["message"]))
     module.exit_json(changed=False, log_file=logger.log_file)
 
 

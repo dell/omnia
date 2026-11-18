@@ -71,10 +71,12 @@
         - ((ansible_date_time.epoch | int) - (oci_lock_stat.stat.mtime | int)) < 7200
         - not (oci_ingest_force_cleanup | default(false) | bool)
 
-    - name: Warn when a stale lock is removed
+    - name: Warn when a project lock is removed
       ansible.builtin.debug:
         msg: >-
-          A stale project lock at {{ oci_ingest_workdir_root }}/.lock is removed with the working directory.
+          The project lock at {{ oci_ingest_workdir_root }}/.lock is
+          {{ (ansible_date_time.epoch | int) - (oci_lock_stat.stat.mtime | int) }} seconds old and is removed
+          with the working directory{{ ' (forced)' if (oci_ingest_force_cleanup | default(false) | bool) else '' }}.
       when: oci_lock_stat.stat.exists
 
     - name: Remove OCI image ingest working directories

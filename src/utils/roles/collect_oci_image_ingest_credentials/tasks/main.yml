@@ -125,6 +125,7 @@
     schema_path: "{{ oci_ingest_credentials_schema_path }}"
     log_dir: "{{ oci_ingest_log_dir | default('') }}"
   register: _oci_cred_validation
+  no_log: true
   ignore_errors: true
 
 - name: Fail when the stored credentials are incomplete or malformed

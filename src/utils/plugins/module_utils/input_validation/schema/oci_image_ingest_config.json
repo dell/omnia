@@ -16,8 +16,8 @@
         "properties": {
           "registry_name": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
           "registry_type": {"type": "string", "enum": ["harbor"]},
-          "registry_protocol": {"type": "string", "enum": ["http", "https"]},
-          "registry_hostname": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*$"},
+          "registry_protocol": {"type": "string", "enum": ["https"]},
+          "registry_hostname": {"type": "string", "minLength": 1, "maxLength": 253, "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*$"},
           "registry_port": {"type": "integer", "minimum": 1, "maximum": 65535}
         }
       }
