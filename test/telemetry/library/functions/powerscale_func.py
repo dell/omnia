@@ -1106,7 +1106,8 @@ def verify_external_health_monitor_container(host):
         pod_found, health_monitor_deployed.
         When the pod is not found, returns pod_found=False and success=True.
         When the health monitor sidecar is not present (controller.healthMonitor.enabled
-        is false), returns health_monitor_deployed=False and success=True.
+        is false), returns health_monitor_deployed=False and success=False. Callers
+        must check health_monitor_deployed before treating success as a failure.
     """
     from .k8s_func import get_pods_by_label
 
@@ -1148,7 +1149,7 @@ def verify_external_health_monitor_container(host):
 
     if not health_monitor_deployed:
         return {
-            "success": True,  # Not a failure - health monitor sidecar is not deployed
+            "success": False,
             "pod_found": True,
             "health_monitor_deployed": False,
             "pod_name": pod_name,
