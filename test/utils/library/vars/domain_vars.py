@@ -38,6 +38,7 @@ FVT_TAGS: List[str] = [
     "install_os",
     "backup_oim_logs",
     "slurm_config_util",
+    "oci_image_ingest",
     "cleanup_logs",
     "cleanup_install_os",
     "cleanup",
@@ -54,6 +55,7 @@ MARKERS: List[str] = [
     "deploy",
     "x86_64",
     "aarch64",
+    "oci_image_ingest",
 ]
 
 # =====================================================================
@@ -67,6 +69,7 @@ SUITES: Dict[str, List[str]] = {
     "install_os": ["install_os", "iso"],
     "backup_oim_logs": ["backup_oim_logs"],
     "slurm_config_util": ["slurm_config_util"],
+    "oci_image_ingest": ["input_validation", "registry", "pipeline", "build_status", "cleanup", "boot_validation", "tag_routing", "orchestrator"],
     "cleanup_logs": ["cleanup_logs"],
     "cleanup_install_os": ["cleanup_install_os"],
     "cleanup": ["cleanup"],
@@ -99,4 +102,5 @@ EXCLUDE_TAGS: List[str] = [
     "cleanup_install_os",
     "backup_oim_logs",
     "slurm_config_util",
+    "oci_image_ingest",
 ]
