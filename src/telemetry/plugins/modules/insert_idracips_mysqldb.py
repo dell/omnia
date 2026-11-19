@@ -197,10 +197,9 @@ def run_mysql_insert(
     Returns:
         dict: Result containing rc (bool) and result message
     """
-    pod_ip = resolve_pod_ip(namespace, pod)
-
     conn = None
     try:
+        pod_ip = resolve_pod_ip(namespace, pod)
         conn = pymysql.connect(
             host=pod_ip,
             port=container_port,
@@ -220,7 +219,7 @@ def run_mysql_insert(
             "rc": True,
             "result": f"Inserted IP {ip}"
         }
-    except (pymysql.err.OperationalError, pymysql.err.MySQLError) as e:
+    except Exception as e:
         return {
             "rc": False,
             "result": str(e)
