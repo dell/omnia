@@ -103,7 +103,7 @@
     mode: "{{ file_perm_rw }}"
   register: coredhcp_config_result
   vars:
-    mapping_nodes: "{{ _mapping_nodes.dict | dict2items | map(attribute='value') | list if _mapping_nodes is defined else [] }}"
+    mapping_nodes: "{{ (_mapping_nodes.dict | default({})) | dict2items | map(attribute='value') | list }}"
 
 - name: Refresh coredns Corefile config
   ansible.builtin.template:
@@ -114,7 +114,7 @@
     mode: "{{ file_perm_rw }}"
   register: coredns_config_result
   vars:
-    mapping_nodes: "{{ _mapping_nodes.dict | dict2items | map(attribute='value') | list if _mapping_nodes is defined else [] }}"
+    mapping_nodes: "{{ (_mapping_nodes.dict | default({})) | dict2items | map(attribute='value') | list }}"
 
 - name: Restart openchami services if configs changed
   ansible.builtin.systemd:

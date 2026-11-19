@@ -169,7 +169,7 @@
     group: root
     mode: "{{ file_perm_rw }}"
   vars:
-    mapping_nodes: "{{ _mapping_nodes.dict | dict2items | map(attribute='value') | list if _mapping_nodes is defined else [] }}"
+    mapping_nodes: "{{ (_mapping_nodes.dict | default({})) | dict2items | map(attribute='value') | list }}"
 
 - name: Drop coredns Corefile config
   ansible.builtin.template:
@@ -179,4 +179,4 @@
     group: root
     mode: "{{ file_perm_rw }}"
   vars:
-    mapping_nodes: "{{ _mapping_nodes.dict | dict2items | map(attribute='value') | list if _mapping_nodes is defined else [] }}"
+    mapping_nodes: "{{ (_mapping_nodes.dict | default({})) | dict2items | map(attribute='value') | list }}"

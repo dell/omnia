@@ -2,7 +2,7 @@
 
 ## Overview
 
-Omnia supports human-readable hostnames (e.g., `gpu-worker-01`, `storage-node-a`) alongside the standard nid format (`nid001-nid999`) when `dns_enabled: true` in `orchestrator_config.yml`. This feature follows the OpenCHAMI custom hostname management approach to keep DHCP, DNS, and cloud-init in agreement.
+Omnia supports human-readable hostnames (e.g., `gpu-worker-01`, `storage-node-a`) alongside the standard nid format (nid followed by digits, e.g., `nid1`, `nid001`, `nid1000`) when `dns_enabled: true` in `orchestrator_config.yml`. This feature follows the OpenCHAMI custom hostname management approach to keep DHCP, DNS, and cloud-init in agreement.
 
 ## How It Works
 
@@ -21,7 +21,7 @@ Simply use your desired hostname in the `HOSTNAME` column of `pxe_mapping_file.c
 ```csv
 FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
 slurm_node_rhel_10_2_x86_64,grp1,ABCD12,gpu-worker-01,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43
-slurm_node_rhel_10_2_x86_64,grp2,ABCD34,nid001,aa:bb:cc:dd:ee:hh,172.16.107.44,aa:bb:cc:dd:ee:ii,172.17.107.44
+slurm_node_rhel_10_2_x86_64,grp2,ABCD34,nid1000,aa:bb:cc:dd:ee:hh,172.16.107.44,aa:bb:cc:dd:ee:ii,172.17.107.44
 login_node_rhel_10_2_x86_64,grp3,ABCD56,login-server,aa:bb:cc:dd:ee:jj,172.16.107.45,aa:bb:cc:dd:ee:kk,172.17.107.45
 ```
 
@@ -30,8 +30,10 @@ You can mix custom hostnames and nid format in the same cluster. The system auto
 ### Validation
 
 When `dns_enabled: true`, the PXE mapping validator accepts:
-- **nid format**: `nid001` through `nid999` (existing behavior)
+- **nid format**: nid followed by digits (e.g., `nid1`, `nid001`, `nid1000`, `nid6000`)
 - **custom format**: Any valid hostname matching the pattern `^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$`
+
+Note: The CoreSMD `{Nd}` pattern sets a minimum width, not a maximum. For example, `nid{04d}` with NID=1000 produces `nid1000`, not `nid000`. This allows clusters with thousands of nodes.
 
 No additional configuration flags are needed - the system auto-detects from the hostname format.
 
@@ -92,7 +94,7 @@ After deploying custom hostnames, verify the configuration:
 
 3. **Query DNS for nid hostname** (if mixed):
    ```bash
-   dig @<oim-ip> nid001.cluster.example A +short
+   dig @<oim-ip> nid1000.cluster.example A +short
    ```
 
 4. **Boot a node and verify hostname**:

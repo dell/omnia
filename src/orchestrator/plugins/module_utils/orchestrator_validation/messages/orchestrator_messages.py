@@ -325,8 +325,8 @@ def pxe_mapping_dns_hostname_msg(value: str, row: int) -> str:
     """Return a DNS-enabled PXE hostname-policy error message."""
     return (
         f"orchestrator_config: HOSTNAME '{value}' at mapping row {row} "
-        "must match either nid001-nid999 format or be a valid hostname "
-        "(lowercase letters, numbers, hyphens; must start/end with letter or number) "
+        "must match either nid format (nid followed by digits, e.g., nid1, nid001, nid1000) "
+        "or be a valid hostname (lowercase letters, numbers, hyphens; must start/end with letter or number) "
         "when dns_enabled is true (the default). "
         "Set dns_enabled to false in orchestrator_config.yml to use free-form hostnames. "
         "See examples/pxe_mapping_file_dns_disabled.csv for the expected format "

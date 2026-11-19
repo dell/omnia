@@ -41,8 +41,9 @@
 }
 
 {% for node in mapping_nodes | default([]) %}
-{% if node.HOSTNAME is not regex('^nid\\d{3}$') %}
+{% if node.HOSTNAME is not regex('^nid\\d+$') %}
 {{ node.HOSTNAME }}.{{ cluster_domain }}:53 {
+    bind {{ cluster_boot_ip }}
     hosts /dev/null {
         {{ node.ADMIN_IP }} {{ node.HOSTNAME }}.{{ cluster_domain }}
         ttl 60
