@@ -59,20 +59,8 @@ if str(SOURCE_PLUGIN_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_PLUGIN_ROOT))
 
 
-def _load_source_module(name: str, relative_path: str):
-    """Load a source module by file path to avoid relative-import issues."""
-    path = ORCHESTRATOR_ROOT / relative_path
-    spec = importlib.util.spec_from_file_location(name, path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-functional_validator = _load_source_module(
-    "functional_group_config_validator",
-    "plugins/module_utils/orchestrator_validation/validators/"
-    "functional_group_config_validator.py",
+from module_utils.orchestrator_validation.validators import (
+    functional_group_config_validator as functional_validator,
 )
 
 

@@ -81,7 +81,7 @@
 
     - name: Load functional_group_config.yml (ER-ORCH-009)
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['orchestrator_input_dir'] }}/functional_group_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] | default(hostvars['localhost']['orchestrator_input_dir'] | default('')) }}/functional_group_config.yml"
       when:
         - fg_operation in ['add', 'configure']
       failed_when: false

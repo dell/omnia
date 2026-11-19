@@ -194,3 +194,9 @@ service_k8s_catalog_context_fail_msg: >-
   The catalog's service Kubernetes functional layers must reference exactly
   one complete baseos group and the supported x86_64 architecture. Correct
   the service_kube_* layers before rerunning Orchestrator.
+domain_name_regex: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\Z'
+domain_name_invalid_fail_msg: >-
+  Invalid SYSTEM_DOMAIN_NAME format: '{{ domain_name }}'. Domain names must
+  contain only lowercase letters, numbers, and hyphens, must start and end
+  with a letter or number, and must be separated by dots. Set SYSTEM_DOMAIN_NAME
+  to a valid domain name (e.g., 'omnia.cluster' or 'example.com').
