@@ -28,3 +28,4 @@
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default(__default_config) }}"
     slurm_conf_dict: "{{ slurm_conf_dict | default(__default_config.slurm) }}"
+  no_log: true

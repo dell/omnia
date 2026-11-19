@@ -58,10 +58,10 @@ if (
     _raw_project = "project_default"
 _OMNIA_PROJECT_NAME = _raw_project
 
-# Shared input directory path for playbook consumption (legacy flat path).
-# Used by provision and other non-domain-segregated playbooks.
+# Directory for uploaded files that belong to no domain. It is inside the build_stream
+# domain, in the API runtime data, so no folder is created next to the domain folders.
 DEFAULT_PLAYBOOK_INPUT_DIR = os.path.join(
-    _OMNIA_DATA_PATH, "input", _OMNIA_PROJECT_NAME, ""
+    _OMNIA_DATA_PATH, "build_stream", "build_stream_root", "input", _OMNIA_PROJECT_NAME, ""
 )
 
 # Restart state directory where the playbook reads failed_nodes.json for retry logic.

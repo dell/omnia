@@ -144,6 +144,7 @@
       cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
       (hostvars['localhost']['domain_name'] | default('')).split('.')
       | select | map('regex_replace', '^', 'dc=') | join(',') }}
+  no_log: true
 
 # ---- K8s-specific variable setup for metadata-service templates ----
 # These variables are normally set by the k8s_config bolt-on, but the
@@ -423,6 +424,7 @@
 - name: Parse FG group entries - {{ fg_name }}
   ansible.builtin.set_fact:
     ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
+  no_log: true
 
 - name: Initialize metadata-service bodies for {{ fg_name }}
   ansible.builtin.set_fact:

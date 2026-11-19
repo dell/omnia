@@ -1050,3 +1050,55 @@ class TestCadenceTimerThread:
                 thread.join(timeout=5)
 
         assert not thread.is_alive()
+
+
+class TestCadenceStateLocation:
+    """The cadence state lives inside the build_stream domain folder."""
+
+    def _thread(self, sample_cadence_config, temp_dir):
+        return CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+    def test_state_path_is_inside_the_build_stream_domain(
+        self, sample_cadence_config, temp_dir
+    ):
+        """GIVEN OMNIA_DATA_PATH WHEN the thread starts THEN the state is under build_stream."""
+        thread = self._thread(sample_cadence_config, temp_dir)
+
+        assert thread.state_path == (
+            temp_dir / "build_stream" / "build_stream_root" / "cadence"
+            / "cadence_schedule.json"
+        )
+
+    def test_state_is_written_only_inside_the_domain(
+        self, sample_cadence_config, temp_dir
+    ):
+        """GIVEN a saved schedule THEN no build_stream_root folder appears next to the domains."""
+        from cadence_manager import save_cadence_schedule
+
+        thread = self._thread(sample_cadence_config, temp_dir)
+
+        assert save_cadence_schedule(
+            thread.state_path, {"next_run_at": datetime.now(timezone.utc)}
+        )
+        assert thread.state_path.is_file()
+        assert load_cadence_schedule(thread.state_path) is not None
+        assert not (temp_dir / "build_stream_root").exists()
+        assert thread.state_path.is_relative_to(temp_dir / "build_stream")
+
+    def test_state_path_without_data_path_stays_next_to_the_queue(
+        self, sample_cadence_config, temp_dir, monkeypatch
+    ):
+        """GIVEN no OMNIA_DATA_PATH THEN the state stays beside the request queue."""
+        monkeypatch.delenv("OMNIA_DATA_PATH", raising=False)
+
+        thread = self._thread(sample_cadence_config, temp_dir)
+
+        assert thread.state_path == (
+            temp_dir / "cadence" / "cadence_schedule.json"
+        )
+
