@@ -23,6 +23,13 @@
 
 # ---- Prepare Helm chart files on kube_vip host ----
 
+- name: Read checksum of the deployed LDMS decomposition
+  ansible.builtin.stat:
+    path: "{{ ldms_aggregator_share_path }}/nersc-ldms-aggr/scripts/decomp.json"
+    get_checksum: true
+    checksum_algorithm: sha1
+  register: ldms_deployed_decomp_stat
+
 - name: Synchronize LDMS aggregator Helm chart files
   ansible.builtin.copy:
     src: "{{ role_path }}/files/nersc-ldms-aggr"
@@ -66,12 +73,22 @@
 # StatefulSet restart) on every deploy. Only the Ansible-rendered dynamic
 # inputs (machine config, host map) and missing generated templates should
 # trigger a rebuild.
+# decomp.json is embedded in the nersc-ldms-bin ConfigMap at build time, so a
+# content change (compared by checksum, not by the copy result, which can also
+# report mode-only changes) must rebuild the ConfigMap and restart the store.
 - name: Determine whether LDMS aggregator configuration must be rebuilt
   ansible.builtin.set_fact:
     ldms_aggregator_build_required: >-
       {{
         (ldms_machine_config_result.changed | default(false) | bool)
         or (ldms_host_map_result.changed | default(false) | bool)
+        or
+        (
+          (ldms_deployed_decomp_stat.stat.checksum | default(''))
+          != (lookup('ansible.builtin.file',
+                     role_path ~ '/files/nersc-ldms-aggr/scripts/decomp.json',
+                     rstrip=false) | hash('sha1'))
+        )
         or
         (
           ldms_generated_config_files.results
