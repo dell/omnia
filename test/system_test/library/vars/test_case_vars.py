@@ -20,7 +20,12 @@ ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
 ``test/<domain>/_run.py fvt_<domain>``: ``exec`` runs the playbook, ``verify``
 runs its verification tests. Within a stage, a test is skipped once an earlier
 test of the stage failed.
+
+catalog_build (order 2000+): generated from the plan of the current run
+(catalog_vars.catalog_test_cases), one stage per catalog.
 """
+
+from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
 
@@ -102,3 +107,5 @@ TEST_CASES = {
         "step": (_BS, ("execute", "verify", "--suite", "auto_cleanup")),
     },
 }
+# ------------------------------------------------------ theme catalog_build
+TEST_CASES.update(catalog_test_cases(CATALOG_PLAN))
