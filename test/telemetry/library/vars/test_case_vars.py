@@ -269,7 +269,7 @@ TEST_CASES = {
     },
     "powerscale_comprehensive_deployment": {
         "id": "TEL_FVT_DEPLOY_V036",
-        "title": "Verify comprehensive PowerScale deployment",
+        "title": "Verify PowerScale deployment restart",
     },
     "powerscale_feature_flags": {
         "id": "TEL_FVT_DEPLOY_V037",
@@ -317,7 +317,7 @@ TEST_CASES = {
     },
     "csi_driver_powerscale_deploy": {
         "id": "TEL_FVT_DEPLOY_V048",
-        "title": "Verify CSI Driver for PowerScale (isilon-controller) deployment",
+        "title": "Verify PowerScale CSI driver restart check",
     },
     "external_health_monitor_container": {
         "id": "TEL_FVT_DEPLOY_V049",

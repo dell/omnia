@@ -218,10 +218,10 @@ TEST_LOG_MSGS = {
     ),
     "csi_exporter_metrics": "CSI Volume Exporter metrics: {details}",
     "csi_driver_deployed": (
-        "CSI Driver for PowerScale (isilon-controller) deployment verified: {details}"
+        "PowerScale CSI driver restart check passed: {details}"
     ),
     "csi_driver_failed": (
-        "CSI Driver for PowerScale (isilon-controller) deployment failed: {details}"
+        "PowerScale CSI driver restart check failed: {details}"
     ),
     "health_monitor_container": "external-health-monitor-controller container verified: {details}",
     "health_monitor_container_failed": (
@@ -698,7 +698,7 @@ TEST_ASSERT_MSGS = {
         "  3. Check vmagent logs: kubectl logs -n telemetry <vmagent-pod>\n"
     ),
     "csi_driver_failed": (
-        "CSI Driver for PowerScale (isilon-controller) deployment failed: {details}\n"
+        "PowerScale CSI driver restart check failed: {details}\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n kube-system | grep isilon-controller\n"
         "  2. kubectl logs statefulset/isilon-controller -n kube-system\n"

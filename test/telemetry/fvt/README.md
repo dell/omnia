@@ -147,7 +147,7 @@ All tests in this section carry `source` and `powerscale`.
 | TEL_FVT_DEPLOY_V033 | Verify PowerScale metrics in VictoriaMetrics | functional |
 | TEL_FVT_DEPLOY_V035 | Verify/configure PowerScale syslog forwarding | functional |
 | TEL_FVT_DEPLOY_V034 | Verify PowerScale logs in VictoriaLogs | functional |
-| TEL_FVT_DEPLOY_V036 | Verify comprehensive PowerScale deployment | functional |
+| TEL_FVT_DEPLOY_V036 | Verify PowerScale deployment restart | functional |
 | TEL_FVT_DEPLOY_V037 | Verify PowerScale feature flags | functional |
 | TEL_FVT_DEPLOY_V038 | Verify PowerScale health metrics | functional |
 | TEL_FVT_DEPLOY_V039 | Verify PowerScale metrics workloads are stopped, no fresh VM samples arrive, disabled logs do not reach VL, and required shared sinks remain healthy | sanity |
@@ -159,7 +159,7 @@ All tests in this section carry `source` and `powerscale`.
 | TEL_FVT_DEPLOY_V045 | Verify CSI Volume Exporter deployment | sanity + functional |
 | TEL_FVT_DEPLOY_V046 | Verify CSI Volume Exporter metrics endpoint | functional |
 | TEL_FVT_DEPLOY_V047 | Verify CSI Volume Exporter metrics in VictoriaMetrics | functional |
-| TEL_FVT_DEPLOY_V048 | Verify CSI Driver for PowerScale deployment | sanity + functional |
+| TEL_FVT_DEPLOY_V048 | Verify PowerScale CSI driver restart check | sanity + functional |
 | TEL_FVT_DEPLOY_V049 | Verify external health monitor container | sanity + functional |
 | TEL_FVT_DEPLOY_V050 | Verify CSI exporter is skipped without health monitor | functional |
 | TEL_FVT_DEPLOY_V051 | Verify missing-health-monitor warning | functional |
