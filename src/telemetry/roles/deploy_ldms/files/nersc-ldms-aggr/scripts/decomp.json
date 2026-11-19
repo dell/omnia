@@ -409,7 +409,7 @@
               { "src" : "nr_zone_unevictable", "dst" : "nr_zone_unevictable", "type" : "u64" },
               { "src" : "nr_zone_write_pending", "dst" : "nr_zone_write_pending", "type" : "u64" },
               { "src" : "nr_mlock", "dst" : "nr_mlock", "type" : "u64" },
-              { "src" : "nr_bounce", "dst" : "nr_bounce", "type" : "u64" },
+              { "src" : "nr_bounce", "dst" : "nr_bounce", "type" : "u64", "fill" : 0 },
               { "src" : "nr_zspages", "dst" : "nr_zspages", "type" : "u64" },
               { "src" : "nr_free_cma", "dst" : "nr_free_cma", "type" : "u64" },
               { "src" : "numa_hit", "dst" : "numa_hit", "type" : "u64" },
