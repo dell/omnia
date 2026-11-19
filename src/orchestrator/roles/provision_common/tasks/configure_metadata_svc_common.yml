@@ -30,6 +30,7 @@
 - name: Parse common group entries
   ansible.builtin.set_fact:
     ms_group_common_entries: "{{ ms_group_common_raw.content | b64decode | from_yaml }}"
+  no_log: true
 
 - name: Initialize metadata-service common group bodies
   ansible.builtin.set_fact:

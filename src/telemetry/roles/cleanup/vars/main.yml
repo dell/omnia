@@ -378,6 +378,10 @@ powerscale_named_resources:
   - { type: "secret", name: "isilon-proxy-server-root-certificate" }
   - { type: "secret", name: "isilon-proxy-authz-tokens" }
   - { type: "pvc", name: "otel-collector-data" }
+  # OTEL Collector TLS resources created by deploy_powerscale helm_install_karavi.yml
+  - { type: "certificate.cert-manager.io", name: "otel-collector" }
+  - { type: "issuer.cert-manager.io", name: "selfsigned-issuer" }
+  - { type: "secret", name: "otel-collector-tls" }
   - { type: "deployment", name: "csi-volume-exporter" }
   - { type: "service", name: "csi-volume-exporter" }
   - { type: "serviceaccount", name: "csi-volume-exporter" }

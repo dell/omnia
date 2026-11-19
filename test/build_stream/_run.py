@@ -62,6 +62,14 @@ def _print_lifecycle_help():
     print("  Manual pipeline suites (build_manual, deploy_manual) are not sanity:")
     print("     ./run_validation.sh fvt_build_stream execute verify --suite build_manual")
     print()
+    print("PIPELINE LOG OBSERVABILITY (ER-BSM-003, execute suite log_query)")
+    print("  Needs pipeline.build_job_id, or build/deploy suites in the same run:")
+    print("     ./run_validation.sh fvt_build_stream execute verify --suite log_query "
+          "--marker sanity")
+    print("  Fixture-log cases need nft_allow_security_mutation: true:")
+    print("     ./run_validation.sh fvt_build_stream execute verify --suite log_query "
+          "--marker security")
+    print()
     print("EXPLICIT ONLY (NOT IN THE DEFAULT LIFECYCLE)")
     print("  ./run_validation.sh fvt_build_stream prepare_base test")
     print("  ./run_validation.sh fvt_build_stream cleanup test   (destructive)")

@@ -26,6 +26,12 @@
     state: absent
   when: oci_ingest_workdir is defined
 
+- name: Remove this run's registry session config (tmpfs)
+  ansible.builtin.file:
+    path: "{{ oci_ingest_secret_dir }}"
+    state: absent
+  when: oci_ingest_secret_dir is defined
+
 - name: Read the lock owner
   ansible.builtin.slurp:
     src: "{{ oci_ingest_lock_dir }}/owner"

@@ -23,6 +23,11 @@ Omnia 2.x Documentation is hosted on [Read The Docs 2.x](https://omnia.readthedo
 
 Current Status: ![GitHub](https://readthedocs.org/projects/omnia/badge/?version=latest)
 
+## Version Selection
+
+- **For stable deployments**: Always use the latest release candidate (RC) version for production environments. Avoid using older RC candidate versions when a new version is released.
+- **For latest features**: Use the `main` branch to access the most recent features and improvements. The `main` branch is the single source of truth for active development.
+
 ## Licensing
 
 Omnia is made available under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0)

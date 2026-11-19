@@ -133,6 +133,20 @@ karavi_observability:
   otel_collector_deployment: "otel-collector"
   otel_collector_pvc: "otel-collector-data"
 
+# Usage helm_install_karavi.yml
+# Replaces the Issuer and Certificate from the chart's templates/cert-manager.yaml, which is removed.
+# otel-collector and karavi-metrics-powerscale mount the TLS secret.
+ps_otel_issuer_name: "selfsigned-issuer"
+ps_otel_certificate_name: "otel-collector"
+ps_otel_tls_secret_name: "otel-collector-tls"
+ps_otel_cert_not_ready_msg: >-
+  The cert-manager Certificate '{{ ps_otel_certificate_name }}' did not become Ready, so the
+  '{{ ps_otel_tls_secret_name }}' secret was not issued and otel-collector and
+  karavi-metrics-powerscale cannot start.
+  Check: 'kubectl describe certificate {{ ps_otel_certificate_name }} -n {{ csm_observability_namespace }}',
+  'kubectl get certificaterequest -n {{ csm_observability_namespace }}', and the
+  karavi-observability-cert-manager pod logs.
+
 # Rescue failure messages for isilon-creds / Karavi Authorization copy tasks (no_log tasks, details suppressed)
 ps_isilon_creds_check_fail_msg: >-
   Failed to check for the isilon-creds secret in namespace 'isilon'.

@@ -67,3 +67,10 @@
     dest: "{{ output_project_dir }}/build_status_{{ oci_ingest_run_id }}.yml"
     remote_src: true
     mode: "0644"
+
+- name: Log the written build status
+  oci_ingest_log:
+    log_dir: "{{ oci_ingest_log_dir }}"
+    message: >-
+      build_status.yml written: path={{ oci_ingest_status_path }}
+      functional_groups={{ oci_ingest_results | map(attribute='functional_group') | join(',') }}
