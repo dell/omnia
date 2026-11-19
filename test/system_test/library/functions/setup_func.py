@@ -27,6 +27,10 @@
                   venv (only the suites whose requirements changed)
 4. ``creds``      the missing domain credential stores, written by
                   test/build_stream/setup_env.sh with the Omnia venv activated
+5. ``files``      only when enable_powerscale_csi is true: the PowerScale CSI
+                  secret.yaml and values.yaml of test/system_test go to the paths of
+                  omnia_config.yml (by default the orchestrator's project input folder,
+                  which the cleanup deletes and the install creates, so after the install)
 
 Every value about the installation (venv, data path, project, domain data
 paths) is read from the installed /etc/omnia/omnia.env. ``assume_yes``
@@ -82,6 +86,7 @@ from ..vars.common_vars import (
     INPUTS_CATALOG_KEY,
     INPUTS_FILE,
     MAX_CREDS_STDIN_BYTES,
+    MODULE_ROOT,
     OPENBAO_CREDS_FLAG,
     OMNIA_ENV_FILE,
     OMNIA_FORCE_DEPS_ARG,
@@ -91,11 +96,16 @@ from ..vars.common_vars import (
     OMNIA_SETUP_ARGS,
     OMNIA_SH,
     OMNIA_SH_DIR,
+    POWERSCALE_ENABLE_KEY,
+    POWERSCALE_EXAMPLES_DIR,
+    POWERSCALE_FILES,
     REPO_ROOT,
     REQUIREMENTS_MARKER,
     SETUP_RECORD,
     SETUP_REPORT_DIR,
+    SRC_OMNIA_CONFIG,
     SRC_OMNIA_ENV_FILE,
+    STAGED_FILE_MODE,
     VIRTUAL_ENV_KEY,
 )
 from ..vars.theme_vars import THEMES
@@ -597,6 +607,104 @@ def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool,
                        domains=stored)
     _creds_next(theme, emit)
     return _passed(domains=stored)
+
+
+# -------------------------------------------------------------------- files
+def _is_reference_example(path: str, name: str) -> bool:
+    """Return whether ``path`` is still the product's reference ``name`` (never edited)."""
+    try:
+        with open(path, "rb") as staged, open(os.path.join(POWERSCALE_EXAMPLES_DIR, name),
+                                              "rb") as example:
+            return staged.read().strip() == example.read().strip()
+    except OSError:
+        return False
+
+
+def _powerscale_copies(clusters: List[Any]) -> Tuple[Dict[str, str], List[str]]:
+    """Return ({target path: source file name}, problems) of the clusters that enable the CSI."""
+    copies: Dict[str, str] = {}
+    problems: List[str] = []
+    for cluster in clusters:
+        if not isinstance(cluster, dict) or cluster.get(POWERSCALE_ENABLE_KEY) is not True:
+            continue
+        name = str(cluster.get("cluster_name", "?"))
+        paths: Dict[str, str] = {}
+        for key, source in POWERSCALE_FILES.values():
+            path = str(cluster.get(key) or "")
+            if not path.startswith("/") or ".." in path.split("/"):
+                problems.append(SETUP_MSGS["files_bad_path"].format(
+                    cluster=name, key=key, value=path, name=source))
+            elif not os.path.isdir(os.path.dirname(path)):
+                problems.append(SETUP_MSGS["files_no_folder"].format(
+                    cluster=name, key=key, folder=os.path.dirname(path)))
+            else:
+                paths[source] = path
+        if len(set(paths.values())) < len(paths):
+            problems.append(SETUP_MSGS["files_same_path"].format(
+                cluster=name, path=next(iter(paths.values()))))
+        copies.update({path: source for source, path in paths.items()})
+    return copies, problems
+
+
+def stage_files(config: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
+    """Copy the PowerScale CSI secret.yaml and values.yaml to the paths of omnia_config.yml.
+
+    Runs after the install: the default paths are in the orchestrator's project input
+    folder, which the cleanup deletes and the install creates. Only when a Kubernetes cluster
+    has enable_powerscale_csi true; then both files must exist in test/system_test (the
+    pipeline copies them there from the cluster's folder of the project), have content, be
+    valid YAML and differ from the reference examples they were seeded from (an unedited example
+    would fail at deployment), and their folders must exist, or the step fails naming what is
+    wrong. The copies are plaintext, mode 0600,
+    replaced every run: the orchestrator encrypts its copy in place with a key a clean
+    reinstall deletes. The array user and password come from the orchestrator credentials.
+    """
+    del config
+    try:
+        with open(SRC_OMNIA_CONFIG, "r", encoding="utf-8") as stream:
+            clusters = (yaml.safe_load(stream) or {}).get("service_k8s_cluster") or []
+    except (OSError, yaml.YAMLError, AttributeError) as exc:
+        return _failed(SETUP_MSGS["files_unreadable"].format(error=exc))
+    copies, problems = _powerscale_copies(clusters)
+    if not copies and not problems:
+        return _skipped(SETUP_MSGS["files_not_enabled"])
+    for name in sorted(set(copies.values())):
+        path = os.path.join(MODULE_ROOT, name)
+        if not os.path.isfile(path):
+            problems.append(SETUP_MSGS["files_missing"].format(
+                path=path, name=name, folder=MODULE_ROOT))
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as stream:
+                content = yaml.safe_load(stream)
+        except (OSError, yaml.YAMLError) as exc:
+            problems.append(SETUP_MSGS["files_invalid"].format(
+                path=path, name=name, error=str(exc).splitlines()[0]))
+            continue
+        if not content:
+            problems.append(SETUP_MSGS["files_empty"].format(
+                path=path, name=name, folder=MODULE_ROOT))
+        elif _is_reference_example(path, name):
+            problems.append(SETUP_MSGS["files_example"].format(
+                path=path, name=name, folder=MODULE_ROOT,
+                example=os.path.join(POWERSCALE_EXAMPLES_DIR, name)))
+    if problems:
+        return _failed(_problems(problems))
+    for target, name in sorted(copies.items()):
+        with open(os.path.join(MODULE_ROOT, name), "rb") as stream:
+            content = stream.read()
+        descriptor, temp = tempfile.mkstemp(dir=os.path.dirname(target), prefix=".svt-")
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(content)
+            os.chmod(temp, STAGED_FILE_MODE)
+            os.replace(temp, target)
+        except OSError:
+            if os.path.exists(temp):
+                os.unlink(temp)
+            raise
+        emit(SETUP_MSGS["files_copied"].format(name=name, target=target))
+    return _passed(files=sorted(copies))
 
 
 # ---------------------------------------------------------------- readiness

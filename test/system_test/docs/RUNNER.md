@@ -45,7 +45,7 @@ Omnia venv cannot be activated, or the run guard refused.
 ## Safety model
 
 - **Destructive steps:** cleanup (`--cleanup`, `--force`) deletes the previous
-  installation: BuildStream and GitLab, telemetry (when deployed), orchestrator, image_build_manager,
+  installation: BuildStream and GitLab, telemetry (when deployed), orchestrator, discovery (when deployed), image_build_manager,
   repo_manager, then the Omnia setup (venv, `/etc/omnia/omnia.env`) and, with
   `cleanup_all`, the whole `OMNIA_DATA_PATH`. It asks
   for `yes` unless `--yes`. install rewrites a different `/etc/omnia/omnia.env`, and with `--yes`

@@ -24,6 +24,7 @@ Running it again is quick: steps with nothing to do are skipped.
 | `provider \| ./setup_env.sh --domain-creds-stdin` | write the stores from JSON keyed by domain |
 | `BAO_TOKEN=... ./setup_env.sh --domain-creds-from-openbao [--domain <d>]` | read the stores from OpenBao ([OPENBAO.md](OPENBAO.md)) |
 | `BAO_TOKEN=... ./setup_env.sh --openbao` | every step; the missing stores come from OpenBao instead of prompts |
+| `./setup_env.sh --stage-files` | only when `enable_powerscale_csi` is true: copy `secret.yaml` and `values.yaml` (next to `user_inputs.yml`) to the paths of `omnia_config.yml`; both must exist; after the install |
 | `./setup_env.sh --status` | show the status box (read-only) |
 
 Options: `--theme <theme>` (default `build_stream`; its settings are
@@ -72,15 +73,20 @@ Options: `--theme <theme>` (default `build_stream`; its settings are
      `cleanup.telemetry.delete_sinks_volume: true` (default) the sink PVCs and the log,
      input and output directories are removed too, which a complete reset needs;
   3. `fvt_orchestrator cleanup test`;
-  4. `fvt_image_build_manager cleanup test`;
-  5. `fvt_repo_manager cleanup test --marker destructive`;
-  6. with `cleanup.main.cleanup_all: true` (default): every
+  4. `fvt_discovery cleanup test` (`discovery.yml --tags cleanup`: outputs, logs, credentials).
+     The SVT theme does not run discovery, but a previous installation may have; the step
+     runs only when discovery holds deployed state (a file under `<data>/discovery/output` or
+     `log`, the rule `omnia.sh --cleanup --all` applies) and is skipped otherwise. It runs
+     after the orchestrator, which consumes the PXE mapping discovery writes;
+  5. `fvt_image_build_manager cleanup test`;
+  6. `fvt_repo_manager cleanup test --marker destructive`;
+  7. with `cleanup.main.cleanup_all: true` (default): every
      `src/<domain>/domain-init.sh --cleanup` (each domain's input and log
      artifacts). `omnia.sh --cleanup --all` runs the same helpers, but only
      after a preflight that refuses while `<data>/<domain>/log` holds a file;
      the validate playbooks write logs there and no domain cleanup tag removes
      them, so without this step `--all` stops and removes nothing;
-  7. `fvt_main cleanup test` from `test/main/.venv`: `omnia.sh --cleanup --all
+  8. `fvt_main cleanup test` from `test/main/.venv`: `omnia.sh --cleanup --all
      --skip-approval` (the whole `OMNIA_DATA_PATH`, credential stores
      included), or `omnia.sh --cleanup` with `cleanup_all: false`; then the
      verify cases MAIN_FVT_CLEANUP_V001-V005 check what was removed.
@@ -276,6 +282,45 @@ in the matching file.
   `vast_storage` mount and `vast_storage_name` (the product then skips VAST),
   and does not merge the `vast_storage` item of `user_inputs.yml`. Giving a
   source restores them.
+- **PowerScale CSI:** `orchestrator.omnia_config.service_k8s_cluster[].enable_powerscale_csi`
+  with `csi_powerscale_driver_secret_file_path` and `csi_powerscale_driver_values_file_path`
+  (templates for the two files: `src/orchestrator/examples/powerscale_reference_files/CSI_driver/`).
+  The product needs absolute paths of files that exist, and `domain-init` does not copy them, so
+  the SVT does:
+  - `secret.yaml` and `values.yaml` sit next to `user_inputs.yml`. In the GitLab project
+    `clusters/<cluster>/svt/` they are seeded from the product's reference examples (`--create`
+    copies `src/orchestrator/examples/powerscale_reference_files/CSI_driver/` there; they are
+    only added when missing and `--update-inputs` never replaces them). Edit them there for your
+    array (`secret.yaml`: `clusterName`, `endpoint`; `values.yaml`: `isiPath` and the driver
+    settings). The checkout job copies them to `test/system_test/` (mode 0600). Run by hand, copy
+    the examples to `test/system_test/` and edit them. Do not commit your edited copies.
+  - The paths may use `$NAME` / `${NAME}` of `omnia.env` (`OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME`,
+    `ORCHESTRATOR_DATA_PATH`), because the project folder differs per installation. The generator
+    writes the absolute path. The default,
+    `$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/secret.yaml` (and `values.yaml`), is the
+    orchestrator's project input folder. A variable that is not in `omnia.env` stops the run and
+    is named.
+  - The step `files` (`./setup_env.sh --stage-files`, the last step of a run with no action, and
+    run by the pipeline's initialization job after the credentials) copies the two files to those
+    paths **only when `enable_powerscale_csi` is true**; with `false` nothing is copied. It runs
+    after the install because the clean reinstall deletes that folder. When it is true, both
+    files must exist, have content, be valid YAML and differ from the reference examples (an
+    unedited example would fail at deployment), and the paths must be absolute, different and in
+    a folder that exists; the step fails and names what is wrong and how to fix it.
+  - The copies are plaintext and replaced on every run: the orchestrator encrypts its copy in
+    place (`ansible-vault`) with a key that a clean reinstall deletes. The array user and
+    password are not read from `secret.yaml`: the orchestrator replaces them with `csi_username`
+    and `csi_password` of the orchestrator credentials (OpenBao), so keep placeholders there.
+- **PowerVault:** `orchestrator.storage_config.powervault_config` (a list, one item per array)
+  becomes the `powervault_config` block of `storage_config.yml`, which the shipped file only has as
+  a comment. Give the three values of the array: `ip` (a list of controller addresses, or one
+  comma separated string), `iscsi_initiator` (the host IQN) and `volume_id` (the volume WWN). The
+  other keys are defaults held by the generator (port 3260, `/mnt/slurm`, xfs, the MariaDB and
+  Slurm spool directories bound per host, the `slurm_control_node` group); add a key to the item
+  only to change one. **Without an `ip` there is no PowerVault**: the item is ignored and a block
+  of an earlier run is removed. With an `ip`, `iscsi_initiator` and `volume_id` are required, or
+  the generator stops and names the empty ones. On the nodes, cloud-init logs in to the array,
+  multipath finds the volume by `volume_id`, formats it once and mounts it.
 
 The generator can also run alone:
 

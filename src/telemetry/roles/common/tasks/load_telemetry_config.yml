@@ -136,12 +136,12 @@
         - cluster_inv.all.children.kube_vip_group.hosts is defined
         - cluster_inv.all.children.kube_vip_group.hosts | length > 0
 
-    - name: Derive OS version from orchestrator inventory group names
+    - name: Derive OS version from service K8s inventory group names
       ansible.builtin.set_fact:
         pulp_os_version: >-
           {%- set ns = namespace(version='') -%}
           {%- for group_name in cluster_inv.all.children.keys() -%}
-            {%- if ns.version == '' -%}
+            {%- if ns.version == '' and group_name.startswith('service_kube_') -%}
               {%- set match = group_name | regex_search('_rhel_(\d+)_(\d+)_') -%}
               {%- if match -%}
                 {%- set ver = match | regex_replace('^_rhel_', '') | regex_replace('_$', '') | regex_replace('_', '.') -%}

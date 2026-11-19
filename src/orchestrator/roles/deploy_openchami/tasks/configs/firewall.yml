@@ -61,7 +61,8 @@
     - podman_zone_create.rc != 0
     - "'NAME_CONFLICT' not in podman_zone_create.stderr"
 
-- name: Remove podman interfaces from trusted zone (remediate CWE-284)
+# CWE-284 remediation: the trusted zone bypasses all firewall filtering.
+- name: Remove podman interfaces from trusted zone
   ansible.posix.firewalld:
     interface: "{{ item }}"
     zone: trusted

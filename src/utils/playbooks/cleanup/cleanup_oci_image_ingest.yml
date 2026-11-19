@@ -1,0 +1,136 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+---
+# cleanup_oci_image_ingest.yml - Remove OCI image ingest working data and stored credentials.
+# Tags: cleanup, cleanup_oci_image_ingest
+#
+# Removes: the run working directories (including a stale project lock and any leftover
+# session regctl config) and, unless cleanup_credentials=false, the Vault-encrypted registry
+# credentials and their key.
+# Keeps: build_status.yml (the contract the Orchestrator reads) and every published S3
+# release prefix. Retention of old release prefixes is out of scope.
+#
+# Usage:
+#   ansible-playbook utils.yml --tags cleanup_oci_image_ingest
+#   ansible-playbook utils.yml --tags cleanup_oci_image_ingest -e cleanup_credentials=false
+
+- name: Cleanup OCI image ingest artifacts
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Record execution start time
+      ansible.builtin.set_fact:
+        utils_execution_start_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
+  tasks:
+    - name: Set OMNIA_DATA_PATH fact
+      ansible.builtin.set_fact:
+        omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') }}"
+        project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+
+    - name: Fail when OMNIA_DATA_PATH is not set
+      ansible.builtin.fail:
+        msg: "OMNIA_DATA_PATH is not set. Source /etc/omnia/omnia.env or run through omnia.sh."
+      when: omnia_data_path | length == 0
+
+    - name: Set project paths
+      ansible.builtin.set_fact:
+        input_project_dir: "{{ omnia_data_path }}/utils/input/{{ project_name }}"
+        oci_ingest_workdir_root: "{{ omnia_data_path }}/utils/workdir/{{ project_name }}/oci-image-ingest"
+
+    - name: Check for a project lock
+      ansible.builtin.stat:
+        path: "{{ oci_ingest_workdir_root }}/.lock"
+      register: oci_lock_stat
+
+    - name: Warn when a lock is present
+      ansible.builtin.debug:
+        msg: >-
+          A project lock exists at {{ oci_ingest_workdir_root }}/.lock. It is removed with the working
+          directory. Make sure no oci_image_ingest run is active before continuing.
+      when: oci_lock_stat.stat.exists
+
+    - name: Remove OCI image ingest working directories
+      ansible.builtin.file:
+        path: "{{ oci_ingest_workdir_root }}"
+        state: absent
+
+    - name: Check if the OCI image ingest credential file exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/oci_image_ingest_credentials.yml"
+      register: credentials_stat
+
+    - name: Check if the vault key file exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/.oci_image_ingest_credentials_key"
+      register: vault_key_stat
+
+    - name: Resolve credential cleanup mode
+      ansible.builtin.set_fact:
+        cleanup_credentials: >-
+          {{ false
+             if cleanup_credentials is defined and
+                cleanup_credentials | string | trim | lower in ['false', 'no', '0']
+             else true }}
+
+    - name: Display credential cleanup mode
+      ansible.builtin.debug:
+        msg: "Credential cleanup: {{ 'Enabled - removing credential files' if (cleanup_credentials | bool) else 'Disabled - preserving credentials' }}"
+
+    - name: Remove the OCI image ingest credential file
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}/oci_image_ingest_credentials.yml"
+        state: absent
+      when:
+        - cleanup_credentials | bool
+        - credentials_stat.stat.exists
+
+    - name: Remove the OCI image ingest vault key file
+      ansible.builtin.file:
+        path: "{{ input_project_dir }}/.oci_image_ingest_credentials_key"
+        state: absent
+      when:
+        - cleanup_credentials | bool
+        - vault_key_stat.stat.exists
+
+    - name: Display OCI image ingest cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "OCI Image Ingest Cleanup Complete"
+          - "=========================================="
+          - "Working directories removed: {{ oci_ingest_workdir_root }}"
+          - >-
+            Credentials: {{ 'Preserved by cleanup_credentials=false'
+            if not (cleanup_credentials | bool)
+            else 'Removed'
+            if (credentials_stat.stat.exists or vault_key_stat.stat.exists)
+            else 'Not present' }}
+          - "build_status.yml and published S3 release prefixes were not touched"
+          - "=========================================="
+
+    - name: Remove utils status file
+      ansible.builtin.file:
+        path: "{{ omnia_data_path }}/utils/output/{{ project_name }}/utils_status.yml"
+        state: absent
+  post_tasks:
+    - name: Record execution end time
+      ansible.builtin.set_fact:
+        utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
+        cacheable: true
