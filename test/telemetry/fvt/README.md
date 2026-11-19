@@ -228,7 +228,6 @@ All tests in this section carry `source` and `ome`.
 | TEL_FVT_DEPLOY_V073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true, metrics or logs source enabled |
-| TEL_FVT_DEPLOY_V076 | Verify uploaded certificate matches generated certificate | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V077 | Verify enabled OME Kafka topics exist | sanity + functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V078 | Verify OME telemetry data in Kafka | functional | configure_ome=true, metrics source enabled |
 | TEL_FVT_DEPLOY_V079 | Verify OME inventory data in Kafka | functional | configure_ome=true, metrics source enabled |

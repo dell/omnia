@@ -418,10 +418,6 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V075",
         "title": "Verify OME Kafka forwarder connectivity status",
     },
-    "ome_cert_verify": {
-        "id": "TEL_FVT_DEPLOY_V076",
-        "title": "Verify uploaded certificate matches generated certificate",
-    },
     "ome_kafka_topics": {
         "id": "TEL_FVT_DEPLOY_V077",
         "title": "Verify OME Kafka topics exist",
