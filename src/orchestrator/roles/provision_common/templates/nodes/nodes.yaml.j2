@@ -1,11 +1,24 @@
 nodes:
+{% set nid_prefixed_nids = [] %}
+{% for node in mapping_nodes %}
+{% if node['HOSTNAME'] is regex('^nid\\d+$') %}
+{% set _ = nid_prefixed_nids.append(node['HOSTNAME'] | regex_replace('^nid0*', '') | int) %}
+{% endif %}
+{% endfor %}
+{% set max_nid_prefixed = nid_prefixed_nids | max | default(0) %}
+{% set custom_counter = 0 %}
 {% for node in mapping_nodes %}
 - name: {{ node['HOSTNAME'] }}
   xname: {{ node['XNAME'] }}
   description: {{ node['SERVICE_TAG'] }}
-  nid: {{ node['HOSTNAME'] | regex_replace('^nid0*', '') | int if node['HOSTNAME'] is regex('^nid\\d+$') else loop.index }}
+{% if node['HOSTNAME'] is regex('^nid\\d+$') %}
+  nid: {{ node['HOSTNAME'] | regex_replace('^nid0*', '') | int }}
+{% else %}
+  nid: {{ max_nid_prefixed + custom_counter + 1 }}
+{% set custom_counter = custom_counter + 1 %}
+{% endif %}
   group: {{ node['FUNCTIONAL_GROUP_NAME'] }}
-  bmc_mac: {{ node['BMC_MAC'] }} 
+  bmc_mac: {{ node['BMC_MAC'] }}
   bmc_ip: {{ node['BMC_IP'] }}
   interfaces:
   - mac_addr: {{ node['ADMIN_MAC'] }}
