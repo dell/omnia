@@ -309,8 +309,19 @@ class _SfmApiClient:
 
 
 def _remote_write_rows(payload):
-    """Normalize the Remote Write list response to target mappings."""
-    rows = payload.get(SFM_API_RESPONSE_KEYS["remote_write_table"])
+    """Normalize the Remote Write list response to target mappings.
+
+    OData collections may omit the collection key when empty, returning
+    only ``<key>@odata.count: 0``.  Handle that case as an empty list
+    instead of raising an error.
+    """
+    table_key = SFM_API_RESPONSE_KEYS["remote_write_table"]
+    rows = payload.get(table_key)
+    if rows is None:
+        count = payload.get(f"{table_key}@odata.count", -1)
+        if count == 0:
+            return []
+        raise SfmApiError(SFM_ERROR_MSGS["api_rows_invalid"])
     if not isinstance(rows, list):
         raise SfmApiError(SFM_ERROR_MSGS["api_rows_invalid"])
     return [row for row in rows if isinstance(row, dict)]
