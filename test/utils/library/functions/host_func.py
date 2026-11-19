@@ -156,6 +156,10 @@ _CREDENTIAL_PATTERNS = (
     "install_os_credentials.yml.*",
     ".install_os_credentials.key",
     ".install_os_credentials.key.*",
+    # OCI image ingest: credentials are Vault-encrypted, config is user-edited
+    "oci_image_ingest_credentials.yml",
+    "oci_image_ingest_credentials.yml.*",
+    "oci_image_ingest_config.yml",
 )
 _input_sync_ignore = shutil.ignore_patterns(*_CREDENTIAL_PATTERNS)
 _project_sync_ignore = shutil.ignore_patterns(

@@ -105,6 +105,28 @@ from .slurm_config_util_func import (
     check_backup_workspace_run_dirs_removed,
 )
 
+from .oci_image_ingest_func import (
+    check_oci_config_exists,
+    validate_oci_config_structure,
+    check_oci_credentials_vault,
+    check_credential_leakage,
+    check_oci_prerequisites,
+    validate_build_status,
+    check_oci_sources_in_status,
+    check_s3_artifacts,
+    check_oci_workdir_cleaned,
+    check_build_status_preserved,
+    check_orchestrator_build_type,
+    sanitize_image_name,
+    check_config_template_delivered,
+    check_lock_file_status,
+    get_oci_config_path,
+    get_oci_credentials_path,
+    get_oci_output_path,
+    get_oci_workdir_path,
+    get_oci_log_path,
+)
+
 # --- Domain-specific vars ---
 from ..vars.common_vars import (
     PLAYBOOK_COLLECT,
@@ -112,6 +134,7 @@ from ..vars.common_vars import (
     PLAYBOOK_BACKUP_OIM_LOGS,
     PLAYBOOK_SLURM_CONFIG_UTIL,
     PLAYBOOK_CLEANUP_SLURM_CONFIG_BACKUPS,
+    PLAYBOOK_UTILS,
     PLAYBOOK_WORKDIR,
 )
 
@@ -130,13 +153,17 @@ def run_playbook(playbook=None, tag=None, **kwargs):
     Returns:
         dict: {"success": bool, "rc": int, "duration": str, "output": str, "error": str}
     """
-    # Skip validation by default during test automation
-    # Tests focus on playbook execution, not input validation
+    # Skip validation by default during test automation — EXCEPT for tags
+    # whose pipeline depends on the validation role setting runtime facts
+    # (e.g. oci_image_ingest needs validate_oci_image_ingest_config to
+    # expose oci_ingest_config).
+    _validation_required_tags = {"oci_image_ingest"}
     extra_vars = kwargs.get("extra_vars", {})
     if "skip_validation" not in extra_vars:
-        extra_vars["skip_validation"] = "true"
+        if tag not in _validation_required_tags:
+            extra_vars["skip_validation"] = "true"
     kwargs["extra_vars"] = extra_vars
-    
+
     return _run_playbook(
         playbook=playbook or PLAYBOOK_COLLECT,
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
@@ -214,4 +241,24 @@ __all__ = [
     "check_backup_directories_present",
     "check_slurm_config_dir_removed",
     "check_backup_workspace_run_dirs_removed",
+    # OCI Image Ingest functions
+    "check_oci_config_exists",
+    "validate_oci_config_structure",
+    "check_oci_credentials_vault",
+    "check_credential_leakage",
+    "check_oci_prerequisites",
+    "validate_build_status",
+    "check_oci_sources_in_status",
+    "check_s3_artifacts",
+    "check_oci_workdir_cleaned",
+    "check_build_status_preserved",
+    "check_orchestrator_build_type",
+    "sanitize_image_name",
+    "check_config_template_delivered",
+    "check_lock_file_status",
+    "get_oci_config_path",
+    "get_oci_credentials_path",
+    "get_oci_output_path",
+    "get_oci_workdir_path",
+    "get_oci_log_path",
 ]

@@ -16,6 +16,7 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_hpc_platform_scripts.py` | Per-node RHEL HPC storage and Pulp paths, OS-dependent Slurm scripts, and offline benchmark downloads |
 | `test_orchestrator_status_reconcile.py` | Lifecycle status reconciliation for external and platform-managed PXE boot results |
 | `test_input_validation_fail_closed.py` | Vault-encrypted inputs are decrypted and validated with masked values, or reported unvalidated when no key exists (`ORCH_UT_102`–`104`) |
+| `test_powerscale_mount_options_contract.py` | `csi_powerscale_mount_options` rsize/wsize L2 range checks, schema rsize/wsize pairing, shipped defaults, and `ps_nfsmount_conf.j2` rendering (`ORCH_UT_180`–`186`) |
 | `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
 
 Parameterized cases count as separate pytest results. Function names and
@@ -55,6 +56,7 @@ python3 -m pytest --confcutdir=ut ut/test_additional_cloud_init_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_hpc_platform_scripts.py -q
 python3 -m pytest --confcutdir=ut ut/test_orchestrator_status_reconcile.py -q
 python3 -m pytest --confcutdir=ut ut/test_kubernetes_etcd_contracts.py -q
+python3 -m pytest --confcutdir=ut ut/test_powerscale_mount_options_contract.py -q
 ```
 
 Unit tests must remain isolated: mock external commands at the helper boundary
