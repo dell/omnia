@@ -42,7 +42,6 @@ extraction, SquashFS creation, and S3 upload:
   TC-FVT-050: Nested repository name sanitized
 """
 
-import copy
 import pytest
 
 from library.functions import (
@@ -54,6 +53,7 @@ from library.functions import (
 )
 from library.functions.oci_image_ingest_func import (
     check_s3_artifacts,
+    get_oci_src_utils_path,
     get_oci_output_path,
     get_oci_workdir_path,
     validate_build_status,
@@ -63,10 +63,13 @@ from library.functions.oci_image_ingest_func import (
     verify_registry_digest,
     verify_registry_platform,
     list_s3_objects_live,
+    list_release_objects,
     verify_s3_endpoint,
     check_disk_space,
     run_production_validation,
     run_pipeline_with_fault,
+    run_fault_scenario,
+    check_fault_run,
 )
 from library.functions import run_on_host
 from library.vars import (
@@ -189,13 +192,16 @@ def test_oci_image_not_found(host):
     # 1. Negative: attempt to export a nonexistent image via regctl
     #    This is the same code path the production pipeline uses.
     from library.functions import run_on_host
+    from library.functions.oci_image_ingest_func import regctl_cmd
     pull_result = run_on_host(
         host,
-        f"regctl image export --platform linux/amd64 "
-        f"'{bad_ref}' /dev/null 2>&1",
+        regctl_cmd(
+            endpoint,
+            f"image export --platform linux/amd64 '{bad_ref}' /dev/null",
+        ),
     )
     pull_output = pull_result.stdout.strip().lower()
-    assert pull_result.rc != 0 or "not found" in pull_output or "error" in pull_output, (
+    assert pull_result.rc != 0, (
         f"Expected regctl to fail for nonexistent image, got rc={pull_result.rc}: "
         f"{pull_result.stdout.strip()}"
     )
@@ -204,7 +210,6 @@ def test_oci_image_not_found(host):
         "not found" in pull_output
         or "manifest unknown" in pull_output
         or "404" in pull_output
-        or "error" in pull_output
     ), f"Error should identify the missing image: {pull_result.stdout.strip()}"
 
     # 2. Positive: verify all configured images DO exist
@@ -320,9 +325,7 @@ def test_oci_missing_kernel(host):
 
     # 1. Negative: run the production boot-set selector against an empty
     #    /boot/ directory to verify it fails on missing kernel.
-    src_path = run_on_host(
-        host, "realpath /root/main/omnia/src/utils"
-    ).stdout.strip()
+    src_path = get_oci_src_utils_path(host)
     script = (
         "import sys, json; "
         f"sys.path.insert(0, '{src_path}/plugins/modules'); "
@@ -367,7 +370,8 @@ def test_oci_missing_kernel(host):
         fg = source.get("functional_group", "?")
         kv = source.get("kernel_version", "")
         assert kv, f"No kernel_version recorded for {fg}"
-        s3_objs = list_s3_objects_live(host, s3_bucket, fg)
+        s3_objs = list_release_objects(
+            host, s3_bucket, status_result["status_data"], fg)
         assert s3_objs["success"], f"Cannot list S3 for {fg}: {s3_objs['error']}"
         vmlinuz = [o for o in s3_objs["objects"] if "vmlinuz-" in o["path"]]
         assert vmlinuz, f"No vmlinuz found in S3 for {fg}"
@@ -401,9 +405,7 @@ def test_oci_missing_initramfs(host):
     from library.functions import run_on_host
 
     # 1. Negative: run boot-set selector against dir with kernel but no initramfs
-    src_path = run_on_host(
-        host, "realpath /root/main/omnia/src/utils"
-    ).stdout.strip()
+    src_path = get_oci_src_utils_path(host)
     script = (
         "import sys, json; "
         f"sys.path.insert(0, '{src_path}/plugins/modules'); "
@@ -446,7 +448,8 @@ def test_oci_missing_initramfs(host):
     verified = 0
     for source in sources:
         fg = source.get("functional_group", "?")
-        s3_objs = list_s3_objects_live(host, s3_bucket, fg)
+        s3_objs = list_release_objects(
+            host, s3_bucket, status_result["status_data"], fg)
         assert s3_objs["success"], f"Cannot list S3 for {fg}: {s3_objs['error']}"
         initramfs = [o for o in s3_objs["objects"] if "initramfs-" in o["path"]]
         assert initramfs, f"No initramfs found in S3 for {fg}"
@@ -483,7 +486,8 @@ def test_oci_multiple_boot_sets(host):
         assert kv, f"Missing kernel_version for {fg}"
 
         # Verify S3 has exactly one vmlinuz matching this kernel version
-        s3_objs = list_s3_objects_live(host, s3_bucket, fg)
+        s3_objs = list_release_objects(
+            host, s3_bucket, status_result["status_data"], fg)
         assert s3_objs["success"], f"Cannot list S3 for {fg}"
         vmlinuz_files = [o for o in s3_objs["objects"] if "vmlinuz-" in o["path"]]
         assert len(vmlinuz_files) == 1, (
@@ -522,7 +526,8 @@ def test_oci_squashfs_created(host):
     verified = 0
     for source in sources:
         fg = source.get("functional_group", "?")
-        s3_objs = list_s3_objects_live(host, s3_bucket, fg)
+        s3_objs = list_release_objects(
+            host, s3_bucket, status_result["status_data"], fg)
         assert s3_objs["success"], f"Cannot list S3 for {fg}"
         rootfs = [o for o in s3_objs["objects"] if "rootfs.squashfs" in o["path"]]
         assert rootfs, f"No rootfs.squashfs in S3 for {fg}"
@@ -535,57 +540,32 @@ def test_oci_squashfs_created(host):
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(141)
 def test_oci_insufficient_storage(host):
-    """Verify insufficient storage is detected before pull.
+    """Insufficient storage fails the production pipeline before the image is pulled.
 
-    Automation: partial (per test plan TC-FVT-024).
-    Filling the filesystem to trigger the failure is destructive and
-    unsafe in a shared environment. This test verifies:
-    1. Current filesystem has sufficient space (positive baseline).
-    2. The rootfs.squashfs sizes in S3 are real (multi-hundred-MB+),
-       proving the pipeline consumed significant disk space.
-    3. The production precheck role creates the working directory
-       (the filesystem where space is consumed).
-    """
+    Fault: a df shim (first on PATH of the playbook only) reports 1 KiB free for the
+    pull step's space check; the run publishes to a scratch bucket. Asserts the failure
+    names the pull phase and the space message, the export never starts, build_status.yml
+    and the real release are unchanged, the workdir and lock are cleaned, and nothing
+    was published."""
     tc = TC["oci_insufficient_storage"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    workdir = get_oci_workdir_path(host)
-    disk = check_disk_space(host, workdir)
-    assert disk["success"], f"Cannot check disk space: {disk['error']}"
-    assert disk["available_bytes"] > 0, "No available disk space"
+    run = run_fault_scenario(host, "storage")
+    if run["skipped"]:
+        tl.skipped(run["skipped"])
+        pytest.skip(run["skipped"])
 
-    # Cross-reference: verify S3 rootfs sizes are real (multi-MB)
-    status_result = validate_build_status(host)
-    if status_result["success"]:
-        s3_bucket = status_result["status_data"].get("s3_configurations", {}).get("bucket", "")
-        if s3_bucket:
-            s3_objs = list_s3_objects_live(host, s3_bucket)
-            rootfs = [o for o in s3_objs.get("objects", []) if "rootfs.squashfs" in o["path"]]
-            assert rootfs, "No rootfs.squashfs found in S3"
-            for r in rootfs:
-                # size_str is like "1849M" or "512K"
-                size_str = r.get("size_str", "0")
-                assert size_str and size_str != "0", (
-                    f"rootfs.squashfs has no size info: {r}"
-                )
-
-    # Verify production precheck creates the workdir (space is consumed there)
-    from library.functions import run_on_host
-    check = run_on_host(
-        host,
-        r"grep -rE 'workdir|directory|state.*directory' "
-        "/root/main/omnia/src/utils/roles/precheck_oci_image_ingest/tasks/*.yml "
-        "2>/dev/null | head -3",
+    errors = check_fault_run(
+        run, "pull",
+        expect=['Insufficient free space'],
+        forbid=['Export the image to a tar archive'],
     )
-    assert check.stdout.strip(), (
-        "Production precheck does not create the working directory"
-    )
+    assert not errors, "; ".join(errors)
 
-    avail_gb = disk["available_bytes"] / (1024**3)
     tl.passed(
-        f"Insufficient-storage detection verified (partial automation per "
-        f"TC-FVT-024): production precheck creates workdir; current env has "
-        f"{avail_gb:.1f}G available ({disk['used_pct']} used)"
+        f"Low free space failed the pull phase before any export "
+        f"(run {run['elapsed']:.0f}s; status and release unchanged, workdir cleaned, "
+        f"lock released, scratch bucket empty)"
     )
 
 
@@ -593,55 +573,31 @@ def test_oci_insufficient_storage(host):
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(142)
 def test_oci_mksquashfs_failure(host):
-    """Verify mksquashfs failure is handled with cleanup.
+    """A mksquashfs failure fails the production pipeline and removes the incomplete squashfs.
 
-    Automation: partial (per test plan TC-FVT-025).
-    Injecting a real mksquashfs failure (e.g. renaming the binary) is
-    destructive. This test verifies:
-    1. mksquashfs produced valid SquashFS with checksums in S3.
-    2. The production role has failure handling (rescue/block).
-    """
+    Fault: a mksquashfs shim writes a partial output file and exits 1. Asserts the
+    materialization phase and exit code are reported, publishing never starts, the
+    partial file is removed with the workdir, build_status.yml and the real release
+    are unchanged, and no object reached S3."""
     tc = TC["oci_mksquashfs_failure"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    status_result = validate_build_status(host)
-    if not status_result["success"]:
-        tl.skipped(f"No build_status.yml: {status_result['error']}")
-        pytest.skip("Pipeline must complete successfully first")
+    run = run_fault_scenario(host, "mksquashfs")
+    if run["skipped"]:
+        tl.skipped(run["skipped"])
+        pytest.skip(run["skipped"])
 
-    s3_bucket = status_result["status_data"].get("s3_configurations", {}).get("bucket", "")
-    assert s3_bucket, "No S3 bucket configured"
-
-    sources = status_result["status_data"].get("oci_sources", [])
-    assert sources, "No oci_sources to verify"
-
-    for source in sources:
-        fg = source.get("functional_group", "?")
-        rootfs = [a for a in source.get("artifacts", []) if "rootfs" in a.get("name", "")]
-        assert rootfs, f"Missing rootfs.squashfs for {fg}"
-        assert rootfs[0].get("sha256"), f"Missing sha256 for rootfs in {fg}"
-        # Verify rootfs actually exists in S3
-        s3_objs = list_s3_objects_live(host, s3_bucket, fg)
-        assert s3_objs["success"], f"Cannot list S3 for {fg}"
-        s3_rootfs = [o for o in s3_objs["objects"] if "rootfs.squashfs" in o["path"]]
-        assert s3_rootfs, f"rootfs.squashfs not in S3 for {fg}"
-
-    # Verify production role has failure handling (rescue/block/failed_when)
-    from library.functions import run_on_host
-    squash_check = run_on_host(
-        host,
-        r"grep -rE 'rescue|block|failed_when|mksquashfs.*rc' "
-        "/root/main/omnia/src/utils/roles/create_squashfs/tasks/*.yml "
-        "2>/dev/null | head -3",
+    errors = check_fault_run(
+        run, "materialization",
+        expect=['mksquashfs failed', 'with exit code 1'],
+        forbid=['Upload each artifact'],
     )
-    assert squash_check.stdout.strip(), (
-        "Production create_squashfs role does not have failure handling"
-    )
+    assert not errors, "; ".join(errors)
 
     tl.passed(
-        f"mksquashfs failure handling verified in production role "
-        f"(partial automation per TC-FVT-025); SHA256 checksums + S3 "
-        f"presence confirmed for {len(sources)} source(s)"
+        f"mksquashfs exit 1 failed the materialization phase "
+        f"(run {run['elapsed']:.0f}s; status and release unchanged, workdir cleaned, "
+        f"lock released, scratch bucket empty)"
     )
 
 
@@ -669,14 +625,18 @@ def test_oci_s3_upload_success(host):
     assert s3_all["success"], f"Cannot list S3 bucket: {s3_all['error']}"
     assert s3_all["count"] > 0, f"S3 bucket {s3_bucket} is empty"
 
-    # Verify each functional group has 4 objects (vmlinuz, initramfs, rootfs, ingest.json)
+    # Verify the release named by build_status holds the three boot artifacts
     sources = status_result["status_data"].get("oci_sources", [])
     for source in sources:
         fg = source.get("functional_group", "?")
-        fg_objs = [o for o in s3_all["objects"] if fg in o["path"]]
-        assert len(fg_objs) >= 3, (
-            f"Expected >= 3 S3 objects for {fg}, found {len(fg_objs)}"
-        )
+        rel = list_release_objects(
+            host, s3_bucket, status_result["status_data"], fg)
+        assert rel["success"], f"Cannot list release for {fg}: {rel['error']}"
+        names = [o["path"].split("/")[-1] for o in rel["objects"]]
+        for prefix in ("vmlinuz-", "initramfs-", "rootfs.squashfs"):
+            assert any(n.startswith(prefix) for n in names), (
+                f"No {prefix}* in the {fg} release in S3: {names}"
+            )
 
     tl.passed(f"S3 upload verified: {s3_all['count']} objects in {s3_bucket}")
 
@@ -685,47 +645,30 @@ def test_oci_s3_upload_success(host):
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(151)
 def test_oci_s3_unreachable(host):
-    """Verify S3 endpoint reachability and validate unreachable detection.
+    """An unreachable S3 endpoint fails the production pipeline without publishing.
 
-    Verifies:
-    1. The real S3 endpoint is reachable (positive baseline).
-    2. An unreachable endpoint (192.0.2.1 — RFC 5737 TEST-NET) is detected.
-    3. The production precheck role validates S3 reachability.
-    """
+    Fault: an s3cmd shim points the run at a closed local port. Asserts the failure
+    names the upload phase and that build_status.yml was not updated, the real
+    release is unchanged, and the workdir and lock are cleaned."""
     tc = TC["oci_s3_unreachable"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    status_result = validate_build_status(host)
-    if not status_result["success"]:
-        tl.skipped(f"No build_status.yml: {status_result['error']}")
-        pytest.skip("Pipeline must complete successfully first")
+    run = run_fault_scenario(host, "s3_unreachable")
+    if run["skipped"]:
+        tl.skipped(run["skipped"])
+        pytest.skip(run["skipped"])
 
-    s3_cfg = status_result["status_data"].get("s3_configurations", {})
-    endpoint = s3_cfg.get("endpoint_url", "")
-    bucket = s3_cfg.get("bucket", "")
-    assert endpoint and bucket, "Missing s3_configurations in build_status"
-
-    # 1. Positive: real endpoint is reachable
-    health = verify_s3_endpoint(host, endpoint)
-    assert health["success"], (
-        f"S3 endpoint {endpoint} unreachable: {health['error']}"
+    errors = check_fault_run(
+        run, "upload",
+        expect=['build_status.yml was not updated'],
+        forbid=['Write the ingest marker'],
     )
-
-    # 2. Negative: unreachable endpoint detected (RFC 5737 TEST-NET-1)
-    bad_health = verify_s3_endpoint(host, "http://192.0.2.1:9999")
-    assert not bad_health["success"], (
-        "Unreachable S3 endpoint should be detected as failure"
-    )
-
-    # 3. Verify bucket is accessible and has objects
-    s3_objs = list_s3_objects_live(host, bucket)
-    assert s3_objs["success"], f"Cannot list bucket {bucket}: {s3_objs['error']}"
-    assert s3_objs["count"] > 0, f"Bucket {bucket} is empty"
+    assert not errors, "; ".join(errors)
 
     tl.passed(
-        f"Unreachable S3 endpoint (192.0.2.1) correctly detected as failure; "
-        f"real endpoint OK (HTTP {health['http_code']}), "
-        f"bucket has {s3_objs['count']} objects"
+        f"Unreachable S3 failed the upload phase "
+        f"(run {run['elapsed']:.0f}s; status and release unchanged, workdir cleaned, "
+        f"lock released, scratch bucket empty)"
     )
 
 
@@ -733,67 +676,32 @@ def test_oci_s3_unreachable(host):
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(152)
 def test_oci_s3_partial_upload(host):
-    """Verify partial upload failure leaves no inconsistent state.
+    """A failed artifact upload rolls back the partial publication.
 
-    Exercises:
-    1. Negative: attempts s3cmd put to a nonexistent bucket (fvt-bad-bucket)
-       and verifies it fails without updating build_status.yml.
-    2. Positive: cross-references every artifact in build_status.yml with S3
-       to prove the successful pipeline left no incomplete uploads.
-    """
+    Fault: the s3cmd shim fails the put of rootfs.squashfs after the kernel and
+    initramfs were already uploaded to a scratch bucket. Asserts the upload phase names
+    rootfs.squashfs, the production rollback task runs, no object (and no ingest
+    marker) remains, build_status.yml and the real release are unchanged, and the
+    workdir and lock are cleaned."""
     tc = TC["oci_s3_partial_upload"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    status_result = validate_build_status(host)
-    if not status_result["success"]:
-        tl.skipped(f"No build_status.yml: {status_result['error']}")
-        pytest.skip("Pipeline must complete successfully first")
+    run = run_fault_scenario(host, "s3_partial")
+    if run["skipped"]:
+        tl.skipped(run["skipped"])
+        pytest.skip(run["skipped"])
 
-    s3_bucket = status_result["status_data"].get("s3_configurations", {}).get("bucket", "")
-    assert s3_bucket, "No S3 bucket configured"
-
-    # 1. Negative: attempt s3cmd put to a nonexistent bucket and verify failure
-    from library.functions import run_on_host
-    bad_upload = run_on_host(
-        host,
-        "echo 'test' | s3cmd put - s3://fvt-nonexistent-bucket-xyzzy/test.txt 2>&1",
+    errors = check_fault_run(
+        run, "upload",
+        expect=["artifact 'rootfs.squashfs'", 'Remove partial objects of the failed mapping'],
+        forbid=['Upload the marker last'],
     )
-    assert bad_upload.rc != 0 or "error" in bad_upload.stdout.lower(), (
-        "Expected s3cmd put to fail for nonexistent bucket"
-    )
-
-    # 2. Verify build_status overall_status is still 'success' — the bad
-    #    upload above did not corrupt it
-    status_check = validate_build_status(host)
-    assert status_check["success"], "build_status.yml corrupted after bad upload test"
-    assert status_check["status_data"].get("overall_status") == "success", (
-        "build_status overall_status should still be 'success'"
-    )
-
-    # 3. Positive: cross-reference every artifact with S3
-    sources = status_result["status_data"].get("oci_sources", [])
-    assert sources, "No oci_sources to verify"
-
-    total_verified = 0
-    for source in sources:
-        fg = source.get("functional_group", "?")
-        artifacts = source.get("artifacts", [])
-        assert len(artifacts) >= 3, f"Expected >= 3 artifacts for {fg}, got {len(artifacts)}"
-
-        s3_objs = list_s3_objects_live(host, s3_bucket, fg)
-        assert s3_objs["success"], f"Cannot list S3 for {fg}"
-        s3_names = [o["path"].split("/")[-1] for o in s3_objs["objects"]]
-
-        for artifact in artifacts:
-            name = artifact.get("name", "?")
-            assert artifact.get("sha256"), f"Missing sha256 for {name} in {fg}"
-            assert artifact.get("size_bytes", 0) > 0, f"Zero-size {name} in {fg}"
-            assert name in s3_names, f"Artifact {name} not found in S3 for {fg}"
-            total_verified += 1
+    assert not errors, "; ".join(errors)
 
     tl.passed(
-        f"Partial upload to bad bucket correctly failed; "
-        f"all {total_verified} artifacts verified complete in S3"
+        f"rootfs.squashfs upload failure rolled back the partial release "
+        f"(run {run['elapsed']:.0f}s; status and release unchanged, workdir cleaned, "
+        f"lock released, scratch bucket empty)"
     )
 
 

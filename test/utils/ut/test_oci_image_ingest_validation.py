@@ -37,6 +37,9 @@ import types
 import pytest
 import yaml
 
+from library.functions import TestLogger
+from library.vars import TEST_CASES as TC
+
 # Paths relative to this file: ut/ -> utils/ -> test/ -> omnia/
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 SRC_DIR = REPO_ROOT / "src" / "utils"
@@ -54,25 +57,42 @@ def _load_validation_module():
     module_path = MODULES_DIR / "validate_oci_image_ingest_config.py"
     assert module_path.exists(), f"Module not found: {module_path}"
 
-    # Stub out ansible.module_utils.basic so the module can be imported
-    for name in [
-        "ansible",
-        "ansible.module_utils",
-        "ansible.module_utils.basic",
-    ]:
-        if name not in sys.modules:
-            sys.modules[name] = types.ModuleType(name)
-    # Provide a minimal AnsibleModule stub
-    basic = sys.modules["ansible.module_utils.basic"]
-    if not hasattr(basic, "AnsibleModule"):
-        basic.AnsibleModule = type("AnsibleModule", (), {})
+    # Map ansible.module_utils onto the real plugins/module_utils tree so the
+    # production module's imports resolve without the Ansible runtime
+    mu_dir = str(SRC_DIR / "plugins" / "module_utils")
+    if mu_dir not in sys.path:
+        sys.path.insert(0, mu_dir)
+    pkg = types.ModuleType("ansible")
+    pkg.__path__ = []
+    mu_pkg = types.ModuleType("ansible.module_utils")
+    mu_pkg.__path__ = [mu_dir]
+    basic = types.ModuleType("ansible.module_utils.basic")
+    basic.AnsibleModule = type("AnsibleModule", (), {})
+    pkg.module_utils, mu_pkg.basic = mu_pkg, basic
+    sys.modules.update({
+        "ansible": pkg,
+        "ansible.module_utils": mu_pkg,
+        "ansible.module_utils.basic": basic,
+    })
 
     spec = importlib.util.spec_from_file_location(
         "validate_oci_image_ingest_config", module_path
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod
+
+    from input_validation.core.utils import create_logger
+
+    def run_validation(config, schema_def):
+        """Adapter over production validate_config()/normalize()."""
+        errors = mod.validate_config(config, schema_def, create_logger("", "ut"))
+        return errors, ({} if errors else mod.normalize(config))
+
+    return types.SimpleNamespace(
+        validate_config=mod.validate_config,
+        normalize=mod.normalize,
+        run_validation=run_validation,
+    )
 
 
 def _load_schema():
@@ -105,6 +125,28 @@ def _valid_config():
             }
         ],
     }
+
+
+_CLASS_TC_KEY = {
+    "TestInputSchemaValidation": "ut_input_schema_validation",
+    "TestCredentialKeyRejection": "ut_credential_key_rejection",
+    "TestRegistryConnectionValidator": "ut_registry_connection_validator",
+    "TestBootArtifactExtractor": "ut_boot_artifact_extractor",
+    "TestBuildStatusGenerator": "ut_build_status_generator",
+    "TestS3PathConstructor": "ut_s3_path_constructor",
+    "TestCleanupHandler": "ut_cleanup_handler",
+    "TestOrchestratorBuildTypeAllowList": "ut_orchestrator_build_type_allow_list",
+}
+
+
+@pytest.fixture(autouse=True)
+def _register_tc_id(request):
+    """Record the TC ID of the owning test class so reports list it."""
+    key = _CLASS_TC_KEY.get(request.node.cls.__name__ if request.node.cls else "")
+    if key:
+        tc = TC[key]
+        TestLogger(f"{tc['title']} - {request.node.name}", tc["id"])
+    yield
 
 
 @pytest.fixture(scope="module")
@@ -188,13 +230,18 @@ class TestInputSchemaValidation:
         assert errors
         assert any("YAML mapping" in e for e in errors)
 
-    def test_http_default_port(self, val_mod, schema):
-        """HTTP registry defaults to port 80."""
+    def test_https_default_port(self, val_mod, schema):
+        """HTTPS registry defaults to port 443."""
+        errors, norm = val_mod.run_validation(_valid_config(), schema)
+        assert not errors
+        assert norm["registries"][0]["registry_port"] == 443
+
+    def test_http_protocol_rejected(self, val_mod, schema):
+        """Plain HTTP registry protocol is rejected by the schema."""
         cfg = _valid_config()
         cfg["registries"][0]["registry_protocol"] = "http"
-        errors, norm = val_mod.run_validation(cfg, schema)
-        assert not errors
-        assert norm["registries"][0]["registry_port"] == 80
+        errors, _ = val_mod.run_validation(cfg, schema)
+        assert any("registry_protocol" in e for e in errors)
 
     def test_digest_image_reference(self, val_mod, schema):
         """Image reference with @sha256 digest is accepted."""
@@ -335,43 +382,83 @@ class TestRegistryConnectionValidator:
 
 
 class TestBootArtifactExtractor:
-    """TC-UT-004: Verify extraction role handles kernel/initramfs cases."""
+    """TC-UT-004: Verify extraction via production select_boot_set module."""
 
-    def _find_extraction_content(self):
-        """Find and return content of extraction-related roles."""
-        content = ""
-        for role_name in ["oci_image_ingest", "extract_boot_artifacts",
-                          "ingest_oci_image_mapping"]:
-            role_dir = ROLES_DIR / role_name
-            if role_dir.exists():
-                for f in sorted(role_dir.rglob("*.yml")):
-                    content += f.read_text(encoding="utf-8")
-        # Also check the included tasks
-        playbooks = SRC_DIR / "playbooks"
-        if playbooks.exists():
-            for f in sorted(playbooks.rglob("*.yml")):
-                if "oci" in f.name.lower() or "ingest" in f.name.lower():
-                    content += f.read_text(encoding="utf-8")
-        return content
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        """Import the production oci_rootfs module."""
+        mu_dir = str(SRC_DIR / "plugins" / "module_utils")
+        if mu_dir not in sys.path:
+            sys.path.insert(0, mu_dir)
+        import oci_rootfs
+        self.select_boot_set = oci_rootfs.select_boot_set
+        self.BootSetError = oci_rootfs.BootSetError
 
-    def test_kernel_extraction_exists(self):
-        """Extraction handles vmlinuz files."""
-        content = self._find_extraction_content()
-        assert "vmlinuz" in content.lower() or "kernel" in content.lower(), (
-            "No kernel extraction logic found"
-        )
+    @staticmethod
+    def _make_boot_dir(tmp_path, versions, initramfs=True, modules=True):
+        """Create a mock rootfs with kernel/initramfs/modules."""
+        boot = tmp_path / "boot"
+        boot.mkdir(parents=True, exist_ok=True)
+        for ver in versions:
+            (boot / f"vmlinuz-{ver}").write_text("")
+            if initramfs:
+                (boot / f"initramfs-{ver}.img").write_text("")
+            if modules:
+                mod_dir = tmp_path / "lib" / "modules" / ver
+                mod_dir.mkdir(parents=True, exist_ok=True)
+                (mod_dir / "modules.dep").write_text("")
 
-    def test_initramfs_extraction_exists(self):
-        """Extraction handles initramfs files."""
-        content = self._find_extraction_content()
-        assert "initramfs" in content.lower() or "initrd" in content.lower(), (
-            "No initramfs extraction logic found"
-        )
+    def test_single_boot_set_extracted(self, tmp_path):
+        """Single kernel/initramfs pair is selected."""
+        self._make_boot_dir(tmp_path, ["6.12.0-55.el10_0.x86_64"])
+        result = self.select_boot_set(str(tmp_path), "")
+        assert result["kernel_version"] == "6.12.0-55.el10_0.x86_64"
+        assert "vmlinuz-6.12.0" in result["kernel_path"]
+        assert "initramfs-6.12.0" in result["initrd_path"]
 
-    def test_boot_directory_referenced(self):
-        """Extraction references /boot/ directory."""
-        content = self._find_extraction_content()
-        assert "/boot" in content or "boot" in content.lower()
+    def test_no_kernel_raises(self, tmp_path):
+        """Empty /boot/ raises BootSetError mentioning kernel."""
+        boot = tmp_path / "boot"
+        boot.mkdir(parents=True, exist_ok=True)
+        with pytest.raises(self.BootSetError, match="kernel not found"):
+            self.select_boot_set(str(tmp_path), "")
+
+    def test_missing_initramfs_raises(self, tmp_path):
+        """Kernel without matching initramfs raises BootSetError."""
+        self._make_boot_dir(tmp_path, ["6.12.0"], initramfs=False)
+        with pytest.raises(self.BootSetError, match="initramfs"):
+            self.select_boot_set(str(tmp_path), "")
+
+    def test_multiple_kernels_require_version(self, tmp_path):
+        """Multiple complete boot sets without kernel_version raises."""
+        self._make_boot_dir(tmp_path, ["5.14.0", "6.12.0"])
+        with pytest.raises(self.BootSetError, match="multiple"):
+            self.select_boot_set(str(tmp_path), "")
+
+    def test_kernel_version_selects_one(self, tmp_path):
+        """kernel_version selects the requested version."""
+        self._make_boot_dir(tmp_path, ["5.14.0", "6.12.0"])
+        result = self.select_boot_set(str(tmp_path), "5.14.0")
+        assert result["kernel_version"] == "5.14.0"
+
+    def test_rescue_kernel_excluded(self, tmp_path):
+        """Rescue kernels are excluded from candidates."""
+        self._make_boot_dir(tmp_path, ["6.12.0"])
+        boot = tmp_path / "boot"
+        (boot / "vmlinuz-0-rescue-abc123").write_text("")
+        (boot / "initramfs-0-rescue-abc123.img").write_text("")
+        result = self.select_boot_set(str(tmp_path), "")
+        assert result["kernel_version"] == "6.12.0"
+        assert "rescue" not in result["kernel_version"]
+
+    def test_debug_kernel_excluded(self, tmp_path):
+        """Debug kernels (+debug) are excluded from candidates."""
+        self._make_boot_dir(tmp_path, ["6.12.0"])
+        boot = tmp_path / "boot"
+        (boot / "vmlinuz-6.12.0+debug").write_text("")
+        (boot / "initramfs-6.12.0+debug.img").write_text("")
+        result = self.select_boot_set(str(tmp_path), "")
+        assert result["kernel_version"] == "6.12.0"
 
 
 # =========================================================================
@@ -520,36 +607,43 @@ class TestCleanupHandler:
 
 
 class TestOrchestratorBuildTypeAllowList:
-    """TC-UT-008: Verify the allow-list for image_build_type."""
+    """TC-UT-008: Verify the allow-list for image_build_type.
+
+    Reads the authoritative allow-list from the production Orchestrator
+    vars file rather than importing from test variables.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _load_production_allow_list(self):
+        """Load accepted_image_build_types from Orchestrator vars."""
+        orch_vars = (
+            REPO_ROOT / "src" / "orchestrator" / "roles"
+            / "orchestrator_validations" / "vars" / "main.yml"
+        )
+        if not orch_vars.exists():
+            pytest.skip("Orchestrator vars not available")
+        content = yaml.safe_load(orch_vars.read_text(encoding="utf-8"))
+        self.production_allow_list = content.get(
+            "accepted_image_build_types", []
+        )
 
     def test_allow_list_contains_both_types(self):
-        """Allow-list contains image-thrillhouse and oci-image-ingest."""
-        # Import from the test vars
-        sys.path.insert(0, str(REPO_ROOT / "test" / "utils"))
-        from library.vars.common_vars import OCI_ACCEPTED_BUILD_TYPES
-        assert "image-thrillhouse" in OCI_ACCEPTED_BUILD_TYPES
-        assert "oci-image-ingest" in OCI_ACCEPTED_BUILD_TYPES
+        """Production allow-list contains image-thrillhouse and oci-image-ingest."""
+        assert "image-thrillhouse" in self.production_allow_list
+        assert "oci-image-ingest" in self.production_allow_list
 
     def test_allow_list_size(self):
-        """Allow-list contains exactly two types."""
-        sys.path.insert(0, str(REPO_ROOT / "test" / "utils"))
-        from library.vars.common_vars import OCI_ACCEPTED_BUILD_TYPES
-        assert len(OCI_ACCEPTED_BUILD_TYPES) == 2
+        """Production allow-list contains exactly two types."""
+        assert len(self.production_allow_list) == 2
 
     def test_custom_builder_rejected(self):
-        """custom-builder is not in the allow-list."""
+        """custom-builder is not in the production allow-list."""
+        assert "custom-builder" not in self.production_allow_list
+
+    def test_test_vars_match_production(self):
+        """Test variable OCI_ACCEPTED_BUILD_TYPES matches production."""
         sys.path.insert(0, str(REPO_ROOT / "test" / "utils"))
         from library.vars.common_vars import OCI_ACCEPTED_BUILD_TYPES
-        assert "custom-builder" not in OCI_ACCEPTED_BUILD_TYPES
-
-    def test_orchestrator_validation_role_exists(self):
-        """Orchestrator validation role references image_build_type."""
-        orch_dir = REPO_ROOT / "src" / "orchestrator"
-        if not orch_dir.exists():
-            pytest.skip("Orchestrator source not available")
-        content = ""
-        for f in sorted(orch_dir.rglob("*.yml")):
-            if "valid" in f.name.lower() or "image" in f.name.lower():
-                content += f.read_text(encoding="utf-8")
-        if content:
-            assert "image_build_type" in content
+        assert sorted(OCI_ACCEPTED_BUILD_TYPES) == sorted(self.production_allow_list), (
+            f"Test vars {OCI_ACCEPTED_BUILD_TYPES} != production {self.production_allow_list}"
+        )
