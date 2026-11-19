@@ -117,15 +117,19 @@ def sfm_result(success, details="", error="", **extra):
     return value
 
 
-def sfm_skip_result():
-    """Return a standard result for a disabled opt-in SFM test.
+def sfm_skip_result(reason=None):
+    """Return a standard result for a skipped opt-in SFM test.
+
+    Args:
+        reason: Optional human-readable skip reason.  When ``None``,
+            the default "disabled" message is used.
 
     Returns:
         Successful result mapping marked as skipped.
     """
     return sfm_result(
         True,
-        details=SFM_DETAIL_MSGS["disabled"],
+        details=reason or SFM_DETAIL_MSGS["disabled"],
         skipped=True,
     )
 
