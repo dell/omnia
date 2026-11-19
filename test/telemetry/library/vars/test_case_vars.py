@@ -189,10 +189,6 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V110",
         "title": "Verify telemetry_packages.yml has a valid install_mode",
     },
-    "install_mode_python_packages": {
-        "id": "TEL_FVT_DEPLOY_V111",
-        "title": "Verify Python packages installed for current mode",
-    },
     "install_mode_idrac_deployment": {
         "id": "TEL_FVT_DEPLOY_V112",
         "title": "Verify iDRAC deployment succeeded in current mode",

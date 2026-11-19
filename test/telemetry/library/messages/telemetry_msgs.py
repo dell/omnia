@@ -266,7 +266,6 @@ TEST_LOG_MSGS = {
     "config_value_incorrect": (
         "Configuration value incorrect: {key} expected {expected}, got {actual}"
     ),
-    "python_package_installed": "Python package installed: {package}",
     "git_repo_cloned": "Git repo cloned: {repo}",
     "git_repo_not_cloned": "Git repo not cloned: {repo}",
     "deployment_success": "Deployment successful: {component}",

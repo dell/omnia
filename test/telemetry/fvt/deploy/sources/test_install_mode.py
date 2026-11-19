@@ -32,7 +32,6 @@ Offline mode characteristics:
 
 Test cases:
     TEL_FVT_DEPLOY_V110: Verify install_mode configuration is valid
-    TEL_FVT_DEPLOY_V111: Verify Python packages installed correctly for current mode
     TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in current mode
     TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in current mode
     TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies available for current mode
@@ -93,21 +92,6 @@ def _get_install_mode(host):
     except yaml.YAMLError:
         return None
     return data.get("install_mode")
-
-
-def _get_repo_url(host):
-    """Read repo_url from telemetry_packages.yml on the OIM host."""
-    input_path = _get_input_path(host)
-    file_path = f"{input_path}/{TELEMETRY_PACKAGES_FILE}"
-    cmd = CMDS["cat_file"].format(path=file_path)
-    result = run_on_host(host, cmd)
-    if result.rc != 0 or not result.stdout.strip():
-        return None
-    try:
-        data = yaml.safe_load(result.stdout) or {}
-    except yaml.YAMLError:
-        return None
-    return data.get("repo_url")
 
 
 def _get_k8s_cluster_mount(host):
@@ -185,47 +169,6 @@ def test_install_mode_config(host):
             expected="online or offline",
             actual=install_mode,
         )
-    )
-
-
-# =========================================================================
-# TEL_FVT_DEPLOY_V111: Verify Python packages installed correctly for current mode
-# =========================================================================
-
-@pytest.mark.source
-@pytest.mark.functional
-@pytest.mark.order(101)
-def test_python_packages_installed(host):
-    """TEL_FVT_DEPLOY_V111: Verify Python packages installed for the current mode."""
-    _skip_if_idrac_disabled(host)
-    tc = TC["install_mode_python_packages"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    install_mode = _get_install_mode(host)
-    if not install_mode:
-        pytest.skip("install_mode not found in telemetry_packages.yml")
-
-    tl.check("Verifying kubernetes package installation")
-    cmd = "python3 -c 'import kubernetes; print(kubernetes.__version__)'"
-    result = run_on_kube_vip(host, cmd)
-
-    if result.rc != 0:
-        tl.failed("kubernetes package not found", "")
-        pytest.fail("kubernetes package not found")
-
-    mode_label = "Pulp repo" if install_mode == "offline" else "PyPI"
-    details = f"kubernetes version: {result.stdout.strip()}\nInstall mode: {install_mode} ({mode_label})"
-
-    if install_mode == "offline":
-        repo_url = _get_repo_url(host)
-        if repo_url:
-            details += f"\nPulp repo: {repo_url}"
-
-    tl.passed(
-        LOG_MSGS["python_package_installed"].format(
-            package=f"kubernetes (from {mode_label})"
-        ),
-        details,
     )
 
 

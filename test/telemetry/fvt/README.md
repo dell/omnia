@@ -300,7 +300,6 @@ current pod. Previous certificate imports are retained as rollback material.
 | TC ID | Test | Marker |
 |-------|------|--------|
 | TEL_FVT_DEPLOY_V110 | Verify `telemetry_packages.yml` install mode | sanity |
-| TEL_FVT_DEPLOY_V111 | Verify Python packages for the active mode | functional |
 | TEL_FVT_DEPLOY_V112 | Verify iDRAC deployment for the active mode | sanity + idrac |
 | TEL_FVT_DEPLOY_V113 | Verify iDRAC pods for the active mode | sanity + functional + idrac |
 | TEL_FVT_DEPLOY_V114 | Verify PowerScale dependencies for the active mode | functional + powerscale |
