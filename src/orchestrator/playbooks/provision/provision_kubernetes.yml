@@ -74,11 +74,11 @@
             mount_config_mode: "oim-mount"
           when: "'mount_config' in category_bolt_ons"
 
-        - name: Check for declared kafka local_storage entries
+        - name: Check for declared local_storage entries
           ansible.builtin.set_fact:
-            local_storage_kafka_declared: >-
+            local_storage_declared: >-
               {{ (storage_config.local_storage | default([]))
-                 | selectattr('purpose', 'equalto', 'kafka') | list | length > 0 }}
+                 | selectattr('purpose', 'in', ['etcd', 'kafka']) | list | length > 0 }}
           vars:
             storage_config: >-
               {{ lookup('file', orchestrator_data_path + '/input/' + project_name
@@ -90,7 +90,7 @@
           register: disk_map_result
           when:
             - "'mount_config' in category_bolt_ons"
-            - local_storage_kafka_declared | bool
+            - local_storage_declared | bool
 
         - name: Show disk map result
           ansible.builtin.debug:

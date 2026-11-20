@@ -49,7 +49,7 @@ description:
   - Verifies that the nfs_k8s mount point is active on the OIM.
   - Builds one map row per (node, entry) pair from declared data only.
   - Writes disk-map.approved.json under <nfs_k8s mount_point>/kafka_disk_mapping/.
-  - Skipped when no local_storage entry with purpose "kafka" is declared.
+  - Skipped when no local_storage entry with purpose "etcd" or "kafka" is declared.
 options:
   input_project_dir:
     description: Project input directory containing configuration files.
@@ -64,7 +64,7 @@ EXAMPLES = r'''
   omnia.orchestrator.write_local_disk_map:
     input_project_dir: "{{ orchestrator_data_path }}/input/{{ project_name }}"
   register: disk_map_result
-  when: local_storage_kafka_declared | default(false) | bool
+  when: local_storage_declared | default(false) | bool
 '''
 
 RETURN = r'''
@@ -81,7 +81,7 @@ row_count:
   returned: always
   type: int
 skipped:
-  description: True when no kafka local_storage entry is declared.
+  description: True when no local_storage entry with purpose etcd or kafka is declared.
   returned: always
   type: bool
 msg:
@@ -114,10 +114,10 @@ def _load_json(path: str) -> dict[str, Any] | None:
         return None
 
 
-def _has_kafka_entry(local_storage: list[Any]) -> bool:
-    """Return True when at least one local_storage entry has purpose kafka."""
+def _has_local_storage_entries(local_storage: list[Any]) -> bool:
+    """Return True when at least one local_storage entry with a known purpose is declared."""
     return any(
-        isinstance(entry, dict) and entry.get("purpose") == "kafka"
+        isinstance(entry, dict) and entry.get("purpose") in ("etcd", "kafka")
         for entry in local_storage
     )
 
@@ -220,13 +220,13 @@ def run_module() -> None:
         )
 
     local_storage = storage_data.get("local_storage", [])
-    if not isinstance(local_storage, list) or not _has_kafka_entry(local_storage):
+    if not isinstance(local_storage, list) or not _has_local_storage_entries(local_storage):
         module.exit_json(
             changed=False,
             map_path="",
             row_count=0,
             skipped=True,
-            msg="No local_storage entry with purpose 'kafka' declared; map not written.",
+            msg="No local_storage entries declared; map not written.",
         )
 
     # ── Resolve the map directory from nfs_k8s mount ─────────────────────────
