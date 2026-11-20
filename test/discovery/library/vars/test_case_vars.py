@@ -239,6 +239,9 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": (
             "TC_FVT_discovery_012"
         ),
-        "title": "Verify Discovery flexible group mapping compatibility (exact fg_ identity and rejection evidence)",
+        "title": (
+            "Verify Discovery flexible group mapping compatibility "
+            "(exact fg_ identity and rejection evidence)"
+        ),
     },
 }
