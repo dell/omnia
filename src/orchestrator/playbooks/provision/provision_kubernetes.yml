@@ -74,6 +74,31 @@
             mount_config_mode: "oim-mount"
           when: "'mount_config' in category_bolt_ons"
 
+        - name: Check for declared kafka local_storage entries
+          ansible.builtin.set_fact:
+            local_storage_kafka_declared: >-
+              {{ (storage_config.local_storage | default([]))
+                 | selectattr('purpose', 'equalto', 'kafka') | list | length > 0 }}
+          vars:
+            storage_config: >-
+              {{ lookup('file', orchestrator_data_path + '/input/' + project_name
+                 + '/storage_config.yml') | from_yaml | default({}) }}
+
+        - name: Write approved local disk map to nfs_k8s share
+          omnia.orchestrator.write_local_disk_map:
+            input_project_dir: "{{ orchestrator_data_path }}/input/{{ project_name }}"
+          register: disk_map_result
+          when:
+            - "'mount_config' in category_bolt_ons"
+            - local_storage_kafka_declared | bool
+
+        - name: Show disk map result
+          ansible.builtin.debug:
+            msg: "{{ disk_map_result.msg }}"
+          when:
+            - disk_map_result is defined
+            - not (disk_map_result.skipped | default(false))
+
         - name: Configure Kubernetes
           ansible.builtin.include_role:
             name: k8s_config

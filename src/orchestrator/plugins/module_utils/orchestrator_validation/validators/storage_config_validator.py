@@ -53,6 +53,8 @@ SIZE_MULTIPLIERS = {
     "G": 1024**3,
     "T": 1024**4,
 }
+ETCD_GROUP_PREFIX = "service_kube_control_plane"
+KAFKA_GROUP_PREFIX = "service_kube_node"
 
 
 def _catalog_functional_groups(
@@ -86,10 +88,10 @@ def _catalog_functional_groups(
     }
 
 
-def _mapping_targets(
+def _mapping_rows(
     orchestrator_data: dict[str, Any], input_project_dir: str
-) -> tuple[set[str], set[str]] | None:
-    """Return mapping functional groups and logical groups when CSV is valid."""
+) -> list[dict[str, str]] | None:
+    """Return PXE mapping rows keyed by canonical header when the CSV is valid."""
     path = resolve_mapping_path(orchestrator_data, input_project_dir)
     if not os.path.isfile(path):
         return None
@@ -107,8 +109,11 @@ def _mapping_targets(
         return None
     if any(len(row) != len(header) for _, row in rows):
         return None
+    return [dict(zip(header, row)) for _, row in rows]
 
-    mapped_rows = [dict(zip(header, row)) for _, row in rows]
+
+def _mapping_targets(mapped_rows: list[dict[str, str]]) -> tuple[set[str], set[str]]:
+    """Return mapping functional groups and logical groups."""
     return (
         {
             row.get("FUNCTIONAL_GROUP_NAME", "")
@@ -304,6 +309,141 @@ def _validate_swap(
             )
 
 
+def _check_local_storage_targets(
+    entry_name: str,
+    purpose: str,
+    prefixes: list[str],
+    known_functional_groups: set[str],
+    errors: list[str],
+    logger: Logger | None,
+) -> set[str]:
+    """Check local_storage prefixes against the purpose's group scope."""
+    for prefix in prefixes:
+        if not _expand_prefixes([prefix], known_functional_groups):
+            record_error(
+                errors,
+                logger,
+                msg.storage_unknown_prefix_msg("local_storage", entry_name, prefix),
+            )
+    targets = _expand_prefixes(prefixes, known_functional_groups)
+    required_prefix = ETCD_GROUP_PREFIX if purpose == "etcd" else KAFKA_GROUP_PREFIX
+    for group in sorted(targets):
+        if not group.startswith(required_prefix):
+            record_error(
+                errors,
+                logger,
+                msg.local_storage_target_msg(entry_name, purpose, group),
+            )
+    return targets
+
+
+def _check_local_storage_disks(
+    entry_name: str,
+    purpose: str,
+    overrides: list[Any],
+    disk_owners: dict[tuple[str, str], tuple[str, str]],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Reject one declared disk used for both etcd and kafka on a node."""
+    for override in overrides:
+        if not isinstance(override, dict):
+            continue
+        disk = (str(override.get("node", "")), str(override.get("disk_id", "")))
+        owner_purpose, owner_name = disk_owners.setdefault(disk, (purpose, entry_name))
+        if owner_purpose != purpose:
+            record_error(
+                errors,
+                logger,
+                msg.local_storage_shared_disk_msg(disk[0], disk[1], [owner_name, entry_name]),
+            )
+
+
+def _validate_local_storage(
+    storage_data: dict[str, Any],
+    known_functional_groups: set[str],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate local_storage semantic rules that span entries."""
+    entries = storage_data.get("local_storage", [])
+    if not isinstance(entries, list):
+        return
+    purpose_groups: dict[tuple[str, str], str] = {}
+    disk_owners: dict[tuple[str, str], tuple[str, str]] = {}
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        name = _entry_name("local_storage", index, entry)
+        purpose = entry.get("purpose", "")
+        if purpose == "etcd" and "nofail" in str(entry.get("mount_options", "")).split(","):
+            record_error(errors, logger, msg.local_storage_etcd_nofail_msg(name))
+        targets = _check_local_storage_targets(
+            name,
+            purpose,
+            entry.get("functional_group_prefix", []),
+            known_functional_groups,
+            errors,
+            logger,
+        )
+        for group in sorted(targets):
+            owner = purpose_groups.setdefault((purpose, group), name)
+            if owner != name:
+                record_error(
+                    errors,
+                    logger,
+                    msg.local_storage_duplicate_purpose_msg(purpose, group, [owner, name]),
+                )
+        _check_local_storage_disks(
+            name, purpose, entry.get("node_overrides", []), disk_owners, errors, logger
+        )
+
+
+def _validate_local_storage_nodes(
+    storage_data: dict[str, Any],
+    known_functional_groups: set[str],
+    mapped_rows: list[dict[str, str]],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Check local_storage overrides and duplicate purposes against mapped nodes."""
+    labelled = [
+        (_entry_name("local_storage", index, entry), entry)
+        for index, entry in enumerate(storage_data.get("local_storage", []))
+        if isinstance(entry, dict)
+    ]
+    node_groups = {
+        row.get("ADMIN_IP", ""): row.get("FUNCTIONAL_GROUP_NAME", "") for row in mapped_rows
+    }
+    targets = {
+        name: _expand_prefixes(entry.get("functional_group_prefix", []), known_functional_groups)
+        for name, entry in labelled
+    }
+    for name, entry in labelled:
+        for override in entry.get("node_overrides", []):
+            node = override.get("node", "") if isinstance(override, dict) else ""
+            if node_groups.get(node) not in targets[name]:
+                record_error(
+                    errors,
+                    logger,
+                    msg.local_storage_override_group_msg(
+                        name, node, entry.get("functional_group_prefix", [])
+                    ),
+                )
+    for node, group in sorted(node_groups.items()):
+        by_purpose: dict[str, list[str]] = defaultdict(list)
+        for name, entry in labelled:
+            if group in targets[name]:
+                by_purpose[entry.get("purpose", "")].append(name)
+        for purpose, names in sorted(by_purpose.items()):
+            if len(names) > 1:
+                record_error(
+                    errors,
+                    logger,
+                    msg.local_storage_node_duplicate_msg(node, names, purpose),
+                )
+
+
 def validate(
     storage_data: Any,
     orchestrator_data: dict[str, Any],
@@ -316,11 +456,11 @@ def validate(
     if not isinstance(storage_data, dict):
         return errors
 
-    mapping_targets = _mapping_targets(orchestrator_data, input_project_dir)
+    mapped_rows = _mapping_rows(orchestrator_data, input_project_dir)
     mapped_functional_groups: set[str] = set()
     mapped_groups: set[str] | None = None
-    if mapping_targets is not None:
-        mapped_functional_groups, mapped_groups = mapping_targets
+    if mapped_rows is not None:
+        mapped_functional_groups, mapped_groups = _mapping_targets(mapped_rows)
 
     known_functional_groups = set(BUILTIN_FUNCTIONAL_GROUPS)
     known_functional_groups.update(mapped_functional_groups)
@@ -342,4 +482,9 @@ def validate(
         effective_storage_data, known_functional_groups, errors, logger
     )
     _validate_swap(effective_storage_data, errors, logger)
+    _validate_local_storage(effective_storage_data, known_functional_groups, errors, logger)
+    if mapped_rows is not None:
+        _validate_local_storage_nodes(
+            effective_storage_data, known_functional_groups, mapped_rows, errors, logger
+        )
     return errors

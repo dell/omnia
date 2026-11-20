@@ -18,6 +18,9 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_input_validation_fail_closed.py` | Vault-encrypted inputs are decrypted and validated with masked values, or reported unvalidated when no key exists (`ORCH_UT_102`–`104`) |
 | `test_powerscale_mount_options_contract.py` | `csi_powerscale_mount_options` rsize/wsize L2 range checks, schema rsize/wsize pairing, shipped defaults, and `ps_nfsmount_conf.j2` rendering (`ORCH_UT_180`–`186`) |
 | `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
+| `test_local_storage_validation.py` | `local_storage` schema and semantic rules (ER-ORCH-011 TC-UT-001, TC-UT-004): Kafka without `fs_type` or `mount_point`, entry name in schema errors, name length boundary, etcd `mount_point` fixed at `/var/lib/etcd`, the removed `etcd_on_local_disk` key and its hint, group targeting, `nofail`, node overrides, and all errors listed together (`ORCH_UT_390`–`401`) |
+| `test_local_disk_map.py` | Approved disk map built from the declaration with no row state, checksum, missing node, `kafka_disk_mapping` folder, and per-node status files (TC-UT-003, `ORCH_UT_402`–`407`) |
+| `test_local_disk_prep_script.py` | `local-disk-prep.sh` with stubbed disk, LVM, mount and API commands (TC-UT-002, TC-UT-005, node logic of TC-FVT-030): selection and refusal cases C, G, H, I, J, L, Kafka and etcd fresh and reboot paths, NFS and map failures, unsafe arguments, and the label step with the disable marker (`ORCH_UT_410`–`444`) |
 
 Parameterized cases count as separate pytest results. Function names and
 docstrings carry `ORCH_UT_*` identifiers where a stable unit contract has been
