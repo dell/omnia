@@ -91,11 +91,6 @@ OME_LOG_MSGS: Dict[str, str] = {
     ),
     "ome_kafka_artifacts_invalid": "External Kafka export is invalid: {error}",
 
-    # Certificate comparison (OME vs locally generated)
-    "ome_cert_match": "Uploaded certificate matches local cert ({count} fields)",
-    "ome_cert_mismatch": "Uploaded certificate differs from local cert in {count} field(s)",
-    "ome_cert_compare_failed": "Unable to compare certificates: {error}",
-
     # Connectivity
     "ome_kafka_connected": "OME Kafka forwarder '{name}' status: Connected",
     "ome_kafka_disconnected": "OME Kafka forwarder status: {status}",
@@ -207,15 +202,6 @@ OME_ASSERT_MSGS: Dict[str, str] = {
         "  1. Verify OME is reachable at {ome_ip}\n"
         "  2. Check OME credentials in test_creds.yml\n"
         "  3. Verify certificate files exist\n"
-    ),
-
-    "ome_cert_mismatch": (
-        "Certificate uploaded to OME does not match the locally generated"
-        " certificate. Differing field(s): {mismatches}\n"
-        "HOW TO FIX:\n"
-        "  1. Re-run: ansible-playbook telemetry.yml --tags external_kafka\n"
-        "  2. Re-upload certs so OME uses the current Kafka client cert\n"
-        "  3. Compare manually: openssl x509 -in user.crt -noout -subject -issuer\n"
     ),
 
     # Connectivity
