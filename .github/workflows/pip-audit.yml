@@ -5,10 +5,10 @@ name: Dependency Vulnerability Scan
   pull_request:
     branches:
       - main
-      - staging
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
+      - 'feature/**'
 
 jobs:
   pip-audit:
