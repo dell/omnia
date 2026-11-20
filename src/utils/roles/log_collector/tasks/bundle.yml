@@ -135,19 +135,19 @@
 
 - name: Build warnings for unreachable flexible_nodes
   ansible.builtin.set_fact:
-    warnings_list: >-
-      {{ warnings_list + [{
-        'source': hostvars[item].role_prefix | default('flexible_node'),
-        'source_group': hostvars[item].source_group | default('flexible_node'),
-        'node_name': item,
-        'node_ip': hostvars[item].ansible_host | default('unknown'),
-        'reason': 'unreachable',
-        'message': >-
-          Node {{ item }} ({{ hostvars[item].ansible_host | default('unknown') }})
-          unreachable for {{ hostvars[item].source_group | default('flexible_node') }};
-          continuing collection for remaining nodes.
-        'timestamp': warning_ts
-      }] }}
+    warnings_list: "{{ warnings_list + [warning_item] }}"
+  vars:
+    warning_item:
+      source: "{{ hostvars[item].role_prefix | default('flexible_node') }}"
+      source_group: "{{ hostvars[item].source_group | default('flexible_node') }}"
+      node_name: "{{ item }}"
+      node_ip: "{{ hostvars[item].ansible_host | default('unknown') }}"
+      reason: unreachable
+      message: >-
+        Node {{ item }} ({{ hostvars[item].ansible_host | default('unknown') }})
+        unreachable for {{ hostvars[item].source_group | default('flexible_node') }};
+        continuing collection for remaining nodes.
+      timestamp: "{{ warning_ts }}"
   loop: "{{ groups['flexible_nodes'] | default([]) }}"
   when: hostvars[item].ansible_unreachable | default(false)
 

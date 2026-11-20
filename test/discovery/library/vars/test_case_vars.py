@@ -236,7 +236,9 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
 
     # ── Flexible Group Mapping Compatibility (ER-ORCH-009 / AC-009) ────────
     "discovery_flexible_group_mapping": {
-        "id": "TC_FVT_discovery_012",
+        "id": (
+            "TC_FVT_discovery_012"
+        ),
         "title": "Verify Discovery flexible group mapping compatibility (exact fg_ identity and rejection evidence)",
     },
 }

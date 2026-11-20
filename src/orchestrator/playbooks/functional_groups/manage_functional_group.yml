@@ -94,7 +94,7 @@
         - fg_operation in ['add', 'configure']
         - _fg_config_load.ansible_facts is defined
         - _fg_config_load is defined
-        - _fg_config_load.failed | default(false) | bool == false
+        - not (_fg_config_load.failed | default(false) | bool)
 
     - name: Validate requested lifecycle operation
       ansible.builtin.assert:
@@ -181,12 +181,15 @@
         state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
         run_id: "{{ ansible_date_time.epoch | default('manual') }}"
         planned_stages: >-
-          {{
-            ['metadata', 'bss', 'smd_group']
-            if fg_operation == 'remove'
-            else (['bss'] if configure_scope == 'boot')
-            else (['metadata'] if configure_scope == 'cloud_init')
-            else ['smd_group', 'bss', 'metadata'])
+          {%- if fg_operation == 'remove' %}
+          ['metadata', 'bss', 'smd_group']
+          {%- elif configure_scope == 'boot' %}
+          ['bss']
+          {%- elif configure_scope == 'cloud_init' %}
+          ['metadata']
+          {%- else %}
+          ['smd_group', 'bss', 'metadata']
+          {%- endif %}
           }}
       register: _lifecycle_journal
       when: target_functional_groups | length > 0

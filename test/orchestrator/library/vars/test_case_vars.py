@@ -399,22 +399,34 @@ PROVISION_TEST_CASES: dict[str, dict[str, str]] = {
     },
     "flexible_group_image_fallback": {
         "id": "TC_FVT_image_005",
-        "title": "Verify Image Build Manager fallback contracts preserve valid fg_ identity and artifacts",
+        "title": (
+            "Verify Image Build Manager fallback contracts preserve valid "
+            "fg_ identity and artifacts"
+        ),
         "component": "Flexible group image fallback",
     },
     "flexible_group_standard_regression": {
         "id": "TC_FVT_standard_regression_014",
-        "title": "Verify standard functional group fallback contracts remain compatible alongside flexible groups",
+        "title": (
+            "Verify standard functional group fallback contracts remain "
+            "compatible alongside flexible groups"
+        ),
         "component": "Standard group contract regression",
     },
     "flexible_group_add": {
         "id": "TC_FVT_add_006",
-        "title": "Verify flexible functional group add operation proceeds without repo_status.yml",
+        "title": (
+            "Verify flexible functional group add operation proceeds "
+            "without repo_status.yml"
+        ),
         "component": "Flexible group lifecycle",
     },
     "flexible_group_configure": {
         "id": "TC_FVT_configure_008",
-        "title": "Verify flexible functional group configure operation proceeds without repo_status.yml",
+        "title": (
+            "Verify flexible functional group configure operation proceeds "
+            "without repo_status.yml"
+        ),
         "component": "Flexible group lifecycle",
     },
 }

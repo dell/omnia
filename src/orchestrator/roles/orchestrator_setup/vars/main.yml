@@ -172,6 +172,10 @@ catalog_invalid_fail_msg: >-
   Invalid catalog at '{{ catalog_file_path }}'. The catalog must contain
   catalog.groups, catalog.functionallayer, catalog.packages, and a baseos
   group with non-empty os and os_version values.
+domain_name_regex: "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+domain_name_invalid_fail_msg: >-
+  Invalid SYSTEM_DOMAIN_NAME format '{{ domain_name }}'. The domain name
+  must be a valid DNS domain name (e.g., omnia.cluster, example.com).
 # Centralized failure messages
 unsupported_tag_fail_msg: >-
   Unsupported tag '{{ item }}' specified.
