@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import re
 from logging import Logger
 from typing import Any
 
@@ -38,6 +39,21 @@ def _schema_error_path(file_label: str, validation_error: Any) -> str:
     """Return a readable dotted path for a JSON Schema validation error."""
     path = ".".join(str(part) for part in validation_error.absolute_path)
     return f"{file_label}.{path}" if path else file_label
+
+
+def _local_storage_entry_name(data: Any, validation_error: Any) -> str:
+    """Return the name of the local_storage entry a schema error points into, or ""."""
+    parts = list(validation_error.absolute_path)
+    if len(parts) < 2 or parts[0] != "local_storage" or not isinstance(parts[1], int):
+        return ""
+    entries = data.get("local_storage") if isinstance(data, dict) else None
+    if not isinstance(entries, list) or parts[1] >= len(entries):
+        return ""
+    entry = entries[parts[1]]
+    name = entry.get("name") if isinstance(entry, dict) else None
+    if isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+        return name
+    return ""
 
 
 def schema(
@@ -78,6 +94,14 @@ def schema(
     for validation_error in validation_errors:
         path = _schema_error_path(file_label, validation_error)
         error = msg.schema_validation_msg(path, validation_error.message)
+        if (
+            validation_error.validator == "additionalProperties"
+            and "'etcd_on_local_disk'" in validation_error.message
+        ):
+            error = f"{error} {msg.ETCD_ON_LOCAL_DISK_REMOVED_MSG}"
+        entry_name = _local_storage_entry_name(data, validation_error)
+        if entry_name:
+            error = f"{error} {msg.local_storage_entry_suffix_msg(entry_name)}"
         errors.append(error)
         logger.error(error)
     return errors

@@ -220,7 +220,6 @@
       "required": [
         "cluster_name",
         "deployment",
-        "etcd_on_local_disk",
         "k8s_cni",
         "pod_external_ip_range",
         "k8s_service_addresses",
@@ -232,9 +231,6 @@
           "$ref": "#/definitions/nonEmptyString"
         },
         "deployment": {
-          "type": "boolean"
-        },
-        "etcd_on_local_disk": {
           "type": "boolean"
         },
         "k8s_cni": {

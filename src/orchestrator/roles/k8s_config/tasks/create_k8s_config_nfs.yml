@@ -41,7 +41,6 @@
     k8s_pod_network_cidr: "{{ deployed_service_k8s_cluster.k8s_pod_network_cidr }}"
     nfs_storage_name: "{{ deployed_service_k8s_cluster.nfs_storage_name }}"
     k8s_crio_storage_size: "{{ deployed_service_k8s_cluster.k8s_crio_storage_size }}"
-    etcd_on_local_disk: "{{ deployed_service_k8s_cluster.etcd_on_local_disk | default(false) }}"
 
 - name: Validate enabled PowerScale CSI inputs
   when: hostvars['localhost'].get('enable_powerscale_csi', false) | bool
