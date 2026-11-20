@@ -152,9 +152,6 @@ _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
 _TC_ID_MAP.update(
     {
         "test_all_telemetry_pods_running": TEST_CASES["all_pods_running"]["id"],
-        "test_python_packages_installed": TEST_CASES[
-            "install_mode_python_packages"
-        ]["id"],
         "test_idrac_deployment": TEST_CASES["install_mode_idrac_deployment"][
             "id"
         ],
