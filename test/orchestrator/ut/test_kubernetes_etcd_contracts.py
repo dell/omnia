@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Local-etcd local-disk-prep, disk-media, recovery, and LDAP-gate contracts."""
+"""Local-etcd boot-script, disk-media, recovery, and LDAP-gate contracts."""
 
 import subprocess
 
@@ -21,7 +21,6 @@ from library.functions import _workload_helpers as workload
 from library.functions import kubernetes_recovery_pxeboot_func as recovery
 from library.functions import kubernetes_runtime_pxeboot_func as runtime
 from library.vars.pxeboot_vars import (
-    ETCD_PREP_LOG,
     ETCD_SETUP_LOG,
     ETCD_UPDATE_LOG,
     PXEBOOT_COMMANDS,
@@ -43,12 +42,12 @@ def test_boot_script_lines_are_parsed():
 @pytest.mark.parametrize(
     ("states", "expected"),
     [
-        # First boot: the fresh-install run finishes with DONE (fresh).
+        # First boot: the early fstab-update run fails, disk setup completes.
         (
             {ETCD_SETUP_LOG: (BOOT + 60, True), ETCD_UPDATE_LOG: (BOOT + 30, False)},
             ETCD_SETUP_LOG,
         ),
-        # Later boot: the reboot run finishes with DONE (reboot).
+        # Later boot: setup log is gone, fstab-update completes.
         ({ETCD_SETUP_LOG: (None, False), ETCD_UPDATE_LOG: (BOOT + 30, True)}, ETCD_UPDATE_LOG),
         # A DONE marker left by an earlier boot is stale.
         ({ETCD_SETUP_LOG: (None, False), ETCD_UPDATE_LOG: (BOOT - 5, True)}, ""),
@@ -113,7 +112,7 @@ def test_partition_resolves_to_parent_and_root_disk():
     ],
 )
 def test_post_reboot_detects_disk_setup_rerun(monkeypatch, states, expected):
-    """ORCH_UT_079: After reboot, the reboot run must finish and the fresh path must not rerun."""
+    """ORCH_UT_079: After reboot, fstab-update must finish and setup must not rerun."""
     monkeypatch.setattr(recovery, "etcd_boot_script_state", lambda _host, _row: (states, BOOT))
 
     assert recovery._post_reboot_boot_scripts(object(), {"HOSTNAME": "cp1"}) == expected
@@ -130,7 +129,7 @@ def _media_context(monkeypatch, expected, media_by_host):
     ]
     monkeypatch.setattr(runtime, "load_test_config", lambda: {"expected_etcd_disk_media": expected})
     monkeypatch.setattr(
-        runtime, "_context", lambda _host: ({"storage_config": {"local_storage": [{"purpose": "etcd"}]}}, rows, rows[0], {})
+        runtime, "_context", lambda _host: ({}, rows, rows[0], {"etcd_on_local_disk": True})
     )
     monkeypatch.setattr(
         runtime,
@@ -192,124 +191,23 @@ def test_ldap_identity_checks_require_external_validation(monkeypatch, openldap,
 
 
 def test_boot_script_command_output_is_parseable(tmp_path):
-    """ORCH_UT_084: The remote local-disk-prep probe emits the parsed line format."""
-    log = tmp_path / "local-disk-prep.log"
-    log.write_text("[INFO] start\n2026-01-01_00:00:00 [OK] ===== DONE (reboot) =====\n")
-    command = PXEBOOT_COMMANDS["etcd_boot_scripts"].replace(ETCD_PREP_LOG, str(log))
-
-    output = subprocess.run(
-        ["bash", "-c", command], capture_output=True, text=True, check=True, timeout=10
-    ).stdout
-    states = runtime._parse_boot_scripts(output)
-
-    assert states[ETCD_SETUP_LOG][1] is False
-    assert states[ETCD_UPDATE_LOG][1] is True
-    assert isinstance(states[ETCD_UPDATE_LOG][0], int)
-
-
-def test_boot_script_command_reports_missing_log(tmp_path):
-    """ORCH_UT_385: A missing local-disk-prep log reports both modes as not done."""
-    command = PXEBOOT_COMMANDS["etcd_boot_scripts"].replace(
-        ETCD_PREP_LOG, str(tmp_path / "absent.log")
+    """ORCH_UT_084: The remote boot-script probe emits the parsed line format."""
+    setup_log = tmp_path / "etcd-disk-setup.log"
+    update_log = tmp_path / "diskless-etcd-mount.log"
+    update_log.write_text("[INFO] start\n2026-01-01_00:00:00 [OK] ===== DONE =====\n")
+    command = (
+        PXEBOOT_COMMANDS["etcd_boot_scripts"]
+        .replace(ETCD_SETUP_LOG, str(setup_log))
+        .replace(ETCD_UPDATE_LOG, str(update_log))
     )
 
     output = subprocess.run(
         ["bash", "-c", command], capture_output=True, text=True, check=True, timeout=10
     ).stdout
-    states = runtime._parse_boot_scripts(output)
+    states = runtime._parse_boot_scripts(
+        output.replace(str(setup_log), ETCD_SETUP_LOG).replace(str(update_log), ETCD_UPDATE_LOG)
+    )
 
     assert states[ETCD_SETUP_LOG] == (None, False)
-    assert states[ETCD_UPDATE_LOG] == (None, False)
-
-
-@pytest.mark.parametrize(
-    ("storage", "declared"),
-    [
-        ({}, False),
-        ({"local_storage": []}, False),
-        ({"local_storage": [{"purpose": "kafka"}]}, False),
-        ({"local_storage": "invalid"}, False),
-        ({"local_storage": [{"purpose": "kafka"}, {"purpose": "etcd", "name": "e"}]}, True),
-    ],
-)
-def test_local_etcd_is_declared_by_a_purpose_etcd_entry(storage, declared):
-    """ORCH_UT_386: Local etcd is on only when storage_config declares a purpose etcd entry."""
-    context = {"storage_config": storage}
-
-    assert workload.local_etcd_declared(context) is declared
-    assert (workload.local_etcd_entry(context) is not None) is declared
-
-
-@pytest.mark.parametrize(
-    ("entry", "disk", "ok"),
-    [
-        ({"disk_type": "boss"}, {"name": "sdd", "model": "DELLBOSS VD"}, True),
-        ({"disk_type": "boss"}, {"name": "sdb", "model": "HFS960G32FEH", "rota": "0"}, False),
-        ({"disk_type": "ssd"}, {"name": "sdb", "model": "HFS960G32FEH", "rota": "0"}, True),
-        ({"disk_type": "nvme"}, {"name": "nvme0n1", "tran": "nvme"}, True),
-        ({"disk_type": "hdd"}, {"name": "sdc", "rota": "0"}, False),
-        ({}, {"name": "sdc", "rota": "1"}, True),
-    ],
-)
-def test_selected_disk_must_match_declared_type(entry, disk, ok):
-    """ORCH_UT_387: The etcd disk matches the declared local_storage disk_type."""
-    assert runtime._declared_type_ok(entry, disk) is ok
-
-
-class _Result:
-    def __init__(self, stdout="", rc=0):
-        self.stdout = stdout
-        self.rc = rc
-
-
-def _node_state_stubs(monkeypatch, label, fstab_line):
-    """Stub the remote probes for one control plane whose etcd disk is a BOSS disk."""
-    partition = {"name": "sdd1", "uuid": "u-1", "label": label, "fstype": "ext4"}
-    disk = {"name": "sdd", "type": "disk", "model": "DELLBOSS VD", "rota": "1", "tran": "sata"}
-    monkeypatch.setattr(
-        runtime,
-        "remote_json",
-        lambda _h, _r, _c: {"filesystems": [{"source": "/dev/sdd1", "fstype": "ext4"}]},
-    )
-    monkeypatch.setattr(runtime, "_etcd_disk_layout", lambda _h, _r: (partition, disk, {}, "sda"))
-    answers = {
-        "etcd_fstab": _Result(fstab_line + "\n"),
-        "etcd_permissions": _Result("etcd|etcd|700\n"),
-        "etcd_manifest_data_dir": _Result(),
-    }
-    monkeypatch.setattr(
-        runtime, "remote_command", lambda _h, _r, command: answers[next(
-            key for key, value in PXEBOOT_COMMANDS.items() if value == command
-        )]
-    )
-    states = {ETCD_UPDATE_LOG: (BOOT + 30, True), ETCD_SETUP_LOG: (None, False)}
-    monkeypatch.setattr(runtime, "etcd_boot_script_state", lambda _h, _r: (states, BOOT))
-
-
-ENTRY = {"purpose": "etcd", "disk_type": "boss", "fs_type": "ext4", "mount_options": "noatime"}
-
-
-def test_local_etcd_state_accepts_the_local_disk_prep_layout(monkeypatch):
-    """ORCH_UT_388: The omnia_etcd label and LABEL= fstab line pass the integrity check."""
-    _node_state_stubs(monkeypatch, "omnia_etcd", "LABEL=omnia_etcd|/var/lib/etcd|ext4|noatime")
-
-    ok, detail = runtime._local_etcd_node_state(object(), {"HOSTNAME": "cp1"}, ENTRY)
-
-    assert ok, detail
-
-
-@pytest.mark.parametrize(
-    ("label", "fstab_line"),
-    [
-        ("etcd_data", "LABEL=omnia_etcd|/var/lib/etcd|ext4|noatime"),
-        ("omnia_etcd", "UUID=u-1|/var/lib/etcd|ext4|defaults,noatime,nofail"),
-        ("omnia_etcd", "LABEL=omnia_etcd|/var/lib/etcd|ext4|noatime,nofail"),
-    ],
-)
-def test_local_etcd_state_rejects_the_old_script_layout(monkeypatch, label, fstab_line):
-    """ORCH_UT_389: The old etcd_data label and UUID or nofail fstab line fail the check."""
-    _node_state_stubs(monkeypatch, label, fstab_line)
-
-    ok, _detail = runtime._local_etcd_node_state(object(), {"HOSTNAME": "cp1"}, ENTRY)
-
-    assert not ok
+    assert states[ETCD_UPDATE_LOG][1] is True
+    assert isinstance(states[ETCD_UPDATE_LOG][0], int)
