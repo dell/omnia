@@ -56,5 +56,6 @@
     "pxe_mapping_file_path",
     "language",
     "default_lease_time"
-  ]
+  ],
+  "additionalProperties": false
 }

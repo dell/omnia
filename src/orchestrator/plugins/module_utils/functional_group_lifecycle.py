@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-positional-arguments,too-few-public-methods
+# pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-positional-arguments,too-few-public-methods,too-many-locals
 
 """Lifecycle mutation safety, project lock, transition journal, and recovery planner.
 
@@ -219,43 +219,61 @@ class ProjectLock:
         pid: int | None = None,
         force_recovery: bool = False,
     ) -> dict[str, Any]:
-        """Acquire the project mutation lock.
-
-        Raises LockContentionError if the lock is held by an active process.
-        """
-        inspection = self.inspect()
-        current_status = inspection.get("status")
-
-        if current_status == LockStatus.BLOCKED.value:
-            data = inspection.get("data", {})
-            raise LockContentionError(
-                f"Project lock is currently held by active process {data.get('pid')} "
-                f"running '{data.get('operation')}' on '{data.get('target_group')}' "
-                f"(run_id: {data.get('run_id')}). Concurrent mutation is blocked."
-            )
-
-        if current_status == LockStatus.RECOVERING.value and not force_recovery:
-            data = inspection.get("data", {})
-            # Prior owner is dead, but a non-terminal lock exists.
-            # Timeout alone does not clear it; we require explicit recovery context.
-            raise RecoveryRequiredError(
-                f"Non-terminal lock detected from inactive process {data.get('pid')} "
-                f"for operation '{data.get('operation')}' on target '{data.get('target_group')}'. "
-                "Bounded recovery is required before proceeding."
-            )
-
+        """Acquire the project mutation lock atomically with O_CREAT|O_EXCL."""
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+        effective_pid = pid or (os.getppid() if hasattr(os, "getppid") else os.getpid())
         lock_data = {
             "project_name": project_name,
             "operation": operation,
             "target_group": target_group,
             "run_id": run_id,
-            "pid": pid or os.getpid(),
+            "pid": effective_pid,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "status": LockStatus.LOCKED.value,
         }
-        self.lock_path.write_text(json.dumps(lock_data, indent=2), encoding="utf-8")
-        return lock_data
+        payload = json.dumps(lock_data, indent=2).encode("utf-8")
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+
+        try:
+            fd = os.open(str(self.lock_path), flags, 0o600)
+            try:
+                os.write(fd, payload)
+            finally:
+                os.close(fd)
+            return lock_data
+        except FileExistsError as exc:
+            inspection = self.inspect()
+            current_status = inspection.get("status")
+
+            if current_status == LockStatus.BLOCKED.value:
+                data = inspection.get("data", {})
+                raise LockContentionError(
+                    f"Project lock is currently held by active process {data.get('pid')} "
+                    f"running '{data.get('operation')}' on '{data.get('target_group')}' "
+                    f"(run_id: {data.get('run_id')}). Concurrent mutation is blocked."
+                ) from exc
+
+            if current_status == LockStatus.RECOVERING.value and not force_recovery:
+                data = inspection.get("data", {})
+                raise RecoveryRequiredError(
+                    f"Non-terminal lock detected from inactive process {data.get('pid')} "
+                    f"for operation '{data.get('operation')}' on target "
+                    f"'{data.get('target_group')}'. Bounded recovery is required before proceeding."
+                ) from exc
+
+            if force_recovery:
+                try:
+                    self.lock_path.unlink()
+                except OSError:
+                    pass
+                fd = os.open(str(self.lock_path), flags, 0o600)
+                try:
+                    os.write(fd, payload)
+                finally:
+                    os.close(fd)
+                return lock_data
+
+            raise LockContentionError("Project lock could not be acquired.") from exc
 
     def release(self, run_id: str | None = None) -> bool:
         """Release the project mutation lock if run_id matches or unforced."""
@@ -303,8 +321,17 @@ class TransitionJournal:
         target_group: str,
         planned_stages: list[str],
         input_hashes: dict[str, str] | None = None,
+        force_recovery: bool = False,
     ) -> JournalData:
         """Initialize and persist a new transition journal."""
+        existing = self.read()
+        if existing and not existing.terminal_result and not force_recovery:
+            raise RecoveryRequiredError(
+                f"Transition journal for run {existing.run_id} ({existing.operation} "
+                f"on {existing.target_group}) is still in progress. "
+                "Bounded recovery is required before starting a new journal."
+            )
+
         self.journal_path.parent.mkdir(parents=True, exist_ok=True)
         journal = JournalData(
             run_id=run_id,
@@ -331,6 +358,17 @@ class TransitionJournal:
         journal = self.read()
         if not journal:
             return
+
+        valid_statuses = ("attempted", "verified", "failed", "skipped")
+        if status not in valid_statuses:
+            raise ValueError(
+                f"Invalid stage status '{status}'. Must be one of: {', '.join(valid_statuses)}"
+            )
+
+        if journal.planned_stages and stage not in journal.planned_stages:
+            raise ValueError(
+                f"Stage '{stage}' is not in planned stages: {journal.planned_stages}"
+            )
 
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         record = {
@@ -363,10 +401,15 @@ class TransitionJournal:
         return journal
 
     def _write(self, journal: JournalData) -> None:
-        """Atomically persist journal data."""
+        """Atomically persist journal data with 0600 permissions."""
         temp_path = self.journal_path.with_suffix(".tmp")
-        payload = json.dumps(asdict(journal), indent=2)
-        temp_path.write_text(payload, encoding="utf-8")
+        payload = json.dumps(asdict(journal), indent=2).encode("utf-8")
+        flags = os.O_CREAT | os.O_TRUNC | os.O_WRONLY
+        fd = os.open(str(temp_path), flags, 0o600)
+        try:
+            os.write(fd, payload)
+        finally:
+            os.close(fd)
         temp_path.replace(self.journal_path)
 
 
@@ -441,14 +484,6 @@ class LifecyclePlanner:
         if remaining_count > 0:
             raise NodeNotEmptiedError(target_group, remaining_count)
 
-        # Precheck 2: Ownership verification
-        if ownership_evidence is not None:
-            is_owned = ownership_evidence.get("owned", False)
-            is_ambiguous = ownership_evidence.get("ambiguous", False)
-            if is_ambiguous or not is_owned:
-                details = ownership_evidence.get("reason", "Record owner mismatch or absent label.")
-                raise OwnershipAmbiguityError(target_group, details)
-
         # Check no-op: already completely absent
         if current_state:
             smd_present = current_state.get("smd_group_present", False)
@@ -471,6 +506,18 @@ class LifecyclePlanner:
                         "SMD, BSS, or metadata records."
                     ),
                 }
+
+        # Precheck 2: Ownership verification (fails closed if missing or ambiguous)
+        if not ownership_evidence:
+            raise OwnershipAmbiguityError(
+                target_group,
+                "ownership evidence is missing or ambiguous. No ownership evidence provided."
+            )
+        is_owned = ownership_evidence.get("owned", False)
+        is_ambiguous = ownership_evidence.get("ambiguous", False)
+        if is_ambiguous or not is_owned:
+            details = ownership_evidence.get("reason", "Record owner mismatch or absent label.")
+            raise OwnershipAmbiguityError(target_group, details)
 
         # Calculate remaining flexible groups for shared service recalculation
         all_groups = all_functional_groups or []

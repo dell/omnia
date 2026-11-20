@@ -19,7 +19,6 @@ from typing import Any
 
 try:
     from ansible.module_utils.functional_group_resolver import (
-        GroupConfiguration,
         resolve_group,
     )
 except ImportError:
@@ -31,7 +30,6 @@ except ImportError:
     if str(ORCHESTRATOR_ROOT / "plugins/module_utils") not in sys.path:
         sys.path.insert(0, str(ORCHESTRATOR_ROOT / "plugins/module_utils"))
     from functional_group_resolver import (
-        GroupConfiguration,
         resolve_group,
     )
 

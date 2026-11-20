@@ -1198,9 +1198,8 @@ def functional_group_cloud_init_disallowed_directive_msg(
 ) -> str:
     """Return the disallowed cloud-init directive error message."""
     return (
-        f"functional_group_config: {referenced_by} contains disallowed "
-        f"cloud-init directive(s): {', '.join(directives)}. "
-        "Flexible groups support only write_files and runcmd."
+        f"functional_group_config: {referenced_by} key '{', '.join(directives)}' is platform-managed "
+        "and must not be overridden. Flexible groups support only write_files and runcmd."
     )
 
 
@@ -1215,12 +1214,12 @@ def functional_group_missing_field_msg(
 
 
 def functional_group_cloud_init_secret_msg(
-    referenced_by: str, secrets: list[str]
+    referenced_by: str, categories: list[str]
 ) -> str:
-    """Return the secret-bearing content error message."""
+    """Return the secret-bearing content error message reporting only category and path."""
     return (
         f"functional_group_config: {referenced_by} content appears to contain "
-        f"secret-bearing pattern(s): {', '.join(secrets)}. "
+        f"secret-bearing pattern(s) in category: {', '.join(categories)}. "
         "Cloud-init content is published as node metadata and must not contain secrets."
     )
 

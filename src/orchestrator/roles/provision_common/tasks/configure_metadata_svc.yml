@@ -23,6 +23,7 @@
       - hostvars['localhost']['pulp_port'] is defined
       - hostvars['localhost']['cluster_os_type'] | default('') | length > 0
     fail_msg: "{{ repo_config_not_available_msg }}"
+  when: target_category | default('') != 'flexible'
 
 - name: Publish Slurm metadata context through the role interface
   ansible.builtin.include_role:
@@ -32,16 +33,19 @@
   vars:
     slurm_metadata_nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
     slurm_metadata_target_category: "{{ target_category }}"
+  when: target_category | default('') != 'flexible'
 
 - name: Load storage config for NFS paths
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/storage_config.yml"
   failed_when: false
+  when: target_category | default('') != 'flexible'
 
 - name: Load omnia config for slurm_cluster settings
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/omnia_config.yml"
   failed_when: false
+  when: target_category | default('') != 'flexible'
 
 - name: Resolve Slurm storage references for metadata configuration
   ansible.builtin.set_fact:
@@ -352,7 +356,7 @@
           ~ _ms_template_base ~ '.yaml.j2']
          + ([ochami_template_dir
              ~ '/metadata_svc/ms-group-default_x86_64.yaml.j2']
-            if (target_category | default('')) == 'custom' else []) }}
+            if (target_category | default('')) in ['custom', 'flexible'] else []) }}
 
 - name: Load metadata-service group template - {{ fg_name }}
   block:

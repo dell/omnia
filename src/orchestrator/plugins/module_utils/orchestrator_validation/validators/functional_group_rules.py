@@ -134,15 +134,16 @@ def validate_kernel_params(
             ),
         )
         return
-    if _UNSAFE_KERNEL_CHARS.search(raw):
-        record_warning(
-            logger,
-            msg.functional_group_kernel_param_format_msg(referenced_by, raw.strip()),
-            warnings,
-        )
-        return
-    for token in raw.split():
-        if not KERNEL_PARAM_PATTERN.match(token):
+    for token in raw.split(" "):
+        token = token.strip()
+        if not token:
+            continue
+        if _UNSAFE_KERNEL_CHARS.search(token) or not KERNEL_PARAM_PATTERN.match(token):
+            record_error(
+                errors,
+                logger,
+                msg.functional_group_kernel_param_format_msg(referenced_by, token),
+            )
             record_warning(
                 logger,
                 msg.functional_group_kernel_param_format_msg(referenced_by, token),
@@ -151,6 +152,11 @@ def validate_kernel_params(
             continue
         key = token.split("=", 1)[0]
         if key in PROTECTED_KERNEL_PARAMS:
+            record_error(
+                errors,
+                logger,
+                msg.functional_group_protected_param_msg(referenced_by, key),
+            )
             record_warning(
                 logger,
                 msg.functional_group_protected_param_msg(referenced_by, key),

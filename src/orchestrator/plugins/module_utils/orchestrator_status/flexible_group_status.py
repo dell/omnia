@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-few-public-methods
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-few-public-methods,too-many-branches
 
 """Typed current-run status reconciliation and evidence sanitization for flexible groups.
 
@@ -45,12 +45,15 @@ except ImportError:
 SCHEMA_VERSION = "1.0"
 
 SENSITIVE_KEY_PATTERN = re.compile(
-    r"(?i)(password|token|secret|credential|private_key|auth|api_key|cert)"
+    r"(?i)(^|[_\-.])(password|passwd|token|secret|credential|"
+    r"private_key|api_key|auth_token|auth_credential)($|[_\-.])"
 )
 SECRET_CONTENT_PATTERNS = [
     re.compile(r"\$ANSIBLE_VAULT;\d+\.\d+;[A-Z0-9]+"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"#cloud-config"),
+    re.compile(r"(?i)(password|token|secret|api[_-]?key)\s*[:=]\s*\S+"),
+    re.compile(r"(?m)^(runcmd|write_files|bootcmd|packages|users):\s*"),
 ]
 
 
@@ -130,8 +133,10 @@ def sanitize_value(value: Any) -> Any:
 def sanitize_stage_result(result: dict[str, Any]) -> dict[str, Any]:
     """Sanitize one stage result dictionary, ensuring safe diagnostic output."""
     clean = deepcopy(result)
-    details = clean.get("details", {})
-    clean["details"] = sanitize_value(details)
+    for k, v in clean.items():
+        if k in ("stage", "status", "timestamp", "diagnostic_category"):
+            continue
+        clean[k] = sanitize_value(v)
     return clean
 
 
@@ -142,6 +147,7 @@ def reconcile_functional_group_status(
     operation: str,
     target_group: str,
     stage_results: list[dict[str, Any] | TypedStageResult],
+    planned_stages: list[str] | None = None,
     previous_status: dict[str, Any] | None = None,
     timestamp: str | None = None,
 ) -> dict[str, Any]:
@@ -158,7 +164,15 @@ def reconcile_functional_group_status(
     primary_diagnostic = ""
 
     for item in stage_results:
-        raw = asdict(item) if isinstance(item, TypedStageResult) else deepcopy(item)
+        if isinstance(item, dict):
+            typed = TypedStageResult(**item)
+            raw = asdict(typed)
+        elif isinstance(item, TypedStageResult):
+            raw = asdict(item)
+        else:
+            raise StatusReconcileError(
+                f"Stage result must be TypedStageResult or dict, got {type(item).__name__}"
+            )
         stage_name = raw.get("stage", "")
         stage_status = raw.get("status", "")
 
@@ -174,12 +188,30 @@ def reconcile_functional_group_status(
 
         normalized_stages.append(sanitize_stage_result(raw))
 
-    if has_failure:
+    if not normalized_stages:
         current_overall = OverallStatus.FAILED.value
+        primary_diagnostic = primary_diagnostic or "no_stages_executed"
+    elif has_failure:
+        current_overall = OverallStatus.FAILED.value
+    elif all(s.get("status") == StageStatus.SKIPPED.value for s in normalized_stages):
+        current_overall = OverallStatus.FAILED.value
+        primary_diagnostic = primary_diagnostic or "all_stages_skipped"
     elif all_noop and normalized_stages:
         current_overall = OverallStatus.NO_OP.value
     else:
         current_overall = OverallStatus.SUCCESS.value
+
+    # Check for missing planned stages
+    if planned_stages and not has_failure and normalized_stages:
+        executed_stages = {
+            s.get("stage")
+            for s in normalized_stages
+            if s.get("status") in (StageStatus.SUCCESS.value, StageStatus.NO_OP.value)
+        }
+        missing = [stage for stage in planned_stages if stage not in executed_stages]
+        if missing:
+            current_overall = OverallStatus.FAILED.value
+            primary_diagnostic = primary_diagnostic or f"missing_stages_{'_'.join(missing)}"
 
     # Build historical reference from previous_status
     history_entry: dict[str, Any] = {}

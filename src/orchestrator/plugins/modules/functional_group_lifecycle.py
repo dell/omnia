@@ -126,7 +126,7 @@ EXAMPLES = r'''
     operation: add
     target_group: fg_web_rhel_10_2_x86_64
     run_id: "1731800000"
-    state_dir: "/opt/omnia/orchestrator"
+    state_dir: "{{ omnia_data_path }}/orchestrator"
 '''
 
 RETURN = r'''
@@ -185,6 +185,9 @@ def main() -> None:
                 "choices": ["both", "boot", "cloud_init"],
             },
             "force_recovery": {"type": "bool", "default": False},
+            "pid": {"type": "int"},
+            "input_hashes": {"type": "dict", "default": {}},
+            "error_message": {"type": "str"},
         },
         supports_check_mode=True,
     )
@@ -199,30 +202,41 @@ def main() -> None:
 
     try:
         if action == "acquire_lock":
+            if module.check_mode:
+                module.exit_json(changed=True, lock_data={})
             lock_data = lock.acquire(
                 project_name=module.params["project_name"],
                 operation=module.params["operation"] or "add",
                 target_group=module.params["target_group"] or "",
                 run_id=module.params["run_id"] or str(int(os.getpid())),
+                pid=module.params.get("pid"),
                 force_recovery=module.params["force_recovery"],
             )
             module.exit_json(changed=True, lock_data=lock_data)
 
         elif action == "release_lock":
+            if module.check_mode:
+                module.exit_json(changed=True, released=True)
             released = lock.release(run_id=module.params["run_id"])
             module.exit_json(changed=released, released=released)
 
         elif action == "start_journal":
+            if module.check_mode:
+                module.exit_json(changed=True, journal={})
             j_data = journal.start(
                 run_id=module.params["run_id"] or str(int(os.getpid())),
                 project_name=module.params["project_name"],
                 operation=module.params["operation"] or "add",
                 target_group=module.params["target_group"] or "",
                 planned_stages=module.params["planned_stages"],
+                input_hashes=module.params.get("input_hashes"),
+                force_recovery=module.params["force_recovery"],
             )
             module.exit_json(changed=True, journal=asdict(j_data))
 
         elif action == "record_stage":
+            if module.check_mode:
+                module.exit_json(changed=True)
             journal.record_stage(
                 stage=module.params["stage"],
                 status=module.params["stage_status"] or "verified",
@@ -230,8 +244,11 @@ def main() -> None:
             module.exit_json(changed=True)
 
         elif action == "finish_journal":
+            if module.check_mode:
+                module.exit_json(changed=True, journal={})
             j_data = journal.finish(
                 terminal_result=module.params["terminal_result"],
+                error_message=module.params.get("error_message") or "",
             )
             module.exit_json(changed=True, journal=asdict(j_data) if j_data else {})
 
@@ -247,7 +264,7 @@ def main() -> None:
                 target_group=module.params["target_group"],
                 mapped_nodes=module.params["mapped_nodes"],
                 all_functional_groups=module.params["all_functional_groups"],
-                ownership_evidence=module.params["ownership_evidence"] or None,
+                ownership_evidence=module.params["ownership_evidence"],
             )
             module.exit_json(changed=False, plan=plan)
 
@@ -262,13 +279,20 @@ def main() -> None:
             j_data = journal.read()
             if not j_data:
                 module.exit_json(changed=False, recovery_needed=False, remaining_stages=[])
+            planned = module.params["planned_stages"] or j_data.planned_stages
             incomplete = BoundedRecoveryManager.evaluate_resumption(
-                j_data, module.params["planned_stages"]
+                j_data, planned
             )
+            is_non_terminal = not j_data.terminal_result or j_data.terminal_result in [
+                "failed",
+                "recovery_required",
+            ]
+            recovery_needed = is_non_terminal and len(incomplete) > 0
             module.exit_json(
                 changed=False,
-                recovery_needed=len(incomplete) < len(module.params["planned_stages"]),
-                remaining_stages=incomplete,
+                recovery_needed=recovery_needed,
+                remaining_stages=incomplete if recovery_needed else [],
+                terminal_result=j_data.terminal_result,
             )
 
     except (

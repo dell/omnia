@@ -203,6 +203,20 @@ _check_existing_files() {
     esac
 }
 
+_stage_new_files() {
+    local src="$1"
+    local dest="$2"
+    mkdir -p -m 0750 "$dest"
+    for item in "$src"/*; do
+        [ -e "$item" ] || [ -L "$item" ] || continue
+        local fname
+        fname="$(basename "$item")"
+        if [ ! -e "$dest/$fname" ] && [ ! -L "$dest/$fname" ]; then
+            cp -a "$item" "$dest/$fname"
+        fi
+    done
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Copy flat input/ files to the runtime project directory
 # Source:  src/<domain>/input/            (flat — no project subdirectory)
@@ -227,6 +241,12 @@ copy_input_files() {
 
     # Check for existing files and prompt if needed
     if ! _check_existing_files "$dest_dir"; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Staging only new/missing template files in ${dest_dir}${NC}"
+        _stage_new_files "$src_dir" "$dest_dir"
+        local cloud_init_template="$SCRIPT_DIR/examples/functional_group_cloud_init_template.yml"
+        if [ -f "$cloud_init_template" ] && [ ! -e "$dest_dir/functional_group_cloud_init_template.yml" ] && [ ! -L "$dest_dir/functional_group_cloud_init_template.yml" ]; then
+            cp -a "$cloud_init_template" "$dest_dir/"
+        fi
         return 0
     fi
 
@@ -404,4 +424,6 @@ main() {
     echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }
 
-main "$@"
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
+fi

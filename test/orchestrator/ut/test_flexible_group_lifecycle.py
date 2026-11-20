@@ -166,6 +166,21 @@ def test_planner_remove_rejects_ambiguous_ownership():
     assert "ownership evidence is missing or ambiguous" in str(exc_info.value)
 
 
+def test_planner_remove_fails_closed_when_ownership_missing():
+    """Verify removal fails closed when ownership evidence is omitted/empty."""
+    target = "fg_compute_rhel_10_2_x86_64"
+
+    with pytest.raises(OwnershipAmbiguityError) as exc_info:
+        LifecyclePlanner.plan_remove(
+            target_group=target,
+            mapped_nodes=[],
+            ownership_evidence={},
+        )
+
+    assert target in str(exc_info.value)
+    assert "ownership evidence is missing or ambiguous" in str(exc_info.value)
+
+
 def test_planner_remove_detects_noop_when_records_already_absent():
     """Verify removal detects no-op when no SMD/BSS/metadata records exist."""
     target = "fg_compute_rhel_10_2_x86_64"
