@@ -21,7 +21,6 @@ Covers:
 
 import importlib.util
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -383,3 +382,49 @@ def test_bounded_recovery_resumes_from_first_incomplete_stage(tmp_path):
     remaining = BoundedRecoveryManager.evaluate_resumption(j_data, planned)
     assert remaining == ["bss", "metadata"]
     assert "smd_group" not in remaining
+
+
+def test_failed_mutation_releases_lock_and_marks_journal_failed(tmp_path):
+    """FR-5.1: Failed mutation records failure and lock is cleanly released."""
+    lock_file = tmp_path / ".functional_group_mutation.lock"
+    journal_file = tmp_path / ".functional_group_journal.json"
+    lock = ProjectLock(lock_file)
+    journal = TransitionJournal(journal_file)
+
+    run_id = "run-fail-test"
+    lock.acquire(
+        project_name="project_x",
+        operation="add",
+        target_group="fg_ai_rhel_10_2_x86_64",
+        run_id=run_id,
+    )
+    journal.start(
+        run_id=run_id,
+        project_name="project_x",
+        operation="add",
+        target_group="fg_ai_rhel_10_2_x86_64",
+        planned_stages=["smd_group", "bss", "metadata"],
+    )
+
+    # Simulate stage failure
+    journal.record_stage("smd_group", "failed", details={"error": "SMD unavailable"})
+    finished = journal.finish(
+        terminal_result=TerminalResult.FAILED.value,
+        error_message="SMD unavailable",
+    )
+    assert finished.terminal_result == "failed"
+    assert finished.error_message == "SMD unavailable"
+
+    # Always block releases lock
+    released = lock.release(run_id=run_id)
+    assert released is True
+    assert not lock_file.exists()
+
+    # Next run can acquire lock without LockContentionError
+    new_lock = lock.acquire(
+        project_name="project_x",
+        operation="add",
+        target_group="fg_ai_rhel_10_2_x86_64",
+        run_id="run-next",
+    )
+    assert new_lock["status"] == "locked"

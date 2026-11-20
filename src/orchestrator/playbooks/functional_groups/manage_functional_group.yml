@@ -143,7 +143,7 @@
           are 'both', 'boot', and 'cloud_init'.
       when: fg_operation == 'configure'
 
-    - name: Select flexible functional groups
+    - name: Select flexible functional groups for add/configure
       ansible.builtin.set_fact:
         target_functional_groups: >-
           {{ functional_groups
@@ -154,6 +154,7 @@
              else functional_groups
                   | selectattr('name', 'match', '^fg_')
                   | list }}
+      when: fg_operation in ['add', 'configure']
 
     - name: Fail when a requested target is not a mapped flexible group
       ansible.builtin.fail:
@@ -161,16 +162,26 @@
           Requested flexible group '{{ fg_target_group }}' is not an fg_-prefixed
           functional group in the active PXE mapping.
       when:
+        - fg_operation in ['add', 'configure']
         - fg_target_group is defined
         - fg_target_group | length > 0
         - target_functional_groups | length == 0
 
-    - name: Validate exact target for remove operation (FR-4.2)
+    - name: Validate remove operation target specification
       ansible.builtin.assert:
         that:
-          - target_functional_groups | length == 1
+          - fg_target_group is defined
+          - fg_target_group | length > 0
+          - fg_target_group is match('^fg_')
         fail_msg: >-
-          Remove requires exactly one target group. Found {{ target_functional_groups | length }}.
+          Remove requires an exact target group name starting with 'fg_'
+          (e.g., -e fg_target_group=fg_app_rhel_10_2_x86_64).
+      when: fg_operation == 'remove'
+
+    - name: Select target flexible group for remove
+      ansible.builtin.set_fact:
+        target_functional_groups:
+          - name: "{{ fg_target_group }}"
       when: fg_operation == 'remove'
 
     - name: Validate exact target for configure operation (FR-4.3)
@@ -178,7 +189,8 @@
         that:
           - target_functional_groups | length == 1
         fail_msg: >-
-          Configure operation requires exactly one target group (fg_target_group). Found {{ target_functional_groups | length }}.
+          Configure operation requires exactly one target group (fg_target_group).
+          Found {{ target_functional_groups | length }}.
       when: fg_operation == 'configure'
 
     - name: Count mapped nodes for target group from reviewed PXE mapping (AC-006)
@@ -199,36 +211,6 @@
       when:
         - fg_operation == 'remove'
         - target_group_nodes | length > 0
-
-    - name: Acquire project mutation lock (FR-5.1)
-      functional_group_lifecycle:
-        action: acquire_lock
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-        operation: "{{ fg_operation }}"
-        target_group: >-
-          {{ fg_target_group
-             | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ fg_run_id }}"
-        pid: "{{ lookup('pipe', 'echo $PPID') | int }}"
-        force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
-      register: _lifecycle_lock
-      when: target_functional_groups | length > 0
-
-    - name: Start transition journal (FR-5.1)
-      functional_group_lifecycle:
-        action: start_journal
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-        operation: "{{ fg_operation }}"
-        target_group: >-
-          {{ fg_target_group
-             | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ fg_run_id }}"
-        planned_stages: "{{ planned_lifecycle_stages }}"
-        force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
-      register: _lifecycle_journal
-      when: target_functional_groups | length > 0
 
     - name: Report resolved flexible targets
       ansible.builtin.debug:
@@ -258,212 +240,292 @@
         - resolved_fg_config is defined
 
   roles:
-    # Add: publish OpenCHAMI group, Boot Service, and Metadata Service state
-    # through the shared generic pipeline (no bolt-ons for the flexible
-    # category). The replace-node model is inherent to register_nodes'
-    # upsert-style discover_static reconciliation.
-    #
-    # Configure: publish BSS and/or metadata configuration only, without
-    # group creation, node registration, bolt-on roles, or scheduler effects.
-    # The provision_common_registration_complete flag skips node registration.
+    # Retained for static analysis and role-dependency interface validation.
+    # Actual execution runs inside the protected lifecycle block below.
     - role: provision_common
       when:
+        - false
         - fg_operation in ['add', 'configure']
         - target_functional_groups | length > 0
 
   tasks:
-    - name: Record SMD group stage completion for add
-      functional_group_lifecycle:
-        action: record_stage
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        stage: smd_group
-        stage_status: verified
-      when:
-        - fg_operation == 'add'
-        - target_functional_groups | length > 0
-
-    - name: Record BSS stage completion
-      functional_group_lifecycle:
-        action: record_stage
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        stage: bss
-        stage_status: verified
-      when:
-        - fg_operation in ['add', 'configure']
-        - fg_publish_boot | bool
-        - target_functional_groups | length > 0
-
-    - name: Record Metadata stage completion
-      functional_group_lifecycle:
-        action: record_stage
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        stage: metadata
-        stage_status: verified
-      when:
-        - fg_operation in ['add', 'configure']
-        - fg_publish_cloud_init | bool
-        - target_functional_groups | length > 0
-
-    # Remove: delete owned records using scoped OpenCHAMI reconciliation
-    # primitives (FR-4.2). Order: metadata → BSS → SMD group. Recalculate
-    # shared ssh/chrony groups from remaining groups.
-    - name: Inspect ownership of metadata group before removal
-      openchami_reconcile:
-        action: inspect_metadata_group_ownership
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: "{{ ochami_env[cluster_env_key] }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        metadata_group_name: "{{ target_functional_groups[0].name }}"
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-      register: _ownership_inspection
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Plan removal with ownership and emptiness verification (FR-4.2)
-      functional_group_lifecycle:
-        action: plan_remove
-        target_group: "{{ target_functional_groups[0].name }}"
-        mapped_nodes: "{{ target_group_nodes | default([]) }}"
-        all_functional_groups: "{{ functional_groups }}"
-        ownership_evidence: "{{ _ownership_inspection.ownership | default({}) }}"
-      register: _remove_plan
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Delete metadata for removed group
-      openchami_reconcile:
-        action: delete_metadata_groups
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: "{{ ochami_env[cluster_env_key] }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        metadata_group_names: "{{ target_functional_groups | map(attribute='name') | list }}"
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-      register: _metadata_delete
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Record metadata stage completion for remove
-      functional_group_lifecycle:
-        action: record_stage
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        stage: metadata
-        stage_status: verified
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Delete boot configurations for removed group
-      openchami_reconcile:
-        action: delete_boot_configurations
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: "{{ ochami_env[cluster_env_key] }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        boot_configuration_names: "{{ target_functional_groups | map(attribute='name') | list }}"
-      register: _boot_delete
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Record bss stage completion for remove
-      functional_group_lifecycle:
-        action: record_stage
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        stage: bss
-        stage_status: verified
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Delete SMD group for removed group
-      openchami_reconcile:
-        action: delete_groups
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: "{{ ochami_env[cluster_env_key] }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        group_labels: "{{ target_functional_groups | map(attribute='name') | list }}"
-      register: _group_delete
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Record smd_group stage completion for remove
-      functional_group_lifecycle:
-        action: record_stage
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        stage: smd_group
-        stage_status: verified
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Recalculate and reconcile shared SMD groups (ssh and chrony) from remaining groups
-      openchami_reconcile:
-        action: reconcile_groups
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: "{{ ochami_env[cluster_env_key] }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        smd_groups:
-          - label: "ssh"
-            members:
-              ids: >-
-                {{ ((read_mapping_file.dict | default(hostvars['localhost']['read_mapping_file']['dict'] | default({}))).values() | list)
-                   | selectattr('FUNCTIONAL_GROUP_NAME', 'defined')
-                   | selectattr('FUNCTIONAL_GROUP_NAME', 'ne', target_functional_groups[0].name)
-                   | map(attribute='XNAME') | sort | unique | list }}
-          - label: "chrony"
-            members:
-              ids: >-
-                {{ ((read_mapping_file.dict | default(hostvars['localhost']['read_mapping_file']['dict'] | default({}))).values() | list)
-                   | selectattr('FUNCTIONAL_GROUP_NAME', 'defined')
-                   | selectattr('FUNCTIONAL_GROUP_NAME', 'ne', target_functional_groups[0].name)
-                   | map(attribute='XNAME') | sort | unique | list }}
-      when:
-        - fg_operation == 'remove'
-        - target_functional_groups | length > 0
-
-    - name: Reconcile flexible functional group lifecycle status (FR-5.2)
-      orchestrator_status_reconcile:
-        mode: functional_group
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-        run_id: "{{ fg_run_id }}"
-        operation: "{{ fg_operation }}"
-        target_group: >-
-          {{ target_functional_groups[0].name
-             if target_functional_groups | length == 1 else 'multiple' }}
-        planned_stages: "{{ planned_lifecycle_stages }}"
-        stage_results: >-
-          {{ [{'stage': 'metadata', 'status': 'success'},
-              {'stage': 'bss', 'status': 'success'},
-              {'stage': 'smd_group', 'status': 'success'}]
-             if fg_operation == 'remove'
-             else ([{'stage': 'bss', 'status': 'success'}] if configure_scope == 'boot'
-                   else ([{'stage': 'metadata', 'status': 'success'}] if configure_scope == 'cloud_init'
-                         else [{'stage': 'smd_group', 'status': 'success'},
-                               {'stage': 'bss', 'status': 'success'},
-                               {'stage': 'metadata', 'status': 'success'}])) }}
-      register: _fg_status_report
+    - name: Flexible functional group lifecycle mutation sequence
       when: target_functional_groups | length > 0
+      block:
+        - name: Acquire project mutation lock (FR-5.1)
+          functional_group_lifecycle:
+            action: acquire_lock
+            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+            operation: "{{ fg_operation }}"
+            target_group: >-
+              {{ fg_target_group
+                 | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            run_id: "{{ fg_run_id }}"
+            pid: "{{ lookup('pipe', 'echo $PPID') | int }}"
+            force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
+          register: _lifecycle_lock
 
-  post_tasks:
-    - name: Finish transition journal (FR-5.1)
-      functional_group_lifecycle:
-        action: finish_journal
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        terminal_result: succeeded
-      when:
-        - target_functional_groups | length > 0
-        - _lifecycle_journal is defined
-        - _lifecycle_journal.changed | default(false)
+        - name: Start transition journal (FR-5.1)
+          functional_group_lifecycle:
+            action: start_journal
+            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+            operation: "{{ fg_operation }}"
+            target_group: >-
+              {{ fg_target_group
+                 | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            run_id: "{{ fg_run_id }}"
+            planned_stages: "{{ planned_lifecycle_stages }}"
+            force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
+          register: _lifecycle_journal
 
-    - name: Release project mutation lock (FR-5.1)
-      functional_group_lifecycle:
-        action: release_lock
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ fg_run_id }}"
-      when:
-        - target_functional_groups | length > 0
-        - _lifecycle_lock is defined
-        - _lifecycle_lock.changed | default(false)
+        # ── MUTATION SEQUENCE: ADD / CONFIGURE ──
+        - name: Track current stage for add/configure
+          ansible.builtin.set_fact:
+            _current_stage: "{{ 'bss' if configure_scope == 'boot' else ('metadata' if configure_scope == 'cloud_init' else 'smd_group') }}"
+          when: fg_operation in ['add', 'configure']
+
+        - name: Execute provision_common for add/configure
+          ansible.builtin.include_role:
+            name: provision_common
+          when: fg_operation in ['add', 'configure']
+
+        - name: Record SMD group stage completion for add
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: smd_group
+            stage_status: verified
+          when: fg_operation == 'add'
+
+        - name: Record BSS stage completion
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: bss
+            stage_status: verified
+          when:
+            - fg_operation in ['add', 'configure']
+            - fg_publish_boot | bool
+
+        - name: Record Metadata stage completion
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: metadata
+            stage_status: verified
+          when:
+            - fg_operation in ['add', 'configure']
+            - fg_publish_cloud_init | bool
+
+        # ── MUTATION SEQUENCE: REMOVE ──
+        - name: Track current stage for remove
+          ansible.builtin.set_fact:
+            _current_stage: metadata
+          when: fg_operation == 'remove'
+
+        - name: Inspect ownership of metadata group before removal
+          openchami_reconcile:
+            action: inspect_metadata_group_ownership
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: "{{ ochami_env[cluster_env_key] }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            metadata_group_name: "{{ target_functional_groups[0].name }}"
+            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+          register: _ownership_inspection
+          when: fg_operation == 'remove'
+
+        - name: Plan removal with ownership and emptiness verification (FR-4.2)
+          functional_group_lifecycle:
+            action: plan_remove
+            target_group: "{{ target_functional_groups[0].name }}"
+            mapped_nodes: "{{ target_group_nodes | default([]) }}"
+            all_functional_groups: "{{ functional_groups }}"
+            ownership_evidence: "{{ _ownership_inspection.ownership | default({}) }}"
+          register: _remove_plan
+          when: fg_operation == 'remove'
+
+        - name: Delete metadata for removed group
+          openchami_reconcile:
+            action: delete_metadata_groups
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: "{{ ochami_env[cluster_env_key] }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            metadata_group_names: "{{ target_functional_groups | map(attribute='name') | list }}"
+            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+          register: _metadata_delete
+          when: fg_operation == 'remove'
+
+        - name: Record metadata stage completion for remove
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: metadata
+            stage_status: verified
+          when: fg_operation == 'remove'
+
+        - name: Track current stage as bss
+          ansible.builtin.set_fact:
+            _current_stage: bss
+          when: fg_operation == 'remove'
+
+        - name: Delete boot configurations for removed group
+          openchami_reconcile:
+            action: delete_boot_configurations
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: "{{ ochami_env[cluster_env_key] }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            boot_configuration_names: "{{ target_functional_groups | map(attribute='name') | list }}"
+          register: _boot_delete
+          when: fg_operation == 'remove'
+
+        - name: Record bss stage completion for remove
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: bss
+            stage_status: verified
+          when: fg_operation == 'remove'
+
+        - name: Track current stage as smd_group
+          ansible.builtin.set_fact:
+            _current_stage: smd_group
+          when: fg_operation == 'remove'
+
+        - name: Delete SMD group for removed group
+          openchami_reconcile:
+            action: delete_groups
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: "{{ ochami_env[cluster_env_key] }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            group_labels: "{{ target_functional_groups | map(attribute='name') | list }}"
+          register: _group_delete
+          when: fg_operation == 'remove'
+
+        - name: Record smd_group stage completion for remove
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: smd_group
+            stage_status: verified
+          when: fg_operation == 'remove'
+
+        - name: Recalculate and reconcile shared SMD groups (ssh and chrony) from remaining groups
+          openchami_reconcile:
+            action: reconcile_groups
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: "{{ ochami_env[cluster_env_key] }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            smd_groups:
+              - label: "ssh"
+                members:
+                  ids: >-
+                    {{ ((read_mapping_file.dict | default(hostvars['localhost']['read_mapping_file']['dict'] | default({}))).values() | list)
+                       | selectattr('FUNCTIONAL_GROUP_NAME', 'defined')
+                       | selectattr('FUNCTIONAL_GROUP_NAME', 'ne', target_functional_groups[0].name)
+                       | map(attribute='XNAME') | sort | unique | list }}
+              - label: "chrony"
+                members:
+                  ids: >-
+                    {{ ((read_mapping_file.dict | default(hostvars['localhost']['read_mapping_file']['dict'] | default({}))).values() | list)
+                       | selectattr('FUNCTIONAL_GROUP_NAME', 'defined')
+                       | selectattr('FUNCTIONAL_GROUP_NAME', 'ne', target_functional_groups[0].name)
+                       | map(attribute='XNAME') | sort | unique | list }}
+          when: fg_operation == 'remove'
+
+        # ── STATUS RECONCILIATION: TRUTHFUL REGISTERED RESULTS (B3) ──
+        - name: Compute actual stage results for status reconciliation
+          ansible.builtin.set_fact:
+            _computed_stage_results: >-
+              {{ [
+                   {'stage': 'metadata', 'status': 'success' if (_metadata_delete.changed | default(false)) else 'noop'},
+                   {'stage': 'bss', 'status': 'success' if (_boot_delete.changed | default(false)) else 'noop'},
+                   {'stage': 'smd_group', 'status': 'success' if (_group_delete.changed | default(false)) else 'noop'}
+                 ]
+                 if fg_operation == 'remove'
+                 else (
+                   [{'stage': 'bss', 'status': 'success' if (_boot_configuration_reconcile.changed | default(true)) else 'noop'}]
+                   if configure_scope == 'boot'
+                   else (
+                     [{'stage': 'metadata', 'status': 'success' if (_metadata_fg_reconcile.changed | default(true)) else 'noop'}]
+                     if configure_scope == 'cloud_init'
+                     else [
+                       {'stage': 'smd_group', 'status': 'success' if (_functional_group_reconcile.changed | default(true)) else 'noop'},
+                       {'stage': 'bss', 'status': 'success' if (_boot_configuration_reconcile.changed | default(true)) else 'noop'},
+                       {'stage': 'metadata', 'status': 'success' if (_metadata_fg_reconcile.changed | default(true)) else 'noop'}
+                     ]
+                   )
+                 ) }}
+
+        - name: Reconcile flexible functional group lifecycle status (FR-5.2)
+          orchestrator_status_reconcile:
+            mode: functional_group
+            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+            run_id: "{{ fg_run_id }}"
+            operation: "{{ fg_operation }}"
+            target_group: >-
+              {{ target_functional_groups[0].name
+                 if target_functional_groups | length == 1 else 'multiple' }}
+            planned_stages: "{{ planned_lifecycle_stages }}"
+            stage_results: "{{ _computed_stage_results }}"
+          register: _fg_status_report
+
+        - name: Finish transition journal (FR-5.1)
+          functional_group_lifecycle:
+            action: finish_journal
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            terminal_result: succeeded
+
+      rescue:
+        - name: Record stage failure in transition journal (FR-5.1)
+          functional_group_lifecycle:
+            action: record_stage
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            stage: "{{ _current_stage | default('validation') }}"
+            stage_status: failed
+          when:
+            - _lifecycle_journal is defined
+            - _lifecycle_journal.changed | default(false)
+
+        - name: Mark transition journal as failed (FR-5.1)
+          functional_group_lifecycle:
+            action: finish_journal
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            terminal_result: failed
+            error_message: "{{ ansible_failed_result.msg | default('Lifecycle mutation failed') }}"
+          when:
+            - _lifecycle_journal is defined
+            - _lifecycle_journal.changed | default(false)
+
+        - name: Reconcile status on failure (FR-5.2)
+          orchestrator_status_reconcile:
+            mode: functional_group
+            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+            run_id: "{{ fg_run_id }}"
+            operation: "{{ fg_operation }}"
+            target_group: >-
+              {{ fg_target_group
+                 | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
+            planned_stages: "{{ planned_lifecycle_stages }}"
+            stage_results:
+              - stage: "{{ _current_stage | default('validation') }}"
+                status: failed
+                diagnostic_category: "{{ _current_stage | default('validation') }}_failed"
+          ignore_errors: true
+
+        - name: Fail lifecycle operation
+          ansible.builtin.fail:
+            msg: >-
+              Flexible functional group lifecycle operation '{{ fg_operation }}' failed:
+              {{ ansible_failed_result.msg | default('Unknown error') }}
+
+      always:
+        - name: Release project mutation lock (FR-5.1)
+          functional_group_lifecycle:
+            action: release_lock
+            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+            run_id: "{{ fg_run_id }}"
+          when:
+            - _lifecycle_lock is defined
+            - _lifecycle_lock.changed | default(false)

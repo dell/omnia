@@ -51,6 +51,8 @@ Not testing:
   changes.
 """
 
+# pylint: disable=redefined-outer-name
+
 from pathlib import Path
 
 import pytest
@@ -239,3 +241,27 @@ class TestLifecycleIsolation:
             assert gen_idx < manage_idx, (
                 "FG generation must precede manage_functional_group import"
             )
+
+    def test_manage_fg_has_block_rescue_always_safety(self, manage_fg_playbook):
+        """ORCH_FVT_FG_V021: Lifecycle execution wraps mutations in block/rescue/always."""
+        play = manage_fg_playbook[0]
+        tasks = play.get("tasks", [])
+        assert any("block" in t for t in tasks), (
+            "manage_functional_group must wrap lifecycle mutation in a block"
+        )
+        lifecycle_block = next(t for t in tasks if "block" in t)
+        assert "rescue" in lifecycle_block, "Lifecycle block must define rescue handler"
+        assert "always" in lifecycle_block, "Lifecycle block must define always handler"
+
+        # Rescue records failure and reconciles status
+        rescue_tasks = lifecycle_block["rescue"]
+        assert any("action" in t.get("functional_group_lifecycle", {})
+                   and t["functional_group_lifecycle"]["action"] == "finish_journal"
+                   and t["functional_group_lifecycle"]["terminal_result"] == "failed"
+                   for t in rescue_tasks), "Rescue must finish journal as failed"
+
+        # Always releases lock
+        always_tasks = lifecycle_block["always"]
+        assert any("action" in t.get("functional_group_lifecycle", {})
+                   and t["functional_group_lifecycle"]["action"] == "release_lock"
+                   for t in always_tasks), "Always block must release mutation lock"

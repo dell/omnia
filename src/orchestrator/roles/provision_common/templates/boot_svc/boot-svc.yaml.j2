@@ -6,10 +6,14 @@ metadata:
 spec:
   kernel: "{{ s3_base_url }}/{{ kernel }}"
   initrd: "{{ s3_base_url }}/{{ initrd }}"
+{% set platform_params = "root=live:" ~ s3_base_url ~ "/" ~ image ~ " ip=dhcp rd.live.image rd.live.ram rd.neednet=1 " ~ ("rd.noverifyssl " if s3_use_https else "") ~ "console=tty0 console=ttyS0,115200 " ~ boot_svc_params_metadata_svc %}
+{% set optional_default_params = "nomodeset ro rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 selinux=0 apparmor=0 ip6=off" %}
 {% if boot_kernel_params_mode | default('append') == 'override' and boot_kernel_params | default('') | length > 0 %}
-  params: "{{ boot_kernel_params }}"
+  params: "{{ platform_params | trim }} {{ boot_kernel_params | trim }}"
+{% elif boot_kernel_params | default('') | length > 0 %}
+  params: "{{ optional_default_params }} {{ platform_params | trim }} {{ boot_kernel_params | trim }}"
 {% else %}
-  params: "nomodeset ro root=live:{{ s3_base_url }}/{{ image }} ip=dhcp rd.live.image rd.live.ram rd.neednet=1 {% if s3_use_https %}rd.noverifyssl {% endif %}rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 console=tty0 console=ttyS0,115200 selinux=0 apparmor=0 ip6=off {{ boot_svc_params_metadata_svc }}{% if boot_kernel_params | default('') | length > 0 %} {{ boot_kernel_params }}{% endif %}"
+  params: "{{ optional_default_params }} {{ platform_params | trim }}"
 {% endif %}
   macs:
 {% for item in boot_svc_nodes %}
