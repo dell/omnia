@@ -118,7 +118,6 @@ from .ome_func import (
     update_ome_forwarder_settings,
     verify_ome_kafka_topics,
     verify_ome_data_in_kafka,
-    compare_ome_cert_with_local,
 )
 from .ome_victoria_func import (
     verify_ome_logs_in_victoria,
@@ -260,7 +259,6 @@ __all__ = [
     "update_ome_forwarder_settings",
     "verify_ome_kafka_topics",
     "verify_ome_data_in_kafka",
-    "compare_ome_cert_with_local",
     "verify_ome_logs_in_victoria",
     "verify_ome_metrics_in_victoria",
     # sfm

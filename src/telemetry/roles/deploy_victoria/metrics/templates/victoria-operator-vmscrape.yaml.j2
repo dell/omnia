@@ -101,11 +101,11 @@ spec:
     - port: "{{ csi_volume_exporter.metrics_port }}"
       path: /metrics
       interval: {{ csi_volume_exporter.scrape_interval }}
-  relabelConfigs:
-    - targetLabel: source
-      replacement: powerscale
-    - targetLabel: component
-      replacement: volume-status
+      relabelConfigs:
+        - targetLabel: source
+          replacement: powerscale
+        - targetLabel: component
+          replacement: volume-status
 {% endif %}
 
 ---
