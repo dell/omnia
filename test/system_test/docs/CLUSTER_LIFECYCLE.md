@@ -30,14 +30,14 @@ its scheduler is in the active catalog.
 All four Slurm FVTs exist. The only prerequisite was adding `node_remove` and
 `node_add` markers to the existing `test_slurm_lifecycle.py`.
 
-**Stages (4):**
+**Stages (4, plus initialization):**
 
 | Stage | Hard/Soft | SVT cases | What it runs |
 |-------|-----------|-----------|-------------|
-| `deploy_cluster` | hard | 001-008 | orchestrator precheck, prepare, provision, pxeboot exec + connectivity verify |
-| `slurm_deploy` | hard | 009 | slurm_cluster suite (membership, services, SSH, configless, config consistency, reconfigure, hardware discovery, custom config) |
+| `deploy_slurm_cluster` | hard | 001-009 | orchestrator precheck, prepare, provision, pxeboot exec + connectivity verify + slurm_cluster suite (membership, services, SSH, configless, config consistency, reconfigure, hardware discovery, custom config) |
 | `slurm_jobs` | soft | 010-011 | slurm_jobs suite + ipoib_network suite |
-| `slurm_lifecycle` | soft | 012-013 | slurm_lifecycle suite with node_remove then node_add markers |
+| `slurm_node_remove` | soft | 012 | slurm_lifecycle suite with node_lifecycle+node_remove marker |
+| `slurm_node_add` | soft | 013 | slurm_lifecycle suite with node_lifecycle+node_add marker |
 
 ### Phase 2 -- Kubernetes stream (deferred)
 
@@ -48,19 +48,19 @@ for K8s exists (cluster health, etcd, storage, telemetry deploy, token renewal).
 
 | ID | Order | Stage | Title | FVT step |
 |----|-------|-------|-------|----------|
-| SVT_CLUSTER_LIFECYCLE_001 | 3010 | deploy_cluster | Orchestrator precheck | orchestrator precheck exec |
-| SVT_CLUSTER_LIFECYCLE_002 | 3011 | deploy_cluster | Orchestrator precheck: verification | orchestrator precheck verify |
-| SVT_CLUSTER_LIFECYCLE_003 | 3012 | deploy_cluster | Orchestrator prepare | orchestrator prepare exec |
-| SVT_CLUSTER_LIFECYCLE_004 | 3013 | deploy_cluster | Orchestrator prepare: verification | orchestrator prepare verify |
-| SVT_CLUSTER_LIFECYCLE_005 | 3014 | deploy_cluster | Orchestrator provision | orchestrator provision exec |
-| SVT_CLUSTER_LIFECYCLE_006 | 3015 | deploy_cluster | Orchestrator provision: verification | orchestrator provision verify |
-| SVT_CLUSTER_LIFECYCLE_007 | 3016 | deploy_cluster | Orchestrator PXE boot | orchestrator pxeboot exec |
-| SVT_CLUSTER_LIFECYCLE_008 | 3017 | deploy_cluster | PXE boot: connectivity and cloud-init | orchestrator pxeboot verify --suite connectivity |
-| SVT_CLUSTER_LIFECYCLE_009 | 3030 | slurm_deploy | Slurm cluster membership, services and scheduler | orchestrator pxeboot verify --suite slurm_cluster |
+| SVT_CLUSTER_LIFECYCLE_001 | 3010 | deploy_slurm_cluster | Orchestrator precheck | orchestrator precheck exec |
+| SVT_CLUSTER_LIFECYCLE_002 | 3011 | deploy_slurm_cluster | Orchestrator precheck: verification | orchestrator precheck verify |
+| SVT_CLUSTER_LIFECYCLE_003 | 3012 | deploy_slurm_cluster | Orchestrator prepare | orchestrator prepare exec |
+| SVT_CLUSTER_LIFECYCLE_004 | 3013 | deploy_slurm_cluster | Orchestrator prepare: verification | orchestrator prepare verify |
+| SVT_CLUSTER_LIFECYCLE_005 | 3014 | deploy_slurm_cluster | Orchestrator provision | orchestrator provision exec |
+| SVT_CLUSTER_LIFECYCLE_006 | 3015 | deploy_slurm_cluster | Orchestrator provision: verification | orchestrator provision verify |
+| SVT_CLUSTER_LIFECYCLE_007 | 3016 | deploy_slurm_cluster | Orchestrator PXE boot | orchestrator pxeboot exec |
+| SVT_CLUSTER_LIFECYCLE_008 | 3017 | deploy_slurm_cluster | PXE boot: connectivity and cloud-init | orchestrator pxeboot verify --suite connectivity |
+| SVT_CLUSTER_LIFECYCLE_009 | 3030 | deploy_slurm_cluster | Slurm cluster membership, services and scheduler | orchestrator pxeboot verify --suite slurm_cluster |
 | SVT_CLUSTER_LIFECYCLE_010 | 3040 | slurm_jobs | Slurm job submission (control, login, compiler, concurrent) | orchestrator pxeboot verify --suite slurm_jobs |
 | SVT_CLUSTER_LIFECYCLE_011 | 3041 | slurm_jobs | Slurm jobs over IPoIB (IPv4/IPv6/dual-stack traffic path) | orchestrator pxeboot verify --suite ipoib_network |
-| SVT_CLUSTER_LIFECYCLE_012 | 3050 | slurm_lifecycle | Delete a Slurm compute node | orchestrator pxeboot verify --suite slurm_lifecycle --marker node_remove |
-| SVT_CLUSTER_LIFECYCLE_013 | 3051 | slurm_lifecycle | Add a Slurm compute node | orchestrator pxeboot verify --suite slurm_lifecycle --marker node_add |
+| SVT_CLUSTER_LIFECYCLE_012 | 3050 | slurm_node_remove | Delete a Slurm compute node | orchestrator pxeboot verify --suite slurm_lifecycle --marker node_lifecycle+node_remove |
+| SVT_CLUSTER_LIFECYCLE_013 | 3051 | slurm_node_add | Add a Slurm compute node | orchestrator pxeboot verify --suite slurm_lifecycle --marker node_lifecycle+node_add |
 
 ## 5. Files
 
@@ -79,6 +79,9 @@ for K8s exists (cluster health, etcd, storage, telemetry deploy, token renewal).
 ./setup_env.sh --theme cluster_lifecycle
 ./run_validation.sh svt_cluster_lifecycle list
 ./run_validation.sh svt_cluster_lifecycle all
-./run_validation.sh svt_cluster_lifecycle slurm_deploy
-./run_validation.sh svt_cluster_lifecycle slurm_jobs --retry
+./run_validation.sh svt_cluster_lifecycle deploy_slurm_cluster
+./run_validation.sh svt_cluster_lifecycle slurm_jobs
+./run_validation.sh svt_cluster_lifecycle slurm_node_remove
+./run_validation.sh svt_cluster_lifecycle slurm_node_add
+./run_validation.sh svt_cluster_lifecycle slurm_node_remove --retry
 ```

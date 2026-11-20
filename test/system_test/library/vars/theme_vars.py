@@ -193,25 +193,27 @@ THEMES: Dict[str, Dict] = {
         "creds_suite": "build_stream",
         "cleanup_requires": {},
         "cleanup_when_deployed": ("telemetry",),
-        "stages": ("deploy_cluster", "slurm_deploy", "slurm_jobs",
-                   "slurm_lifecycle"),
-        "soft_stages": ("slurm_jobs", "slurm_lifecycle"),
+        "stages": ("deploy_slurm_cluster", "slurm_jobs",
+                   "slurm_node_remove", "slurm_node_add"),
+        "soft_stages": ("slurm_jobs", "slurm_node_remove", "slurm_node_add"),
         "stage_info": {
-            "deploy_cluster": (
-                "Deploy Cluster",
-                "Orchestrator precheck, prepare, provision and PXE boot "
-                "with connectivity verification"),
-            "slurm_deploy": (
-                "Slurm Deploy",
-                "Slurm cluster membership, services, SSH, configless, "
-                "configuration consistency, hardware discovery"),
+            "deploy_slurm_cluster": (
+                "Deploy Slurm Cluster",
+                "Orchestrator precheck, prepare, provision, PXE boot and "
+                "Slurm cluster verification (membership, services, "
+                "configuration consistency, hardware discovery)"),
             "slurm_jobs": (
-                "Slurm Jobs",
+                "Run Jobs",
                 "Job submission from control, login and compiler nodes; "
                 "IPoIB traffic path (IPv4/IPv6/dual-stack)"),
-            "slurm_lifecycle": (
-                "Slurm Node Lifecycle",
-                "Remove a compute node and add it back"),
+            "slurm_node_remove": (
+                "Delete Node",
+                "Remove a Slurm compute node from the PXE mapping, "
+                "re-provision and verify removal"),
+            "slurm_node_add": (
+                "Add Node",
+                "Restore the removed node, re-provision and verify "
+                "re-addition to Slurm membership"),
         },
         "state_probe": None,
         "fvt_settings": {},
