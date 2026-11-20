@@ -39,6 +39,8 @@ AddressRange = tuple[ipaddress.IPv4Address, ipaddress.IPv4Address]
 StorageReference = tuple[str, str, str, str]
 FileStatuses = dict[str, bool]
 VAULT_HEADER = "$ANSIBLE_VAULT"
+NFS_TRANSFER_SIZE_OPTIONS = ("rsize", "wsize")
+NFS_MAX_TRANSFER_SIZE = 1048576
 
 
 def _mark_file_status(
@@ -974,6 +976,34 @@ def _validate_powerscale_values(
             )
 
 
+def _validate_powerscale_mount_options(
+    cluster_name: str,
+    mount_options: Any,
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate rsize/wsize in csi_powerscale_mount_options."""
+    if not isinstance(mount_options, str):
+        return
+    for option in mount_options.split(","):
+        key, separator, value = option.strip().partition("=")
+        if key not in NFS_TRANSFER_SIZE_OPTIONS:
+            continue
+        value = value.strip()
+        if (
+            not separator
+            or not value.isdigit()
+            or not 0 < int(value) < NFS_MAX_TRANSFER_SIZE
+        ):
+            record_error(
+                errors,
+                logger,
+                msg.omnia_powerscale_csi_transfer_size_msg(
+                    cluster_name, key, value, NFS_MAX_TRANSFER_SIZE
+                ),
+            )
+
+
 def _validate_powerscale_csi(
     clusters: list[dict[str, Any]],
     input_project_dir: str,
@@ -994,6 +1024,12 @@ def _validate_powerscale_csi(
                 msg.omnia_powerscale_csi_not_deployed_msg(cluster_name),
             )
             continue
+        _validate_powerscale_mount_options(
+            cluster_name,
+            cluster.get("csi_powerscale_mount_options"),
+            errors,
+            logger,
+        )
         configured_files = (
             (
                 "secret",

@@ -21,7 +21,11 @@
 # control nodes, and populates the dynamic host groups used by subsequent
 # plays in the deploy_ldms playbook:
 #
-#   ldms_deploy_reachable          — all healthy LDMS-enabled nodes (idle/mix/alloc)
+#   ldms_deploy_reachable          — all reachable LDMS-enabled nodes: compute
+#                                     nodes healthy in sinfo (idle/mix/alloc),
+#                                     plus control and login/login-compiler
+#                                     nodes, which sinfo does not list and are
+#                                     checked directly (munge key / SSH)
 #   ldms_deploy_aggregator_control — the Slurm control node used for
 #                                     munge-key / auth preparation
 #
@@ -206,6 +210,53 @@
         | unique | sort
       }}
 
+# ---- Check login-node reachability over SSH ----
+# Login and login-compiler nodes are usually not Slurm partition members, so
+# sinfo does not list them. Like control nodes, their reachability is checked
+# directly over SSH instead of being filtered through sinfo.
+
+- name: Check SSH reachability of login and login-compiler nodes
+  vars:
+    ansible_ssh_timeout: 10
+    ansible_ssh_retries: 0
+  ansible.builtin.ping:
+  delegate_to: "{{ item }}"
+  loop: >-
+    {{
+      ((groups['login_node'] | default([]))
+       + (groups['login_compiler_node'] | default([])))
+      | unique | sort
+    }}
+  loop_control:
+    label: "{{ item }}"
+  register: _ldms_deploy_login_ping_checks
+  changed_when: false
+  failed_when: false
+  ignore_unreachable: true
+
+- name: Add SSH-reachable login nodes to the LDMS deployment set
+  ansible.builtin.set_fact:
+    _ldms_deploy_reachable_login_hosts: >-
+      {{
+        (_ldms_deploy_login_ping_checks.results | default([]))
+        | selectattr('ping', 'defined')
+        | selectattr('ping', 'equalto', 'pong')
+        | map(attribute='item') | unique | sort
+      }}
+
+- name: Reclassify login nodes using SSH reachability
+  ansible.builtin.set_fact:
+    _ldms_deploy_reachable_hosts: >-
+      {{
+        _ldms_deploy_reachable_hosts
+        | union(_ldms_deploy_reachable_login_hosts) | unique | sort
+      }}
+    _ldms_deploy_unreachable_hosts: >-
+      {{
+        _ldms_deploy_unreachable_hosts
+        | difference(_ldms_deploy_reachable_login_hosts) | unique | sort
+      }}
+
 # ---- Inspect munge keys on control nodes ----
 # Note: sinfo -N only reports nodes known to Slurm as partition/compute
 # members — a dedicated (compute-less) control node is typically absent
@@ -342,6 +393,7 @@
     {{
       (_ldms_deploy_reachable_hosts | default([]))
       | difference(_ldms_deploy_reachable_control_hosts | default([]))
+      | difference(_ldms_deploy_reachable_login_hosts | default([]))
     }}
   loop_control:
     label: "{{ item }}"

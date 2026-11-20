@@ -583,6 +583,291 @@ TEST_CASES = {
         "id": "UTILS_FVT_INSTALL_OS_NEG004",
         "title": "Verify install_os.yml fails when BMC IP missing for deploy",
     },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Deploy Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "deploy_oci_image_ingest": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_E001",
+        "title": "Deploy utils.yml (oci_image_ingest)",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Input Validation Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_valid_harbor_config": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V001",
+        "title": "Verify valid Harbor + repo_to_bucket config accepted",
+    },
+    "oci_unsupported_registry_type": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V002",
+        "title": "Verify unsupported registry type rejected with guidance",
+    },
+    "oci_unsupported_operation": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V003",
+        "title": "Verify unsupported operation rejected with guidance",
+    },
+    "oci_credentials_in_config_rejected": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V004",
+        "title": "Verify credentials in input file rejected",
+    },
+    "oci_missing_required_fields": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V005",
+        "title": "Verify missing required config fields rejected",
+    },
+    "oci_unresolved_registry_reference": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V006",
+        "title": "Verify unresolved registry reference rejected",
+    },
+    "oci_config_without_credentials": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V007",
+        "title": "Verify config without credentials accepted",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Registry Connection Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_harbor_auth_success": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V008",
+        "title": "Verify successful Harbor authentication via V2 API",
+    },
+    "oci_invalid_credentials": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V009",
+        "title": "Verify invalid credentials rejected without leakage",
+    },
+    "oci_unreachable_endpoint": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V010",
+        "title": "Verify unreachable endpoint handled within timeout",
+    },
+    "oci_inaccessible_namespace": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V011",
+        "title": "Verify inaccessible namespace rejected",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Credential Management Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_credentials_in_vault": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V012",
+        "title": "Verify credentials stored in Vault with 0600 permissions",
+    },
+    "oci_credentials_no_leakage": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V013",
+        "title": "Verify credentials never appear in any output",
+    },
+    "oci_credentials_tag_conditional": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V014",
+        "title": "Verify credentials prompted only for oci_image_ingest tag",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Image Pull Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_image_pull_by_tag": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V015",
+        "title": "Verify successful OCI image pull by tag with digest recording",
+    },
+    "oci_image_pull_by_digest": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V016",
+        "title": "Verify successful OCI image pull by exact digest",
+    },
+    "oci_image_not_found": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V017",
+        "title": "Verify missing image reference reported cleanly",
+    },
+    "oci_architecture_mismatch": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V018",
+        "title": "Verify architecture mismatch rejected before extraction",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Boot Extraction Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_boot_set_extracted": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V019",
+        "title": "Verify complete boot set extracted from OCI image",
+    },
+    "oci_missing_kernel": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V020",
+        "title": "Verify missing kernel rejected",
+    },
+    "oci_missing_initramfs": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V021",
+        "title": "Verify missing initramfs rejected",
+    },
+    "oci_multiple_boot_sets": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V022",
+        "title": "Verify multiple boot sets require explicit kernel_version",
+    },
+    "oci_squashfs_created": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V023",
+        "title": "Verify SquashFS creation with gzip and metadata preservation",
+    },
+    "oci_insufficient_storage": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V024",
+        "title": "Verify insufficient storage detected before pull",
+    },
+    "oci_mksquashfs_failure": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V025",
+        "title": "Verify mksquashfs failure handled with cleanup",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - S3 Upload Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_s3_upload_success": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V026",
+        "title": "Verify successful S3 upload with correct paths and ACL",
+    },
+    "oci_s3_unreachable": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V027",
+        "title": "Verify S3 unreachable handled safely",
+    },
+    "oci_s3_partial_upload": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V028",
+        "title": "Verify partial upload failure leaves no inconsistent state",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Build Status Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_build_status_valid": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V029",
+        "title": "Verify valid build_status.yml generated",
+    },
+    "oci_source_traceability": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V030",
+        "title": "Verify OCI source traceability and artifact integrity in status",
+    },
+    "oci_failed_preserves_status": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V031",
+        "title": "Verify failed operation preserves prior build_status.yml",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Tag Routing Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_tag_routes_correctly": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V032",
+        "title": "Verify oci_image_ingest tag routes full pipeline",
+    },
+    "oci_config_template_delivered": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V033",
+        "title": "Verify config template delivered by domain init",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Boot Validation Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_node_boot_success": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V034",
+        "title": "Verify node boots via OpenCHAMI with ingest artifacts",
+    },
+    "oci_boot_failure_attribution": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V035",
+        "title": "Verify boot failure attributed to source image",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Cleanup Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_cleanup_after_success": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V036",
+        "title": "Verify cleanup removes working directory after success",
+    },
+    "oci_cleanup_after_failure": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V037",
+        "title": "Verify cleanup removes partial data after failure",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Advanced Extraction Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_whiteout_semantics": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V038",
+        "title": "Verify OCI whiteout semantics and filesystem metadata preservation",
+    },
+    "oci_multiplatform_select": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V039",
+        "title": "Verify multi-platform tag selects the matching platform",
+    },
+    "oci_tag_pinned_digest": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V040",
+        "title": "Verify tag moved during run keeps the pinned digest",
+    },
+    "oci_rescue_kernel_excluded": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V041",
+        "title": "Verify rescue kernel excluded and kernel_version override honoured",
+    },
+    "oci_missing_module_tree": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V042",
+        "title": "Verify boot set without module tree rejected",
+    },
+    "oci_layer_escape_rejected": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V043",
+        "title": "Verify layer entry escaping extraction root rejected",
+    },
+    "oci_missing_prerequisite": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V044",
+        "title": "Verify missing prerequisite fails the precheck",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # OCI_IMAGE_INGEST SCENARIO - Advanced S3 and Status Tests
+    # ══════════════════════════════════════════════════════════════════════════
+    "oci_release_prefix_idempotent": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V045",
+        "title": "Verify content-addressed release prefix and idempotent re-run",
+    },
+    "oci_acl_rejected": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V046",
+        "title": "Verify ACL operation rejected by endpoint blocks publication",
+    },
+    "oci_status_merge_by_group": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V047",
+        "title": "Verify build_status.yml merge by functional group",
+    },
+    "oci_concurrent_run_rejected": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V048",
+        "title": "Verify concurrent run for same project rejected",
+    },
+    "oci_orchestrator_accepts_types": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V049",
+        "title": "Verify Orchestrator accepts both image build types",
+    },
+    "oci_release_prefix_sanitized": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V050",
+        "title": "Verify nested repository name and tag sanitized in release prefix",
+    },
+    "oci_ibm_output_not_written": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V051",
+        "title": "Verify Image Build Manager output is never written",
+    },
+    "oci_reingest_restores_release": {
+        "id": "UTILS_FVT_OCI_IMAGE_INGEST_V052",
+        "title": "Verify re-ingest after cleanup restores the release",
+    },
+    # --- NFT test cases (TC-NFT-001 through TC-NFT-005) ---
+    "nft_registry_connection_timeout": {
+        "id": "UTILS_NFT_OCI_IMAGE_INGEST_N001",
+        "title": "Registry connection validation timeout",
+    },
+    "nft_transfer_elapsed_time": {
+        "id": "UTILS_NFT_OCI_IMAGE_INGEST_N002",
+        "title": "Image transfer elapsed time recorded",
+    },
+    "nft_error_phase_identification": {
+        "id": "UTILS_NFT_OCI_IMAGE_INGEST_N003",
+        "title": "Error phase identification",
+    },
+    "nft_credential_security": {
+        "id": "UTILS_NFT_OCI_IMAGE_INGEST_N004",
+        "title": "Credential security compliance",
+    },
+    "nft_logging_completeness": {
+        "id": "UTILS_NFT_OCI_IMAGE_INGEST_N005",
+        "title": "Logging completeness",
+    },
 }
 
 # Legacy ID mapping for backward compatibility with existing reports

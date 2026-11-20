@@ -561,7 +561,7 @@ def test_powerscale_logs_in_vl(host):
 
 
 # =========================================================================
-# TEL_FVT_DEPLOY_V036: Verify comprehensive PowerScale deployment
+# TEL_FVT_DEPLOY_V036: Verify PowerScale deployment restart
 # =========================================================================
 
 @pytest.mark.source
@@ -569,12 +569,12 @@ def test_powerscale_logs_in_vl(host):
 @pytest.mark.order(66)
 @pytest.mark.powerscale
 def test_powerscale_comprehensive_deployment(host):
-    """Verify comprehensive PowerScale deployment."""
+    """Verify PowerScale deployment restart."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_comprehensive_deployment"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Verifying comprehensive PowerScale deployment")
+    tl.check("Verifying PowerScale deployment restart")
     result = verify_powerscale_deployment(host)
 
     if result["success"]:
@@ -942,7 +942,7 @@ def test_csi_volume_exporter_metrics(host):
 
 
 # =========================================================================
-# TEL_FVT_DEPLOY_V048: Verify CSI Driver for PowerScale (isilon-controller) deployment
+# TEL_FVT_DEPLOY_V048: Verify PowerScale CSI driver restart check
 # =========================================================================
 
 @pytest.mark.source
@@ -951,12 +951,12 @@ def test_csi_volume_exporter_metrics(host):
 @pytest.mark.powerscale
 @pytest.mark.sanity
 def test_csi_driver_powerscale_deploy(host):
-    """Verify CSI Driver for PowerScale (isilon-controller) deployment."""
+    """Verify PowerScale CSI driver restart check."""
     _skip_if_powerscale_disabled(host)
     tc = TC["csi_driver_powerscale_deploy"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Verifying CSI Driver for PowerScale (isilon-controller) deployment")
+    tl.check("Verifying PowerScale CSI driver restart check")
     result = verify_csi_driver_powerscale_deployment(host)
 
     # If driver is not deployed, skip this test
@@ -1008,6 +1008,14 @@ def test_external_health_monitor_container(host):
             "CSI driver not deployed - health monitor verification skipped",
         )
         pytest.skip("CSI driver not deployed - health monitor verification skipped")
+
+    # If the health monitor sidecar is not deployed, skip (controller.healthMonitor.enabled is false)
+    if not result.get("health_monitor_deployed", True):
+        tl.skipped(
+            "health monitor not deployed",
+            "controller.healthMonitor.enabled is false - skipping",
+        )
+        pytest.skip("Health monitor container not present in isilon-controller pod")
 
     if result["success"]:
         tl.passed(

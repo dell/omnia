@@ -158,6 +158,36 @@ SETUP_MSGS = {
                      "./setup_env.sh (or ./setup_env.sh --install) first:",
     "unknown_domain": "unknown domain {domain!r}; use one of: {known}",
     "creds_run": "test/{suite}/setup_env.sh {command} in the Omnia venv (prompts are not logged)",
+    "files_not_enabled": "PowerScale CSI is not enabled (enable_powerscale_csi is not true in "
+                         "src/orchestrator/input/omnia_config.yml): no file is copied",
+    "files_bad_path": "cluster {cluster}: {key} must be an absolute path without '..' (it is "
+                      "{value!r}). HOW TO FIX: set it in user_inputs.yml (default "
+                      "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/{name}), then "
+                      "./setup_env.sh --configure",
+    "files_same_path": "cluster {cluster}: the secret and the values file have the same path "
+                       "{path}. HOW TO FIX: give each its own path in user_inputs.yml",
+    "files_no_folder": "cluster {cluster}: the folder of {key} ({folder}) does not exist. HOW TO "
+                       "FIX: install first (./setup_env.sh --install), or point the path at a "
+                       "folder that exists",
+    "files_missing": "enable_powerscale_csi is true but {path} is missing. HOW TO FIX: put "
+                     "{name} in the cluster's folder of the GitLab project "
+                     "(clusters/<cluster>/svt/{name}), or, run by hand, in {folder}; then "
+                     "./setup_env.sh --stage-files",
+    "files_empty": "enable_powerscale_csi is true but {path} has no content (only the header). "
+                   "HOW TO FIX: paste the real {name} in the cluster's folder of the GitLab "
+                   "project (clusters/<cluster>/svt/{name}) or, run by hand, in {folder}; then "
+                   "./setup_env.sh --stage-files",
+    "files_example": "enable_powerscale_csi is true but {path} is still the reference example "
+                     "({example}). HOW TO FIX: edit {name} for your array (secret.yaml: "
+                     "clusterName and endpoint; values.yaml: isiPath and the driver settings) in "
+                     "the cluster's folder of the GitLab project (clusters/<cluster>/svt/{name}) "
+                     "or, run by hand, in {folder}; then ./setup_env.sh --stage-files",
+    "files_invalid": "{path} is not valid YAML: {error}. HOW TO FIX: correct {name} where you "
+                     "put it, then ./setup_env.sh --stage-files",
+    "files_unreadable": "omnia_config.yml is not readable: {error}. HOW TO FIX: "
+                        "./setup_env.sh --configure",
+    "files_copied": "  {name} -> {target} (mode 0600, plaintext: the orchestrator encrypts its "
+                    "own copy)",
     "creds_state": "  {domain:<20} {state}",
     "creds_openbao": "reading {domains} from OpenBao {server} ({path}/<domain>); only the field "
                      "names are shown",

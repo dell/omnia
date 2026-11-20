@@ -703,4 +703,78 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
                  "only the artifact files PostgreSQL references kept (true)",
     },
 
+    # --- Execute: pipeline log observability (ER-BSM-003, suite log_query) ---
+    "log_query_target": {
+        "id": "BSM_FVT_EXECUTE_V085",
+        "title": "Log query: resolve the job under test and its published stage logs",
+    },
+    "log_query_default_and_custom_tail": {
+        "id": "BSM_FVT_EXECUTE_V086",
+        "title": "TC-FVT-013: Log query applies the default, custom and boundary tail_lines",
+    },
+    "log_query_full_retrieval": {
+        "id": "BSM_FVT_EXECUTE_V087",
+        "title": "TC-FVT-014: Log query full=true returns each complete, bounded stage log",
+    },
+    "log_query_stage_filter": {
+        "id": "BSM_FVT_EXECUTE_V088",
+        "title": "TC-FVT-015: Log query stage filter returns exactly that stage",
+    },
+    "log_query_error_handling": {
+        "id": "BSM_FVT_EXECUTE_V090",
+        "title": "TC-FVT-016: Log query rejects invalid requests with the documented errors",
+    },
+    "log_query_scope_enforced": {
+        "id": "BSM_FVT_EXECUTE_V091",
+        "title": "Log query requires job:read or job:write (403 insufficient_scope)",
+    },
+    "log_query_stage_log_metadata": {
+        "id": "BSM_FVT_EXECUTE_V092",
+        "title": "TC-FVT-018: GET /jobs/{id} has_log and log_lines agree with the log query API",
+    },
+    "log_query_write_time_redaction": {
+        "id": "BSM_FVT_EXECUTE_V093",
+        "title": "TC-FVT-019: Stage logs on disk hold no secret; published copies are 0644",
+    },
+    "log_query_ci_console_preview": {
+        "id": "BSM_FVT_EXECUTE_V094",
+        "title": "TC-FVT-021: CI jobs preview the last BSM_LOG_TAIL_LINES execution-log lines",
+    },
+    "log_query_ci_cli_templates": {
+        "id": "BSM_FVT_EXECUTE_V095",
+        "title": "TC-FVT-022: CI jobs print curl templates with <TOKEN> and no credential",
+    },
+    "log_query_missing_log_file": {
+        "id": "BSM_FVT_EXECUTE_V096",
+        "title": "TC-FVT-018: A deleted stage log reports has_log=false and returns 404",
+    },
+    "log_query_unavailable_reasons": {
+        "id": "BSM_FVT_EXECUTE_V097",
+        "title": "Log query reports pending, legacy, unpublished and binary logs as unavailable",
+    },
+    "log_query_response_redaction": {
+        "id": "BSM_FVT_EXECUTE_V098",
+        "title": "TC-FVT-020: Log query redacts secrets at response time; disk is unchanged",
+    },
+    "log_query_full_truncation": {
+        "id": "BSM_FVT_EXECUTE_V099",
+        "title": "TC-FVT-014: Log query full=true truncates a log above max_log_response_bytes",
+    },
+    "log_query_path_escape_rejected": {
+        "id": "BSM_FVT_EXECUTE_V100",
+        "title": "TC-FVT-016: A stored log path outside the job directory returns 409",
+    },
+    "log_query_non_owned_job": {
+        "id": "BSM_FVT_EXECUTE_V101",
+        "title": "TC-FVT-016: Another client's job returns 404 Job not found",
+    },
+    "log_query_concurrency_limit": {
+        "id": "BSM_FVT_EXECUTE_V102",
+        "title": "Log query above log_query_max_concurrent returns 503 with Retry-After",
+    },
+    "log_query_rate_limit": {
+        "id": "BSM_FVT_EXECUTE_V103",
+        "title": "TC-FVT-017: Log query above log_query_rate_limit returns 429 with Retry-After",
+    },
+
 }

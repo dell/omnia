@@ -1,0 +1,11 @@
+$ORIGIN {{ cluster_domain }}.
+$TTL 60
+@   IN  SOA ns.{{ cluster_domain }}. admin.{{ cluster_domain }}. (
+            2026111301 ; serial
+            3600       ; refresh
+            1800       ; retry
+            604800     ; expire
+            60 )       ; minimum
+{% if slurm_controller is defined %}
+_slurmctld._tcp  IN  SRV 0 0 6817 {{ slurm_controller.HOSTNAME }}
+{% endif %}

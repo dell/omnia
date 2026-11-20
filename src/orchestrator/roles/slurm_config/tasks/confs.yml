@@ -350,6 +350,7 @@
   ansible.builtin.set_fact:
     slurm_conf_dict: "{{ (merged_conf.results | selectattr('item.key', 'equalto', 'slurm') | first).conf_dict }}"
   when: "'slurm' in conf_merge_dict"
+  no_log: true
 
 - name: Extract effective path parameters from merged configs
   ansible.builtin.include_tasks: extract_path_overrides.yml

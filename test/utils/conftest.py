@@ -119,6 +119,7 @@ def pytest_configure(config):
         "cleanup_backup_oim_logs": "OIM log backup cleanup tests",
         "slurm_config_util": "Slurm config backup/cleanup/rollback tests",
         "cleanup_slurm_config_backups": "Slurm config backup cleanup tests",
+        "oci_image_ingest": "OCI image ingest tests (registry automation)",
         "destructive": "Deletes live state (e.g. the active Slurm config share). "
                         "Opt-in only: excluded unless explicitly selected via --marker destructive",
         "negative": "Negative/error-handling tests (verify proper failure behavior)",
@@ -278,7 +279,7 @@ def pytest_sessionstart(session):
         log(f"Install OS credential sync failed: {install_os_cred_result['error']}", "WARN")
 
     # Initialize test report
-    valid_scenarios = {"utils", "collect", "install_os", "precheck"}
+    valid_scenarios = {"utils", "collect", "install_os", "precheck", "oci_image_ingest"}
     module_name = "utils"
     test_paths = session.config.args if hasattr(session.config, 'args') else []
     for p in test_paths:
@@ -360,13 +361,16 @@ def pytest_runtest_makereport(item, call):
 
     report = get_current_report()
     if report:
-        report.add_result({
+        result_entry = {
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
             "details": details,
             "error": str(result.longrepr) if result.failed else "",
-        })
+        }
+        if tc_id:
+            result_entry["tc_id"] = tc_id
+        report.add_result(result_entry)
 
 
 # =============================================================================

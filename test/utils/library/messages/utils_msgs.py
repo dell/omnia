@@ -94,6 +94,48 @@ TEST_LOG_MSGS: Dict[str, str] = {
     # --- Admin IP ---
     "admin_ip_assigned": "Admin IP {ip} is assigned to interface {iface}",
     "admin_ip_not_assigned": "Admin IP {ip} is not assigned to any interface",
+
+    # --- OCI Image Ingest ---
+    "oci_config_valid": "OCI image ingest config is valid: {path}",
+    "oci_config_invalid": "OCI image ingest config is invalid: {error}",
+    "oci_registry_type_rejected": "Unsupported registry type rejected: {value}",
+    "oci_operation_rejected": "Unsupported operation rejected: {value}",
+    "oci_credentials_rejected": "Credentials in config file correctly rejected",
+    "oci_registry_auth_ok": "Harbor registry authentication succeeded: {endpoint}",
+    "oci_registry_auth_failed": "Harbor registry authentication failed: {error}",
+    "oci_endpoint_unreachable": "Registry endpoint unreachable: {endpoint}",
+    "oci_namespace_inaccessible": "Namespace inaccessible: {namespace}",
+    "oci_vault_encrypted": "Credential file is Vault-encrypted with 0600 permissions",
+    "oci_vault_not_encrypted": "Credential file is NOT Vault-encrypted",
+    "oci_no_credential_leakage": "No credential leakage detected in outputs",
+    "oci_credential_leakage": "Credential leakage detected: {location}",
+    "oci_image_pull_ok": "OCI image pulled successfully: {image}",
+    "oci_image_pull_failed": "OCI image pull failed: {error}",
+    "oci_digest_recorded": "Image digest recorded: {digest}",
+    "oci_boot_set_ok": "Complete boot set extracted: kernel={kernel}, initramfs={initramfs}",
+    "oci_boot_set_missing": "Boot set incomplete: {error}",
+    "oci_squashfs_ok": "SquashFS created: {path}, compression={compression}",
+    "oci_squashfs_failed": "SquashFS creation failed: {error}",
+    "oci_s3_upload_ok": "Artifacts uploaded to S3: {prefix}",
+    "oci_s3_upload_failed": "S3 upload failed: {error}",
+    "oci_s3_acl_ok": "Public-read ACL applied to release prefix",
+    "oci_s3_acl_failed": "ACL operation failed: {error}",
+    "oci_build_status_ok": "build_status.yml generated with correct structure",
+    "oci_build_status_invalid": "build_status.yml has invalid structure: {error}",
+    "oci_build_status_preserved": "Prior build_status.yml preserved after failure",
+    "oci_cleanup_ok": "Working directory cleaned up successfully",
+    "oci_cleanup_partial": "Partial cleanup: {details}",
+    "oci_tag_routing_ok": "oci_image_ingest tag routed correctly",
+    "oci_prerequisite_ok": "All prerequisites present: {binaries}",
+    "oci_prerequisite_missing": "Missing prerequisite: {binary}",
+    "oci_template_delivered": "Config template delivered to project directory",
+    "oci_whiteout_ok": "OCI whiteout semantics verified correctly",
+    "oci_platform_selected": "Platform {platform} selected for functional group",
+    "oci_rescue_excluded": "Rescue/debug kernels excluded from selection",
+    "oci_concurrent_rejected": "Concurrent run correctly rejected",
+    "oci_orchestrator_accepted": "Orchestrator accepts build type: {build_type}",
+    "oci_idempotent_ok": "Re-run idempotent: no objects rewritten",
+    "oci_merge_ok": "Functional group merge in build_status.yml successful",
 }
 
 # =============================================================================
@@ -220,5 +262,69 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "HOW TO FIX:\n"
         "  1. Run install_os.yml --tags build_iso or --tags generate_ks\n"
         "  2. Verify NFS mount is present on the build host\n"
+    ),
+
+    # --- OCI Image Ingest ---
+    "oci_config_invalid": (
+        "OCI image ingest config validation failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Check oci_image_ingest_config.yml syntax and schema\n"
+        "  2. Verify registry_type is 'harbor' and operation is 'repo_to_bucket'\n"
+        "  3. Ensure no credential fields are in the config file\n"
+    ),
+    "oci_registry_auth_failed": (
+        "Harbor registry authentication failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify credentials in oci_image_ingest_credentials.yml\n"
+        "  2. Check Harbor endpoint is reachable: curl -k {endpoint}/v2/\n"
+        "  3. Verify namespace access permissions\n"
+    ),
+    "oci_credential_leakage": (
+        "Credential leakage detected in: {location}\n"
+        "HOW TO FIX:\n"
+        "  1. Ensure all credential tasks use no_log: true\n"
+        "  2. Check regctl login uses stdin for password\n"
+        "  3. Scan logs and status files for credential strings\n"
+    ),
+    "oci_image_pull_failed": (
+        "OCI image pull failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify image reference exists in the Harbor registry\n"
+        "  2. Check regctl connectivity: regctl registry check {endpoint}\n"
+        "  3. Verify architecture matches functional_group suffix\n"
+    ),
+    "oci_boot_set_missing": (
+        "Boot artifact extraction failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the OCI image contains /boot/vmlinuz-* and initramfs-*.img\n"
+        "  2. Check kernel_version if multiple boot sets exist\n"
+        "  3. Ensure /lib/modules/<kernel-version>/ exists in the image\n"
+    ),
+    "oci_s3_upload_failed": (
+        "S3 artifact upload failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Verify S3 endpoint is reachable: s3cmd ls s3://boot-images/\n"
+        "  2. Check .s3cfg is properly configured\n"
+        "  3. Run Image Build Manager --tags prepare if .s3cfg is missing\n"
+    ),
+    "oci_build_status_invalid": (
+        "build_status.yml validation failed: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Re-run the oci_image_ingest tag\n"
+        "  2. Check output at $OMNIA_DATA_PATH/utils/output/<project>/\n"
+        "  3. Verify S3 artifacts are accessible\n"
+    ),
+    "oci_prerequisite_missing": (
+        "Missing prerequisite: {binary}\n"
+        "HOW TO FIX:\n"
+        "  1. Run Image Build Manager with --tags prepare first\n"
+        "  2. Install squashfs-tools: dnf install squashfs-tools\n"
+        "  3. Verify binaries are on PATH\n"
+    ),
+    "oci_cleanup_failed": (
+        "Working directory cleanup issue: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. Check $OMNIA_DATA_PATH/utils/workdir/<project>/oci-image-ingest/\n"
+        "  2. Manually remove if stuck: rm -rf <workdir>\n"
     ),
 }

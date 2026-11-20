@@ -166,13 +166,13 @@
             mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
 
             echo "[INFO] Updating /etc/fstab with NFS entries for Pulp cert, Slurm and Munge paths"
-            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ metadata_svc_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+            echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+            echo "{{ trackfile_nfs_path }}    /var/log/track       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+            echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
+            echo "{{ metadata_svc_nfs_path }}/packages  /var/lib/packages   nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 
             chmod {{ file_mode }} /etc/fstab
 
@@ -268,7 +268,7 @@
 
             echo "[INFO] Mounting controller slurm.conf from NFS: {{ metadata_svc_nfs_path }}/{{ ctld_list[0] }}/etc/slurm -> $CTLD_SLURM_DIR_MNT"
             mkdir -p "$CTLD_SLURM_DIR_MNT"
-            mount -t nfs "{{ metadata_svc_nfs_path }}/{{ ctld_list[0] }}/etc/slurm" "$CTLD_SLURM_DIR_MNT" || {
+            mount -t nfs -o "{{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }}" "{{ metadata_svc_nfs_path }}/{{ ctld_list[0] }}/etc/slurm" "$CTLD_SLURM_DIR_MNT" || {
               echo "[WARN] Failed to mount controller slurm.conf directory, falling back to defaults."
               SRUN_RANGE="$DEFAULT_SRUN_RANGE"
               SLURMD_PORT="$DEFAULT_SLURMD_PORT"
@@ -480,7 +480,7 @@
 {% endfor %}
 {% endif %}
         - mkdir -p {{ client_mount_path }}/slurm/ssh
-        - echo "{{ metadata_svc_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 {# mount_config host_mount_map block removed - incompatible with Pongo2 validation #}
 {# When mount_config bolt-on is needed, implement as a shell script in write_files #}
 {% set fg_swap = metadata_svc_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
@@ -518,7 +518,7 @@
 {% if hostvars['localhost']['openldap_support'] %}
         - /usr/local/bin/update_ldap_conf.sh
         - mkdir /ldapcerts
-        - echo "{{ metadata_svc_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ metadata_svc_nfs_path_openldap }}/certs                /ldapcerts       nfs {{ slurm_nfs_mnt_opts | default(slurm_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
         - mkdir -pv {{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home
         - echo "{{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home  none  bind  0  0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
