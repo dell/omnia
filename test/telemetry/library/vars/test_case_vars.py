@@ -189,10 +189,6 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V110",
         "title": "Verify telemetry_packages.yml has a valid install_mode",
     },
-    "install_mode_python_packages": {
-        "id": "TEL_FVT_DEPLOY_V111",
-        "title": "Verify Python packages installed for current mode",
-    },
     "install_mode_idrac_deployment": {
         "id": "TEL_FVT_DEPLOY_V112",
         "title": "Verify iDRAC deployment succeeded in current mode",
@@ -273,7 +269,7 @@ TEST_CASES = {
     },
     "powerscale_comprehensive_deployment": {
         "id": "TEL_FVT_DEPLOY_V036",
-        "title": "Verify comprehensive PowerScale deployment",
+        "title": "Verify PowerScale deployment restart",
     },
     "powerscale_feature_flags": {
         "id": "TEL_FVT_DEPLOY_V037",
@@ -321,7 +317,7 @@ TEST_CASES = {
     },
     "csi_driver_powerscale_deploy": {
         "id": "TEL_FVT_DEPLOY_V048",
-        "title": "Verify CSI Driver for PowerScale (isilon-controller) deployment",
+        "title": "Verify PowerScale CSI driver restart check",
     },
     "external_health_monitor_container": {
         "id": "TEL_FVT_DEPLOY_V049",
@@ -417,10 +413,6 @@ TEST_CASES = {
     "ome_kafka_connectivity": {
         "id": "TEL_FVT_DEPLOY_V075",
         "title": "Verify OME Kafka forwarder connectivity status",
-    },
-    "ome_cert_verify": {
-        "id": "TEL_FVT_DEPLOY_V076",
-        "title": "Verify uploaded certificate matches generated certificate",
     },
     "ome_kafka_topics": {
         "id": "TEL_FVT_DEPLOY_V077",

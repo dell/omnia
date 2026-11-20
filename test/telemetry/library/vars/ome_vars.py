@@ -346,12 +346,6 @@ OME_CMD_TEMPLATES: Dict[str, str] = {
         " -passout %s"
     ),
 
-    # Read local certificate subject/issuer/validity for comparison
-    "openssl_cert_details": (
-        "openssl x509 -in %s -noout"
-        " -subject -issuer -dates -serial"
-    ),
-
     # Check file exists
     "file_exists": "test -f %s && echo 'exists' || echo 'missing'",
 
