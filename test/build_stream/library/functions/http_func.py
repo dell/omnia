@@ -83,8 +83,8 @@ def http_exchange(tls: ssl.SSLContext, method: str, url: str, *,
 
     Returns:
         Dict with keys: success (a response was received), status, body
-        (text), json (decoded body or None), error (never echoes headers or
-        bodies).
+        (text), json (decoded body or None), headers (response headers,
+        lower-case names), error (never echoes request headers or bodies).
     """
     request = urllib.request.Request(url, data=body, headers=dict(headers or {}),
                                      method=method)
@@ -93,16 +93,19 @@ def http_exchange(tls: ssl.SSLContext, method: str, url: str, *,
             request, context=tls, timeout=timeout
         ) as response:
             status, raw = response.status, response.read().decode(errors="replace")
+            received = response.headers
     except urllib.error.HTTPError as exc:
-        status, raw = exc.code, exc.read().decode(errors="replace")
+        status, raw, received = exc.code, exc.read().decode(errors="replace"), exc.headers
     except (urllib.error.URLError, OSError, ValueError) as exc:
-        return {"success": False, "status": 0, "body": "", "json": None,
+        return {"success": False, "status": 0, "body": "", "json": None, "headers": {},
                 "error": f"{method} {url} failed: {exc}"}
     try:
         parsed = json.loads(raw) if raw.strip() else None
     except json.JSONDecodeError:
         parsed = None
-    return {"success": True, "status": status, "body": raw, "json": parsed, "error": ""}
+    response_headers = {name.lower(): value for name, value in (received or {}).items()}
+    return {"success": True, "status": status, "body": raw, "json": parsed,
+            "headers": response_headers, "error": ""}
 
 
 def http_json(tls: ssl.SSLContext, method: str, url: str,

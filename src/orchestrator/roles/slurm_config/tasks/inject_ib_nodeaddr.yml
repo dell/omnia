@@ -133,6 +133,7 @@
         - hostvars['localhost']['ib_network_addr_mode'] | default('') != 'ipv4-only'
         - _pxe_ib_has_ipv6 | default(false) | bool
         - _pxe_ib_nodeaddr_map | default({}) | length > 0
+      no_log: true
 
     - name: Display CommunicationParameters update
       ansible.builtin.debug:

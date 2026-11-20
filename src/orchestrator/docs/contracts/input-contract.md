@@ -67,7 +67,7 @@ the feature flags derived by the latest catalog-backed lifecycle phase.
 | `GROUP_NAME` | string | Yes | Scalable Unit / logical group |
 | `SERVICE_TAG` | string | Yes | Unique physical-server identity persisted against its permanent XNAME in SMD Hardware Inventory |
 | `PARENT_SERVICE_TAG` | string | No | Parent service tag used by associated-node workflows; Discovery populates it for Slurm compute nodes when a service worker is available |
-| `HOSTNAME` | string | Yes | Assigned hostname; must match `nid001`-`nid999` when `dns_enabled` is `true` (default) |
+| `HOSTNAME` | string | Yes | Assigned hostname; when `dns_enabled` is `true` (default), must match either nid format (nid followed by digits, e.g., nid1, nid001, nid1000) or be a valid custom hostname (lowercase letters, numbers, hyphens; must start/end with letter or number). See `docs/custom-hostnames.md` for details on custom hostname support. |
 | `ADMIN_MAC` | string | Yes | Unique admin NIC MAC address |
 | `ADMIN_IP` | string | Yes | Admin network IP |
 | `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for existing-node identity evidence and discovery |
@@ -166,7 +166,7 @@ functional_group_images:
 |------|---------------|
 | File must exist | Fail with "image_build_manager output not found" |
 | `overall_status` must be `"success"` | Fail with "Fix image builds before running orchestrator" |
-| `image_build_type` identifies the producing engine | Interpret artifact paths using `image-thrillhouse` or `image-thrillhouse` provenance |
+| `image_build_type` identifies the producing engine; accepted values are `image-thrillhouse`, `oci-image-ingest` (defined in `orchestrator_validations/vars/main.yml`) | Fail listing the accepted values |
 | `s3_configurations.endpoint_url` must be defined | Fail with assertion error |
 | Every functional group must define kernel, initrd, and image paths | Fail before provisioning |
 | Every rendered artifact URL must answer HTTP `HEAD` with status 200 | Report URL, status, and request error |
@@ -183,7 +183,7 @@ During OpenCHAMI precheck and provisioning, Orchestrator validates every
 functional group's `kernel`, `initrd`, and `image` entry. It sends an HTTP
 `HEAD` request from the OIM to the same endpoint-relative URL rendered into
 Boot Service configuration. This behavior is identical for manifests produced
-by `image-thrillhouse` and `image-thrillhouse`; inaccessible or missing artifacts
+by `image-thrillhouse` and `oci-image-ingest`; inaccessible or missing artifacts
 fail before provisioning begins.
 
 ---

@@ -1,0 +1,30 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6
+# ****
+
+---
+oci_ingest_status_arches:
+  - x86_64
+  - aarch64
+oci_ingest_status_keys: "[].{functional_group: functional_group, kernel: kernel, initrd: initrd, image: image}"
+oci_ingest_source_keys: >-
+  [].{functional_group: functional_group, registry: registry, repository: repository,
+  requested_reference: requested_reference, digest: digest, platform: platform,
+  kernel_version: kernel_version, published_at: published_at, artifacts: artifacts}
+oci_ingest_status_header: |
+  # build_status.yml - written by the utils oci_image_ingest utility (ER-UTIL-001).
+  # Consumed by the Orchestrator through image_build_manager_output_path. Contains no credentials.

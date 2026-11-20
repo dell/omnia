@@ -24,7 +24,7 @@ def _schema_error_path(file_label, validation_error):
     return f"{file_label}.{path}" if path else file_label
 
 
-def schema(data, schema_def, file_label, errors, logger):
+def schema(data, schema_def, file_label, errors, logger, formatter=None):
     """
     Validates data against a JSON schema (L1 Validation).
 
@@ -40,6 +40,8 @@ def schema(data, schema_def, file_label, errors, logger):
         file_label: Human-readable file label for error messages.
         errors: List to append error messages to.
         logger: Logger instance.
+        formatter: Optional callable(jsonschema error) -> str used instead of the
+            default message, for example to keep secret values out of the message.
     """
     if not schema_def:
         return
@@ -64,6 +66,8 @@ def schema(data, schema_def, file_label, errors, logger):
     for validation_error in validation_errors:
         path = _schema_error_path(file_label, validation_error)
         err = f"{path}: {validation_error.message}"
+        if formatter:
+            err = formatter(validation_error)
         errors.append(err)
         logger.error(err)
 
@@ -176,3 +180,86 @@ def logic_collect_pxe_config(config_data, logger=None):
             collect_pxe_config_validator,
         )
     return collect_pxe_config_validator.validate(config_data, logger)
+
+
+def credential_keys_oci_image_ingest_config(config_data):
+    """Return errors naming credential-like keys in oci_image_ingest_config.yml data."""
+    try:
+        from plugins.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_config_validator,
+        )
+    except ImportError:
+        from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_config_validator,
+        )
+    return oci_image_ingest_config_validator.credential_key_errors(config_data)
+
+
+def format_oci_image_ingest_config_error(validation_error):
+    """Format a jsonschema error for oci_image_ingest_config.yml."""
+    try:
+        from plugins.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_config_validator,
+        )
+    except ImportError:
+        from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_config_validator,
+        )
+    return oci_image_ingest_config_validator.format_schema_error(validation_error)
+
+
+def logic_oci_image_ingest_config(config_data, logger=None):
+    """
+    Runs L2 (business logic) validation on oci_image_ingest_config.yml data.
+
+    Args:
+        config_data (dict): Parsed oci_image_ingest_config.yml content.
+        logger: Optional logger instance.
+
+    Returns:
+        list: List of error message strings (empty if valid).
+    """
+    try:
+        from plugins.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_config_validator,
+        )
+    except ImportError:
+        from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_config_validator,
+        )
+    return oci_image_ingest_config_validator.validate(config_data, logger)
+
+
+def format_oci_image_ingest_credentials_error(validation_error):
+    """Format a jsonschema error for the credentials without echoing values."""
+    try:
+        from plugins.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_credentials_validator,
+        )
+    except ImportError:
+        from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_credentials_validator,
+        )
+    return oci_image_ingest_credentials_validator.format_schema_error(validation_error)
+
+
+def logic_oci_image_ingest_credentials(cred_data, logger=None):
+    """
+    Runs L2 (business logic) validation on oci_image_ingest_credentials data.
+
+    Args:
+        cred_data (dict): Decrypted credentials content.
+        logger: Optional logger instance.
+
+    Returns:
+        list: List of error message strings (empty if valid; never contains values).
+    """
+    try:
+        from plugins.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_credentials_validator,
+        )
+    except ImportError:
+        from ansible.module_utils.input_validation.validators import (  # pylint: disable=E0401,C0415
+            oci_image_ingest_credentials_validator,
+        )
+    return oci_image_ingest_credentials_validator.validate(cred_data, logger)

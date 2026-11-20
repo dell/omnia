@@ -95,6 +95,20 @@
     metadata_svc_nfs_path_openldap: "{{ metadata_slurm_nfs_storage_matches[0].source }}/openldap"
     metadata_svc_slurm_nfs_path: "{{ metadata_slurm_nfs_storage_matches[0].source }}"
     client_mount_path: "{{ metadata_slurm_nfs_storage_matches[0].mount_point }}"
+    # A mount_params profile node_nfs_mnt_opts is appended to the Slurm default.
+    metadata_slurm_profile_node_nfs_mnt_opts: >-
+      {{ (mount_params | default({}, true)).get(
+           metadata_slurm_nfs_storage_matches[0].mount_params | default('', true), {}
+         ).node_nfs_mnt_opts | default('', true) }}
+  when: target_category | default('') == 'slurm'
+
+- name: Set Slurm per-node NFS mount options
+  ansible.builtin.set_fact:
+    slurm_nfs_mnt_opts: >-
+      {{ metadata_slurm_nfs_storage_matches[0].node_nfs_mnt_opts
+         | default((slurm_nfs_default_mnt_opts ~ ',' ~ metadata_slurm_profile_node_nfs_mnt_opts)
+                   if metadata_slurm_profile_node_nfs_mnt_opts | length > 0
+                   else slurm_nfs_default_mnt_opts, true) }}
   when: target_category | default('') == 'slurm'
 
 - name: Set default effective directories for slurm paths
@@ -134,6 +148,7 @@
       cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
       (hostvars['localhost']['domain_name'] | default('')).split('.')
       | select | map('regex_replace', '^', 'dc=') | join(',') }}
+  no_log: true
 
 # ---- K8s-specific variable setup for metadata-service templates ----
 # These variables are normally set by the k8s_config bolt-on, but the
@@ -226,6 +241,25 @@
   ansible.builtin.set_fact:
     k8s_client_mount_path: "{{ metadata_k8s_storage_matches[0].mount_point }}"
     k8s_nfs_server_path: "{{ metadata_k8s_storage_matches[0].source }}"
+    # A mount_params profile node_nfs_mnt_opts is appended to the K8s default.
+    metadata_k8s_profile_node_nfs_mnt_opts: >-
+      {{ (mount_params | default({}, true)).get(
+           metadata_k8s_storage_matches[0].mount_params | default('', true), {}
+         ).node_nfs_mnt_opts | default('', true) }}
+  when: target_category | default('') == 'kubernetes'
+
+- name: Set K8s per-node NFS mount options
+  ansible.builtin.set_fact:
+    k8s_nfs_mnt_opts: >-
+      {{ metadata_k8s_storage_matches[0].node_nfs_mnt_opts
+         | default((k8s_nfs_default_mnt_opts ~ ',' ~ metadata_k8s_profile_node_nfs_mnt_opts)
+                   if metadata_k8s_profile_node_nfs_mnt_opts | length > 0
+                   else k8s_nfs_default_mnt_opts, true) }}
+    k8s_nfs_custom_mnt_opts: >-
+      {{ metadata_k8s_storage_matches[0].node_nfs_mnt_opts
+         | default((k8s_nfs_default_mnt_opts ~ ',' ~ metadata_k8s_profile_node_nfs_mnt_opts)
+                   if metadata_k8s_profile_node_nfs_mnt_opts | length > 0
+                   else '', true) }}
   when: target_category | default('') == 'kubernetes'
 
 - name: Load K8s packages JSON for template variables
@@ -394,6 +428,7 @@
 - name: Parse FG group entries - {{ fg_name }}
   ansible.builtin.set_fact:
     ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
+  no_log: true
 
 - name: Initialize metadata-service bodies for {{ fg_name }}
   ansible.builtin.set_fact:

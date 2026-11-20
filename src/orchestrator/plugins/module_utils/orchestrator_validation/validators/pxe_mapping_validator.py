@@ -114,7 +114,7 @@ OS_VERSION_SUFFIX_PATTERN = re.compile(
     r"_(?P<os>rhel|rocky|ubuntu|sles)(?P<version>(?:_[0-9]+)*)$"
 )
 DNS_HOSTNAME_PATTERN = re.compile(
-    r"^nid(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$"
+    r"^nid[1-9]\d*$"
 )
 CATALOG_MANAGED_PREFIXES = (
     "service_kube_",
@@ -314,12 +314,11 @@ def _validate_names(
             logger,
             msg.pxe_mapping_invalid_hostname_msg(hostname, row_number),
         )
-    elif dns_enabled and hostname and not DNS_HOSTNAME_PATTERN.fullmatch(hostname):
-        record_error(
-            errors,
-            logger,
-            msg.pxe_mapping_dns_hostname_msg(hostname, row_number),
-        )
+    elif dns_enabled and hostname:
+        # When DNS is enabled, allow both nid format and custom hostname format
+        # Custom hostnames are any valid hostname (already validated by HOSTNAME_PATTERN above)
+        # Since we already validated HOSTNAME_PATTERN above, all valid hostnames are allowed
+        pass
 
     group_name = row.get("GROUP_NAME", "")
     if group_name and not GROUP_PATTERN.fullmatch(group_name):

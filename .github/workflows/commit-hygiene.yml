@@ -30,10 +30,10 @@ name: Commit Hygiene
   pull_request:
     branches:
       - main
-      - staging
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
+      - 'feature/**'
     types: [opened, synchronize, reopened]
 
 permissions:

@@ -95,6 +95,18 @@ def _read_credentials(host: Any, input_dir: str) -> Dict[str, Any]:
     return data
 
 
+def read_bsm_credentials(host: Any, input_dir: str) -> Dict[str, Any]:
+    """Return the decrypted build_stream_credentials.yml mapping.
+
+    The values are secrets: callers keep them in this process and never log,
+    print or report them.
+
+    Raises:
+        RuntimeError: When the store cannot be decrypted or is not a mapping.
+    """
+    return _read_credentials(host, input_dir)
+
+
 def load_bsm_context(host: Any) -> Dict[str, Any]:
     """Resolve BuildStream/GitLab endpoints, credentials and TLS from the OIM.
 
