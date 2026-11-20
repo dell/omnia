@@ -52,18 +52,24 @@ def classification() -> dict:
     return yaml.safe_load(CLASSIFICATION_PATH.read_text(encoding="utf-8"))
 
 
+# pylint: disable=redefined-outer-name
+
+
 @pytest.fixture(scope="module")
 def categories(classification: dict) -> dict:
+    """Fixture providing functional group categories mapping."""
     return classification["functional_group_categories"]
 
 
 @pytest.fixture(scope="module")
 def provisioning_map(classification: dict) -> dict:
+    """Fixture providing category provisioning map."""
     return classification["category_provisioning_map"]
 
 
 @pytest.fixture(scope="module")
 def bolt_ons(classification: dict) -> dict:
+    """Fixture providing default bolt-ons mapping."""
     return classification["default_bolt_ons"]
 
 

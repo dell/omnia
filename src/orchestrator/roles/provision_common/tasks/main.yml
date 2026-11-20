@@ -91,6 +91,7 @@
     # (fg_operation=configure, scope=cloud_init) sets it to false for a
     # cloud_init-only scope.
     - name: Prune stale Boot Service configurations for current node MACs
+      when: fg_publish_boot | default(true) | bool
       block:
         - name: Prune stale Boot Service configurations for current node MACs
           openchami_reconcile:
@@ -107,7 +108,6 @@
           ansible.builtin.fail:
             msg: "{{ provision_prune_boot_config_rescue_msg }}"
           no_log: false
-      when: fg_publish_boot | default(true) | bool
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml

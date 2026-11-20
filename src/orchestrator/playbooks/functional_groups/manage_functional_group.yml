@@ -67,6 +67,11 @@
     fg_publish_cloud_init: "{{ configure_scope in ['both', 'cloud_init'] }}"
     # Configure operations skip node registration (publish-only mode).
     provision_common_registration_complete: "{{ fg_operation == 'configure' }}"
+    planned_lifecycle_stages: >-
+      {{ ['metadata', 'bss', 'smd_group'] if fg_operation == 'remove'
+         else (['bss'] if configure_scope == 'boot'
+               else (['metadata'] if configure_scope == 'cloud_init'
+                     else ['smd_group', 'bss', 'metadata'])) }}
   pre_tasks:
     - name: Set run_id for flexible functional group lifecycle
       ansible.builtin.set_fact:
@@ -86,7 +91,10 @@
 
     - name: Slurp functional_group_config.yml (ER-ORCH-009)
       ansible.builtin.slurp:
-        src: "{{ hostvars['localhost']['input_project_dir'] | default(hostvars['localhost']['orchestrator_input_dir'] | default('')) }}/functional_group_config.yml"
+        src: >-
+          {{ hostvars['localhost']['input_project_dir']
+             | default(hostvars['localhost']['orchestrator_input_dir'] | default(''))
+          }}/functional_group_config.yml
       when:
         - fg_operation in ['add', 'configure']
       failed_when: false
@@ -197,7 +205,9 @@
         action: acquire_lock
         project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
         operation: "{{ fg_operation }}"
-        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
+        target_group: >-
+          {{ fg_target_group
+             | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
         state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
         run_id: "{{ fg_run_id }}"
         pid: "{{ lookup('pipe', 'echo $PPID') | int }}"
@@ -210,10 +220,12 @@
         action: start_journal
         project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
         operation: "{{ fg_operation }}"
-        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
+        target_group: >-
+          {{ fg_target_group
+             | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
         state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
         run_id: "{{ fg_run_id }}"
-        planned_stages: "{{ ['metadata', 'bss', 'smd_group'] if fg_operation == 'remove' else (['bss'] if configure_scope == 'boot' else (['metadata'] if configure_scope == 'cloud_init' else ['smd_group', 'bss', 'metadata'])) }}"
+        planned_stages: "{{ planned_lifecycle_stages }}"
         force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
       register: _lifecycle_journal
       when: target_functional_groups | length > 0
@@ -418,14 +430,20 @@
         project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
         run_id: "{{ fg_run_id }}"
         operation: "{{ fg_operation }}"
-        target_group: "{{ target_functional_groups[0].name if target_functional_groups | length == 1 else 'multiple' }}"
-        planned_stages: "{{ ['metadata', 'bss', 'smd_group'] if fg_operation == 'remove' else (['bss'] if configure_scope == 'boot' else (['metadata'] if configure_scope == 'cloud_init' else ['smd_group', 'bss', 'metadata'])) }}"
+        target_group: >-
+          {{ target_functional_groups[0].name
+             if target_functional_groups | length == 1 else 'multiple' }}
+        planned_stages: "{{ planned_lifecycle_stages }}"
         stage_results: >-
-          {{ [{'stage': 'metadata', 'status': 'success'}, {'stage': 'bss', 'status': 'success'}, {'stage': 'smd_group', 'status': 'success'}]
+          {{ [{'stage': 'metadata', 'status': 'success'},
+              {'stage': 'bss', 'status': 'success'},
+              {'stage': 'smd_group', 'status': 'success'}]
              if fg_operation == 'remove'
              else ([{'stage': 'bss', 'status': 'success'}] if configure_scope == 'boot'
                    else ([{'stage': 'metadata', 'status': 'success'}] if configure_scope == 'cloud_init'
-                         else [{'stage': 'smd_group', 'status': 'success'}, {'stage': 'bss', 'status': 'success'}, {'stage': 'metadata', 'status': 'success'}])) }}
+                         else [{'stage': 'smd_group', 'status': 'success'},
+                               {'stage': 'bss', 'status': 'success'},
+                               {'stage': 'metadata', 'status': 'success'}])) }}
       register: _fg_status_report
       when: target_functional_groups | length > 0
 
