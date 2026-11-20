@@ -147,7 +147,7 @@ All tests in this section carry `source` and `powerscale`.
 | TEL_FVT_DEPLOY_V033 | Verify PowerScale metrics in VictoriaMetrics | functional |
 | TEL_FVT_DEPLOY_V035 | Verify/configure PowerScale syslog forwarding | functional |
 | TEL_FVT_DEPLOY_V034 | Verify PowerScale logs in VictoriaLogs | functional |
-| TEL_FVT_DEPLOY_V036 | Verify comprehensive PowerScale deployment | functional |
+| TEL_FVT_DEPLOY_V036 | Verify PowerScale deployment restart | functional |
 | TEL_FVT_DEPLOY_V037 | Verify PowerScale feature flags | functional |
 | TEL_FVT_DEPLOY_V038 | Verify PowerScale health metrics | functional |
 | TEL_FVT_DEPLOY_V039 | Verify PowerScale metrics workloads are stopped, no fresh VM samples arrive, disabled logs do not reach VL, and required shared sinks remain healthy | sanity |
@@ -159,7 +159,7 @@ All tests in this section carry `source` and `powerscale`.
 | TEL_FVT_DEPLOY_V045 | Verify CSI Volume Exporter deployment | sanity + functional |
 | TEL_FVT_DEPLOY_V046 | Verify CSI Volume Exporter metrics endpoint | functional |
 | TEL_FVT_DEPLOY_V047 | Verify CSI Volume Exporter metrics in VictoriaMetrics | functional |
-| TEL_FVT_DEPLOY_V048 | Verify CSI Driver for PowerScale deployment | sanity + functional |
+| TEL_FVT_DEPLOY_V048 | Verify PowerScale CSI driver restart check | sanity + functional |
 | TEL_FVT_DEPLOY_V049 | Verify external health monitor container | sanity + functional |
 | TEL_FVT_DEPLOY_V050 | Verify CSI exporter is skipped without health monitor | functional |
 | TEL_FVT_DEPLOY_V051 | Verify missing-health-monitor warning | functional |
@@ -228,7 +228,6 @@ All tests in this section carry `source` and `ome`.
 | TEL_FVT_DEPLOY_V073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true, metrics or logs source enabled |
-| TEL_FVT_DEPLOY_V076 | Verify uploaded certificate matches generated certificate | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V077 | Verify enabled OME Kafka topics exist | sanity + functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V078 | Verify OME telemetry data in Kafka | functional | configure_ome=true, metrics source enabled |
 | TEL_FVT_DEPLOY_V079 | Verify OME inventory data in Kafka | functional | configure_ome=true, metrics source enabled |
@@ -301,7 +300,6 @@ current pod. Previous certificate imports are retained as rollback material.
 | TC ID | Test | Marker |
 |-------|------|--------|
 | TEL_FVT_DEPLOY_V110 | Verify `telemetry_packages.yml` install mode | sanity |
-| TEL_FVT_DEPLOY_V111 | Verify Python packages for the active mode | functional |
 | TEL_FVT_DEPLOY_V112 | Verify iDRAC deployment for the active mode | sanity + idrac |
 | TEL_FVT_DEPLOY_V113 | Verify iDRAC pods for the active mode | sanity + functional + idrac |
 | TEL_FVT_DEPLOY_V114 | Verify PowerScale dependencies for the active mode | functional + powerscale |
