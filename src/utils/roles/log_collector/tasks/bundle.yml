@@ -142,7 +142,10 @@
         'node_name': item,
         'node_ip': hostvars[item].ansible_host | default('unknown'),
         'reason': 'unreachable',
-        'message': 'Node ' + item + ' (' + (hostvars[item].ansible_host | default('unknown')) + ') unreachable for ' + (hostvars[item].source_group | default('flexible_node')) + '; continuing collection for remaining nodes.',
+        'message': >-
+          Node {{ item }} ({{ hostvars[item].ansible_host | default('unknown') }})
+          unreachable for {{ hostvars[item].source_group | default('flexible_node') }};
+          continuing collection for remaining nodes.
         'timestamp': warning_ts
       }] }}
   loop: "{{ groups['flexible_nodes'] | default([]) }}"

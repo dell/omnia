@@ -92,6 +92,7 @@
         functional_group_config: "{{ _fg_config_load.ansible_facts | default({}) }}"
       when:
         - fg_operation in ['add', 'configure']
+        - _fg_config_load.ansible_facts is defined
         - _fg_config_load is defined
         - _fg_config_load.failed | default(false) | bool == false
 
@@ -179,7 +180,14 @@
         target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
         state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
         run_id: "{{ ansible_date_time.epoch | default('manual') }}"
-        planned_stages: "{{ ['metadata', 'bss', 'smd_group'] if fg_operation == 'remove' else (['bss'] if configure_scope == 'boot' else (['metadata'] if configure_scope == 'cloud_init' else ['smd_group', 'bss', 'metadata'])) }}"
+        planned_stages: >-
+          {{
+            ['metadata', 'bss', 'smd_group']
+            if fg_operation == 'remove'
+            else (['bss'] if configure_scope == 'boot')
+            else (['metadata'] if configure_scope == 'cloud_init')
+            else ['smd_group', 'bss', 'metadata'])
+          }}
       register: _lifecycle_journal
       when: target_functional_groups | length > 0
 

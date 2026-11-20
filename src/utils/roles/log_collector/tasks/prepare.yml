@@ -159,7 +159,10 @@
 
 - name: Add dynamic hosts for flexible functional groups
   ansible.builtin.add_host:
-    name: "{{ (item.0.key | regex_replace('^(fg_[a-zA-Z0-9_-]+?)(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?_(?:x86_64|aarch64)$', '\\1')) }}_{{ item.1 | replace('.', '_') }}"
+    name: >-
+      {{
+        (item.0.key | regex_replace('^(fg_[a-zA-Z0-9_-]+?)(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?_(?:x86_64|aarch64)$', '\\1'))
+      }}_{{ item.1 | replace('.', '_') }}
     ansible_host: "{{ item.1 }}"
     groups:
       - flexible_nodes

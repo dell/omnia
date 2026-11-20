@@ -1,0 +1,3295 @@
+{
+  "servers": {
+    "": {
+      "runs": [
+        {
+          "run_id": "20261120_111907",
+          "start_time": "2026-11-20T11:19:07.152278",
+          "end_time": "2026-11-20T11:19:12.428159",
+          "summary": {
+            "total": 65,
+            "passed": 65,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:19:07.152278",
+              "end_time": "2026-11-20T11:19:12.428159",
+              "duration_seconds": 5.276,
+              "summary": {
+                "total": 65,
+                "passed": 65,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_x86_64_compiler_group_is_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.234346",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_aarch64_compiler_group_still_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.235279",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.236242",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_rejects_unknown_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.237065",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.238051",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_still_accepts_aarch64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.238765",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.245580",
+                  "duration_seconds": 0.006
+                },
+                {
+                  "test_name": "test_error_message_documents_login_compiler_node_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.247251",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_input_file_has_x86_64_compiler_group_key",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.247924",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_input_file_parses_with_new_group_populated",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.250192",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_prepare_yml_has_x86_64_compiler_pattern_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.259103",
+                  "duration_seconds": 0.008
+                },
+                {
+                  "test_name": "test_prepare_yml_combines_compiler_architectures",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.267964",
+                  "duration_seconds": 0.008
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.268983",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.269876",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.270764",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.271637",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.272503",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.273374",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.274254",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.275113",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.275982",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.276854",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.277737",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.278610",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_future_rhel_point_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.279407",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_future_ubuntu_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.280195",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_primary_kube_control_plane_variant_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.280978",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_legacy_bare_form_still_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.281751",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_unsupported_role_still_rejected",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.282514",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pxe_only_os_role_not_a_log_collection_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.283389",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.290138",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.296713",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.303472",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.309965",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.316458",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.322942",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_rejects_unsupported_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.329417",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_slurm_nodes_arm_pattern_matches_multiple_os_versions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.336023",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_k8s_masters_pattern_matches_primary_and_versioned",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.341871",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_prepare_yml_aggregates_multiple_os_versions_of_same_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.347456",
+                  "duration_seconds": 0.005
+                },
+                {
+                  "test_name": "test_functional_group_name_pattern_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.348069",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_collect_pxe_file_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.348692",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_unknown_tag_fails_before_validation_is_skipped",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:07.967184",
+                  "duration_seconds": 0.617
+                },
+                {
+                  "test_name": "test_install_os_tag_selects_full_validation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:08.943998",
+                  "duration_seconds": 0.976
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[build_iso]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:09.928778",
+                  "duration_seconds": 0.983
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[deploy]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:10.908367",
+                  "duration_seconds": 0.978
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[generate_ks]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:11.885035",
+                  "duration_seconds": 0.975
+                },
+                {
+                  "test_name": "test_supported_tags_cover_public_and_play_tags",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:11.947314",
+                  "duration_seconds": 0.061
+                },
+                {
+                  "test_name": "test_unrelated_child_export_is_not_treated_as_already_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:11.962887",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_exact_export_match_is_recognized_as_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:11.977690",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_parent_export_covers_child_target_directory",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:11.992623",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_lookalike_sibling_export_is_not_a_false_prefix_match",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.007311",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_no_mounts_at_all_yields_empty_result",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.022118",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_importable_from_library_functions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.022861",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_declared_in_all",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.023437",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_matches_host_func_implementation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.023981",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_cleanup_utils_stage_is_declared[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.125346",
+                  "duration_seconds": 0.101
+                },
+                {
+                  "test_name": "test_cleanup_utils_job_exists[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.216916",
+                  "duration_seconds": 0.091
+                },
+                {
+                  "test_name": "test_cleanup_omnia_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.309591",
+                  "duration_seconds": 0.092
+                },
+                {
+                  "test_name": "test_summary_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.402071",
+                  "duration_seconds": 0.092
+                },
+                {
+                  "test_name": "test_help_flag_exits_zero_and_prints_usage",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.407281",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_short_help_flag_is_also_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.411717",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_help_documents_venv_force_and_debug",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.416111",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_venv_force_debug_flags_are_accepted_before_help_exit",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.420635",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_unknown_option_still_fails",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:19:12.424198",
+                  "duration_seconds": 0.003
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_112608",
+          "start_time": "2026-11-20T11:26:08.377658",
+          "end_time": "2026-11-20T11:26:13.619823",
+          "summary": {
+            "total": 65,
+            "passed": 65,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:26:08.377658",
+              "end_time": "2026-11-20T11:26:13.619823",
+              "duration_seconds": 5.242,
+              "summary": {
+                "total": 65,
+                "passed": 65,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_x86_64_compiler_group_is_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.429506",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_aarch64_compiler_group_still_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.430541",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.431610",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_rejects_unknown_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.432467",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.433544",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_schema_still_accepts_aarch64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.434252",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.441429",
+                  "duration_seconds": 0.007
+                },
+                {
+                  "test_name": "test_error_message_documents_login_compiler_node_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.443113",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_input_file_has_x86_64_compiler_group_key",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.443801",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_input_file_parses_with_new_group_populated",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.446085",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_prepare_yml_has_x86_64_compiler_pattern_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.456756",
+                  "duration_seconds": 0.01
+                },
+                {
+                  "test_name": "test_prepare_yml_combines_compiler_architectures",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.467823",
+                  "duration_seconds": 0.011
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.468884",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.469784",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.470670",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.471551",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.472424",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.473284",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.474158",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.475009",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.475869",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.476735",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.477603",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.478466",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_future_rhel_point_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.479261",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_future_ubuntu_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.480037",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_primary_kube_control_plane_variant_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.480833",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_legacy_bare_form_still_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.481726",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_unsupported_role_still_rejected",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.482517",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pxe_only_os_role_not_a_log_collection_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.483295",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.490020",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.496754",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.503385",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.510169",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.516771",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.523339",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_rejects_unsupported_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.529786",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_slurm_nodes_arm_pattern_matches_multiple_os_versions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.536919",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_k8s_masters_pattern_matches_primary_and_versioned",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.543162",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_prepare_yml_aggregates_multiple_os_versions_of_same_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.549142",
+                  "duration_seconds": 0.005
+                },
+                {
+                  "test_name": "test_functional_group_name_pattern_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.549757",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_collect_pxe_file_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:08.550392",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_unknown_tag_fails_before_validation_is_skipped",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:09.167008",
+                  "duration_seconds": 0.615
+                },
+                {
+                  "test_name": "test_install_os_tag_selects_full_validation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:10.145979",
+                  "duration_seconds": 0.978
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[build_iso]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:11.127274",
+                  "duration_seconds": 0.98
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[deploy]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:12.101398",
+                  "duration_seconds": 0.973
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[generate_ks]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.076427",
+                  "duration_seconds": 0.973
+                },
+                {
+                  "test_name": "test_supported_tags_cover_public_and_play_tags",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.138176",
+                  "duration_seconds": 0.061
+                },
+                {
+                  "test_name": "test_unrelated_child_export_is_not_treated_as_already_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.153750",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_exact_export_match_is_recognized_as_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.168519",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_parent_export_covers_child_target_directory",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.183647",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_lookalike_sibling_export_is_not_a_false_prefix_match",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.198458",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_no_mounts_at_all_yields_empty_result",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.213551",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_importable_from_library_functions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.214278",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_declared_in_all",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.214823",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_matches_host_func_implementation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.215366",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_cleanup_utils_stage_is_declared[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.308702",
+                  "duration_seconds": 0.093
+                },
+                {
+                  "test_name": "test_cleanup_utils_job_exists[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.400986",
+                  "duration_seconds": 0.092
+                },
+                {
+                  "test_name": "test_cleanup_omnia_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.501852",
+                  "duration_seconds": 0.1
+                },
+                {
+                  "test_name": "test_summary_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.593825",
+                  "duration_seconds": 0.091
+                },
+                {
+                  "test_name": "test_help_flag_exits_zero_and_prints_usage",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.599269",
+                  "duration_seconds": 0.005
+                },
+                {
+                  "test_name": "test_short_help_flag_is_also_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.603794",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_help_documents_venv_force_and_debug",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.608204",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_venv_force_debug_flags_are_accepted_before_help_exit",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.612538",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_unknown_option_still_fails",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:26:13.616038",
+                  "duration_seconds": 0.003
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_112749",
+          "start_time": "2026-11-20T11:27:49.030855",
+          "end_time": "2026-11-20T11:27:49.142104",
+          "summary": {
+            "total": 24,
+            "passed": 23,
+            "failed": 1,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:27:49.030855",
+              "end_time": "2026-11-20T11:27:49.142104",
+              "duration_seconds": 0.111,
+              "summary": {
+                "total": 24,
+                "passed": 23,
+                "failed": 1,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.107045",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_database_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.107869",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_compute_worker_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.108592",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_ai_worker_rhel_10_2_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.109290",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_db_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.109969",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_analytics_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.110670",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_webserver_rhel_10_2_x86_64-fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.111395",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_database_rhel_10_2_x86_64-fg_database]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.112096",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_compute_worker_rhel_10_0_aarch64-fg_compute_worker]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.112827",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_db_x86_64-fg_db]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.113534",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[slurm_node_rhel_10_0_aarch64-slurm_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.114232",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[service_kube_node_rhel_10_0_x86_64-service_kube_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.115001",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.115664",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[custom_worker_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.116317",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.116972",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_arm]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.117635",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.118302",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[127.0.0.1]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.118951",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[255.255.255.255]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.119619",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[not-an-ip]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.120426",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[999.999.999.999]",
+                  "status": "FAILED",
+                  "timestamp": "2026-11-20T11:27:49.136946",
+                  "duration_seconds": 0.0,
+                  "error": "self = <ut.test_flexible_group_log_collection.TestFlexibleGroupLogCollectionValidation object at 0x7f3ad9206c60>\nvalidator = <module 'collect_pxe_config_validator' from '/root/vrinda/ER009/omnia/src/utils/plugins/module_utils/input_validation/validators/collect_pxe_config_validator.py'>\ninvalid_ip = '999.999.999.999'\n\n    @pytest.mark.parametrize(\n        \"invalid_ip\",\n        [\n            \"127.0.0.1\",\n            \"255.255.255.255\",\n            \"not-an-ip\",\n            \"999.999.999.999\",\n            \"10.0.0\",\n        ],\n    )\n    def test_validator_rejects_unsafe_ip_addresses(self, validator, invalid_ip):\n        \"\"\"FR-6.1: Reserved and malformed IP addresses are rejected.\"\"\"\n        errors = validator.validate({\"fg_webserver_rhel_10_2_x86_64\": [invalid_ip]})\n>       assert len(errors) >= 1\nE       assert 0 >= 1\nE        +  where 0 = len([])\n\ntest/utils/ut/test_flexible_group_log_collection.py:156: AssertionError"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[10.0.0]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.137712",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_validates_flexible_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.139886",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_no_per_group_source_code_change_needed",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:27:49.140566",
+                  "duration_seconds": 0.0
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_112817",
+          "start_time": "2026-11-20T11:28:17.599386",
+          "end_time": "2026-11-20T11:28:17.689843",
+          "summary": {
+            "total": 24,
+            "passed": 24,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:28:17.599386",
+              "end_time": "2026-11-20T11:28:17.689843",
+              "duration_seconds": 0.09,
+              "summary": {
+                "total": 24,
+                "passed": 24,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.670783",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_database_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.671606",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_compute_worker_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.672441",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_ai_worker_rhel_10_2_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.673157",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_db_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.673853",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_analytics_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.674549",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_webserver_rhel_10_2_x86_64-fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.675282",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_database_rhel_10_2_x86_64-fg_database]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.675999",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_compute_worker_rhel_10_0_aarch64-fg_compute_worker]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.676736",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_db_x86_64-fg_db]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.677450",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[slurm_node_rhel_10_0_aarch64-slurm_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.678241",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[service_kube_node_rhel_10_0_x86_64-service_kube_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.678935",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.679624",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[custom_worker_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.680281",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.680933",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_arm]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.681597",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.682262",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[127.0.0.1]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.682916",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[255.255.255.255]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.683575",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[not-an-ip]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.684231",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[999.999.999.999]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.684890",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[10.0.0]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.685556",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_validates_flexible_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.687779",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_no_per_group_source_code_change_needed",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:28:17.688467",
+                  "duration_seconds": 0.0
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_113106",
+          "start_time": "2026-11-20T11:31:06.209749",
+          "end_time": "2026-11-20T11:31:06.257115",
+          "summary": {
+            "total": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:31:06.209749",
+              "end_time": "2026-11-20T11:31:06.257115",
+              "duration_seconds": 0.047,
+              "summary": {
+                "total": 5,
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_flexible_group_log_collection_lifecycle",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:06.245485",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Utils flexible group log collection verified: role-prefix routing and evidence captured\n    \u2502 Validated fg_ inventory and role-prefix routing"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:06.248674",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'webserver_rhel_10_2_x86_64'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:06.251731",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver_ppc64le'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:06.254783",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver'"
+                },
+                {
+                  "test_name": "test_evidence_sanitization_and_no_credentials",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:06.255491",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_113123",
+          "start_time": "2026-11-20T11:31:23.105772",
+          "end_time": "2026-11-20T11:31:23.147643",
+          "summary": {
+            "total": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:31:23.105772",
+              "end_time": "2026-11-20T11:31:23.147643",
+              "duration_seconds": 0.042,
+              "summary": {
+                "total": 5,
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_flexible_group_log_collection_lifecycle",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:23.136024",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Utils flexible group log collection verified: role-prefix routing and evidence captured\n    \u2502 Validated fg_ inventory and role-prefix routing"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:23.139268",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'webserver_rhel_10_2_x86_64'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:23.142612",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver_ppc64le'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:23.145768",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver'"
+                },
+                {
+                  "test_name": "test_evidence_sanitization_and_no_credentials",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:31:23.146505",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_115454",
+          "start_time": "2026-11-20T11:54:54.695180",
+          "end_time": "2026-11-20T11:55:00.078453",
+          "summary": {
+            "total": 94,
+            "passed": 94,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T11:54:54.695180",
+              "end_time": "2026-11-20T11:55:00.078453",
+              "duration_seconds": 5.383,
+              "summary": {
+                "total": 94,
+                "passed": 94,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_flexible_group_log_collection_lifecycle",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.826642",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Utils flexible group log collection verified: role-prefix routing and evidence captured\n    \u2502 Validated fg_ inventory and role-prefix routing"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.829900",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'webserver_rhel_10_2_x86_64'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.833020",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver_ppc64le'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.836106",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver'"
+                },
+                {
+                  "test_name": "test_evidence_sanitization_and_no_credentials",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.836850",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_x86_64_compiler_group_is_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.838896",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_aarch64_compiler_group_still_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.839776",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.840727",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_rejects_unknown_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.841595",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_schema_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.842704",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_schema_still_accepts_aarch64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.843416",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.850924",
+                  "duration_seconds": 0.007,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_error_message_documents_login_compiler_node_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.852684",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_input_file_has_x86_64_compiler_group_key",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.853390",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_input_file_parses_with_new_group_populated",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.855668",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_prepare_yml_has_x86_64_compiler_pattern_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.866221",
+                  "duration_seconds": 0.01,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_prepare_yml_combines_compiler_architectures",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.876797",
+                  "duration_seconds": 0.01,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.877837",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_database_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.878535",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_compute_worker_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.879221",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_ai_worker_rhel_10_2_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.879887",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_db_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.880555",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_analytics_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.881229",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_webserver_rhel_10_2_x86_64-fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.881906",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_database_rhel_10_2_x86_64-fg_database]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.882600",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_compute_worker_rhel_10_0_aarch64-fg_compute_worker]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.883477",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_db_x86_64-fg_db]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.884178",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[slurm_node_rhel_10_0_aarch64-slurm_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.884864",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[service_kube_node_rhel_10_0_x86_64-service_kube_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.885574",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.886237",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[custom_worker_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.886883",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.887545",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_arm]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.888211",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.888863",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[127.0.0.1]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.889518",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[255.255.255.255]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.890168",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[not-an-ip]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.890806",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[999.999.999.999]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.891465",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[10.0.0]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.892099",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_schema_validates_flexible_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.894031",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_no_per_group_source_code_change_needed",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.894702",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.895746",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.896651",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.897553",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.898437",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.899445",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.900562",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.901605",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.902518",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.903559",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.904446",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.905330",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.906227",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_future_rhel_point_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.907016",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_future_ubuntu_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.907803",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_primary_kube_control_plane_variant_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.908601",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_legacy_bare_form_still_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.909389",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unsupported_role_still_rejected",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.910165",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pxe_only_os_role_not_a_log_collection_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.910933",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.917783",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.924415",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.931057",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.937765",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.944475",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.951122",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_rejects_unsupported_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.957725",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_slurm_nodes_arm_pattern_matches_multiple_os_versions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.965070",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_k8s_masters_pattern_matches_primary_and_versioned",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.971531",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_prepare_yml_aggregates_multiple_os_versions_of_same_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.977770",
+                  "duration_seconds": 0.006,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_functional_group_name_pattern_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.978413",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_collect_pxe_file_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:54.979041",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unknown_tag_fails_before_validation_is_skipped",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:55.598894",
+                  "duration_seconds": 0.618,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_install_os_tag_selects_full_validation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:56.578376",
+                  "duration_seconds": 0.978,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[build_iso]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:57.564157",
+                  "duration_seconds": 0.984,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[deploy]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:58.547326",
+                  "duration_seconds": 0.982,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[generate_ks]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.529844",
+                  "duration_seconds": 0.981,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_supported_tags_cover_public_and_play_tags",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.592801",
+                  "duration_seconds": 0.062,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unrelated_child_export_is_not_treated_as_already_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.608802",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_exact_export_match_is_recognized_as_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.632685",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_parent_export_covers_child_target_directory",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.647661",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_lookalike_sibling_export_is_not_a_false_prefix_match",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.662855",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_no_mounts_at_all_yields_empty_result",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.677964",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_importable_from_library_functions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.678729",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_declared_in_all",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.679301",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_get_collect_output_path_matches_host_func_implementation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.679841",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_cleanup_utils_stage_is_declared[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.774586",
+                  "duration_seconds": 0.094,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_cleanup_utils_job_exists[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.866596",
+                  "duration_seconds": 0.091,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_cleanup_omnia_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:54:59.958903",
+                  "duration_seconds": 0.092,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_summary_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:55:00.052890",
+                  "duration_seconds": 0.093,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_help_flag_exits_zero_and_prints_usage",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:55:00.057922",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_short_help_flag_is_also_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:55:00.062358",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_help_documents_venv_force_and_debug",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:55:00.066618",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_venv_force_debug_flags_are_accepted_before_help_exit",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:55:00.070968",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unknown_option_still_fails",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T11:55:00.074435",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_120240",
+          "start_time": "2026-11-20T12:02:40.735366",
+          "end_time": "2026-11-20T12:02:46.102573",
+          "summary": {
+            "total": 94,
+            "passed": 94,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T12:02:40.735366",
+              "end_time": "2026-11-20T12:02:46.102573",
+              "duration_seconds": 5.367,
+              "summary": {
+                "total": 94,
+                "passed": 94,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_flexible_group_log_collection_lifecycle",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.856544",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Utils flexible group log collection verified: role-prefix routing and evidence captured\n    \u2502 Validated fg_ inventory and role-prefix routing"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.859795",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'webserver_rhel_10_2_x86_64'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.863067",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver_ppc64le'"
+                },
+                {
+                  "test_name": "test_reject_unsafe_collection_input[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.866146",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Successfully rejected unsafe group 'fg_webserver'"
+                },
+                {
+                  "test_name": "test_evidence_sanitization_and_no_credentials",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.866892",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_x86_64_compiler_group_is_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.868060",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_aarch64_compiler_group_still_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.868961",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.869823",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_rejects_unknown_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.870858",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_schema_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.871949",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_schema_still_accepts_aarch64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.872667",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.879603",
+                  "duration_seconds": 0.006,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_error_message_documents_login_compiler_node_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.881296",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_input_file_has_x86_64_compiler_group_key",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.881984",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_input_file_parses_with_new_group_populated",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.884254",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_prepare_yml_has_x86_64_compiler_pattern_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.894618",
+                  "duration_seconds": 0.01,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_prepare_yml_combines_compiler_architectures",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.904955",
+                  "duration_seconds": 0.01,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.905989",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_database_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.906696",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_compute_worker_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.907380",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_ai_worker_rhel_10_2_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.908034",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_db_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.908693",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_analytics_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.909358",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_webserver_rhel_10_2_x86_64-fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.910032",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_database_rhel_10_2_x86_64-fg_database]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.910734",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_compute_worker_rhel_10_0_aarch64-fg_compute_worker]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.911433",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_db_x86_64-fg_db]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.912101",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[slurm_node_rhel_10_0_aarch64-slurm_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.912787",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[service_kube_node_rhel_10_0_x86_64-service_kube_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.913477",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.914117",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[custom_worker_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.914775",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.915427",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_arm]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.916053",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.916706",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[127.0.0.1]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.917375",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[255.255.255.255]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.918018",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[not-an-ip]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.918664",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[999.999.999.999]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.919321",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[10.0.0]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.919946",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_schema_validates_flexible_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.921797",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_no_per_group_source_code_change_needed",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.922463",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.923469",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.924363",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.925234",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.926096",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.927082",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.927956",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.928827",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.929703",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.930581",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.931466",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.932338",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.933210",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_future_rhel_point_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.934010",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_future_ubuntu_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.934807",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_primary_kube_control_plane_variant_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.935612",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_legacy_bare_form_still_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.936404",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unsupported_role_still_rejected",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.937209",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pxe_only_os_role_not_a_log_collection_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.937997",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.944966",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.951588",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.958119",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.964655",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.971242",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.977822",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_pattern_rejects_unsupported_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.984291",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_slurm_nodes_arm_pattern_matches_multiple_os_versions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.991433",
+                  "duration_seconds": 0.002,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_k8s_masters_pattern_matches_primary_and_versioned",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:40.997650",
+                  "duration_seconds": 0.001,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_prepare_yml_aggregates_multiple_os_versions_of_same_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:41.003586",
+                  "duration_seconds": 0.005,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_functional_group_name_pattern_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:41.004240",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_validate_collect_pxe_file_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:41.004863",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unknown_tag_fails_before_validation_is_skipped",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:41.627000",
+                  "duration_seconds": 0.621,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_install_os_tag_selects_full_validation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:42.611890",
+                  "duration_seconds": 0.984,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[build_iso]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:43.595634",
+                  "duration_seconds": 0.982,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[deploy]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:44.574424",
+                  "duration_seconds": 0.977,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[generate_ks]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.558072",
+                  "duration_seconds": 0.982,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_supported_tags_cover_public_and_play_tags",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.620809",
+                  "duration_seconds": 0.062,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unrelated_child_export_is_not_treated_as_already_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.636483",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_exact_export_match_is_recognized_as_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.651307",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_parent_export_covers_child_target_directory",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.666214",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_lookalike_sibling_export_is_not_a_false_prefix_match",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.680973",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_no_mounts_at_all_yields_empty_result",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.695709",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_importable_from_library_functions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.696456",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_declared_in_all",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.697024",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_get_collect_output_path_matches_host_func_implementation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.697601",
+                  "duration_seconds": 0.0,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_cleanup_utils_stage_is_declared[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.800094",
+                  "duration_seconds": 0.102,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_cleanup_utils_job_exists[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.892661",
+                  "duration_seconds": 0.092,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_cleanup_omnia_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:45.985775",
+                  "duration_seconds": 0.092,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_summary_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:46.077778",
+                  "duration_seconds": 0.091,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_help_flag_exits_zero_and_prints_usage",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:46.083079",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_short_help_flag_is_also_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:46.087550",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_help_documents_venv_force_and_debug",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:46.091972",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_venv_force_debug_flags_are_accepted_before_help_exit",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:46.096398",
+                  "duration_seconds": 0.004,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                },
+                {
+                  "test_name": "test_unknown_option_still_fails",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T12:02:46.099921",
+                  "duration_seconds": 0.003,
+                  "details": "\n  \u25b6 [TC_FVT_utils_013] Verify Utils flexible group log collection with role-prefix routing and evidence\n  \u2714 PASS: Verified evidence contains no credentials"
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        },
+        {
+          "run_id": "20261120_131057",
+          "start_time": "2026-11-20T13:10:57.665012",
+          "end_time": "2026-11-20T13:11:02.981066",
+          "summary": {
+            "total": 89,
+            "passed": 89,
+            "failed": 0,
+            "skipped": 0
+          },
+          "modules": [
+            {
+              "module": "utils",
+              "start_time": "2026-11-20T13:10:57.665012",
+              "end_time": "2026-11-20T13:11:02.981066",
+              "duration_seconds": 5.316,
+              "summary": {
+                "total": 89,
+                "passed": 89,
+                "failed": 0,
+                "skipped": 0
+              },
+              "results": [
+                {
+                  "test_name": "test_x86_64_compiler_group_is_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.764604",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_aarch64_compiler_group_still_valid",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.765486",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.766408",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_rejects_unknown_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.767385",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_accepts_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.768408",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_schema_still_accepts_aarch64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.769038",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_x86_64_compiler_group",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.776102",
+                  "duration_seconds": 0.007
+                },
+                {
+                  "test_name": "test_error_message_documents_login_compiler_node_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.777758",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_input_file_has_x86_64_compiler_group_key",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.778399",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_input_file_parses_with_new_group_populated",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.780620",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_prepare_yml_has_x86_64_compiler_pattern_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.791843",
+                  "duration_seconds": 0.011
+                },
+                {
+                  "test_name": "test_prepare_yml_combines_compiler_architectures",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.802660",
+                  "duration_seconds": 0.01
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.803642",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_database_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.804318",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_compute_worker_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.804910",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_ai_worker_rhel_10_2_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.805497",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_db_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.806071",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_accepts_valid_flexible_groups[fg_analytics_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.806656",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_webserver_rhel_10_2_x86_64-fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.807280",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_database_rhel_10_2_x86_64-fg_database]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.807922",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_compute_worker_rhel_10_0_aarch64-fg_compute_worker]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.808569",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[fg_db_x86_64-fg_db]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.809189",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[slurm_node_rhel_10_0_aarch64-slurm_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.809791",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_role_prefix_extraction[service_kube_node_rhel_10_0_x86_64-service_kube_node]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.810441",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[webserver_rhel_10_2_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.811012",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[custom_worker_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.811584",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_ppc64le]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.812160",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver_arm]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.812741",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_invalid_flexible_groups[fg_webserver]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.813315",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[127.0.0.1]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.813868",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[255.255.255.255]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.814430",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[not-an-ip]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.814984",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[999.999.999.999]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.815564",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validator_rejects_unsafe_ip_addresses[10.0.0]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.816148",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_schema_validates_flexible_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.817995",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_no_per_group_source_code_change_needed",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.818583",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.819554",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.820382",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.821200",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.822114",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.822920",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_group_is_valid[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.823750",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.824563",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.825401",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.826205",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.826993",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.827808",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_reports_no_errors[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.828623",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_future_rhel_point_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.829370",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_future_ubuntu_release_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.830093",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_primary_kube_control_plane_variant_is_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.830828",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_legacy_bare_form_still_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.831541",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_unsupported_role_still_rejected",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.832265",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pxe_only_os_role_not_a_log_collection_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.832980",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_control_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.839820",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[slurm_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.846441",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_compiler_node_rhel_10_0_aarch64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.852929",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[login_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.859443",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_control_plane_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.866006",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_matches_real_pxe_mapping_group_names[service_kube_node_rhel_10_0_x86_64]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.872490",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_pattern_rejects_unsupported_role",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.878904",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_slurm_nodes_arm_pattern_matches_multiple_os_versions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.885909",
+                  "duration_seconds": 0.002
+                },
+                {
+                  "test_name": "test_k8s_masters_pattern_matches_primary_and_versioned",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.892063",
+                  "duration_seconds": 0.001
+                },
+                {
+                  "test_name": "test_prepare_yml_aggregates_multiple_os_versions_of_same_bucket",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.897992",
+                  "duration_seconds": 0.005
+                },
+                {
+                  "test_name": "test_functional_group_name_pattern_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.898551",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_validate_collect_pxe_file_accepts_versioned_groups",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:57.899099",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_unknown_tag_fails_before_validation_is_skipped",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:58.514819",
+                  "duration_seconds": 0.614
+                },
+                {
+                  "test_name": "test_install_os_tag_selects_full_validation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:10:59.495926",
+                  "duration_seconds": 0.98
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[build_iso]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:00.477478",
+                  "duration_seconds": 0.98
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[deploy]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:01.455533",
+                  "duration_seconds": 0.977
+                },
+                {
+                  "test_name": "test_single_mode_tag_passes_mode_gate[generate_ks]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.433632",
+                  "duration_seconds": 0.977
+                },
+                {
+                  "test_name": "test_supported_tags_cover_public_and_play_tags",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.496702",
+                  "duration_seconds": 0.062
+                },
+                {
+                  "test_name": "test_unrelated_child_export_is_not_treated_as_already_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.512535",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_exact_export_match_is_recognized_as_mounted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.527654",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_parent_export_covers_child_target_directory",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.542413",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_lookalike_sibling_export_is_not_a_false_prefix_match",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.557223",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_no_mounts_at_all_yields_empty_result",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.571948",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_importable_from_library_functions",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.572617",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_is_declared_in_all",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.573094",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_get_collect_output_path_matches_host_func_implementation",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.573580",
+                  "duration_seconds": 0.0
+                },
+                {
+                  "test_name": "test_cleanup_utils_stage_is_declared[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.667796",
+                  "duration_seconds": 0.094
+                },
+                {
+                  "test_name": "test_cleanup_utils_job_exists[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.770113",
+                  "duration_seconds": 0.102
+                },
+                {
+                  "test_name": "test_cleanup_omnia_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.863265",
+                  "duration_seconds": 0.093
+                },
+                {
+                  "test_name": "test_summary_waits_for_cleanup_utils[.gitlab-ci-cluster.yml]",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.955729",
+                  "duration_seconds": 0.092
+                },
+                {
+                  "test_name": "test_help_flag_exits_zero_and_prints_usage",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.960743",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_short_help_flag_is_also_accepted",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.965272",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_help_documents_venv_force_and_debug",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.969625",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_venv_force_debug_flags_are_accepted_before_help_exit",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.973936",
+                  "duration_seconds": 0.004
+                },
+                {
+                  "test_name": "test_unknown_option_still_fails",
+                  "status": "PASSED",
+                  "timestamp": "2026-11-20T13:11:02.977400",
+                  "duration_seconds": 0.003
+                }
+              ],
+              "playbook_logs": null,
+              "command_type": "execution",
+              "log_issues": null,
+              "suite": "all",
+              "marker": "",
+              "exec_command": ""
+            }
+          ]
+        }
+      ],
+      "hostname": "localhost"
+    }
+  }
+}
