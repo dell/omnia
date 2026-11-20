@@ -181,6 +181,41 @@ THEMES: Dict[str, Dict] = {
             "debug_mode": ("build_stream", "", "debug_mode", "bool"),
         },
     },
+    "cluster_lifecycle": {
+        "title": "Cluster Lifecycle (Slurm)",
+        "description": "Cluster lifecycle: deploy, run Slurm workloads, "
+                       "remove a node, add it back",
+        "profile": "cluster_lifecycle",
+        "cleanup_steps": CLEANUP_STEPS,
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
+        "fvt_domains": ("orchestrator",),
+        "credential_domains": ("orchestrator",),
+        "creds_suite": "build_stream",
+        "cleanup_requires": {},
+        "cleanup_when_deployed": ("telemetry",),
+        "stages": ("deploy_cluster", "slurm_deploy", "slurm_jobs",
+                   "slurm_lifecycle"),
+        "soft_stages": ("slurm_jobs", "slurm_lifecycle"),
+        "stage_info": {
+            "deploy_cluster": (
+                "Deploy Cluster",
+                "Orchestrator precheck, prepare, provision and PXE boot "
+                "with connectivity verification"),
+            "slurm_deploy": (
+                "Slurm Deploy",
+                "Slurm cluster membership, services, SSH, configless, "
+                "configuration consistency, hardware discovery"),
+            "slurm_jobs": (
+                "Slurm Jobs",
+                "Job submission from control, login and compiler nodes; "
+                "IPoIB traffic path (IPv4/IPv6/dual-stack)"),
+            "slurm_lifecycle": (
+                "Slurm Node Lifecycle",
+                "Remove a compute node and add it back"),
+        },
+        "state_probe": None,
+        "fvt_settings": {},
+    },
 }
 # Sections every theme has (title, description); the theme stages come from
 # THEMES[theme]["stage_info"]. In the report, cleanup and install (run by

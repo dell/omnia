@@ -23,6 +23,7 @@ test of the stage failed.
 """
 
 _BS = "build_stream"
+_ORCH = "orchestrator"
 
 TEST_CASES = {
     # ---------------------------------------------- stage prepare_build_stream
@@ -100,5 +101,77 @@ TEST_CASES = {
         "id": "SVT_BUILD_STREAM_016", "order": 1050, "stage": "automatic_cleanup",
         "title": "Automatic cleanup of the cadence image (S3, registry, NFS)",
         "step": (_BS, ("execute", "verify", "--suite", "auto_cleanup")),
+    },
+    # ============================================================ theme cluster_lifecycle
+    # deploy_cluster ------------------------------------------------
+    "cluster_lifecycle_precheck_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_001", "order": 3010, "stage": "deploy_cluster",
+        "title": "Orchestrator precheck",
+        "step": (_ORCH, ("precheck", "exec")),
+    },
+    "cluster_lifecycle_precheck_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_002", "order": 3011, "stage": "deploy_cluster",
+        "title": "Orchestrator precheck: verification",
+        "step": (_ORCH, ("precheck", "verify")),
+    },
+    "cluster_lifecycle_prepare_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_003", "order": 3012, "stage": "deploy_cluster",
+        "title": "Orchestrator prepare",
+        "step": (_ORCH, ("prepare", "exec")),
+    },
+    "cluster_lifecycle_prepare_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_004", "order": 3013, "stage": "deploy_cluster",
+        "title": "Orchestrator prepare: verification",
+        "step": (_ORCH, ("prepare", "verify")),
+    },
+    "cluster_lifecycle_provision_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_005", "order": 3014, "stage": "deploy_cluster",
+        "title": "Orchestrator provision",
+        "step": (_ORCH, ("provision", "exec")),
+    },
+    "cluster_lifecycle_provision_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_006", "order": 3015, "stage": "deploy_cluster",
+        "title": "Orchestrator provision: verification",
+        "step": (_ORCH, ("provision", "verify")),
+    },
+    "cluster_lifecycle_pxeboot_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_007", "order": 3016, "stage": "deploy_cluster",
+        "title": "Orchestrator PXE boot",
+        "step": (_ORCH, ("pxeboot", "exec")),
+    },
+    "cluster_lifecycle_pxeboot_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_008", "order": 3017, "stage": "deploy_cluster",
+        "title": "PXE boot: connectivity and cloud-init",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "connectivity")),
+    },
+    # slurm_deploy --------------------------------------------------
+    "cluster_lifecycle_slurm_cluster_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_009", "order": 3030, "stage": "slurm_deploy",
+        "title": "Slurm cluster membership, services and scheduler",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_cluster")),
+    },
+    # slurm_jobs ----------------------------------------------------
+    "cluster_lifecycle_slurm_jobs_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_010", "order": 3040, "stage": "slurm_jobs",
+        "title": "Slurm job submission (control, login, compiler, concurrent)",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_jobs")),
+    },
+    "cluster_lifecycle_ipoib_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_011", "order": 3041, "stage": "slurm_jobs",
+        "title": "Slurm jobs over IPoIB (IPv4/IPv6/dual-stack traffic path)",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "ipoib_network")),
+    },
+    # slurm_lifecycle -----------------------------------------------
+    "cluster_lifecycle_slurm_node_remove": {
+        "id": "SVT_CLUSTER_LIFECYCLE_012", "order": 3050, "stage": "slurm_lifecycle",
+        "title": "Delete a Slurm compute node",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
+                         "--marker", "node_lifecycle+node_remove")),
+    },
+    "cluster_lifecycle_slurm_node_add": {
+        "id": "SVT_CLUSTER_LIFECYCLE_013", "order": 3051, "stage": "slurm_lifecycle",
+        "title": "Add a Slurm compute node",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
+                         "--marker", "node_lifecycle+node_add")),
     },
 }
