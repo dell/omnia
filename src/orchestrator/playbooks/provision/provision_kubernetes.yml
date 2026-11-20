@@ -74,23 +74,11 @@
             mount_config_mode: "oim-mount"
           when: "'mount_config' in category_bolt_ons"
 
-        - name: Check for declared local_storage entries
-          ansible.builtin.set_fact:
-            local_storage_declared: >-
-              {{ (storage_config.local_storage | default([]))
-                 | selectattr('purpose', 'in', ['etcd', 'kafka']) | list | length > 0 }}
-          vars:
-            storage_config: >-
-              {{ lookup('file', orchestrator_data_path + '/input/' + project_name
-                 + '/storage_config.yml') | from_yaml | default({}) }}
-
         - name: Write approved local disk map to nfs_k8s share
-          omnia.orchestrator.write_local_disk_map:
-            input_project_dir: "{{ orchestrator_data_path }}/input/{{ project_name }}"
+          write_local_disk_map:
+            input_project_dir: "{{ hostvars['localhost']['orchestrator_data_path'] }}/input/{{ hostvars['localhost']['project_name'] }}"
           register: disk_map_result
-          when:
-            - "'mount_config' in category_bolt_ons"
-            - local_storage_declared | bool
+          when: "'mount_config' in category_bolt_ons"
 
         - name: Show disk map result
           ansible.builtin.debug:

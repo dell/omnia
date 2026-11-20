@@ -274,6 +274,32 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Reject a dual-stack row without IB_IPV4",
         "component": "IPoIB input validation",
     },
+    # ER-ORCH-011 local_storage precheck cases (TC-FVT-001..005, TC-FVT-029)
+    "precheck_local_storage_declarations": {
+        "id": "ORCH_FVT_PRECHECK_V822",
+        "title": "Verify local_storage entries have required fields and valid enums",
+        "component": "Local storage declaration validation",
+    },
+    "precheck_local_storage_targeting": {
+        "id": "ORCH_FVT_PRECHECK_V823",
+        "title": "Verify local_storage targets only service Kubernetes groups",
+        "component": "Local storage service-group targeting",
+    },
+    "precheck_local_storage_semantic_rules": {
+        "id": "ORCH_FVT_PRECHECK_V824",
+        "title": "Verify local_storage semantic rules (Kafka on workers, etcd no nofail)",
+        "component": "Local storage semantic validation",
+    },
+    "precheck_local_storage_etcd_nfs_fallback": {
+        "id": "ORCH_FVT_PRECHECK_V825",
+        "title": "Verify etcd uses NFS when no etcd disk entry is declared",
+        "component": "Local storage etcd NFS fallback",
+    },
+    "precheck_kafka_switch_validation": {
+        "id": "ORCH_FVT_PRECHECK_V826",
+        "title": "Verify kafka_on_local_disk defaults to false and rejects non-Boolean",
+        "component": "Kafka local-disk switch validation",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1814,6 +1840,17 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V819",
         "title": "Verify IB addresses assigned on each node match ib_addr_mode",
         "component": "IPoIB mode address assignment",
+    },
+    # ER-ORCH-011 Kafka local-disk pxeboot cases (TC-FVT-030, TC-FVT-032)
+    "kafka_node_label": {
+        "id": "ORCH_FVT_PXEBOOT_V820",
+        "title": "Verify Kafka node label follows disk status and disable-marker state",
+        "component": "Kafka local-disk node label",
+    },
+    "kafka_disk_status_file": {
+        "id": "ORCH_FVT_PXEBOOT_V821",
+        "title": "Verify Kafka per-node status file exists and has valid result field",
+        "component": "Kafka local-disk status file",
     },
 }
 

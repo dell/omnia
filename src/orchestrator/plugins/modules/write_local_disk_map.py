@@ -64,7 +64,7 @@ EXAMPLES = r'''
   omnia.orchestrator.write_local_disk_map:
     input_project_dir: "{{ orchestrator_data_path }}/input/{{ project_name }}"
   register: disk_map_result
-  when: local_storage_declared | default(false) | bool
+  when: "'mount_config' in category_bolt_ons"
 '''
 
 RETURN = r'''

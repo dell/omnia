@@ -327,6 +327,17 @@ from .mount_config_precheck_func import (
     check_precheck_mount_missing_targeting,
     check_precheck_mount_node_key_without_mount_point,
 )
+from .local_storage_precheck_func import (
+    check_precheck_local_storage_declarations,
+    check_precheck_local_storage_etcd_nfs_fallback,
+    check_precheck_local_storage_semantic_rules,
+    check_precheck_local_storage_targeting,
+    check_precheck_kafka_switch_validation,
+)
+from .kafka_local_disk_pxeboot_func import (
+    check_kubernetes_kafka_node_label,
+    check_kubernetes_kafka_disk_status,
+)
 from .oim_readiness_precheck_func import (
     check_oim_cpu_threshold,
     check_oim_disk_threshold,
@@ -637,6 +648,8 @@ __all__ = [
     "check_kubernetes_local_etcd_media",
     "check_kubernetes_local_etcd_provisioning",
     "check_kubernetes_local_etcd_recovery",
+    "check_kubernetes_kafka_node_label",
+    "check_kubernetes_kafka_disk_status",
     "check_kubernetes_nfs_dynamic_provisioning",
     "check_kubernetes_nfs_provisioner_contract",
     "check_kubernetes_node_services",
@@ -708,6 +721,11 @@ __all__ = [
     "check_precheck_mount_missing_source",
     "check_precheck_mount_missing_targeting",
     "check_precheck_mount_node_key_without_mount_point",
+    "check_precheck_local_storage_declarations",
+    "check_precheck_local_storage_etcd_nfs_fallback",
+    "check_precheck_local_storage_semantic_rules",
+    "check_precheck_local_storage_targeting",
+    "check_precheck_kafka_switch_validation",
     "check_precheck_nfs_servers",
     "check_precheck_repositories",
     "check_precheck_s3_artifacts",

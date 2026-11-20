@@ -58,7 +58,6 @@ def test_omnia_schema_types_deployed_cluster_ha_fields():
     base = {
         "cluster_name": "service",
         "deployment": True,
-        "etcd_on_local_disk": False,
         "k8s_cni": "calico",
         "pod_external_ip_range": "192.0.2.0/24",
         "k8s_service_addresses": "10.96.0.0/12",

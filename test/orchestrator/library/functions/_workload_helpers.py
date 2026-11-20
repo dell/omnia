@@ -58,6 +58,31 @@ def kubernetes_context(host) -> Tuple[Any, Any, Any, Any]:
     return context, rows, control, selected_kubernetes_config(context)
 
 
+def local_etcd_entry(context) -> Dict[str, Any] | None:
+    """Return the first local_storage entry with purpose etcd from storage_config.yml, or None."""
+    storage = (context or {}).get("storage_config") or {}
+    entries = storage.get("local_storage", [])
+    if not isinstance(entries, list):
+        return None
+    return next(
+        (e for e in entries if isinstance(e, dict) and e.get("purpose") == "etcd"), None
+    )
+
+
+def local_etcd_declared(context) -> bool:
+    """Return True when storage_config.yml declares a local_storage entry with purpose etcd."""
+    return local_etcd_entry(context) is not None
+
+
+def kafka_declared(context) -> bool:
+    """Return True when storage_config.yml declares at least one local_storage entry with purpose kafka."""
+    storage = (context or {}).get("storage_config") or {}
+    entries = storage.get("local_storage", [])
+    if not isinstance(entries, list):
+        return False
+    return any(isinstance(e, dict) and e.get("purpose") == "kafka" for e in entries)
+
+
 def slurm_context(host) -> Tuple[Any, Any, Any, Any]:
     """Return runtime context, mapped Slurm rows, controller, and config."""
     context = load_context(host)
