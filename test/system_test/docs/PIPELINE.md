@@ -93,7 +93,8 @@ Enter to skip a cluster) and stores it as a masked, protected variable. It commi
 | `.gitlab-ci.yml` | One trigger job per cluster (`svt_<cluster>`), each holding the resource group `svt-<cluster>` |
 | `.gitlab-ci-svt-<theme>.yml` | The jobs of one cluster (child pipeline), one file per theme in use (the theme is per cluster) |
 | `svt_ci.py`, `svt_pipeline_config.yml` | The runner helper; a reference copy of your config |
-| `clusters/<cluster>/svt/user_inputs.yml` | The cluster values (from `test/system_test`; edit them in GitLab) |
+| `clusters/<cluster>/svt/secret.yaml`, `values.yaml` | PowerScale CSI; `--create` adds them copied from the product's reference examples, you edit them (never replaced by `--update-inputs`). Copied next to `user_inputs.yml` on the OIM at every checkout; the initialization job then runs `./setup_env.sh --stage-files`, which moves them to the paths of `omnia_config.yml` (default: the orchestrator's project input folder) only when `enable_powerscale_csi` is true, and then both must exist (see SETUP.md, PowerScale CSI) |
+| `clusters/<cluster>/svt/user_inputs.yml` | The cluster values (from `test/system_test`; edit them in GitLab). Other files with the same syntax can sit beside it; the CI/CD variable `<CLUSTER>_SVT_USER_INPUTS` (`svt.user_inputs` in the config) names the one the cluster's pipeline uses, default `user_inputs.yml` |
 | `clusters/<cluster>/svt/<theme>_test_config.yml` | The theme settings of that cluster (catalogs, cleanup flags ...) |
 
 It also sets the CI/CD variables (see [PIPELINE_CONFIG.md](PIPELINE_CONFIG.md#the-variables-the-script-creates))
@@ -157,8 +158,8 @@ so with `concurrent = 1` the clusters run one after the other.
 1. `preflight`: SSH to the OIM, `git` and `python3` there, OpenBao reachable; then the Omnia
    checkout, a check that it has the SVT scripts, and the cluster's `svt/` inputs.
 2. `initialization`: `./setup_env.sh --configure`, then `--install --yes --force` (cleanup first,
-   including telemetry and the NFS shares), both detached on the OIM; then the credentials read
-   from OpenBao go to `--domain-creds-stdin`; then `./run_validation.sh svt_<theme>
+   including telemetry, discovery and the NFS shares), both detached on the OIM; then the credentials read
+   from OpenBao go to `--domain-creds-stdin`; then `--stage-files` (the PowerScale CSI files, only when enabled); then `./run_validation.sh svt_<theme>
    initialization`.
 3. The theme stages (build_stream: `prepare_build_stream`, `build_deploy`, `cadence`,
    `automatic_cleanup`): `./run_validation.sh svt_<theme> <stage>`. `prepare_build_stream` is a

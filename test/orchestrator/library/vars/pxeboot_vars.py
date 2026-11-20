@@ -29,6 +29,9 @@ KUBERNETES_WAIT_TIMEOUT_SECONDS = 300
 RECOVERY_WAIT_TIMEOUT_SECONDS = 900
 RECOVERY_POLL_SECONDS = 15
 SLURM_JOB_TIMEOUT_SECONDS = 180
+# Node states in which a targeted job can start or queue for a bounded time; a node in any
+# other state (down, drained, unknown, missing) would keep the job pending (ReqNodeNotAvail).
+SLURM_JOB_READY_STATES = ("idle", "mix", "mixed", "alloc", "allocated", "comp", "completing")
 SLURM_ACCOUNTING_TIMEOUT_SECONDS = 30
 SLURM_ACCOUNTING_POLL_SECONDS = 2
 SLURM_TEST_JOB_COMMAND = "hostname -s"
@@ -498,7 +501,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "sinfo --noheader --nodes=%s --format='%%T' | head -1"
     ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
-    "slurm_cancel_job": "scancel %s",
+    "slurm_cancel_job": "timeout 30 scancel %s",
     "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"

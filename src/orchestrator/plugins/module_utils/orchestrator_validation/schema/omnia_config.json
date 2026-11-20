@@ -276,6 +276,10 @@
         "csi_powerscale_driver_values_file_path": {
           "$ref": "#/definitions/optionalAbsolutePath"
         },
+        "csi_powerscale_mount_options": {
+          "type": "string",
+          "pattern": "^([A-Za-z0-9,=._@/-]+)?$"
+        },
         "enable_k8s_ha": {
           "type": "boolean"
         },
@@ -317,6 +321,48 @@
               "csi_powerscale_driver_values_file_path": {
                 "type": "string",
                 "pattern": "^/.+"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "csi_powerscale_mount_options"
+            ],
+            "properties": {
+              "csi_powerscale_mount_options": {
+                "type": "string",
+                "pattern": "(^|,)rsize="
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "csi_powerscale_mount_options": {
+                "description": "When rsize is set, wsize must also be set.",
+                "pattern": "(^|,)wsize="
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "csi_powerscale_mount_options"
+            ],
+            "properties": {
+              "csi_powerscale_mount_options": {
+                "type": "string",
+                "pattern": "(^|,)wsize="
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "csi_powerscale_mount_options": {
+                "description": "When wsize is set, rsize must also be set.",
+                "pattern": "(^|,)rsize="
               }
             }
           }

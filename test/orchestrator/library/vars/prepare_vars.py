@@ -100,11 +100,16 @@ FIREWALL_PORTS: tuple[str, ...] = (
     "68/udp",
     "69/udp",
     "123/udp",
-    "5432/tcp",
-    "27778/tcp",
-    "27779/tcp",
     "8081/tcp",
     "8443/tcp",
+)
+
+# Ports that must be open in the podman zone (container-to-container traffic).
+# These are intentionally NOT exposed on the host-facing default zone.
+# See deploy_openchami/vars/main.yml podman_zone_tcp_ports.
+FIREWALL_PODMAN_ZONE_PORTS: tuple[str, ...] = (
+    "5432/tcp",
+    "27779/tcp",
 )
 
 PODMAN_INTERFACES: tuple[str, ...] = (
@@ -187,6 +192,9 @@ PREPARE_COMMANDS: dict[str, str] = {
     ),
     "postgres_readiness": "podman exec postgres sh -c %s",
     "firewall_port": "firewall-cmd --query-port=%s 2>/dev/null",
+    "firewall_podman_port": (
+        "firewall-cmd --zone=podman --query-port=%s 2>/dev/null"
+    ),
     "firewall_interface_trusted": (
         "firewall-cmd --zone=trusted --query-interface=%s 2>/dev/null"
     ),

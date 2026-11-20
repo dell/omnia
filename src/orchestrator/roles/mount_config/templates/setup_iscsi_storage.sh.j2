@@ -170,8 +170,8 @@ if ! grep -qE "${FSTAB_MATCH}" /etc/fstab; then
 fi
 
 if ! mountpoint -q "${MOUNT_POINT}"; then
-  log "Mounting ${MOUNT_POINT}"
-  mount "${PART_DEV}" "${MOUNT_POINT}"
+  log "Mounting ${MOUNT_POINT} with options ${MOUNT_OPTS}"
+  mount -o "${MOUNT_OPTS}" "${PART_DEV}" "${MOUNT_POINT}"
 fi
 
 df -h "${MOUNT_POINT}" || true

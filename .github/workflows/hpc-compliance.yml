@@ -21,10 +21,10 @@ name: HPC Compliance Scanner
   pull_request:
     branches:
       - main
-      - staging
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
+      - 'feature/**'
 
 permissions:
   contents: read

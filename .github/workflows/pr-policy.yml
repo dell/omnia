@@ -5,10 +5,10 @@ name: PR Issue and Network Policy
   pull_request:
     branches:
       - main
-      - staging
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
+      - 'feature/**'
     types: [opened, synchronize, reopened, edited, ready_for_review]
 
 permissions:

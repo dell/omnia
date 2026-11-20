@@ -4,10 +4,10 @@ name: Pylint
   pull_request:
     branches:
       - main
-      - staging
       - 'release_*'
       - 'issue-*'
       - 'pub/**'
+      - 'feature/**'
   workflow_dispatch:
 jobs:
   build:

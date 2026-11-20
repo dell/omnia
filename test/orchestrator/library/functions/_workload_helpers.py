@@ -295,3 +295,42 @@ def ensure_source_mpi(host, rows) -> Tuple[bool, str]:
 
     _source_mpi_provisioned = True
     return True, ""
+
+
+def mapped_compute_readiness(host, control, compute_rows):
+    """Return normalized scheduler readiness for every mapped compute."""
+    scheduler = remote_command(
+        host,
+        control,
+        PXEBOOT_COMMANDS["slurm_partitions"],
+    )
+    if scheduler.rc != 0:
+        raise RuntimeError("sinfo could not read mapped compute-node state")
+    node_states = {}
+    for line in scheduler.stdout.splitlines():
+        parts = [part.strip() for part in line.split("|", 3)]
+        if len(parts) != 4 or not parts[0]:
+            continue
+        node = parts[0].split(".", 1)[0]
+        state = parts[2].lower().split("+", 1)[0].rstrip("*~#$@!%^")
+        availability = parts[3].lower()
+        node_states.setdefault(node, []).append((state, availability))
+    readiness = []
+    for row in compute_rows:
+        states = node_states.get(row["HOSTNAME"], [])
+        idle = bool(states) and all(
+            state == "idle" and availability == "up" for state, availability in states
+        )
+        readiness.append(
+            {
+                "row": row,
+                "idle": idle,
+                "state": ", ".join(sorted({state for state, _availability in states}))
+                or "missing",
+                "availability": ", ".join(
+                    sorted({availability for _state, availability in states})
+                )
+                or "missing",
+            }
+        )
+    return readiness

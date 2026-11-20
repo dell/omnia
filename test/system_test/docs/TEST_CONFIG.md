@@ -39,8 +39,8 @@ Written into `test/build_stream/test_config.yml`.
 `./setup_env.sh --cleanup` (and `--force`, which the pipeline's initialization job runs) removes
 the previous installation, in this order, each with that suite's own cleanup FVT:
 
-`build_stream`, `telemetry`, `orchestrator`, `image_build_manager`, `repo_manager`, then
-`main` (`omnia.sh --cleanup`), then the NFS shares.
+`build_stream`, `telemetry`, `orchestrator`, `discovery`, `image_build_manager`, `repo_manager`,
+then `main` (`omnia.sh --cleanup`), then the NFS shares.
 
 Every suite block has `enabled` (SVT only, default `true`): `false` skips that suite's cleanup
 step. The other keys are the suite's own flags, written into its `test_config.yml` before its
@@ -57,6 +57,7 @@ cleanup runs. All values are booleans.
 | | `cleanup_slurm` | `true` | Delete the Slurm shared data (the Slurm storage is unmounted and its fstab entry removed either way) |
 | | `cleanup_k8s` | `true` | Delete the Kubernetes shared data (same) |
 | | `cleanup_benchmark_tools` | `true` | Remove the tools downloaded in the benchmark FVT workspaces |
+| `discovery` | (none) | | Only `enabled` applies: discovery's credential and log cleanup are playbook variables its cleanup FVT sets itself |
 | `image_build_manager` | `cleanup_credentials` | `true` | Remove its credential store |
 | `repo_manager` | `cleanup_credentials` | `true` | Remove its credential store |
 | `main` | `cleanup_all` | `true` | `true`: a **complete reset**: every `src/<domain>/domain-init.sh --cleanup`, then `omnia.sh --cleanup --all`, which deletes the whole `OMNIA_DATA_PATH` (`/opt/omnia`), the credential stores included (whatever `cleanup_credentials` says), and the next install starts from nothing. `false`: `omnia.sh --cleanup` removes the Omnia venv, `/etc/omnia/omnia.env`, `omnia-cli` and the dependency cache; the data is kept |
@@ -65,6 +66,10 @@ cleanup runs. All values are booleans.
   the orchestrator deploys. This theme does not deploy telemetry, so the step runs only when
   telemetry holds deployed state (a file under `<data>/telemetry/output` or `log`, the rule
   `omnia.sh --cleanup --all` applies); otherwise it is skipped and the log says so.
+- **Discovery** feeds the orchestrator, so it is cleaned right after it. This theme does not run
+  discovery, so the step runs only when discovery holds deployed state (a file under
+  `<data>/discovery/output` or `log`, the rule `omnia.sh --cleanup --all` applies); otherwise it
+  is skipped and the log says so.
 - **Keeping credentials:** `cleanup_credentials: false` keeps a store, but a `cleanup_all`
   reset deletes it anyway (the cleanup warns).
 - **A full reset refuses** while a domain still holds deployed state; the report's cleanup
