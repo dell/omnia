@@ -133,6 +133,21 @@
   loop: "{{ groups['login_compiler_nodes'] | default([]) }}"
   when: hostvars[item].ansible_unreachable | default(false)
 
+- name: Build warnings for unreachable flexible_nodes
+  ansible.builtin.set_fact:
+    warnings_list: >-
+      {{ warnings_list + [{
+        'source': hostvars[item].role_prefix | default('flexible_node'),
+        'source_group': hostvars[item].source_group | default('flexible_node'),
+        'node_name': item,
+        'node_ip': hostvars[item].ansible_host | default('unknown'),
+        'reason': 'unreachable',
+        'message': 'Node ' + item + ' (' + (hostvars[item].ansible_host | default('unknown')) + ') unreachable for ' + (hostvars[item].source_group | default('flexible_node')) + '; continuing collection for remaining nodes.',
+        'timestamp': warning_ts
+      }] }}
+  loop: "{{ groups['flexible_nodes'] | default([]) }}"
+  when: hostvars[item].ansible_unreachable | default(false)
+
 - name: Build missing-source warnings list from all collected hosts
   ansible.builtin.set_fact:
     missing_source_warnings_all: >-
@@ -144,6 +159,7 @@
           + (groups['slurm_nodes'] | default([]))
           + (groups['login_nodes'] | default([]))
           + (groups['login_compiler_nodes'] | default([]))
+          + (groups['flexible_nodes'] | default([]))
         )
         | map('extract', hostvars)
         | selectattr('missing_source_warnings_host', 'defined')
@@ -167,6 +183,7 @@
           + (groups['slurm_nodes'] | default([]))
           + (groups['login_nodes'] | default([]))
           + (groups['login_compiler_nodes'] | default([]))
+          + (groups['flexible_nodes'] | default([]))
         )
         | map('extract', hostvars)
         | selectattr('collection_error_warnings_host', 'defined')
@@ -197,7 +214,11 @@
         (
           'k8s'
           if item.source in ['k8s_master', 'k8s_worker']
-          else 'slurm'
+          else (
+            'slurm'
+            if item.source in ['slurm_controller', 'slurm_node', 'login_node', 'login_compiler_node']
+            else item.source
+          )
         )
         + '/' + item.node_name + '_' + log_ts
       }}
@@ -213,7 +234,11 @@
         (
           'k8s'
           if item.source in ['k8s_master', 'k8s_worker']
-          else 'slurm'
+          else (
+            'slurm'
+            if item.source in ['slurm_controller', 'slurm_node', 'login_node', 'login_compiler_node']
+            else item.source
+          )
         )
         + '/' + item.node_name + '_' + log_ts + '/SSH_COLLECTION_FAILED.txt'
       }}
@@ -294,12 +319,17 @@
     warning_count: "{{ warnings_list | length }}"
     warnings: "{{ warnings_list }}"
 
-- name: Move collected k8s/slurm folders into current run folder
+- name: Move collected log folders into current run folder
   ansible.builtin.shell: |
     log_root={{ log_root | quote }}
     bundle_dir_name={{ bundle_dir_name | quote }}
     [ -d "$log_root/k8s" ] && mv "$log_root/k8s" "$log_root/$bundle_dir_name/" || true
     [ -d "$log_root/slurm" ] && mv "$log_root/slurm" "$log_root/$bundle_dir_name/" || true
+    for d in "$log_root"/fg_*; do
+      if [ -d "$d" ]; then
+        mv "$d" "$log_root/$bundle_dir_name/" || true
+      fi
+    done
   args:
     executable: /bin/bash
   changed_when: true
@@ -312,6 +342,11 @@
     dirs=""
     [ -d "$log_root/$bundle_dir_name/k8s" ] && dirs="$dirs k8s"
     [ -d "$log_root/$bundle_dir_name/slurm" ] && dirs="$dirs slurm"
+    for d in "$log_root/$bundle_dir_name"/fg_*; do
+      if [ -d "$d" ]; then
+        dirs="$dirs $(basename "$d")"
+      fi
+    done
     tar -czf "$log_root/$bundle_rel_path" -C "$log_root/$bundle_dir_name" $dirs
   args:
     executable: /bin/bash
@@ -355,21 +390,19 @@
     warning_count: "{{ warnings_list | length }}"
     warnings: "{{ warnings_list }}"
 
-- name: Remove k8s/slurm folders from run folder after bundling
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "{{ log_root }}/{{ bundle_dir_name }}/k8s"
-    - "{{ log_root }}/{{ bundle_dir_name }}/slurm"
-
-- name: Remove collected k8s/slurm workspace folders after bundling
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "{{ log_root }}/k8s"
-    - "{{ log_root }}/slurm"
+- name: Remove collected folders from run folder after bundling
+  ansible.builtin.shell: |
+    log_root={{ log_root | quote }}
+    bundle_dir_name={{ bundle_dir_name | quote }}
+    for d in "$log_root/$bundle_dir_name"/*; do
+      if [ -d "$d" ]; then
+        rm -rf "$d" || true
+      fi
+    done
+    rm -rf "$log_root/k8s" "$log_root/slurm" "$log_root"/fg_* 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  changed_when: true
 
 - name: Completion summary
   ansible.builtin.shell: |

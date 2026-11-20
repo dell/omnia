@@ -20,6 +20,7 @@ It also tracks provenance for each resolved value.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -31,11 +32,28 @@ class ResolvedValue:
     value: Any
     provenance: str = field(default="default")
 
+    @property
+    def source(self) -> str:
+        """Return the top-level source of this resolved value."""
+        return self.provenance.split(".", maxsplit=1)[0]
+
     def __bool__(self) -> bool:
         """Return whether the value is non-empty."""
         if isinstance(self.value, str):
             return bool(self.value.strip())
         return bool(self.value)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, tuple) and len(other) == 2:
+            val, prov = other
+            if prov == "group":
+                prov_match = self.provenance.startswith("groups.")
+            else:
+                prov_match = self.provenance == prov or self.provenance.startswith(f"{prov}.")
+            return self.value == val and prov_match
+        if isinstance(other, ResolvedValue):
+            return self.value == other.value and self.provenance == other.provenance
+        return self.value == other
 
 
 @dataclass
@@ -49,7 +67,30 @@ class GroupConfiguration:
     cloud_init_config_file: ResolvedValue = field(
         default_factory=lambda: ResolvedValue("")
     )
-    image_override: dict[str, Any] = field(default_factory=dict)
+    image_override: ResolvedValue = field(
+        default_factory=lambda: ResolvedValue({}, "default")
+    )
+
+
+def canonical_group_name(group: str) -> str:
+    """Return the canonical group name for runtime variants (e.g. _first)."""
+    if "service_kube_control_plane_first" in group:
+        return group.replace("service_kube_control_plane_first", "service_kube_control_plane")
+    return group
+
+
+def merge_cloud_init_sections(
+    base: dict[str, Any], posts: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Merge base cloud-init and ordered post-boot sections without mutating inputs."""
+    merged = copy.deepcopy(base)
+    for post in posts:
+        for k, v in post.items():
+            if k in merged and isinstance(merged[k], list) and isinstance(v, list):
+                merged[k] = merged[k] + copy.deepcopy(v)
+            else:
+                merged[k] = copy.deepcopy(v)
+    return merged
 
 
 def _resolve_field(
@@ -69,10 +110,16 @@ def _resolve_field(
     Returns:
         Tuple of (resolved_value, provenance).
     """
-    # Check exact-group scope
     groups = config_data.get("groups", {})
-    if isinstance(groups, dict) and group in groups:
-        group_scope = groups[group]
+    target_group = group
+    if isinstance(groups, dict) and target_group not in groups:
+        candidate = canonical_group_name(group)
+        if candidate in groups:
+            target_group = candidate
+
+    # Check exact-group scope
+    if isinstance(groups, dict) and target_group in groups:
+        group_scope = groups[target_group]
         if isinstance(group_scope, dict):
             value = group_scope
             for key in field_path:
@@ -82,7 +129,7 @@ def _resolve_field(
                     value = None
                     break
             if _is_non_empty(value):
-                return value, f"groups.{group}." + ".".join(field_path)
+                return value, f"groups.{target_group}." + ".".join(field_path)
 
     # Check common scope
     common = config_data.get("common")
@@ -138,14 +185,20 @@ def resolve_group(config_data: dict[str, Any], group: str) -> GroupConfiguration
     )
 
     # Resolve image_override (exact-group only)
-    image_override = {}
+    image_override_val = {}
+    image_override_prov = "default"
     groups = config_data.get("groups", {})
-    if isinstance(groups, dict) and group in groups:
-        group_scope = groups[group]
+    target_group = (
+        group if (isinstance(groups, dict) and group in groups)
+        else canonical_group_name(group)
+    )
+    if isinstance(groups, dict) and target_group in groups:
+        group_scope = groups[target_group]
         if isinstance(group_scope, dict):
             override = group_scope.get("image_override")
             if isinstance(override, dict) and override:
-                image_override = override
+                image_override_val = override
+                image_override_prov = f"groups.{target_group}.image_override"
 
     return GroupConfiguration(
         boot_kernel_params=ResolvedValue(
@@ -157,5 +210,5 @@ def resolve_group(config_data: dict[str, Any], group: str) -> GroupConfiguration
         cloud_init_config_file=ResolvedValue(
             cloud_init_config_file_value, cloud_init_config_file_provenance
         ),
-        image_override=image_override,
+        image_override=ResolvedValue(image_override_val, image_override_prov),
     )

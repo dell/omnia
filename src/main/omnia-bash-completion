@@ -117,7 +117,7 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck validate credentials prepare execute build cleanup cleanup_images"
             ;;
         orchestrator)
-            printf '%s' "precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials"
+            printf '%s' "precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration manage-functional-group cleanup cleanup_credentials"
             ;;
         repo_manager)
             printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos catalog_generate catalog_add catalog_delete catalog_validate"

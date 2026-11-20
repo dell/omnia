@@ -1,0 +1,11 @@
+overall_status: success
+image_build_type: image-thrillhouse
+s3_configurations:
+  endpoint_url: http://192.0.2.10:9000
+  bucket: boot-images
+functional_group_images:
+- x86_64:
+  - functional_group: fg_webserver_rhel_10_0_x86_64
+    kernel: boot-images/fg_webserver_rhel_10_0_x86_64/vmlinuz-6.11.0
+    initrd: boot-images/fg_webserver_rhel_10_0_x86_64/initramfs-6.11.0.img
+    image: ''

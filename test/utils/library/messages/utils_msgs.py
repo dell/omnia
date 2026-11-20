@@ -59,6 +59,8 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "sha256_missing": "SHA256 checksum missing from metadata",
     "functional_groups_valid": "All functional groups are valid",
     "functional_groups_invalid": "Invalid functional group found: {group}",
+    "flexible_group_collection_ok": "Utils flexible group log collection verified: role-prefix routing and evidence captured",
+    "flexible_group_collection_failed": "Utils flexible group log collection verification failed: {reason}",
 
     # --- PXE boot ---
     "pxe_config_valid": "PXE boot configuration is valid",

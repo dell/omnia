@@ -233,4 +233,10 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "DISCOVERY_NFT_005",
         "title": "NFT: Cleanup idempotent (two runs succeed, state clean)",
     },
+
+    # ── Flexible Group Mapping Compatibility (ER-ORCH-009 / AC-009) ────────
+    "discovery_flexible_group_mapping": {
+        "id": "TC_FVT_discovery_012",
+        "title": "Verify Discovery flexible group mapping compatibility (exact fg_ identity and rejection evidence)",
+    },
 }
