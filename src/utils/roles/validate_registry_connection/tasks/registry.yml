@@ -22,7 +22,7 @@
     _oci_base_url: "{{ reg.registry_protocol }}://{{ reg.registry_hostname }}:{{ reg.registry_port }}"
     _oci_host_ref: >-
       {{ reg.registry_hostname }}{{ '' if reg.registry_port == oci_ingest_default_ports[reg.registry_protocol] else ':' ~ reg.registry_port }}
-    _oci_tls: "{{ 'disabled' if reg.registry_protocol == 'http' else oci_ingest_registry_tls }}"
+    _oci_tls: "{{ oci_ingest_registry_tls }}"
     _oci_namespaces: >-
       {{ oci_ingest_config.image_mappings | selectattr('registry_name', 'equalto', reg.registry_name)
          | map(attribute='namespace_name') | unique | list }}
