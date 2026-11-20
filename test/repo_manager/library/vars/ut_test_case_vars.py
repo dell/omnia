@@ -710,6 +710,20 @@ UT_TEST_CASE_IDS = {
             333: "test_secrets_are_still_masked",
         },
     ),
+    # ── Pulp Quadlet least privilege ──────────────────────────────────────
+    "test_pulp_quadlet_contract.py::test_pulp_quadlet_is_not_privileged": "RM_UT_334",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_quadlet_keeps_selinux_confinement"
+    ): "RM_UT_335",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_selinux_storage_check_runs_before_pulp_changes"
+    ): "RM_UT_336",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_network_filesystems_map_to_selinux_booleans"
+    ): "RM_UT_337",
 }
 
 
