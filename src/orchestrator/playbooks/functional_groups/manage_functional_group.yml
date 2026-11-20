@@ -512,7 +512,7 @@
               - stage: "{{ _current_stage | default('validation') }}"
                 status: failed
                 diagnostic_category: "{{ _current_stage | default('validation') }}_failed"
-          ignore_errors: true
+          failed_when: false
 
         - name: Fail lifecycle operation
           ansible.builtin.fail:
