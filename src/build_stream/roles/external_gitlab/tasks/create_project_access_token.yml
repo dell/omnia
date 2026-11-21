@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: List active project access tokens
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/access_tokens?state=active&per_page=100"
+    method: GET
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    status_code: [200]
+  register: _egl_existing_tokens
+  no_log: true
+
+- name: Record previous omnia-ci tokens to revoke after the new token is in place
+  ansible.builtin.set_fact:
+    _egl_previous_token_ids: >-
+      {{ _egl_existing_tokens.json | selectattr('name', 'equalto', external_gitlab_ci_token_name)
+         | map(attribute='id') | list }}
+
+- name: Create the omnia-ci project access token (api scope, Maintainer, 360 days)
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/access_tokens"
+    method: POST
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    body_format: json
+    body:
+      name: "{{ external_gitlab_ci_token_name }}"
+      scopes: "{{ external_gitlab_ci_token_scopes }}"
+      access_level: "{{ external_gitlab_ci_token_access_level }}"
+      expires_at: >-
+        {{ '%Y-%m-%d' | strftime(
+             second=(now(utc=true).timestamp() | int) + (external_gitlab_ci_token_expiry_days | int) * 86400,
+             utc=true) }}
+    status_code: [201]
+  register: _egl_new_token
+  no_log: true
+
+- name: Keep the new token value in memory only
+  ansible.builtin.set_fact:
+    _egl_ci_token: "{{ _egl_new_token.json.token }}"
+    _egl_ci_token_id: "{{ _egl_new_token.json.id | string }}"
+  no_log: true
+
+- name: Record the access token (ID only)
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _egl_res:
+      type: access_token
+      name: "{{ external_gitlab_ci_token_name }}"
+      token_id: "{{ _egl_ci_token_id }}"
+      action: created
+      state: applied

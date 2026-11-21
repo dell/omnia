@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Entry point for gitlab_mode: external (ER-BSM-003). Runs on localhost (OIM).
+- name: Configure the external GitLab
+  block:
+    - name: Validate inputs, CA bundle and external GitLab
+      ansible.builtin.include_tasks: validate_external.yml
+
+    - name: Initialise the setup journal
+      ansible.builtin.include_tasks: init_journal.yml
+
+    - name: Create or adopt the GitLab project
+      ansible.builtin.include_tasks: create_or_adopt_project.yml
+
+    - name: Verify an operator-provided runner is online
+      ansible.builtin.include_tasks: verify_runner.yml
+
+    - name: Create the omnia-ci project access token
+      ansible.builtin.include_tasks: create_project_access_token.yml
+
+    - name: Create the pipeline trigger
+      ansible.builtin.include_tasks: create_trigger.yml
+
+    - name: Configure CI/CD variables
+      ansible.builtin.include_tasks: configure_cicd_variables.yml
+
+    - name: Push CI templates, input files and sample catalogs
+      ansible.builtin.include_tasks: push_ci_and_input_files.yml
+
+    - name: Finalize the setup
+      ansible.builtin.include_tasks: finalize.yml
+  rescue:
+    - name: Roll back resources created in this run
+      ansible.builtin.include_tasks: compensate_on_failure.yml
+
+- name: Display external GitLab summary
+  ansible.builtin.include_tasks: display_external_summary.yml

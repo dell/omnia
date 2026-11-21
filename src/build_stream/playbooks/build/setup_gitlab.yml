@@ -37,6 +37,24 @@
         create_oim_group: true
       when: not build_stream_setup_done | default(false) | bool
 
+- name: Resolve the GitLab deployment mode
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+
+    # gitlab_mode is required: there is no inference or default fallback.
+    - name: Ensure gitlab_mode is explicitly set
+      ansible.builtin.assert:
+        that:
+          - gitlab_mode is defined
+          - gitlab_mode in ['self_hosted', 'external']
+        fail_msg: "gitlab_mode must be 'self_hosted' or 'external' in build_stream_config.yml."
+        quiet: true
+
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
   gather_facts: false
@@ -45,6 +63,7 @@
       ansible.builtin.include_role:
         name: hosted_gitlab
         tasks_from: prereq_checks.yml
+      when: gitlab_mode == 'self_hosted'
 
 - name: Validate BuildStream prerequisites
   hosts: oim
@@ -54,6 +73,16 @@
       ansible.builtin.include_role:
         name: hosted_gitlab
         tasks_from: check_oim_prerequisites.yml
+
+- name: Configure the external GitLab (external mode)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run the external GitLab configuration
+      ansible.builtin.include_role:
+        name: external_gitlab
+      when: gitlab_mode == 'external'
 
 - name: Deploy GitLab CE on target host (hosted mode)
   hosts: gitlab_server

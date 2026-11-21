@@ -1,0 +1,52 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Persist gitlab_project_id to build_stream_credentials.yml
+  block:
+    - name: Set credential file paths
+      ansible.builtin.set_fact:
+        _egl_cred_file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
+        _egl_vault_file: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
+
+    - name: Check if the credentials file is encrypted
+      ansible.builtin.shell: >-
+        set -o pipefail && head -n1 "{{ _egl_cred_file }}" | grep -q '\$ANSIBLE_VAULT;'
+      register: _egl_cred_encrypted
+      changed_when: false
+      failed_when: false
+
+    - name: Decrypt the credentials file
+      ansible.builtin.command: >-
+        ansible-vault decrypt "{{ _egl_cred_file }}" --vault-password-file "{{ _egl_vault_file }}"
+      when: _egl_cred_encrypted.rc == 0
+      changed_when: false
+      no_log: true
+
+    - name: Remember that the credentials file is decrypted
+      ansible.builtin.set_fact:
+        _egl_cred_decrypted: "{{ _egl_cred_encrypted.rc == 0 }}"
+
+    - name: Update gitlab_project_id
+      ansible.builtin.lineinfile:
+        path: "{{ _egl_cred_file }}"
+        regexp: "^gitlab_project_id:"
+        line: 'gitlab_project_id: "{{ _egl_project_id }}"'
+        state: present
+  always:
+    - name: Re-encrypt the credentials file
+      ansible.builtin.command: >-
+        ansible-vault encrypt "{{ _egl_cred_file }}" --vault-password-file "{{ _egl_vault_file }}"
+      when: _egl_cred_decrypted | default(false) | bool
+      changed_when: false
+      no_log: true

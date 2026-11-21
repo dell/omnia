@@ -1,0 +1,28 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Only after every step succeeded: revoke superseded tokens and persist local state.
+- name: Revoke previous omnia-ci project access tokens
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/access_tokens/{{ item }}"
+    method: DELETE
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    status_code: [204, 404]
+  loop: "{{ _egl_previous_token_ids | default([]) }}"
+  no_log: true
+
+- name: Persist the GitLab project ID in the BuildStream credentials file
+  ansible.builtin.include_tasks: persist_project_id.yml

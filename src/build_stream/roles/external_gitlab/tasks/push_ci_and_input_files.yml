@@ -1,0 +1,114 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Resolve the Omnia input file locations
+  ansible.builtin.set_fact:
+    _egl_input_dir_root: "{{ hostvars['localhost']['omnia_data_path'] }}"
+    _egl_input_project: "{{ hostvars['localhost']['project_name'] }}"
+
+- name: Check which Omnia input files exist
+  ansible.builtin.stat:
+    path: "{{ _egl_input_dir_root }}/{{ item.split('/')[0] }}/input/{{ _egl_input_project }}/{{ item.split('/')[1] }}"
+  register: _egl_input_stats
+  loop: "{{ external_gitlab_input_files }}"
+
+- name: Find sample catalogs and examples
+  ansible.builtin.find:
+    paths: "{{ external_gitlab_samples_dir }}"
+    file_type: file
+    recurse: true
+    excludes: "{{ external_gitlab_top_level_catalogs }}"
+  register: _egl_samples
+
+- name: Build the lists of files to sync
+  ansible.builtin.set_fact:
+    _egl_ci_sync_files: "{{ _egl_ci_list }}"
+    _egl_data_sync_files: "{{ _egl_data_list }}"
+  vars:
+    _egl_ci_list: >-
+      {%- set out = [] -%}
+      {%- for name in external_gitlab_ci_files -%}
+      {%- set _ = out.append({'path': name, 'src': external_gitlab_ci_source_dir ~ '/' ~ name}) -%}
+      {%- endfor -%}
+      {{ out }}
+    _egl_data_list: >-
+      {%- set out = [] -%}
+      {%- set _ = out.append({'path': 'omnia.env', 'src': external_gitlab_omnia_src_path ~ '/main/omnia.env'}) -%}
+      {%- for res in _egl_input_stats.results if res.stat.exists -%}
+      {%- set _ = out.append({'path': external_gitlab_input_repo_dir ~ '/' ~ res.item, 'src': res.stat.path}) -%}
+      {%- endfor -%}
+      {%- for name in external_gitlab_top_level_catalogs -%}
+      {%- set _ = out.append({'path': name, 'src': external_gitlab_samples_dir ~ '/' ~ name, 'create_only': true}) -%}
+      {%- endfor -%}
+      {%- for sample in _egl_samples.files -%}
+      {%- set rel = sample.path[(external_gitlab_samples_dir | length + 1):] -%}
+      {%- set _ = out.append({'path': 'catalog/' ~ rel, 'src': sample.path, 'create_only': true}) -%}
+      {%- endfor -%}
+      {{ out }}
+
+# Two commits, data first and CI files last, so that no pipeline starts when the
+# project is configured: .gitlab-ci.yml does not exist yet while the catalogs and
+# input files land, and the CI-only commit matches none of the workflow
+# "changes:" rules (catalog_rhel.json, cadence_catalog_rhel.json, pxe_mapping_file.csv).
+- name: Sync input files, omnia.env and sample catalogs (commit 1, no CI config yet)
+  gitlab_repo_sync:
+    url: "{{ _egl_url }}"
+    token: "{{ gitlab_api_token }}"
+    project_id: "{{ _egl_project_id }}"
+    branch: "{{ _egl_branch }}"
+    ca_cert_path: "{{ _egl_ca }}"
+    commit_message: "Sync Omnia BuildStream input files and sample catalogs"
+    files: "{{ _egl_data_sync_files }}"
+  register: _egl_sync_data
+  no_log: true
+
+- name: Sync the CI templates (commit 2, matches no pipeline trigger rule)
+  gitlab_repo_sync:
+    url: "{{ _egl_url }}"
+    token: "{{ gitlab_api_token }}"
+    project_id: "{{ _egl_project_id }}"
+    branch: "{{ _egl_branch }}"
+    ca_cert_path: "{{ _egl_ca }}"
+    commit_message: "Sync Omnia BuildStream CI templates"
+    files: "{{ _egl_ci_sync_files }}"
+  register: _egl_sync_ci
+  no_log: true
+
+- name: Combine the sync results
+  ansible.builtin.set_fact:
+    _egl_sync:
+      created: "{{ _egl_sync_data.created + _egl_sync_ci.created }}"
+      updated: "{{ _egl_sync_data.updated + _egl_sync_ci.updated }}"
+      unchanged: "{{ _egl_sync_data.unchanged + _egl_sync_ci.unchanged }}"
+
+- name: Record the files created in this run (one atomic journal write)
+  journal:
+    path: "{{ _egl_journal_path }}"
+    action: record
+    run_id: "{{ _egl_run_id }}"
+    resources: "{{ _egl_file_resources }}"
+  vars:
+    _egl_file_resources: >-
+      {%- set out = [] -%}
+      {%- for path in _egl_sync.created -%}
+      {%- set _ = out.append({'type': 'file', 'name': path, 'action': 'created', 'state': 'applied'}) -%}
+      {%- endfor -%}
+      {{ out }}
+  when: _egl_sync.created | length > 0
+
+- name: Report the file sync result
+  ansible.builtin.debug:
+    msg: >-
+      Repository sync: {{ _egl_sync.created | length }} created, {{ _egl_sync.updated | length }} updated,
+      {{ _egl_sync.unchanged | length }} unchanged.

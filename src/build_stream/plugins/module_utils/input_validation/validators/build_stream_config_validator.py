@@ -15,13 +15,18 @@
 L2 (business logic) validator for build_stream_config.yml.
 
 Validates cross-field constraints that cannot be expressed in JSON Schema:
-  - If enable_build_stream is true, build_stream_host_ip and gitlab_host are required
+  - If enable_build_stream is true, build_stream_host_ip and gitlab_mode are required
+  - gitlab_mode self_hosted requires gitlab_host; external requires
+    gitlab_external_url and gitlab_project_namespace (ER-BSM-003)
+  - gitlab_ca_cert_path, when set, must be an existing PEM CA bundle
   - Port numbers must be valid
   - Host IP addresses must be non-empty strings
   - log_tail_lines_default and log_ci_preview_lines must not exceed log_tail_lines_max
 """
 
 from typing import List
+
+GITLAB_MODES = ("self_hosted", "external")
 
 
 def validate(config_data, logger=None) -> List[str]:
@@ -61,10 +66,19 @@ def validate(config_data, logger=None) -> List[str]:
     except (ValueError, TypeError):
         errors.append(msg.invalid_port_msg(port))
 
-    # GitLab host is mandatory when enabled
+    gitlab_mode = config_data.get("gitlab_mode")
     gitlab_host = config_data.get("gitlab_host", "")
-    if not gitlab_host or not str(gitlab_host).strip():
-        errors.append(msg.missing_gitlab_host_msg())
+    if gitlab_mode not in GITLAB_MODES:
+        errors.append(msg.invalid_gitlab_mode_msg())
+    elif gitlab_mode == "self_hosted":
+        if not gitlab_host or not str(gitlab_host).strip():
+            errors.append(msg.missing_gitlab_host_msg())
+        if _is_set(config_data, "gitlab_external_url") or _is_set(
+            config_data, "gitlab_project_namespace"
+        ):
+            _warn(logger, msg.external_params_ignored_warning_msg())
+    else:
+        errors.extend(_validate_external(config_data, logger, msg))
 
     # Validate GitLab HTTPS port
     gitlab_port = config_data.get("gitlab_https_port", 443)
@@ -89,9 +103,54 @@ def validate(config_data, logger=None) -> List[str]:
         errors.append(msg.log_ci_preview_exceeds_max_msg(preview, tail_max))
 
     # Warn if BSM and GitLab on same host
-    if host_ip and gitlab_host and str(host_ip).strip() == str(gitlab_host).strip():
+    if gitlab_mode == "self_hosted" and host_ip and gitlab_host and str(host_ip).strip() == str(gitlab_host).strip():
         warning = msg.same_host_warning_msg()
         if logger:
             logger.warning(warning)
 
+    return errors
+
+
+def _is_set(config_data, key) -> bool:
+    """True when *key* holds a non-blank value."""
+    value = config_data.get(key)
+    return value is not None and bool(str(value).strip())
+
+
+def _warn(logger, text) -> None:
+    """Log a warning when a logger is available."""
+    if logger:
+        logger.warning(text)
+
+
+def _validate_external(config_data, logger, msg) -> List[str]:
+    """Offline checks for gitlab_mode: external (connectivity is probed at execute time)."""
+    # pylint: disable=C0415
+    from ansible.module_utils.external_gitlab.ca_cert import validate_pem_bundle
+    from ansible.module_utils.external_gitlab.url_checks import (
+        is_valid_external_url,
+        is_valid_namespace,
+    )
+
+    errors = []
+    url = str(config_data.get("gitlab_external_url") or "").strip()
+    if not url:
+        errors.append(msg.missing_external_param_msg("gitlab_external_url"))
+    elif not is_valid_external_url(url):
+        errors.append(msg.invalid_external_url_msg(url))
+
+    namespace = str(config_data.get("gitlab_project_namespace") or "").strip()
+    if not namespace:
+        errors.append(msg.missing_external_param_msg("gitlab_project_namespace"))
+    elif not is_valid_namespace(namespace):
+        errors.append(msg.invalid_project_namespace_msg(namespace))
+
+    if _is_set(config_data, "gitlab_host"):
+        _warn(logger, msg.gitlab_host_ignored_warning_msg())
+
+    ca_path = str(config_data.get("gitlab_ca_cert_path") or "").strip()
+    if ca_path:
+        detail = validate_pem_bundle(ca_path)
+        if detail:
+            errors.append(msg.ca_cert_error_msg(detail))
     return errors

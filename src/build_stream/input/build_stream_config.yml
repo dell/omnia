@@ -47,11 +47,43 @@ build_stream_port: 8010
 #   Source: gitlab_config.yml
 # ==========================================================================
 
-# Mandatory: Target host for GitLab deployment / cleanup
+# Mandatory: GitLab deployment mode (no default; set it explicitly)
+# Accepted values:
+#   self_hosted - Omnia deploys GitLab CE (Omnibus) and a runner on gitlab_host
+#   external    - Omnia connects to a customer-managed GitLab (CE/EE 17.x-19.x).
+#                 Omnia does NOT install GitLab or deploy a runner; you must
+#                 provide a pre-registered, online runner for the project.
+# Upgrade note: existing deployments must add gitlab_mode: "self_hosted".
+gitlab_mode: ""
+
+# Target host for GitLab deployment / cleanup
+# Required when gitlab_mode is self_hosted; ignored (with a warning) when external
 # Accepted values: IP address of the server where GitLab will be installed
 # Notes:
 #   - Must be accessible from the OIM server
 gitlab_host: ""
+
+# --------------------------------------------------------------------------
+# External GitLab (required when gitlab_mode: external)
+#   The personal access token (scopes: api, write_repository) is NOT set
+#   here; it is stored as gitlab_api_token in the Vault credential file
+#   (build_stream_credentials.yml).
+# --------------------------------------------------------------------------
+
+# HTTPS URL of the customer-managed GitLab instance
+# Example: "https://gitlab.example.com"
+gitlab_external_url: ""
+
+# GitLab group/namespace in which the project is created (the token user needs
+# the Owner or Maintainer role on it)
+# Example: "infra/omnia-builds"
+gitlab_project_namespace: ""
+
+# Optional: PEM CA bundle used for Omnia's own HTTPS calls to the external
+# GitLab (root-owned, mode 0644 or stricter). When unset, the system trust
+# store is used. Configure the same CA on your runner yourself.
+# Example: "/etc/pki/tls/certs/gitlab-ca.pem"
+gitlab_ca_cert_path: ""
 
 # Name of the GitLab project Omnia will create / manage
 # Default: "omnia-catalog"

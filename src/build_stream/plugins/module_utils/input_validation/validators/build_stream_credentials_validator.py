@@ -16,6 +16,8 @@ L2 (business logic) validator for build_stream_credentials.yml.
 
 Validates cross-field credential constraints:
   - When enable_build_stream is true, mandatory credentials must be present
+  - gitlab_mode self_hosted requires gitlab_root_password and gitlab_ssh_password;
+    external requires gitlab_api_token (ER-BSM-003)
   - postgres_user/password required for database deployment
 """
 
@@ -45,7 +47,10 @@ def validate(cred_data, config_data, logger=None) -> List[str]:
         return errors
 
     # Mandatory credentials when build_stream is enabled
-    mandatory_fields = ["gitlab_root_password", "gitlab_ssh_password"]
+    if config_data.get("gitlab_mode") == "external":
+        mandatory_fields = ["gitlab_api_token"]
+    else:
+        mandatory_fields = ["gitlab_root_password", "gitlab_ssh_password"]
     for field in mandatory_fields:
         value = cred_data.get(field, "")
         if not value or not str(value).strip():
