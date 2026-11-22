@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Precheck the external OCI registry before any build work
+  ansible.builtin.include_tasks: precheck_oci_registry.yml
+  when: ext_oci_enabled | bool
+
 - name: Install SELinux policy module before using Podman
   ansible.builtin.include_tasks: preflight_selinux_check.yml
 
@@ -258,3 +262,10 @@
     build_completed_images: "{{ (hostvars[inventory_hostname]['build_completed_images'] | default({}))
       | combine({build_arch: (hostvars[inventory_hostname]['build_completed_images'] | default({}))[build_arch] | default([]) + _new_images}) }}"
     cacheable: true
+
+# Annotate, tag and push the OCI image of every functional group to the external
+# registry. Runs only when external_oci_registry is set; a failure is recorded in
+# build_status.yml and never fails the build.
+- name: Package and publish OCI images to the external registry
+  ansible.builtin.include_tasks: publish_oci_images.yml
+  when: ext_oci_enabled | bool

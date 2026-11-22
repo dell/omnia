@@ -348,6 +348,23 @@ UT_TEST_CASE_IDS = {
             161: "test_uncollected_template_values_are_not_errors",
         },
     ),
+    **_module_cases(
+        "test_external_oci_registry.py",
+        {
+            165: "test_external_registry_section_is_optional_and_valid",
+            166: "test_external_registry_rejects_invalid_values",
+            167: "test_external_registry_required_fields_and_unknown_keys",
+            168: "test_http_registry_requires_tls_verify_false",
+            169: "test_https_with_tls_verify_false_is_a_warning",
+            170: "test_hostname_rejects_empty_labels",
+            171: "test_registry_credentials_are_optional_vault_keys",
+            172: "test_input_template_keeps_external_registry_off_by_default",
+            173: "test_build_status_oci_section_is_written_only_for_published_groups",
+            174: "test_build_status_is_unchanged_without_external_registry",
+            175: "test_build_status_records_a_sanitized_push_error_only",
+            176: "test_push_tasks_are_wired_and_never_expose_credentials",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
