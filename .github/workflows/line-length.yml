@@ -19,6 +19,7 @@ jobs:
     name: PR Effective Lines
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
