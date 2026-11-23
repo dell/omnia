@@ -122,6 +122,7 @@ CATALOG_MANAGED_PREFIXES = (
     "login_node_",
     "login_compiler_node_",
     "os_",
+    "fg_",
 )
 
 
