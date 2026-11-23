@@ -18,6 +18,7 @@ Catalog validation: JSON schema validation and business rule checks.
 
 import json
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +256,129 @@ def _validate_business_rules(catalog):
     return issues
 
 
+PREDEFINED_CATALOG_PREFIXES = (
+    'service_kube_',
+    'slurm_',
+    'login_node_',
+    'login_compiler_node_',
+    'os_',
+)
+SUPPORTED_FLEXIBLE_ARCHITECTURES = ('x86_64', 'aarch64')
+SUPPORTED_FLEXIBLE_OS_TOKENS = {
+    ('rhel', '10.0'),
+    ('rhel', '10.2'),
+    ('rhel', '10_0'),
+    ('rhel', '10_2'),
+}
+FLEXIBLE_GROUP_PATTERN = re.compile(
+    r"^fg_(?P<label>[a-zA-Z0-9_-]+)_(?P<os>[a-z]+)_"
+    r"(?P<version>[0-9]+(?:_[0-9]+)*)_(?P<arch>[a-zA-Z0-9_]+)$"
+)
+
+
+def _validate_flexible_functional_groups(catalog):
+    """
+    Validate flexible functional group contracts and authoring review status.
+
+    Checks:
+    - Non-predefined groups must use the mandatory 'fg_' prefix (FR-1.1).
+    - No more than 10 flexible groups per catalog (AC-001).
+    - Every flexible group must match fg_<label>_<os>_<version>_<arch> (FR-1.1).
+    - Architecture must be x86_64 or aarch64 (blocking error) (AC-001, AC-003).
+    - Non-RHEL 10.0/10.2 OS or version produces a non-blocking warning (AC-003).
+    - Generated catalogs require operator review approval (ER-BSM-001 gate) (FR-1.1).
+    """
+    issues = []
+    cat = catalog.get('catalog', {})
+    functional_layers = cat.get('functionallayer', [])
+
+    fg_layers = []
+    for layer in functional_layers:
+        name = layer.get('name', '')
+        if name.startswith('fg_'):
+            fg_layers.append(layer)
+        elif not any(name.startswith(pre) for pre in PREDEFINED_CATALOG_PREFIXES):
+            issues.append({
+                'severity': 'error',
+                'message': (
+                    f"Functional layer '{name}' is missing the mandatory 'fg_' prefix "
+                    "for flexible functional groups"
+                )
+            })
+
+    # AC-001: Maximum 10 flexible groups
+    if len(fg_layers) > 10:
+        issues.append({
+            'severity': 'error',
+            'message': (
+                f"Catalog contains {len(fg_layers)} flexible functional groups; "
+                "maximum allowed is 10"
+            )
+        })
+
+    # FR-1.1, AC-001, AC-003: Suffix, architecture, and platform checks
+    for layer in fg_layers:
+        name = layer.get('name', '')
+        match = FLEXIBLE_GROUP_PATTERN.match(name)
+        if not match:
+            issues.append({
+                'severity': 'error',
+                'message': (
+                    f"Flexible group '{name}' lacks required platform suffix "
+                    "'<os-name>_<os-version>_<architecture>'"
+                )
+            })
+            continue
+
+        arch = match.group('arch')
+        os_name = match.group('os')
+        version = match.group('version')
+
+        if arch not in SUPPORTED_FLEXIBLE_ARCHITECTURES:
+            issues.append({
+                'severity': 'error',
+                'message': (
+                    f"Flexible group '{name}' declares unsupported architecture '{arch}'; "
+                    f"supported architectures are: {', '.join(SUPPORTED_FLEXIBLE_ARCHITECTURES)}"
+                )
+            })
+
+        norm_version = version.replace('_', '.')
+        if ((os_name, version) not in SUPPORTED_FLEXIBLE_OS_TOKENS
+                and (os_name, norm_version) not in SUPPORTED_FLEXIBLE_OS_TOKENS):
+            issues.append({
+                'severity': 'warning',
+                'message': (
+                    f"Flexible group '{name}' specifies OS '{os_name}' version '{norm_version}'; "
+                    "only RHEL 10.0 and 10.2 are qualified"
+                )
+            })
+
+    # FR-1.1: Operator review gate for generated catalogs
+    is_generated = (
+        cat.get('generated') is True
+        or cat.get('authoring', {}).get('generated') is True
+        or 'generation' in cat
+        or 'operator_review' in cat
+        or 'review' in cat
+    )
+    if is_generated:
+        review = cat.get('operator_review') or cat.get('review')
+        if (not isinstance(review, dict)
+                or not review.get('approved')
+                or str(review.get('status', '')).lower() != 'approved'):
+            issues.append({
+                'severity': 'error',
+                'message': (
+                    "Generated catalog lacks valid operator review approval "
+                    "(ER-BSM-001 authoring gate); review evidence is required "
+                    "before catalog is authoritative"
+                )
+            })
+
+    return issues
+
+
 def validate_catalog(catalog, schema_path=None):
     """
     Validate a catalog with all validation layers.
@@ -296,6 +420,9 @@ def validate_catalog(catalog, schema_path=None):
 
     # Layer 3: Business rules
     issues.extend(_validate_business_rules(catalog))
+
+    # Layer 4: Flexible functional group contracts & review gate
+    issues.extend(_validate_flexible_functional_groups(catalog))
 
     return issues
 
