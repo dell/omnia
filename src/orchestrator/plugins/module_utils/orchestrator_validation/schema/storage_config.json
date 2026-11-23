@@ -29,6 +29,12 @@
       "items": {
         "$ref": "#/definitions/swap"
       }
+    },
+    "local_storage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/localStorage"
+      }
     }
   },
   "additionalProperties": true,
@@ -382,6 +388,152 @@
         "filename",
         "size",
         "functional_group_prefix"
+      ],
+      "additionalProperties": false
+    },
+    "diskType": {
+      "type": "string",
+      "enum": [
+        "boss",
+        "hdd",
+        "ssd",
+        "nvme"
+      ]
+    },
+    "diskIdentity": {
+      "type": "string",
+      "enum": [
+        "serial",
+        "wwn"
+      ]
+    },
+    "nodeOverride": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "disk_id": {
+          "$ref": "#/definitions/nonEmptyString"
+        },
+        "disk_type": {
+          "$ref": "#/definitions/diskType"
+        },
+        "disk_identity": {
+          "$ref": "#/definitions/diskIdentity"
+        }
+      },
+      "required": [
+        "node",
+        "disk_id"
+      ],
+      "additionalProperties": false
+    },
+    "localStorage": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/name"
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "etcd",
+            "kafka"
+          ]
+        },
+        "functional_group_prefix": {
+          "$ref": "#/definitions/targetList"
+        },
+        "disk_type": {
+          "$ref": "#/definitions/diskType"
+        },
+        "disk_identity": {
+          "$ref": "#/definitions/diskIdentity"
+        },
+        "model": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "node_overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nodeOverride"
+          }
+        },
+        "fs_type": {
+          "$ref": "#/definitions/mountFileSystem"
+        },
+        "mount_options": {
+          "$ref": "#/definitions/mountOptions"
+        },
+        "mount_point": {
+          "type": "string",
+          "enum": [
+            "/var/lib/etcd"
+          ]
+        },
+        "volume_group": {
+          "$ref": "#/definitions/name"
+        }
+      },
+      "required": [
+        "name",
+        "purpose",
+        "functional_group_prefix",
+        "disk_type",
+        "mount_options"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "purpose": {
+                "const": "etcd"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fs_type"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "purpose": {
+                "const": "kafka"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "volume_group"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "fs_type"
+                  ]
+                },
+                {
+                  "required": [
+                    "mount_point"
+                  ]
+                }
+              ]
+            }
+          }
+        }
       ],
       "additionalProperties": false
     }

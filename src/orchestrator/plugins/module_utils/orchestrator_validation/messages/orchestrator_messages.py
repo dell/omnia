@@ -36,6 +36,10 @@ NETWORK_SPEC_NETMASK_REQUIRED_MSG = (
 OMNIA_CONFIG_EMPTY_MSG = (
     "omnia_config.yml: File is empty or not a valid YAML object."
 )
+ETCD_ON_LOCAL_DISK_REMOVED_MSG = (
+    "'etcd_on_local_disk' was removed. Declare the etcd disk with a local_storage entry "
+    "with purpose 'etcd' in storage_config.yml."
+)
 HA_CONTROL_PLANE_REQUIRED_MSG = (
     "omnia_config.yml service_k8s_cluster: PXE mapping must contain at least one "
     "service_kube_control_plane functional group with a valid ADMIN_IP."
@@ -1093,6 +1097,81 @@ def storage_swap_size_msg(
     return (
         f"storage_config.yml: Swap entry '{entry}' has maxsize "
         f"'{maxsize}' smaller than size '{size}'."
+    )
+
+
+def local_storage_target_msg(entry: str, purpose: str, group: str) -> str:
+    """Return a local_storage entry targeting a group outside its purpose scope."""
+    scope = "control-plane" if purpose == "etcd" else "service Kubernetes worker"
+    return (
+        f"storage_config.yml: local_storage entry '{entry}' with purpose "
+        f"'{purpose}' targets functional group '{group}'; it must target "
+        f"{scope} groups."
+    )
+
+
+def local_storage_duplicate_purpose_msg(purpose: str, group: str, entries: list[str]) -> str:
+    """Return a duplicate local_storage purpose for one functional group."""
+    return (
+        f"storage_config.yml: local_storage entries {', '.join(entries)} both "
+        f"declare purpose '{purpose}' for functional group '{group}'."
+    )
+
+
+def local_storage_shared_disk_msg(node: str, disk_id: str, entries: list[str]) -> str:
+    """Return a disk declared for both etcd and kafka on one node."""
+    return (
+        f"storage_config.yml: local_storage entries {', '.join(entries)} declare "
+        f"disk '{disk_id}' on node '{node}' for different purposes; etcd and "
+        "kafka require separate disks."
+    )
+
+
+def local_storage_etcd_nofail_msg(entry: str) -> str:
+    """Return an etcd local_storage entry that uses nofail."""
+    return (
+        f"storage_config.yml: local_storage entry '{entry}' uses purpose 'etcd' "
+        "with 'nofail' in mount_options, which is not allowed."
+    )
+
+
+def local_storage_override_group_msg(entry: str, node: str, prefixes: list[str]) -> str:
+    """Return a node_overrides node that is outside the entry's functional group."""
+    return (
+        f"storage_config.yml: node_overrides '{node}' in '{entry}' is not in group "
+        f"'{', '.join(prefixes)}'."
+    )
+
+
+def local_storage_node_duplicate_msg(node: str, entries: list[str], purpose: str) -> str:
+    """Return a node matched by two local_storage entries of the same purpose."""
+    return (
+        f"storage_config.yml: node '{node}' matches {' and '.join(repr(e) for e in entries)} "
+        f"for purpose '{purpose}'."
+    )
+
+
+def local_storage_entry_suffix_msg(name: str) -> str:
+    """Return the suffix that names the local_storage entry a schema error belongs to."""
+    return f"(local_storage entry '{name}')"
+
+
+def map_node_missing_msg(node: str, path: str) -> str:
+    """Return the message for a node with no row in the approved disk map."""
+    return f"node {node} is missing from the approved disk map {path}; no disk changed."
+
+
+def map_checksum_mismatch_msg(path: str) -> str:
+    """Return the message for an approved disk map whose checksum does not match."""
+    return f"approved disk map {path} checksum does not match; no disk changed."
+
+
+def disk_type_changed_msg(node: str, previous: str, new: str, entry: str) -> str:
+    """Return the case M message for a disk_type change on an existing node."""
+    return (
+        f"node {node}: disk type changed from '{previous}' to '{new}' for '{entry}'; "
+        f"no unused '{new}' disk found. Set node_overrides disk_id to the new disk, or "
+        "revert disk_type."
     )
 
 
