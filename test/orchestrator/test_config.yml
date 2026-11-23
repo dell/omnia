@@ -62,7 +62,7 @@ oim_ssh_port: 22
 #               synced.
 #               Only used in remote mode. In local mode, the playbook path is
 #               resolved automatically from the source tree.
-clone_path: "/omnia"
+clone_path: "/root/vrinda/ER009/omnia/"
 
 # =============================================================================
 # DATASET CONFIGURATION
@@ -329,7 +329,7 @@ report_path: /opt/omnia/reports
 # Base name for report files (without extension).
 # Generates: orchestrator_test_report.json, orchestrator_test_report.html
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
-report_name: orchestrator_test_report
+report_name: orchestrator_test_report_1
 
 # Custom run ID (optional).
 # When set, reports use this ID instead of a timestamp (YYYYMMDD_HHMMSS).

@@ -382,6 +382,53 @@ PROVISION_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify build_status.yml architecture key consistency",
         "component": "Boot image architecture",
     },
+    "flexible_group_identity": {
+        "id": "TC_FVT_identity_001",
+        "title": "Validate flexible-group identity and platform boundary",
+        "component": "Flexible group identity",
+    },
+    "flexible_group_routing": {
+        "id": "TC_FVT_routing_011",
+        "title": "Catalog flexible group classification, routing, and bolt-on isolation",
+        "component": "Flexible group routing",
+    },
+    "flexible_group_integrated_fixtures": {
+        "id": "TC_FVT_integrated_016",
+        "title": "Integrated flexible group catalog contract verification",
+        "component": "Flexible group catalog fixtures",
+    },
+    "flexible_group_image_fallback": {
+        "id": "TC_FVT_image_005",
+        "title": (
+            "Verify Image Build Manager fallback contracts preserve valid "
+            "fg_ identity and artifacts"
+        ),
+        "component": "Flexible group image fallback",
+    },
+    "flexible_group_standard_regression": {
+        "id": "TC_FVT_standard_regression_014",
+        "title": (
+            "Verify standard functional group fallback contracts remain "
+            "compatible alongside flexible groups"
+        ),
+        "component": "Standard group contract regression",
+    },
+    "flexible_group_add": {
+        "id": "TC_FVT_add_006",
+        "title": (
+            "Verify flexible functional group add operation proceeds "
+            "without repo_status.yml"
+        ),
+        "component": "Flexible group lifecycle",
+    },
+    "flexible_group_configure": {
+        "id": "TC_FVT_configure_008",
+        "title": (
+            "Verify flexible functional group configure operation proceeds "
+            "without repo_status.yml"
+        ),
+        "component": "Flexible group lifecycle",
+    },
 }
 
 PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-error
