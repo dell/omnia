@@ -66,6 +66,7 @@ from .discovery_func import (
     check_log_files_preserved,
     # PXE Mapping Validation (V007-V009, V014)
     check_functional_groups_supported,
+    check_flexible_group_mapping,
     check_ip_correlation,
     check_parent_service_tag,
     check_pxe_mapping_orchestrator_contract,

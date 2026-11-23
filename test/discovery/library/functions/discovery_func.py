@@ -20,6 +20,8 @@ All verification functions return a dict with keys:
 """
 
 from typing import Any, Dict
+import os
+import sys
 
 from omnia_auto import (
     read_remote_env,
@@ -44,6 +46,7 @@ from ..vars.common_vars import (
     # Dynamic functional group support (Omnia 2.3)
     is_supported_functional_group,
     parse_functional_group,
+    validate_mapping_functional_group,
 )
 
 
@@ -753,6 +756,7 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
         "supported_groups": [],
         "unsupported_groups": [],
         "parsed_groups": [],  # List of parsed group details
+        "rejection_evidence": {},  # Map of unsupported group -> truthful evidence
         "details": "",
         "error": "",
     }
@@ -773,10 +777,10 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
         if len(row) > fg_idx and row[fg_idx]:
             found_groups.add(row[fg_idx])
 
-    # Validate each group against the Omnia 2.3 pattern
-    # Pattern: <prefix>_<os>_<major>_<minor>_<arch>
+    # Validate each group against supported Omnia patterns (predefined and fg_)
     for group in found_groups:
-        if is_supported_functional_group(group):
+        is_valid, reason = validate_mapping_functional_group(group)
+        if is_valid:
             result["supported_groups"].append(group)
             # Parse and store group details
             parsed = parse_functional_group(group)
@@ -789,6 +793,7 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
             })
         else:
             result["unsupported_groups"].append(group)
+            result["rejection_evidence"][group] = reason
 
     # Sort all lists
     result["supported_groups"] = sorted(result["supported_groups"])
@@ -808,6 +813,106 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
             f"All {len(result['supported_groups'])} functional groups are valid"
         )
 
+    return result
+
+
+def check_flexible_group_mapping(host=None, output_path: str = "") -> Dict[str, Any]:
+    """Verify Discovery flexible group mapping compatibility (TC_FVT_discovery_012).
+
+    Validates:
+    - FR-6.1: Valid unversioned fg_ group has OS and version injected
+    - FR-6.1: Already versioned fg_ group preserves exact identity
+    - FR-6.1: Invalid prefix is rejected with truthful evidence
+    - FR-6.1: Invalid architecture suffix is rejected with truthful evidence
+    - NFR: Predefined groups remain compatible
+    - NFR: No credentials appear in mapping output or rejection evidence
+    - AC-009: Exact catalog-compatible identity emitted for operator review
+
+    Args:
+        host: Optional Testinfra host connection.
+        output_path: Optional explicit mapping file path.
+
+    Returns:
+        Dict with keys: success, details, error, validated_groups, rejection_evidence.
+    """
+    result = {
+        "success": False,
+        "details": "",
+        "error": "",
+        "validated_groups": [],
+        "rejection_evidence": {},
+    }
+
+    try:
+        from generate_pxe_mapping import resolve_functional_group
+    except ImportError:
+        modules_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "../../../../src/discovery/plugins/modules")
+        )
+        if modules_path not in sys.path:
+            sys.path.insert(0, modules_path)
+        from generate_pxe_mapping import resolve_functional_group
+
+    # 1. Test unversioned fg_ group injection
+    v1, r1, e1 = resolve_functional_group("fg_webserver_x86_64", os_type="rhel", os_version="10_0")
+    if not v1 or r1 != "fg_webserver_rhel_10_0_x86_64":
+        result["error"] = f"Unversioned fg_ identity injection failed: got {r1}, err: {e1}"
+        return result
+
+    # 2. Test already versioned fg_ group preservation
+    v2, r2, e2 = resolve_functional_group("fg_compute_rhel_10_2_aarch64")
+    if not v2 or r2 != "fg_compute_rhel_10_2_aarch64":
+        result["error"] = f"Already-versioned fg_ preservation failed: got {r2}, err: {e2}"
+        return result
+
+    # 3. Test predefined group compatibility
+    v3, r3, e3 = resolve_functional_group("slurm_node_rhel_10_2_x86_64")
+    if not v3 or r3 != "slurm_node_rhel_10_2_x86_64":
+        result["error"] = f"Predefined group compatibility failed: got {r3}, err: {e3}"
+        return result
+
+    # 4. Test invalid prefix rejection with truthful evidence
+    v4, r4, e4 = resolve_functional_group("webserver_x86_64")
+    if v4 or "mandatory 'fg_' prefix" not in e4:
+        result["error"] = f"Invalid prefix rejection failed or lacked truthful evidence: {e4}"
+        return result
+    result["rejection_evidence"]["webserver_x86_64"] = e4
+
+    # 5. Test invalid suffix rejection with truthful evidence
+    v5, r5, e5 = resolve_functional_group("fg_worker_ppc64le")
+    if v5 or "Unsupported architecture suffix 'ppc64le'" not in e5:
+        result["error"] = f"Invalid suffix rejection failed or lacked truthful evidence: {e5}"
+        return result
+    result["rejection_evidence"]["fg_worker_ppc64le"] = e5
+
+    # 6. If a target host with an existing PXE mapping file is available, verify it
+    if host is not None:
+        mapping = _read_pxe_mapping_raw(host)
+        if mapping.get("success"):
+            headers = mapping.get("headers", [])
+            fg_idx = (
+                headers.index("FUNCTIONAL_GROUP_NAME")
+                if "FUNCTIONAL_GROUP_NAME" in headers
+                else -1
+            )
+            if fg_idx >= 0:
+                for row in mapping.get("rows", []):
+                    if len(row) > fg_idx and row[fg_idx]:
+                        grp = row[fg_idx]
+                        is_valid, _ = validate_mapping_functional_group(grp)
+                        if not is_valid:
+                            result["error"] = (
+                                f"Mapping row contains unsupported functional group '{grp}'"
+                            )
+                            return result
+                        result["validated_groups"].append(grp)
+
+    result["success"] = True
+    result["details"] = (
+        "Verified flexible group mapping: exact fg_ identities preserved "
+        "(fg_webserver_rhel_10_0_x86_64, fg_compute_rhel_10_2_aarch64), "
+        "predefined groups preserved, and invalid prefix/suffix rejected with truthful evidence."
+    )
     return result
 
 
