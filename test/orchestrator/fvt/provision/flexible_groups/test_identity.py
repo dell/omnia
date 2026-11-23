@@ -45,6 +45,9 @@ Not testing:
   Workload scheduler behavior.
 """
 
+# pylint: disable=wrong-import-position
+
+import json
 import importlib.util
 import sys
 from pathlib import Path
@@ -54,6 +57,20 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
 ORCHESTRATOR_ROOT = REPO_ROOT / "src" / "orchestrator"
+REPO_MANAGER_ROOT = REPO_ROOT / "src" / "repo_manager"
+FIXTURES_DIR = REPO_ROOT / "test" / "fixtures" / "catalogs" / "flexible_groups"
+SOURCE_PLUGIN_ROOT = ORCHESTRATOR_ROOT / "plugins"
+REPO_MANAGER_PLUGIN_ROOT = REPO_MANAGER_ROOT / "plugins" / "module_utils"
+
+if str(SOURCE_PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_PLUGIN_ROOT))
+if str(REPO_MANAGER_PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_MANAGER_PLUGIN_ROOT))
+
+from module_utils.orchestrator_validation.validators import (  # noqa: E402
+    functional_group_config_validator as functional_validator,
+)
+from catalog.validator import validate_catalog  # noqa: E402
 SOURCE_PLUGIN_ROOT = ORCHESTRATOR_ROOT / "plugins"
 if str(SOURCE_PLUGIN_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_PLUGIN_ROOT))
@@ -145,6 +162,50 @@ class TestValidIdentities:
         )
         assert not errors, f"Unexpected errors: {errors}"
 
+    def test_manual_valid_catalog_fixture(self, tmp_path):
+        """FR-1.1, AC-001, AC-008: Valid catalog fixture passes identity and count checks."""
+        fixture_path = FIXTURES_DIR / "manual_valid_fg_catalog.json"
+        assert fixture_path.is_file(), f"Fixture missing: {fixture_path}"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+
+        # Catalog validator passes with 0 errors
+        schema_path = str(REPO_MANAGER_ROOT / "schemas" / "catalog_schema.json")
+        issues = validate_catalog(cat_data, schema_path)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert not errors, f"Unexpected catalog validation errors: {errors}"
+
+        # Downstream orchestrator validation accepts all fg_ groups
+        fg_groups = [
+            l["name"] for l in cat_data["catalog"]["functionallayer"]
+            if l["name"].startswith("fg_")
+        ]
+        assert len(fg_groups) == 10
+        all_groups = [l["name"] for l in cat_data["catalog"]["functionallayer"]]
+        config = {"groups": {g: {} for g in fg_groups}}
+        orch_errors = _validate(tmp_path, config, all_groups)
+        assert not orch_errors, f"Unexpected orchestrator errors: {orch_errors}"
+
+    def test_reviewed_generated_catalog_fixture(self, tmp_path):
+        """FR-1.1, ER-BSM-001: Operator-reviewed generated catalog passes downstream validation."""
+        fixture_path = FIXTURES_DIR / "reviewed_generated_fg_catalog.json"
+        assert fixture_path.is_file(), f"Fixture missing: {fixture_path}"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+
+        schema_path = str(REPO_MANAGER_ROOT / "schemas" / "catalog_schema.json")
+        issues = validate_catalog(cat_data, schema_path)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert not errors, f"Reviewed generated catalog should pass: {errors}"
+
+        fg_groups = [
+            l["name"] for l in cat_data["catalog"]["functionallayer"]
+            if l["name"].startswith("fg_")
+        ]
+        config = {"groups": {g: {} for g in fg_groups}}
+        orch_errors = _validate(tmp_path, config, fg_groups)
+        assert not orch_errors, f"Unexpected orchestrator errors: {orch_errors}"
+
 
 # ── Scenario 2: Reject an invalid identity boundary ────────────────────
 
@@ -186,6 +247,72 @@ class TestInvalidIdentities:
         assert errors, "Expected errors for non-fg_ prefix"
 
     def test_empty_config_is_inactive(self, tmp_path):
+        """An empty configuration template changes nothing."""
+        group = "fg_research_rhel_10_0_x86_64"
+        errors = _validate(tmp_path, {"common": {}, "groups": {}}, [group])
+        assert not errors, f"Unexpected errors: {errors}"
+
+    def test_invalid_missing_prefix_fixture_rejected(self):
+        """FR-1.1: Catalog fixture with missing fg_ prefix is rejected."""
+        fixture_path = FIXTURES_DIR / "invalid_missing_prefix_catalog.json"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+        issues = validate_catalog(cat_data)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert errors, "Expected missing fg_ prefix error"
+        assert any("mandatory 'fg_' prefix" in e for e in errors)
+
+    def test_invalid_count_exceeded_fixture_rejected(self):
+        """AC-001: Catalog fixture with > 10 flexible groups is rejected."""
+        fixture_path = FIXTURES_DIR / "invalid_count_exceeded_catalog.json"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+        issues = validate_catalog(cat_data)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert errors, "Expected count boundary error"
+        assert any("maximum allowed is 10" in e for e in errors)
+
+    def test_invalid_suffix_missing_fixture_rejected(self):
+        """FR-1.1: Catalog fixture with missing platform suffix is rejected."""
+        fixture_path = FIXTURES_DIR / "invalid_suffix_missing_catalog.json"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+        issues = validate_catalog(cat_data)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert errors, "Expected missing platform suffix error"
+        assert any("platform suffix" in e for e in errors)
+
+    def test_invalid_architecture_fixture_rejected(self):
+        """AC-001, AC-003: Catalog fixture with unsupported architecture is rejected (blocking)."""
+        fixture_path = FIXTURES_DIR / "invalid_architecture_catalog.json"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+        issues = validate_catalog(cat_data)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert errors, "Expected unsupported architecture error"
+        assert any("unsupported architecture 'ppc64le'" in e for e in errors)
+
+    def test_unreviewed_generated_fixture_rejected(self):
+        """FR-1.1, ER-BSM-001: Unreviewed generated catalog fixture is rejected before mutation."""
+        fixture_path = FIXTURES_DIR / "unreviewed_generated_catalog.json"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+        issues = validate_catalog(cat_data)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        assert errors, "Expected operator review gate error"
+        assert any("operator review approval" in e for e in errors)
+
+    def test_warning_os_version_fixture_warns_without_blocking(self):
+        """AC-003: Non-RHEL 10.0/10.2 syntactically valid OS version warns without blocking."""
+        fixture_path = FIXTURES_DIR / "warning_os_version_catalog.json"
+        with open(fixture_path, encoding="utf-8") as fh:
+            cat_data = json.load(fh)
+        issues = validate_catalog(cat_data)
+        errors = [i["message"] for i in issues if i["severity"] == "error"]
+        warnings = [i["message"] for i in issues if i["severity"] == "warning"]
+        assert not errors, f"Unqualified OS should not produce blocking errors: {errors}"
+        assert warnings, "Expected non-blocking advisory warning"
+        assert any("only RHEL 10.0 and 10.2 are qualified" in w for w in warnings)
         """ORCH_FVT_FG_V008: An empty configuration template changes nothing."""
         group = "fg_research_rhel_10_0_x86_64"
         errors = _validate(tmp_path, {"common": {}, "groups": {}}, [group])
