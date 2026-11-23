@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=too-many-lines
 """User-facing messages for Orchestrator input validation."""
 
 from typing import Any
@@ -188,31 +187,6 @@ def pxe_mapping_not_found_msg(path: str) -> str:
     return f"orchestrator_config: pxe_mapping_file_path '{path}' does not exist."
 
 
-def pxe_mapping_not_csv_msg(path: str) -> str:
-    """Return the non-CSV PXE mapping file error message."""
-    return (
-        f"orchestrator_config: pxe_mapping_file_path '{path}' must resolve "
-        "to a .csv file."
-    )
-
-
-def pxe_mapping_insecure_permissions_msg(path: str, mode: int) -> str:
-    """Return the insecure PXE mapping file permissions error message."""
-    return (
-        f"orchestrator_config: PXE mapping file '{path}' has insecure mode "
-        f"{mode:04o}. It must not be group-writable or accessible by "
-        f"others; run 'chmod 640 {path}'."
-    )
-
-
-def pxe_mapping_untrusted_owner_msg(path: str, uid: int) -> str:
-    """Return the untrusted PXE mapping file owner error message."""
-    return (
-        f"orchestrator_config: PXE mapping file '{path}' is owned by uid "
-        f"{uid}; it must be owned by root or the invoking user."
-    )
-
-
 def pxe_mapping_read_failed_msg(path: str, detail: str) -> str:
     """Return the PXE mapping read error message."""
     return f"orchestrator_config: Failed to read mapping file '{path}': {detail}"
@@ -247,19 +221,11 @@ def pxe_mapping_noncanonical_headers_msg(
 def pxe_mapping_header_contract_msg(
     path: str, actual: list[str], expected: list[str]
 ) -> str:
-    """Return a PXE mapping header-contract error without echoing file content."""
-    missing = [column for column in expected if column not in actual]
-    base = [
-        "FUNCTIONAL_GROUP_NAME", "GROUP_NAME", "SERVICE_TAG",
-        "PARENT_SERVICE_TAG", "HOSTNAME", "ADMIN_MAC", "ADMIN_IP",
-        "BMC_MAC", "BMC_IP",
-    ]
+    """Return an exact PXE mapping header-contract error message."""
     return (
-        f"orchestrator_config: Mapping file '{path}' has {len(actual)} "
-        f"column(s) and does not match any accepted header format; missing "
-        f"columns: {missing or 'none (check order or extra columns)'}. "
-        f"Accepted formats: {base} (without InfiniBand) or "
-        f"{expected} (with InfiniBand)."
+        f"orchestrator_config: Mapping file '{path}' has header {actual}; "
+        f"expected exactly {expected}. Preserve all columns in this order, "
+        "including IB_NIC_NAME and IB_IP."
     )
 
 
@@ -369,21 +335,11 @@ def pxe_mapping_functional_group_architecture_msg(
     )
 
 
-def pxe_mapping_ib_address_required_msg(row: int, column: str, ib_addr_mode: str) -> str:
-    """Return a missing InfiniBand address error for a row that has an IB_NIC_NAME."""
-    stack = ib_addr_mode or "not set (default: ipv4-only)"
+def pxe_mapping_ib_pair_msg(row: int) -> str:
+    """Return an incomplete InfiniBand mapping pair error message."""
     return (
-        f"orchestrator_config: Mapping row {row} has IB_NIC_NAME set, so {column} is "
-        f"required when ib_addr_mode is {stack}."
-    )
-
-
-def pxe_mapping_ib_ipv4_without_nic_msg(row: int) -> str:
-    """Return an IB_IPV4 set without IB_NIC_NAME error message."""
-    return (
-        f"orchestrator_config: Mapping row {row} has IB_IPV4 set but "
-        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv4 "
-        "configuration."
+        f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
+        "and IB_IP, or leave both empty."
     )
 
 
@@ -555,73 +511,6 @@ def ib_admin_subnet_overlap_msg(
     return (
         f"network_spec: {ib_label} subnet {ib_network} overlaps "
         f"{admin_label} subnet {admin_network}."
-    )
-
-
-def ib_ipv6_subnet_invalid_msg(label: str) -> str:
-    """Return an invalid IB IPv6 subnet error message."""
-    return (
-        f"network_spec: {label}.ipv6_subnet is not a valid IPv6 network "
-        "address."
-    )
-
-
-def ib_ipv6_netmask_required_msg(label: str) -> str:
-    """Return a missing IB IPv6 netmask error when subnet is set."""
-    return (
-        f"network_spec: {label}.ipv6_netmask_bits is required when "
-        "ipv6_subnet is set."
-    )
-
-
-def ib_ipv6_subnet_required_msg(label: str) -> str:
-    """Return a missing IB IPv6 subnet error when netmask is set."""
-    return (
-        f"network_spec: {label}.ipv6_subnet is required when "
-        "ipv6_netmask_bits is set."
-    )
-
-
-def ib_ipv6_required_for_mode_msg(label: str, mode: str) -> str:
-    """Return an error when IPv6 fields are missing for the active mode."""
-    return (
-        f"network_spec: {label}.ipv6_subnet and ipv6_netmask_bits are "
-        f"required when ib_addr_mode is '{mode}'."
-    )
-
-
-def ib_ipv4_required_for_mode_msg(label: str, mode: str) -> str:
-    """Return an error when IPv4 fields are missing for the active mode."""
-    return (
-        f"network_spec: {label}.ipv4_subnet and ipv4_netmask_bits are "
-        f"required when ib_addr_mode is '{mode}'."
-    )
-
-
-def pxe_mapping_invalid_ipv6_msg(field: str, value: str, row: int) -> str:
-    """Return an invalid IPv6 address in the PXE mapping."""
-    return (
-        f"orchestrator_config: {field} '{value}' at mapping row {row} "
-        "is not a valid IPv6 address."
-    )
-
-
-def pxe_mapping_ib_ipv6_without_nic_msg(row: int) -> str:
-    """Return an IB_IPV6 set without IB_NIC_NAME error message."""
-    return (
-        f"orchestrator_config: Mapping row {row} has IB_IPV6 set but "
-        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv6 "
-        "configuration."
-    )
-
-
-def pxe_mapping_ib_ipv6_outside_prefix_msg(
-    value: str, row: int, prefix: str
-) -> str:
-    """Return an IB_IPV6 address outside the approved prefix message."""
-    return (
-        f"orchestrator_config: IB_IPV6 '{value}' at mapping row {row} "
-        f"is not within the approved prefix {prefix}."
     )
 
 
