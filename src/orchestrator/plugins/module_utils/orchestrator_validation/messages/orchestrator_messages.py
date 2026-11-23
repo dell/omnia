@@ -1215,6 +1215,9 @@ def functional_group_cloud_init_disallowed_directive_msg(
 ) -> str:
     """Return the disallowed cloud-init directive error message."""
     return (
+        f"functional_group_config: {referenced_by} contains disallowed "
+        f"cloud-init directive(s): {', '.join(directives)}. "
+        "Flexible groups support only write_files and runcmd."
         f"functional_group_config: {referenced_by} key '{', '.join(directives)}' is platform-managed "
         "and must not be overridden. Flexible groups support only write_files and runcmd."
     )
