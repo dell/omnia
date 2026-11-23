@@ -468,3 +468,47 @@ def test_flexible_group_dedicated_tag_is_opt_in_only():
     ]
     # At least one lifecycle publication import (provision/execute)
     assert len(lifecycle_imports) >= 1
+
+
+def test_boot_svc_template_override_preserves_platform_parameters():
+    """AC-019: override mode preserves platform parameters while replacing defaults."""
+    template_path = (
+        ORCHESTRATOR_ROOT
+        / "roles"
+        / "provision_common"
+        / "templates"
+        / "boot_svc"
+        / "boot-svc.yaml.j2"
+    )
+    template = jinja2.Template(template_path.read_text(encoding="utf-8"))
+
+    rendered = template.render(
+        s3_configurations={"endpoint_url": "https://s3.example.com"},
+        functional_group_name="fg_research_rhel_10_0_x86_64",
+        kernel="vmlinuz",
+        initrd="initrd.img",
+        image="rootfs.squashfs",
+        boot_svc_params_metadata_svc="ds=nocloud;s=http://10.0.0.1/metadata/",
+        boot_kernel_params_mode="override",
+        boot_kernel_params="custom_param=1 custom_opt=yes",
+        boot_svc_nodes=[{
+            "group": "fg_research_rhel_10_0_x86_64",
+            "interfaces": [{"mac_addr": "00:11:22:33:44:55"}],
+        }],
+    )
+
+    data = yaml.safe_load(rendered)
+    params = data["spec"]["params"]
+
+    assert "root=live:https://s3.example.com/rootfs.squashfs" in params
+    assert "ip=dhcp" in params
+    assert "rd.live.image" in params
+    assert "rd.live.ram" in params
+    assert "rd.neednet=1" in params
+    assert "rd.noverifyssl" in params
+    assert "console=tty0" in params
+    assert "console=ttyS0,115200" in params
+    assert "ds=nocloud;s=http://10.0.0.1/metadata/" in params
+    assert "custom_param=1 custom_opt=yes" in params
+    assert "nomodeset" not in params
+    assert "rd.driver.blacklist" not in params
