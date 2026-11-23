@@ -245,6 +245,7 @@ def pytest_configure(config):
     config.addinivalue_line("filterwarnings", "ignore::pytest.PytestCollectionWarning")
     markers = {
         "order(n)": "Specify test execution order (lower first)",
+        "fvt": "Functional verification tests",
         "sanity": "Baseline verification (must-pass)",
         "buildstream": "BuildStream validation subset",
         "functional": "Functional verification",
@@ -629,12 +630,38 @@ def pytest_runtest_makereport(item, call):
 
     doc = getattr(item.obj, "__doc__", "") or ""
     tc_id = _registered_test_case_id(item)
-    doc_id = re.match(
-        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})" r"|TC_K8_\d{3})\s*:",
-        doc.strip(),
+    doc_id = re.search(
+        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
+        r"|TC_K8_\d{3}|TC_FVT_[A-Za-z0-9_]+)",
+        doc,
     )
     if doc_id and not tc_id:
         tc_id = doc_id.group(1)
+
+    # Check parent class docstring
+    if not tc_id:
+        parent_obj = getattr(getattr(item, "parent", None), "obj", None)
+        parent_doc = getattr(parent_obj, "__doc__", "") or ""
+        class_id = re.search(
+            r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
+            r"|TC_K8_\d{3}|TC_FVT_[A-Za-z0-9_]+)",
+            parent_doc,
+        )
+        if class_id:
+            tc_id = class_id.group(1)
+
+    # Check module docstring
+    if not tc_id:
+        module_obj = getattr(item, "module", None)
+        module_doc = getattr(module_obj, "__doc__", "") or ""
+        mod_id = re.search(
+            r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
+            r"|TC_K8_\d{3}|TC_FVT_[A-Za-z0-9_]+)",
+            module_doc,
+        )
+        if mod_id:
+            tc_id = mod_id.group(1)
+
     if not tc_id:
         tc_id = get_last_tc_id()
 
