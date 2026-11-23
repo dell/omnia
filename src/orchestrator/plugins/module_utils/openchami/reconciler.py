@@ -222,6 +222,26 @@ class OpenChamiReconciler:
 
         return {"changed": bool(deleted), "deleted": deleted}
 
+    def delete_boot_configurations(
+        self,
+        names: Iterable[str],
+        check_mode=False,
+    ):
+        """Delete specific target Boot Service configurations by name."""
+        target_names = set(self._unique(names))
+        deleted = []
+        for resource in self.boot.boot_configurations():
+            metadata = resource.get("metadata") or {}
+            name = str(metadata.get("name", "")).strip()
+            if name in target_names:
+                uid = self._resource_uid(
+                    resource, "Boot Service configuration", name
+                )
+                if not check_mode:
+                    self.boot.delete_boot_configuration(uid)
+                deleted.append({"name": name, "uid": uid})
+        return {"changed": bool(deleted), "deleted": deleted}
+
     def resolve_identities(
         self,
         nodes,
@@ -728,6 +748,62 @@ class OpenChamiReconciler:
             "deleted": deleted,
             "retained_unmanaged": retained,
             "blocked": blocked,
+        }
+
+    def delete_metadata_groups(
+        self,
+        names: Iterable[str],
+        project_name: str,
+        check_mode=False,
+    ):
+        """Delete specific target Metadata Service groups after verifying ownership."""
+        target_names = set(self._unique(names))
+        ownership = self._ownership_labels(project_name)
+        deleted = []
+        for group in self.metadata.groups():
+            name = str(group.get("metadata", {}).get("name", "")).strip()
+            if name in target_names:
+                if not self._has_ownership(group, ownership):
+                    labels = group.get("metadata", {}).get("labels", {}) or {}
+                    raise ValueError(
+                        f"Cannot delete Metadata Service group '{name}': "
+                        f"project ownership mismatch. Expected {ownership}, got {labels}"
+                    )
+                uid = self._resource_uid(group, "Metadata Service group", name)
+                if not check_mode:
+                    self.metadata.delete_group(uid)
+                deleted.append(name)
+        return {"changed": bool(deleted), "deleted": deleted}
+
+    def inspect_metadata_group_ownership(
+        self,
+        name: str,
+        project_name: str,
+    ) -> dict[str, Any]:
+        """Inspect ownership of a specific Metadata Service group."""
+        ownership = self._ownership_labels(project_name)
+        for group in self.metadata.groups():
+            g_name = str(group.get("metadata", {}).get("name", "")).strip()
+            if g_name == name:
+                labels = group.get("metadata", {}).get("labels", {}) or {}
+                is_owned = self._has_ownership(group, ownership)
+                return {
+                    "owned": is_owned,
+                    "ambiguous": not is_owned,
+                    "exists": True,
+                    "labels": labels,
+                    "reason": (
+                        "Owned by project"
+                        if is_owned
+                        else f"Ownership mismatch: expected {ownership}, got {labels}"
+                    ),
+                }
+        return {
+            "owned": True,
+            "ambiguous": False,
+            "exists": False,
+            "labels": {},
+            "reason": "Group does not exist in Metadata Service",
         }
 
     def reconcile_cluster_defaults(
