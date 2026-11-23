@@ -219,6 +219,32 @@ class ProjectLock:
         pid: int | None = None,
         force_recovery: bool = False,
     ) -> dict[str, Any]:
+        """Acquire the project mutation lock.
+
+        Raises LockContentionError if the lock is held by an active process.
+        """
+        inspection = self.inspect()
+        current_status = inspection.get("status")
+
+        if current_status == LockStatus.BLOCKED.value:
+            data = inspection.get("data", {})
+            raise LockContentionError(
+                f"Project lock is currently held by active process {data.get('pid')} "
+                f"running '{data.get('operation')}' on '{data.get('target_group')}' "
+                f"(run_id: {data.get('run_id')}). Concurrent mutation is blocked."
+            )
+
+        if current_status == LockStatus.RECOVERING.value and not force_recovery:
+            data = inspection.get("data", {})
+            # Prior owner is dead, but a non-terminal lock exists.
+            # Timeout alone does not clear it; we require explicit recovery context.
+            raise RecoveryRequiredError(
+                f"Non-terminal lock detected from inactive process {data.get('pid')} "
+                f"for operation '{data.get('operation')}' on target '{data.get('target_group')}'. "
+                "Bounded recovery is required before proceeding."
+            )
+
+        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
         """Acquire the project mutation lock atomically with O_CREAT|O_EXCL."""
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
         effective_pid = pid or (os.getppid() if hasattr(os, "getppid") else os.getpid())
@@ -483,6 +509,14 @@ class LifecyclePlanner:
         remaining_count = len(mapped_nodes)
         if remaining_count > 0:
             raise NodeNotEmptiedError(target_group, remaining_count)
+
+        # Precheck 2: Ownership verification
+        if ownership_evidence is not None:
+            is_owned = ownership_evidence.get("owned", False)
+            is_ambiguous = ownership_evidence.get("ambiguous", False)
+            if is_ambiguous or not is_owned:
+                details = ownership_evidence.get("reason", "Record owner mismatch or absent label.")
+                raise OwnershipAmbiguityError(target_group, details)
 
         # Check no-op: already completely absent
         if current_state:
