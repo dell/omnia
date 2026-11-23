@@ -21,6 +21,7 @@ from __future__ import annotations
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_status import (
     StatusReconcileError,
+    reconcile_functional_group_status,
     reconcile_pxeboot_status,
 )
 
@@ -126,24 +127,62 @@ def main() -> None:
     """Run the Ansible module."""
     module = AnsibleModule(
         argument_spec={
+            "mode": {
+                "type": "str",
+                "default": "pxeboot",
+                "choices": ["pxeboot", "functional_group"],
+            },
             "previous_status": {"type": "dict", "default": {}},
             "current_nodes": {"type": "list", "elements": "dict", "default": []},
             "failed_nodes": {"type": "list", "elements": "dict", "default": []},
-            "inventory_source": {"type": "str", "required": True},
-            "timestamp": {"type": "str", "required": True},
-            "run_id": {"type": "str", "required": True},
-            "verification_enabled": {"type": "bool", "required": True},
+            "inventory_source": {"type": "str"},
+            "timestamp": {"type": "str"},
+            "run_id": {"type": "str"},
+            "verification_enabled": {"type": "bool"},
             "custom_inventory": {"type": "bool", "default": False},
             "preserve_unselected": {"type": "bool", "default": False},
             "unverified_count": {"type": "int", "default": 0},
             "provisioning_report": {"type": "dict", "default": {}},
             "selected_xnames": {"type": "list", "elements": "str"},
             "verification_results": {"type": "list", "elements": "dict"},
+            # Functional group status options (ER-ORCH-009)
+            "project_name": {"type": "str", "default": "default"},
+            "operation": {"type": "str", "choices": ["add", "remove", "configure"]},
+            "target_group": {"type": "str"},
+            "stage_results": {"type": "list", "elements": "dict", "default": []},
+            "planned_stages": {"type": "list", "elements": "str", "default": []},
         },
         supports_check_mode=True,
     )
+
+    mode = module.params["mode"]
     try:
-        result = reconcile_pxeboot_status(**module.params)
+        if mode == "functional_group":
+            result = {
+                "functional_group_status": reconcile_functional_group_status(
+                    project_name=module.params["project_name"],
+                    run_id=module.params["run_id"] or "manual",
+                    operation=module.params["operation"] or "add",
+                    target_group=module.params["target_group"] or "",
+                    stage_results=module.params["stage_results"],
+                    planned_stages=module.params["planned_stages"] or None,
+                    previous_status=module.params["previous_status"] or None,
+                    timestamp=module.params["timestamp"],
+                )
+            }
+        else:
+            # pxeboot mode validation
+            required_fields = [
+                "inventory_source", "timestamp", "run_id", "verification_enabled"
+            ]
+            for required_field in required_fields:
+                if module.params.get(required_field) is None:
+                    module.fail_json(msg=f"missing required arguments: {required_field}")
+            pxe_params = {
+                k: v for k, v in module.params.items()
+                if k not in ["mode", "project_name", "operation", "target_group", "stage_results"]
+            }
+            result = reconcile_pxeboot_status(**pxe_params)
     except (StatusReconcileError, TypeError, ValueError) as error:
         module.fail_json(msg=f"Unable to reconcile Orchestrator status: {error}")
     module.exit_json(changed=False, **result)
