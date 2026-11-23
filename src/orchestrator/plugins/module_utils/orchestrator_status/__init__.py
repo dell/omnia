@@ -15,6 +15,25 @@
 """Shared helpers for Orchestrator lifecycle status reconciliation."""
 
 from .errors import StatusReconcileError
+from .flexible_group_status import (
+    OverallStatus,
+    StageStatus,
+    StageType,
+    TypedStageResult,
+    reconcile_functional_group_status,
+    sanitize_stage_result,
+    sanitize_value,
+)
 from .reconciler import reconcile_pxeboot_status
 
-__all__ = ["StatusReconcileError", "reconcile_pxeboot_status"]
+__all__ = [
+    "OverallStatus",
+    "StageStatus",
+    "StageType",
+    "StatusReconcileError",
+    "TypedStageResult",
+    "reconcile_functional_group_status",
+    "reconcile_pxeboot_status",
+    "sanitize_stage_result",
+    "sanitize_value",
+]
