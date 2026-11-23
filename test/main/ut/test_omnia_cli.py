@@ -87,7 +87,7 @@ class OmniaCliTest(unittest.TestCase):
         output = ANSI_ESCAPE.sub("", result.stdout + result.stderr)
         return result, output
 
-    def invoke_omnia_run_domain(self, *args):
+    def invoke_omnia_run_domain(self, *args, domain="telemetry"):
         """Run run_domain with Ansible mocked and return its forwarded arguments."""
         venv_dir = self.data_path / "venv"
         activate_file = venv_dir / "bin" / "activate"
@@ -99,7 +99,7 @@ class OmniaCliTest(unittest.TestCase):
 source {shlex.quote(str(OMNIA_SH))}
 ansible-playbook() {{ printf 'ANSIBLE_ARG=%s\\n' "$@"; }}
 OMNIA_VENV_PATH={shlex.quote(str(venv_dir))}
-run_domain telemetry {quoted_args}
+run_domain {shlex.quote(domain)} {quoted_args}
 '''
         env = os.environ.copy()
         env["OMNIA_DATA_PATH"] = str(self.data_path)
@@ -1041,6 +1041,46 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_bytes(), original_catalog)
         self.assertNotEqual(catalog_target.read_bytes(), original_catalog)
+
+    def test_orchestrator_input_inventory_exposes_functional_group_config(self):
+        """FR-6.1: functional_group_config.yml is exposed in orchestrator input guidance."""
+        input_dir = self.runtime_dir("orchestrator", "input")
+        (input_dir / "functional_group_config.yml").write_text("# config\n", encoding="utf-8")
+        output = self.run_cli("edit", "orchestrator")
+        self.assertIn("functional_group_config.yml", output)
+        self.assertIn("functional_group_config.yml [optional]", output)
+
+    def test_orchestrator_help_exposes_single_manage_functional_group_tag(self):
+        """FR-6.1: help exposes manage-functional-group and omits configure-functional-groups."""
+        output = self.run_cli("help", "orchestrator")
+        self.assertIn("manage-functional-group", output)
+        self.assertIn("Single management tag: manage-functional-group", output)
+        self.assertIn("default, provision, and execute", output)
+        self.assertNotIn("configure-functional-groups", output)
+
+    def test_omnia_sh_and_completion_expose_manage_functional_group_tag(self):
+        """FR-6.1: omnia.sh --help and bash completion expose manage-functional-group."""
+        result = subprocess.run(
+            [str(OMNIA_SH), "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("manage-functional-group", result.stdout)
+        self.assertNotIn("configure-functional-groups", result.stdout)
+
+        completion_content = OMNIA_COMPLETION.read_text(encoding="utf-8")
+        self.assertIn("manage-functional-group", completion_content)
+        self.assertNotIn("configure-functional-groups", completion_content)
+
+    def test_omnia_sh_run_orchestrator_forwards_manage_functional_group_tag(self):
+        """FR-6.1: omnia.sh forwards manage-functional-group tag to orchestrator."""
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags", "manage-functional-group", domain="orchestrator"
+        )
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(forwarded[1:], ["--tags", "manage-functional-group"])
 
 
 if __name__ == "__main__":
