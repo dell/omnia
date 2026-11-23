@@ -163,6 +163,10 @@ TEST_CASES = {
         "id": "UTILS_FVT_COLLECT_V012",
         "title": "Verify log bundle contains log files with content",
     },
+    "utils_flexible_group_log_collection": {
+        "id": "TC_FVT_utils_013",
+        "title": "Verify Utils flexible group log collection with role-prefix routing and evidence",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # NEGATIVE TEST CASES - COLLECT
