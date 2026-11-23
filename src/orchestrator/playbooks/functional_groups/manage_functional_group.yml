@@ -212,6 +212,39 @@
         - fg_operation == 'remove'
         - target_group_nodes | length > 0
 
+    - name: Acquire project mutation lock (FR-5.1)
+      functional_group_lifecycle:
+        action: acquire_lock
+        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+        operation: "{{ fg_operation }}"
+        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
+        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+      register: _lifecycle_lock
+      when: target_functional_groups | length > 0
+
+    - name: Start transition journal (FR-5.1)
+      functional_group_lifecycle:
+        action: start_journal
+        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
+        operation: "{{ fg_operation }}"
+        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
+        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+        planned_stages: >-
+          {%- if fg_operation == 'remove' %}
+          ['metadata', 'bss', 'smd_group']
+          {%- elif configure_scope == 'boot' %}
+          ['bss']
+          {%- elif configure_scope == 'cloud_init' %}
+          ['metadata']
+          {%- else %}
+          ['smd_group', 'bss', 'metadata']
+          {%- endif %}
+          }}
+      register: _lifecycle_journal
+      when: target_functional_groups | length > 0
+
     - name: Report resolved flexible targets
       ansible.builtin.debug:
         msg: >-
