@@ -496,7 +496,7 @@ Keep cluster-specific values (IPs, mirror URLs) out of `user_inputs.yml` in comm
 ### Run it from a GitLab pipeline (one job per catalog)
 
 The SVT pipeline ([PIPELINE.md](PIPELINE.md)) runs this theme too. Set
-`svt.theme: "catalog_build"` in `pipeline/svt_pipeline_config.yml` and render the CI files
+`catalog_build` in `clusters.<name>.themes` of `pipeline/svt_pipeline_config.yml` (alone, or after another theme, e.g. `"build_stream,catalog_build"`) and render the CI files
 from a checkout whose `catalog_build_test_config.yml` and `user_inputs.yml` hold the
 values to test:
 
@@ -506,8 +506,9 @@ cd test/system_test/pipeline
 ./setup_svt_project.py --update --gitlab-url https://<gitlab-host> --update-inputs
 ```
 
-The pipeline is `preflight -> initialization -> catalog_01 -> catalog_02 -> ... -> summary`:
-each catalog is its own GitLab job (log, status, Retry button), titled with the catalog
+The catalog_build theme is a nested pipeline `setup -> catalog_01 -> catalog_02 -> ... -> theme_result`
+(the cluster pipeline around it has `preflight`, `initialization` and `summary` once, see
+[PIPELINE.md](PIPELINE.md)): each catalog is its own GitLab job (log, status, Retry button), titled with the catalog
 in `.gitlab-ci-svt.yml`. With `continue_on_failure: true` a failed catalog job does not
 stop the next one; the summary still fails. `timeouts_hours.catalog_stage` sets the time
 limit of every catalog job, and `skip_stages: "catalog_03"` leaves a catalog out of a

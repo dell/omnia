@@ -71,16 +71,58 @@ use the system CA store.
    branch, install path), email, timeouts. Every key, its default and the variable it becomes:
    [PIPELINE_CONFIG.md](PIPELINE_CONFIG.md).
 2. **`user_inputs.yml`**: the cluster values and the `openbao` block ([SETUP.md](SETUP.md)).
-3. **`build_stream_test_config.yml`**: catalogs, what the cleanup removes (including the NFS
-   shares), the report ([TEST_CONFIG.md](TEST_CONFIG.md)). With `clusters.<name>.theme: "catalog_build"`:
-   **`catalog_build_test_config.yml`** instead ([CATALOG_BUILD.md](CATALOG_BUILD.md)); its
-   catalog list decides the pipeline jobs, so render the files after changing it.
+3. **`<theme>_test_config.yml`** of every theme in `clusters.<name>.themes`:
+   `build_stream_test_config.yml` (catalogs, the report, [TEST_CONFIG.md](TEST_CONFIG.md)) and
+   `catalog_build_test_config.yml` ([CATALOG_BUILD.md](CATALOG_BUILD.md); its catalog list decides
+   the pipeline jobs, so render the files after changing it). The cleanup (NFS shares included)
+   and OpenBao are one block each in `user_inputs.yml`, shared by every theme.
+
+
+## The pipeline of a cluster with several themes
+
+`clusters.<name>.themes` is a comma separated list (`"build_stream,catalog_build"`). They run one
+after another in **one pipeline**; a theme runs whether the one before passed or failed.
+`preflight`, `initialization` and `summary` exist **once**; each theme is its own nested pipeline
+that opens when you click it in the GitLab graph.
+
+```
+ .gitlab-ci.yml (root)          select_clusters ──▶ svt_<cluster>   (one resource group per OIM)
+                                                         │
+ cluster pipeline  ──────────────────────────────────────▼──────────────────────────────────────
+   ┌───────────┐   ┌────────────────┐   ┌─────────────────┐   ┌──────────────────┐   ┌─────────┐
+   │ preflight │──▶│ initialization │──▶│ ▶ build_stream  │──▶│ ▶ catalog_build  │──▶│ summary │
+   └───────────┘   └────────────────┘   └─────────────────┘   └──────────────────┘   └─────────┘
+     once              once              theme 1 (expand)      theme 2 (expand)         once
+   SSH, OpenBao,     the shared cleanup   runs even if the      runs even if theme 1    always runs;
+   Omnia checkout    (user_inputs.yml)    cleanup failed? no:   passed OR failed        red if anything
+                                          skipped if init failed                        failed
+
+ expand "build_stream"                              expand "catalog_build"
+   setup ─▶ prepare_build_stream ─▶ build_deploy     setup ─▶ catalog_01 ─▶ catalog_02 ─▶ ... ─▶
+        ─▶ cadence ─▶ automatic_cleanup ─▶ theme_result            (one job per catalog) theme_result
+```
+
+- **preflight** (once): SSH to the OIM, OpenBao reachable, the Omnia checkout on the OIM, the
+  `svt/` inputs copied.
+- **initialization** (once): the shared `cleanup` block of `user_inputs.yml` runs with the first
+  theme (complete reset, NFS shares included). `svt.clean_reinstall: "false"` skips it.
+- **theme ▶** (one per theme, in list order): `setup` starts the theme's run (`--configure`,
+  install, credentials from the one OpenBao block, readiness). A theme after the first cleans up
+  again first, so every theme starts from a clean OIM. Then the theme's stages, then
+  `theme_result` (the theme's SVT summary and verdict, kept on the OIM).
+- **A failed theme does not stop the next one.** If `initialization` fails, no theme runs and only
+  the summary runs.
+- **summary** (once): reads every theme's result, builds **one report** (`svt_report/index.html`
+  with a card per theme, and `<theme>.html`, the theme's SVT report with a **Previous | Index |
+  Next** bar) and sends **one email**. The pipeline is red when any theme failed.
+- A run can use fewer themes: set `<CLUSTER>_SVT_THEMES` (a subset of the rendered list, in the
+  rendered order) in GitLab or in Run pipeline. A new theme or a new order needs `--update`.
 
 ## 4. Create the project
 
 ```bash
 cd test/system_test/pipeline
-./setup_svt_project.py --render            # look at the generated .gitlab-ci.yml and .gitlab-ci-svt-<theme>.yml
+./setup_svt_project.py --render            # look at the generated .gitlab-ci.yml, the cluster files and the theme files
 export GITLAB_TOKEN='<your-gitlab-token>' # or type it at the prompt
 ./setup_svt_project.py --create --gitlab-url https://<gitlab-host> --scan-host-keys
 ./setup_svt_project.py --validate --gitlab-url https://<gitlab-host>   # GitLab CI lint
@@ -93,7 +135,8 @@ Enter to skip a cluster) and stores it as a masked, protected variable. It commi
 | In the project | Content |
 |---|---|
 | `.gitlab-ci.yml` | One trigger job per cluster (`svt_<cluster>`), each holding the resource group `svt-<cluster>` |
-| `.gitlab-ci-svt-<theme>.yml` | The jobs of one cluster (child pipeline), one file per theme in use (the theme is per cluster) |
+| `.gitlab-ci-svt-cluster-<cluster>.yml` | The cluster pipeline: preflight, initialization, one trigger per theme, summary |
+| `.gitlab-ci-svt-<theme>.yml` | The jobs of one theme (nested pipeline): setup, its stages, theme_result |
 | `svt_ci.py`, `svt_pipeline_config.yml` | The runner helper; a reference copy of your config |
 | `clusters/<cluster>/svt/secret.yaml`, `values.yaml` | PowerScale CSI; `--create` adds them copied from the product's reference examples, you edit them (never replaced by `--update-inputs`). Copied next to `user_inputs.yml` on the OIM at every checkout; the initialization job then runs `./setup_env.sh --stage-files`, which moves them to the paths of `omnia_config.yml` (default: the orchestrator's project input folder) only when `enable_powerscale_csi` is true, and then both must exist (see SETUP.md, PowerScale CSI) |
 | `clusters/<cluster>/svt/user_inputs.yml` | The cluster values (from `test/system_test`; edit them in GitLab). Other files with the same syntax can sit beside it; the CI/CD variable `<CLUSTER>_SVT_USER_INPUTS` (`svt.user_inputs` in the config) names the one the cluster's pipeline uses, default `user_inputs.yml` |
@@ -138,7 +181,7 @@ CI/CD > Pipelines > **Run pipeline** (branch `main`). Variables for this run onl
 | Variable | Example | Effect |
 |---|---|---|
 | `SVT_CLUSTERS` | `cluster1,cluster3` | Only these clusters, comma separated (default: every enabled cluster of the config) |
-| `CLUSTER1_SVT_THEME` | `build_stream` | The theme to run on cluster1 (default: the project variable, set from `clusters.cluster1.theme`) |
+| `CLUSTER1_SVT_THEMES` | `build_stream` | Run only these themes on cluster1 (a subset of `clusters.cluster1.themes`, in its order; default: the project variable, set from the config) |
 | `CLUSTER1_SVT_SKIP_STAGES` | `cadence,automatic_cleanup` | Leave theme stages out on cluster1 |
 | `CLUSTER1_SVT_CLEAN_REINSTALL` | `false` | No cleanup, install only what changed |
 | `CLUSTER1_SVT_OMNIA_BRANCH` | `my-fix` | Test another branch |
@@ -224,7 +267,7 @@ export GITLAB_TOKEN='<your-gitlab-token>'
 ./setup_svt_project.py --validate --gitlab-url https://<gitlab-host>        # GitLab CI lint
 ```
 
-`--update` **always**: commits `.gitlab-ci.yml`, `.gitlab-ci-svt-<theme>.yml` (one per theme in use), `svt_ci.py` and the
+`--update` **always**: commits `.gitlab-ci.yml`, `.gitlab-ci-svt-cluster-<cluster>.yml` (one per cluster), `.gitlab-ci-svt-<theme>.yml` (one per theme), `svt_ci.py` and the
 reference `svt_pipeline_config.yml` to the project's branch; rewrites every CI/CD variable of the
 config (it prints each as `created`/`updated` with its value, secrets are never printed); and
 raises the project CI timeout to the longest job.
