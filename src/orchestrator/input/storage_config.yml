@@ -298,3 +298,42 @@ mount_params:
 #     size: "2G"
 #     maxsize: "4G"
 #     functional_group_prefix: ["slurm_node"]
+
+# -----------------------------Local storage (local disks)-------------------------------
+# local_storage: Declare the local data disks for etcd and Kafka (list of entries)
+#
+# Mandatory fields:
+#   - name:                    Unique entry name. Pattern: [a-zA-Z0-9_-], length 1-64
+#   - purpose:                 "etcd" or "kafka"
+#   - functional_group_prefix: Service Kubernetes group prefixes. Mandatory
+#                              etcd: control-plane groups only; kafka: worker (service_kube_node) groups only
+#   - disk_type:               "boss", "hdd", "ssd" or "nvme". Mandatory
+#   - mount_options:           Mount options. Mandatory. "nofail" is not allowed for etcd
+#
+# Optional fields:
+#   - disk_identity: "serial" (default) or "wwn"
+#   - model:         Disk model string, or null
+#   - node_overrides: Per-node disk selection. Each item: node, disk_id (serial or WWN),
+#                     and optionally disk_type and disk_identity. node must be in the group
+#
+# Purpose-specific fields:
+#   - etcd: fs_type (required). Filesystem created on the disk
+#   - kafka: volume_group (required). LVM volume group name. fs_type and mount_point are not allowed;
+#            TopoLVM creates the filesystem
+#
+# Sample (uncomment and edit to declare local disks):
+# local_storage:
+#   - name: "etcd_disk"
+#     purpose: "etcd"
+#     functional_group_prefix: ["service_kube_control_plane"]
+#     disk_type: "boss"
+#     disk_identity: "serial"
+#     fs_type: "xfs"
+#     mount_options: "noatime"
+#   - name: "kafka_disk"
+#     purpose: "kafka"
+#     functional_group_prefix: ["service_kube_node"]
+#     disk_type: "nvme"
+#     disk_identity: "serial"
+#     volume_group: "omnia-kafka-vg"
+#     mount_options: "noatime,nodiratime"
