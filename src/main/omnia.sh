@@ -2082,10 +2082,14 @@ RECOMMENDED EXECUTION ORDER:
     build_stream:        precheck validate credentials prepare execute build cleanup cleanup_gitlab cleanup_build_stream
     discovery:           precheck validate credentials prepare execute cleanup cleanup_credentials
     image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images
-    orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials
+    orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration manage-functional-group cleanup cleanup_credentials
     repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos catalog_generate catalog_add catalog_delete catalog_validate
     telemetry:           precheck validate validation prepare credentials execute deploy deploy_sinks cleanup cleanup_sinks cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast external_kafka external_victoria
     utils:               precheck setup collect install_os oci_image_ingest backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_oci_image_ingest cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback
+
+  Flexible functional groups use the single dedicated tag 'manage-functional-group'
+  for add, remove, and configure operations; they also publish under default,
+  provision, and execute lifecycle flows.
 
   Without --tags, each playbook runs its full default flow. Tags marked with
   Ansible's "never" tag run only when explicitly selected. Domain playbooks
