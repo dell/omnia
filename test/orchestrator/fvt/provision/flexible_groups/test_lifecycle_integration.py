@@ -51,6 +51,8 @@ Not testing:
   changes.
 """
 
+# pylint: disable=redefined-outer-name
+
 from pathlib import Path
 
 import pytest
@@ -111,7 +113,7 @@ class TestLifecyclePublication:
     """FR-4.4: Flexible groups publish in default/provision/execute flows."""
 
     def test_lifecycle_import_exists(self, orchestrator_playbook):
-        """FR-4.4: At least one lifecycle import of manage_functional_group
+        """ORCH_FVT_FG_V010: At least one lifecycle import of manage_functional_group
         exists without the 'never' tag."""
         imports = _fg_lifecycle_imports(orchestrator_playbook)
         assert len(imports) >= 1, (
@@ -120,7 +122,7 @@ class TestLifecyclePublication:
 
     @pytest.mark.parametrize("tag", ["provision", "execute"])
     def test_lifecycle_import_tagged_for_flow(self, orchestrator_playbook, tag):
-        """FR-4.4: Lifecycle publication runs during {tag} flow."""
+        """ORCH_FVT_FG_V011: Lifecycle publication runs during {tag} flow."""
         imports = _fg_lifecycle_imports(orchestrator_playbook)
         tagged = [p for p in imports if tag in p.get("tags", [])]
         assert len(tagged) >= 1, (
@@ -130,7 +132,7 @@ class TestLifecyclePublication:
     def test_lifecycle_import_positioned_after_category_provision(
         self, orchestrator_playbook
     ):
-        """FR-4.4: Lifecycle FG publication is positioned after category
+        """ORCH_FVT_FG_V012: Lifecycle FG publication is positioned after category
         provisioning plays (kubernetes, slurm, os, custom) in orchestrator.yml."""
         category_playbooks = [
             "provision_kubernetes",
@@ -152,7 +154,7 @@ class TestLifecyclePublication:
         assert True
 
     def test_no_removal_in_lifecycle_flow(self, manage_fg_playbook):
-        """FR-4.4: Lifecycle publication never removes groups; removal is
+        """ORCH_FVT_FG_V013: Lifecycle publication never removes groups; removal is
         only available through the dedicated manage-functional-group tag."""
         play = manage_fg_playbook[0]
         vars_ = play.get("vars", {})
@@ -160,7 +162,7 @@ class TestLifecyclePublication:
         assert vars_.get("fg_operation") == "add"
 
     def test_no_bolt_on_consumption_for_flexible_groups(self, manage_fg_playbook):
-        """AC-013: Flexible groups never consume bolt-on roles."""
+        """ORCH_FVT_FG_V014: Flexible groups never consume bolt-on roles."""
         play = manage_fg_playbook[0]
         roles = play.get("roles", [])
         role_names = [
@@ -173,21 +175,21 @@ class TestLifecyclePublication:
             )
 
     def test_no_omnia_config_consumption(self, manage_fg_playbook):
-        """AC-013: Flexible groups do not consume omnia_config.yml.
+        """ORCH_FVT_FG_V015: Flexible groups do not consume omnia_config.yml.
         Comments documenting the non-dependency are acceptable."""
         play = manage_fg_playbook[0]
         playbook_yaml = yaml.dump(play, default_flow_style=False)
         assert "omnia_config.yml" not in playbook_yaml
 
     def test_no_storage_config_consumption(self, manage_fg_playbook):
-        """AC-013: Flexible groups do not consume storage_config.yml.
+        """ORCH_FVT_FG_V016: Flexible groups do not consume storage_config.yml.
         Comments documenting the non-dependency are acceptable."""
         play = manage_fg_playbook[0]
         playbook_yaml = yaml.dump(play, default_flow_style=False)
         assert "storage_config.yml" not in playbook_yaml
 
     def test_no_repo_status_dependency(self, manage_fg_playbook):
-        """FR-4.1/FR-4.3: Flexible groups do not require repo_status.yml.
+        """ORCH_FVT_FG_V017: Flexible groups do not require repo_status.yml.
         Comments documenting the non-dependency are acceptable."""
         play = manage_fg_playbook[0]
         playbook_yaml = yaml.dump(play, default_flow_style=False)
@@ -203,13 +205,13 @@ class TestLifecycleIsolation:
     """Per-group failure isolation during lifecycle runs."""
 
     def test_provision_custom_excludes_fg(self):
-        """AC-012: provision_custom explicitly excludes fg_ groups so they
+        """ORCH_FVT_FG_V018: provision_custom explicitly excludes fg_ groups so they
         don't interfere with the custom catch-all during lifecycle runs."""
         text = PROVISION_CUSTOM_YML.read_text(encoding="utf-8")
         assert "rejectattr('name', 'match', '^fg_')" in text
 
     def test_manage_fg_uses_conditional_roles(self, manage_fg_playbook):
-        """Per-group isolation: provision_common runs only when the operation
+        """ORCH_FVT_FG_V019: Per-group isolation: provision_common runs only when the operation
         is add or configure AND target groups are present."""
         play = manage_fg_playbook[0]
         roles = play.get("roles", [])
@@ -226,7 +228,7 @@ class TestLifecycleIsolation:
         pytest.fail("provision_common role not found in manage_functional_group")
 
     def test_fg_generation_runs_before_manage(self, orchestrator_playbook):
-        """FG generation must run before manage_functional_group in all flows."""
+        """ORCH_FVT_FG_V020: FG generation must run before manage_functional_group in all flows."""
         gen_idx = None
         manage_idx = None
         for i, play in enumerate(orchestrator_playbook):
@@ -239,3 +241,27 @@ class TestLifecycleIsolation:
             assert gen_idx < manage_idx, (
                 "FG generation must precede manage_functional_group import"
             )
+
+    def test_manage_fg_has_block_rescue_always_safety(self, manage_fg_playbook):
+        """ORCH_FVT_FG_V021: Lifecycle execution wraps mutations in block/rescue/always."""
+        play = manage_fg_playbook[0]
+        tasks = play.get("tasks", [])
+        assert any("block" in t for t in tasks), (
+            "manage_functional_group must wrap lifecycle mutation in a block"
+        )
+        lifecycle_block = next(t for t in tasks if "block" in t)
+        assert "rescue" in lifecycle_block, "Lifecycle block must define rescue handler"
+        assert "always" in lifecycle_block, "Lifecycle block must define always handler"
+
+        # Rescue records failure and reconciles status
+        rescue_tasks = lifecycle_block["rescue"]
+        assert any("action" in t.get("functional_group_lifecycle", {})
+                   and t["functional_group_lifecycle"]["action"] == "finish_journal"
+                   and t["functional_group_lifecycle"]["terminal_result"] == "failed"
+                   for t in rescue_tasks), "Rescue must finish journal as failed"
+
+        # Always releases lock
+        always_tasks = lifecycle_block["always"]
+        assert any("action" in t.get("functional_group_lifecycle", {})
+                   and t["functional_group_lifecycle"]["action"] == "release_lock"
+                   for t in always_tasks), "Always block must release mutation lock"

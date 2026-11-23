@@ -129,6 +129,19 @@ login_compiler_log_files:
   - /var/log/secure
   - /var/log/messages
 
+# Flexible node log paths (routed dynamically by role prefix e.g. fg_<label>)
+flexible_node_log_dirs:
+  - /var/log/slurm/
+  - /var/log/chrony/
+  - /var/log/private/
+
+flexible_node_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
+  - /var/log/secure
+  - /var/log/messages
+  - /var/log/dnf.log
+
 # Curated support mode: exclusion patterns to remove from workspace before bundling
 # These patterns are applied recursively in log_root when collection_mode == 'curated_support'
 # Customize per environment to match temp/stale/old log patterns
