@@ -149,6 +149,68 @@
             }}
           timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
 
+- name: Collect flexible group node logs
+  when: stage == 'flexible_node'
+  block:
+    - name: Include flexible group collection tasks
+      ansible.builtin.include_tasks: flexible_logs.yml
+  rescue:
+    - name: Record flexible group collection execution failure
+      ansible.builtin.set_fact:
+        collection_error_warnings_host: "{{ (collection_error_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        unreachable_results: "{{ (ansible_failed_result.results | default([])) | selectattr('unreachable', 'defined') | selectattr('unreachable') | list }}"
+        failure_reason: >-
+          {{
+            'unreachable'
+            if (
+              (ansible_failed_result.unreachable | default(false))
+              or (unreachable_results | length > 0)
+              or ('Failed to connect to the host via ssh' in (ansible_failed_result.msg | default('')))
+            )
+            else 'collection_error'
+          }}
+        failure_detail: >-
+          {{
+            ((unreachable_results | map(attribute='msg') | list | first)
+            | default(ansible_failed_result.msg | default('unknown error')))
+            | sanitize_log_message
+          }}
+        warning_payload:
+          source: "{{ role_prefix | default(stage) }}"
+          source_group: "{{ source_group | default(stage) }}"
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: "{{ failure_reason }}"
+          message: >-
+            {{
+              (
+                'Node '
+                + inventory_hostname
+                + ' ('
+                + (ansible_host | default('unknown'))
+                + ') not reachable via SSH for '
+                + (source_group | default(stage))
+                + ': '
+                + failure_detail
+                + '. Continuing bundle generation.'
+              )
+              if failure_reason == 'unreachable'
+              else
+              (
+                'Collection task failed for '
+                + (source_group | default(stage))
+                + ' on node '
+                + inventory_hostname
+                + ' ('
+                + (ansible_host | default('unknown'))
+                + '): '
+                + failure_detail
+                + '. Continuing bundle generation.'
+              )
+            }}
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
+
 - name: Bundle logs and publish summary
   ansible.builtin.include_tasks: bundle.yml
   when: stage == 'bundle'

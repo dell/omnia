@@ -107,6 +107,7 @@ def pytest_configure(config):
     )
     markers = {
         "order(n)": "Specify test execution order (lower first)",
+        "fvt": "Functional verification tests",
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
         "regression": "Regression tests",

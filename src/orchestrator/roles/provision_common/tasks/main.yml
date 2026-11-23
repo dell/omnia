@@ -91,16 +91,23 @@
     # (fg_operation=configure, scope=cloud_init) sets it to false for a
     # cloud_init-only scope.
     - name: Prune stale Boot Service configurations for current node MACs
-      openchami_reconcile:
-        action: prune_boot_configurations
-        cluster_uri: "{{ openchami_api_uri }}"
-        access_token: "{{ ochami_env[cluster_env_key] }}"
-        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
-        boot_configuration_names: "{{ target_fg_names }}"
-        boot_configuration_macs: "{{ _category_mac_list }}"
-      register: _stale_boot_config_prune
-      no_log: true
       when: fg_publish_boot | default(true) | bool
+      block:
+        - name: Prune stale Boot Service configurations for current node MACs
+          openchami_reconcile:
+            action: prune_boot_configurations
+            cluster_uri: "{{ openchami_api_uri }}"
+            access_token: "{{ ochami_env[cluster_env_key] }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            boot_configuration_names: "{{ target_fg_names }}"
+            boot_configuration_macs: "{{ _category_mac_list }}"
+          register: _stale_boot_config_prune
+          no_log: true
+      rescue:
+        - name: Report stale Boot Service configuration prune failure
+          ansible.builtin.fail:
+            msg: "{{ provision_prune_boot_config_rescue_msg }}"
+          no_log: false
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
