@@ -145,6 +145,22 @@ UT_TEST_CASE_IDS = {
             53: "test_encrypted_input_without_key_is_unvalidated",
         },
     ),
+    # ── Flexible group mapping compatibility (test_flexible_group_mapping.py) ─
+    **_class_cases(
+        "test_flexible_group_mapping.py",
+        "TestFlexibleGroupMappingCompatibility",
+        {
+            54: "test_valid_unversioned_fg_group_injects_os_and_version",
+            55: "test_valid_already_versioned_fg_group_preserves_exact_identity",
+            56: "test_invalid_prefix_missing_fg_is_rejected_with_evidence",
+            57: "test_invalid_architecture_suffix_is_rejected_with_evidence",
+            58: "test_missing_architecture_suffix_is_rejected_with_evidence",
+            59: "test_predefined_groups_remain_backwards_compatible",
+            60: "test_predefined_unversioned_group_injects_os_and_version",
+            61: "test_omit_invalid_groups_omits_rows_and_provides_evidence",
+            62: "test_no_credentials_appear_in_mapping_output_or_evidence",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

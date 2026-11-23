@@ -710,6 +710,24 @@ UT_TEST_CASE_IDS = {
             333: "test_secrets_are_still_masked",
         },
     ),
+    # ── Flexible Group Catalog Fixtures ─────────────────────────────────────
+    **_class_cases(
+        "test_flexible_group_catalog_fixtures.py",
+        "FlexibleGroupCatalogFixturesTests",
+        {
+            334: "test_baseos_group_missing",
+            335: "test_count_boundary_exceeded_rejected",
+            336: "test_manual_valid_catalog_passes",
+            337: "test_missing_fg_prefix_rejected",
+            338: "test_missing_suffix_rejected",
+            339: "test_referential_integrity_broken_group",
+            340: "test_referential_integrity_broken_package",
+            341: "test_reviewed_generated_catalog_passes",
+            342: "test_unreviewed_generated_catalog_rejected",
+            343: "test_unsupported_architecture_rejected",
+            344: "test_warning_os_version_produces_warning_not_error",
+        },
+    ),
 }
 
 
