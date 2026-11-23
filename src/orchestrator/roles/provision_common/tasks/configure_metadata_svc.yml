@@ -66,6 +66,29 @@
          else '' }}
   when: target_category | default('') == 'kubernetes'
 
+- name: Resolve local_storage kafka entry for this functional group
+  ansible.builtin.set_fact:
+    kafka_disk_entry: >-
+      {%- set _entries = local_storage | default([])
+            | selectattr('purpose', 'equalto', 'kafka') | list -%}
+      {%- set _match = [] -%}
+      {%- for e in _entries if _match | length == 0 -%}
+      {%- for pfx in e.functional_group_prefix | default([])
+            if functional_group_name.startswith(pfx) -%}
+      {%- if _match | length == 0 -%}{{ _match.append(e) or '' }}{%- endif -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ _match | first | default(none) }}
+  when: target_category | default('') == 'kubernetes'
+
+- name: Build kafka disk model argument for cloud-init template
+  ansible.builtin.set_fact:
+    kafka_model_arg: >-
+      {{ ('--model ' ~ (kafka_disk_entry.get('model') | quote))
+         if (kafka_disk_entry is not none and kafka_disk_entry.get('model'))
+         else '' }}
+  when: target_category | default('') == 'kubernetes'
+
 - name: Resolve Slurm storage references for metadata configuration
   ansible.builtin.set_fact:
     metadata_slurm_nfs_storage_name: >-
