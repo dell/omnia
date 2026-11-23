@@ -22,6 +22,10 @@ from __future__ import annotations
 
 import os
 import re
+import yaml
+from logging import Logger
+from typing import Any
+
 from logging import Logger
 from typing import Any
 
@@ -31,6 +35,11 @@ from ..messages import orchestrator_messages as msg
 
 # Secret patterns that must not appear in cloud-init content
 _SECRET_PATTERNS = [
+    re.compile(r"password\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"api[_-]?key\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"secret\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"token\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"private[_-]?key", re.IGNORECASE),
     ("password", re.compile(r"password\s*[:=]\s*\S+", re.IGNORECASE)),
     ("api_key", re.compile(r"api[_-]?key\s*[:=]\s*\S+", re.IGNORECASE)),
     ("secret", re.compile(r"secret\s*[:=]\s*\S+", re.IGNORECASE)),
