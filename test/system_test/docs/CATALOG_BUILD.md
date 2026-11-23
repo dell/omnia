@@ -180,8 +180,6 @@ catalog_build:
     - [image_build_manager, prepare]
     - [image_build_manager, build]
 
-cleanup:   # what --force / --cleanup removes (same flags as build_stream)
-  ...
 report:    # where the run folder and the report go
   ...
 ```
@@ -338,8 +336,9 @@ What `repo_config` and `caching_policy` mean for Repo Manager:
 | `partial` | `false` | `streamed` | Packages only validated, not stored; the image build then needs the upstream repositories |
 | `partial` | `true` | `on_demand` | Stored when first requested |
 
-The `cleanup` and `report` blocks are the same as in `build_stream_test_config.yml`
-(see [TEST_CONFIG.md](TEST_CONFIG.md)).
+The `report` block is the same as in `build_stream_test_config.yml`. The cleanup is not in this
+file: it is the `cleanup` block of `user_inputs.yml`, shared by every theme (see
+[TEST_CONFIG.md](TEST_CONFIG.md)); the OpenBao block of `user_inputs.yml` is shared too.
 
 ### 5.1 Per-catalog input files (optional)
 

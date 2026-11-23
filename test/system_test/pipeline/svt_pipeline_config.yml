@@ -180,3 +180,66 @@ clusters:
     # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
     # path.
     secret_path: ""
+
+  # -------------------------------------------------------------------------
+  # A second cluster with the catalog_build theme (the catalogs are built one after
+  # another on its OIM). Left out of the default selection (enabled: false); run it with
+  # SVT_CLUSTERS=clashcp in Run pipeline, or set enabled: true.
+  # -------------------------------------------------------------------------
+  clashcp:
+    # The SVT theme of this cluster (required; a key of THEMES in
+    # ../library/vars/theme_vars.py). It becomes the CI/CD variable <CLUSTER>_SVT_THEME and the
+    # pipeline picks the theme from that variable, so it can be changed in GitLab (Settings >
+    # CI/CD > Variables, or per run in Run pipeline) without --update; this value is what
+    # --update and --set-variables write. Its stages become the cluster's pipeline jobs.
+    theme: "catalog_build"
+    # theme catalog_build: one job per catalog of ../catalog_build_test_config.yml, resolved
+    # when the CI files are rendered; after changing the catalog list run --update --update-inputs.
+    # This cluster runs the catalog_build theme; its inputs are clusters/clashcp/svt/
+    # (user_inputs.yml and catalog_build_test_config.yml).
+    # "false": leave this cluster out of the default selection (SVT_CLUSTERS). Its trigger job
+    # stays, so a run can still pick it by name (SVT_CLUSTERS=<name> in Run pipeline).
+    enabled: false
+    target:
+      # IP or name of the OIM. The runner must reach it on port 22.
+      ip: ""
+      # User the jobs log in as (root). The password is asked by --create / --set-password
+      # and stored as the masked, protected variable <CLUSTER>_SVT_TARGET_PASS.
+      user: "root"
+      # "true": do not check the OIM host key (not recommended; the jobs warn). Default
+      # "false": <CLUSTER>_SVT_SSH_KNOWN_HOSTS is required (--scan-host-keys sets it).
+      ssh_skip_host_key: "false"
+    omnia:
+      # Git repository the OIM clones the SVT from. It must contain test/system_test and
+      # be readable from the OIM without a password (a public https URL).
+      repo: "https://github.com/dell/omnia.git"
+      # Branch to test. The checkout resets the folder below to this branch.
+      branch: "staging"
+      # Absolute folder on the OIM that holds the checkout. Dedicate it to the pipeline:
+      # recreate deletes it. System folders (/, /root, /opt, /opt/omnia, /etc ...) are refused.
+      install_path: "/root/omnia"
+      # How the checkout job prepares that folder:
+      #   update    clone when missing, else fetch the branch and reset to it (local
+      #             changes of tracked files are discarded). The fastest.
+      #   recreate  delete the folder and clone it again: a fresh checkout every run. Anything
+      #             still running from the folder (a step of an earlier run) is stopped first.
+      #   keep      use the folder as it is, no git command.
+      checkout_mode: "update"
+    svt:
+      # "true": the initialization job does a clean reinstall (./setup_env.sh --force:
+      # cleanup including the NFS shares, then install). "false": no cleanup.
+      clean_reinstall: "true"
+      # Theme stages to leave out, comma separated, e.g. "cadence,automatic_cleanup".
+      # Can also be set for one run with the SVT_SKIP_STAGES pipeline variable.
+      skip_stages: ""
+      # Inputs file of this cluster: a file of clusters/<cluster>/svt/ in the GitLab project, with
+      # the syntax of user_inputs.yml. The checkout job copies it to the OIM as user_inputs.yml,
+      # so a cluster can keep several (user_inputs_ib.yml, user_inputs_small.yml ...) and pick one.
+      # It becomes the CI/CD variable <CLUSTER>_SVT_USER_INPUTS: change it in GitLab (Settings >
+      # CI/CD > Variables) without --update; empty means user_inputs.yml. A name that is not in
+      # the project fails the checkout instead of using another file.
+      user_inputs: "user_inputs.yml"
+    # OpenBao path of this cluster's credentials, when it differs from the openbao
+    # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
+    # path.
+    secret_path: ""

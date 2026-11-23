@@ -34,8 +34,8 @@ FVT runner call (`test/<domain>/_run.py fvt_<domain> ...`), defined as data in
 
 ```bash
 cd test/system_test
-${EDITOR:-vi} user_inputs.yml                # cluster values (MANDATORY ones marked)
-${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipeline cancel, cleanup flags
+${EDITOR:-vi} user_inputs.yml                # cluster values (MANDATORY ones marked), the cleanup and OpenBao blocks (shared by every theme)
+${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipeline cancel
 
 ./setup_env.sh                       # configure (new run), install, prompt the missing credentials
 ./setup_env.sh --status              # the run, the steps and the readiness checks, in a box
@@ -144,7 +144,7 @@ How the theme compares with build_stream: [docs/CATALOG_BUILD.md](docs/CATALOG_B
 | Doc | Contents |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, PowerScale files, status), `user_inputs.yml` (PowerVault, PowerScale CSI), the dataset generator |
-| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, discovery, NFS shares ...), the report |
+| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml` (catalogs, the report) and the shared `cleanup` block of `user_inputs.yml` (flags per suite: telemetry, discovery, NFS shares ...) |
 | [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md) | **User guide of the `catalog_build` theme**: prerequisites, the two files to edit, step by step, every setting, reading the report, failures, the GitLab pipeline (one job per catalog), how it compares with build_stream, troubleshooting |
 | [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |
@@ -159,8 +159,8 @@ test/system_test/
 ├── docs/                        SETUP.md, TEST_CONFIG.md, RUNNER.md, OPENBAO.md, PIPELINE.md,
 │                                PIPELINE_CONFIG.md
 ├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
-├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
-├── user_inputs.yml              the cluster values
+├── build_stream_test_config.yml the theme's settings: FVT overrides, report
+├── user_inputs.yml              the cluster values, the cleanup and the OpenBao block (shared by every theme)
 ├── (secret.yaml, values.yaml)   PowerScale CSI, optional: seeded from src/orchestrator/examples/ into
 │                                the cluster's folder of the GitLab project and edited there (or by
 │                                hand in this folder)
