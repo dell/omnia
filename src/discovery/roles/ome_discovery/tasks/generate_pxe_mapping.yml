@@ -64,6 +64,8 @@
     ib_subnet: "{{ ib_subnet }}"
     ipv6_subnet: "{{ ipv6_subnet }}"
     admin_subnet: "{{ admin_subnet }}"
+    os_type: "{{ discovery_os_type | default('rhel') }}"
+    os_version: "{{ discovery_os_version | default('10_0') }}"
   register: pxe_mapping_result
 
 - name: Create symlink to latest PXE mapping file

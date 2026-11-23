@@ -150,3 +150,32 @@
     - "{{ log_root }}"
     - "{{ log_root }}/k8s"
     - "{{ log_root }}/slurm"
+
+- name: Extract flexible functional group entries
+  vars:
+    _grouped: "{{ collect_pxe_data | default({}) | dict2items }}"
+  ansible.builtin.set_fact:
+    flexible_group_entries: "{{ _grouped | selectattr('key', 'match', '^fg_') | list }}"
+
+- name: Add dynamic hosts for flexible functional groups
+  ansible.builtin.add_host:
+    name: >-
+      {{
+        (item.0.key | regex_replace('^(fg_[a-zA-Z0-9_-]+?)(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?_(?:x86_64|aarch64)$', '\\1'))
+      }}_{{ item.1 | replace('.', '_') }}
+    ansible_host: "{{ item.1 }}"
+    groups:
+      - flexible_nodes
+      - "{{ item.0.key | regex_replace('^(fg_[a-zA-Z0-9_-]+?)(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?_(?:x86_64|aarch64)$', '\\1') }}"
+    role_prefix: "{{ item.0.key | regex_replace('^(fg_[a-zA-Z0-9_-]+?)(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?_(?:x86_64|aarch64)$', '\\1') }}"
+    source_group: "{{ item.0.key }}"
+  loop: "{{ flexible_group_entries | subelements('value', skip_missing=True) }}"
+  when: flexible_group_entries | length > 0
+
+- name: Ensure flexible group log directories exist on OIM
+  ansible.builtin.file:
+    path: "{{ log_root }}/{{ item.key | regex_replace('^(fg_[a-zA-Z0-9_-]+?)(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?_(?:x86_64|aarch64)$', '\\1') }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ flexible_group_entries }}"
+  when: flexible_group_entries | length > 0

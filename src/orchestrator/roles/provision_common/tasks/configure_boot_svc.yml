@@ -44,6 +44,33 @@
     initrd: "{{ validated_images[fg_name].initrd }}"
     image: "{{ validated_images[fg_name].image | default('') }}"
 
+- name: Apply flexible group image override and boot parameters - {{ fg_name }}
+  ansible.builtin.set_fact:
+    kernel: >-
+      {{ (resolved_fg_config[fg_name].image_override.value.kernel
+          | default(resolved_fg_config[fg_name].image_override.kernel | default(kernel)))
+         if (resolved_fg_config[fg_name].image_override | default({}) | length > 0)
+         else kernel }}
+    initrd: >-
+      {{ (resolved_fg_config[fg_name].image_override.value.initrd
+          | default(resolved_fg_config[fg_name].image_override.initrd | default(initrd)))
+         if (resolved_fg_config[fg_name].image_override | default({}) | length > 0)
+         else initrd }}
+    image: >-
+      {{ (resolved_fg_config[fg_name].image_override.value.rootfs
+          | default(resolved_fg_config[fg_name].image_override.rootfs | default(image)))
+         if (resolved_fg_config[fg_name].image_override | default({}) | length > 0)
+         else image }}
+    boot_kernel_params: >-
+      {{ resolved_fg_config[fg_name].boot_kernel_params.value
+         | default(resolved_fg_config[fg_name].boot_kernel_params | default('')) }}
+    boot_kernel_params_mode: >-
+      {{ resolved_fg_config[fg_name].boot_kernel_params_mode.value
+         | default(resolved_fg_config[fg_name].boot_kernel_params_mode | default('append')) }}
+  when:
+    - resolved_fg_config is defined
+    - fg_name in resolved_fg_config
+
 - name: Create boot directory
   ansible.builtin.file:
     path: "{{ boot_svc_dir }}"

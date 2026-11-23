@@ -26,8 +26,8 @@ import os
 from logging import Logger
 from typing import Any, Callable
 
-from orchestrator_validation.messages import orchestrator_messages as msg
-from functional_group_resolver import resolve_group
+from ..messages import orchestrator_messages as msg
+from ...functional_group_resolver import resolve_group
 from .additional_cloud_init_validator import _read_functional_group_names
 from .functional_group_cloud_init_rules import (
     validate_cloud_init_reference,
@@ -80,27 +80,25 @@ def _validate_legacy_inputs(
     orchestrator_data: Any,
     errors: list[str],
     logger: Logger | None,
+    warnings: list[str] | None = None,
 ) -> None:
-    """Reject non-empty legacy values combined with their new counterparts.
-
-    A legacy value may only fill in where the corresponding new value is empty
-    (FR-1.2), so each legacy input conflicts only with its own field family.
-    """
+    """Validate legacy orchestrator inputs and check for conflicts."""
     legacy = orchestrator_data if isinstance(orchestrator_data, dict) else {}
-    # ER-ORCH-009 FR-6.2: boot_kernel_params removed from orchestrator_config.yml.
-    # Reject with migration guidance before any mutation.
-    if _non_empty(legacy.get("boot_kernel_params")):
-        record_error(
-            errors, logger, msg.functional_group_removed_boot_kernel_params_msg()
-        )
-    legacy_cloud_init = legacy.get("additional_cloud_init_config_file", "")
-    if _non_empty(legacy_cloud_init) and _any_scope(config_data, _sets_cloud_init):
-        record_error(errors, logger, msg.functional_group_legacy_conflict_msg())
+    legacy_kernel = legacy.get("boot_kernel_params")
+    if _non_empty(legacy_kernel):
         if _any_scope(config_data, _sets_kernel_params):
-            record_error(errors, logger, msg.functional_group_legacy_kernel_conflict_msg())
+            record_error(
+                errors,
+                logger,
+                "orchestrator_config: boot_kernel_params is deprecated and "
+                "conflicts with functional_group_config.yml boot_kernel_params.",
+            )
+        else:
+            validate_kernel_params(
+                legacy_kernel, "orchestrator_config", errors, logger, warnings
+            )
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _validate_scope(
     scope: Any,
     referenced_by: str,
@@ -126,7 +124,6 @@ def _validate_scope(
     return scope
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _validate_groups(
     config_data: dict[str, Any],
     groups: dict[str, Any],
@@ -206,7 +203,7 @@ def validate(
         )
         return errors
 
-    _validate_legacy_inputs(config_data, orchestrator_data, errors, logger)
+    _validate_legacy_inputs(config_data, orchestrator_data, errors, logger, warnings)
     _validate_scope(
         config_data.get("common"), "common", input_project_dir, errors, logger, warnings
     )

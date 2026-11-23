@@ -34,7 +34,7 @@
       "additionalProperties": false
     },
     "groups": {
-      "type": "object",
+      "type": ["object", "null"],
       "description": "Exact-group settings that override common settings for specific flexible groups. Group keys must start with the mandatory fg_ prefix and must exactly match functional group names in the reviewed PXE mapping file.",
       "patternProperties": {
         "^fg_": {

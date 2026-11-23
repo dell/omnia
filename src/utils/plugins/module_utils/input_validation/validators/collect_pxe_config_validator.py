@@ -27,11 +27,8 @@ without code changes — so functional groups are matched by pattern instead of
 a hardcoded set of exact strings. This mirrors the normalization regex used
 by orchestrator's ``generate_functional_groups`` module.
 """
+import ipaddress
 import re
-from ansible.module_utils.input_validation.messages import (  # pylint: disable=E0401
-    utils_messages as msg,
-)
-
 # Roles supported for log collection. "service_kube_control_plane_first"
 # (the primary control-plane node) must be listed before
 # "service_kube_control_plane" so the longer, more specific alternative is
@@ -61,6 +58,10 @@ FUNCTIONAL_GROUP_NAME_PATTERN = re.compile(
     rf"^(?:{_ROLE_PATTERN}){_OS_VERSION_SEGMENT}_(?:{_ARCHITECTURE_PATTERN})$"
 )
 
+FLEXIBLE_GROUP_NAME_PATTERN = re.compile(
+    rf"^fg_(?P<label>[a-zA-Z0-9_-]+?){_OS_VERSION_SEGMENT}_(?:{_ARCHITECTURE_PATTERN})$"
+)
+
 # Representative legacy/base group names, used only for human-readable error
 # messages (the actual validation is pattern-based; any OS/version variant of
 # these is also accepted).
@@ -71,9 +72,36 @@ VALID_FUNCTIONAL_GROUPS = {
 }
 
 
+def extract_role_prefix(group_name):
+    """Extract normalized role prefix from a functional group name.
+
+    Returns:
+    - Predefined role (e.g. slurm_node for slurm_node_rhel_10_0_aarch64)
+    - Flexible role prefix (e.g. fg_webserver for fg_webserver_rhel_10_2_x86_64)
+    """
+    if not group_name:
+        return ""
+    if group_name.startswith("fg_"):
+        match = FLEXIBLE_GROUP_NAME_PATTERN.match(group_name)
+        if match:
+            return f"fg_{match.group('label')}"
+        if "_rhel_" in group_name:
+            return group_name.split("_rhel_")[0]
+        return group_name.rsplit("_", 1)[0]
+    match = FUNCTIONAL_GROUP_NAME_PATTERN.match(group_name)
+    if match:
+        for role in FUNCTIONAL_GROUP_ROLES:
+            if group_name.startswith(role):
+                return role
+    return group_name
+
+
 def is_valid_functional_group(group_name):
     """Return True if group_name matches a supported role/OS-version/arch shape."""
-    return bool(FUNCTIONAL_GROUP_NAME_PATTERN.match(group_name))
+    return bool(
+        FUNCTIONAL_GROUP_NAME_PATTERN.match(group_name)
+        or FLEXIBLE_GROUP_NAME_PATTERN.match(group_name)
+    )
 
 
 def _validate_ip_addresses(config_data, errors, logger=None):
@@ -87,7 +115,7 @@ def _validate_ip_addresses(config_data, errors, logger=None):
     for group_name, ip_list in config_data.items():
         if not isinstance(ip_list, list):
             continue
-            
+
         for ip_address in ip_list:
             if not isinstance(ip_address, str):
                 error = f"collect_pxe_config: {group_name} contains non-string value: {ip_address}"
@@ -95,20 +123,27 @@ def _validate_ip_addresses(config_data, errors, logger=None):
                 if logger:
                     logger.error(error)
                 continue
-            
-            # Basic IPv4 validation
-            ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-            if not re.match(ipv4_pattern, ip_address.strip()):
-                error = f"collect_pxe_config: {group_name} contains invalid IP address: {ip_address}"
+
+            # Strict IPv4 address validation
+            try:
+                ipaddress.IPv4Address(ip_address.strip())
+            except (ipaddress.AddressValueError, ValueError):
+                error = (
+                    f"collect_pxe_config: {group_name} contains invalid IP address: "
+                    f"{ip_address}"
+                )
                 errors.append(error)
                 if logger:
                     logger.error(error)
                 continue
-            
+
             # Check for reserved IPs
             reserved_ips = {"127.0.0.1", "255.255.255.255"}
             if ip_address.strip() in reserved_ips:
-                error = f"collect_pxe_config: {group_name} contains reserved IP address: {ip_address}"
+                error = (
+                    f"collect_pxe_config: {group_name} contains reserved IP address: "
+                    f"{ip_address}"
+                )
                 errors.append(error)
                 if logger:
                     logger.error(error)
