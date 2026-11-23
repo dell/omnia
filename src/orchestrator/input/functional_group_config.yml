@@ -60,7 +60,7 @@ common:
 # Replace fg_example_group with your actual functional group name from the PXE mapping
 # Group names must match the pattern: fg_<user-label>_<os-name>_<os-version>_<architecture>
 # Example: fg_webserver_rhel_10_2_x86_64
-groups:
+groups: {}
   # fg_example_group:
   #   boot_kernel_params: ""
   #   boot_kernel_params_mode: "append"

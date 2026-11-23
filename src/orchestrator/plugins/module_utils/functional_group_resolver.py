@@ -34,8 +34,19 @@ class ResolvedValue:
 
     @property
     def source(self) -> str:
-        """Return the top-level source of this resolved value."""
-        return self.provenance.split(".", maxsplit=1)[0]
+        """Return simplified source name (group, common, default)."""
+        if "groups." in self.provenance:
+            return "group"
+        if "common" in self.provenance:
+            return "common"
+        return self.provenance
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, tuple) and len(other) == 2:
+            return other in ((self.value, self.source), (self.value, self.provenance))
+        if isinstance(other, ResolvedValue):
+            return self.value == other.value and self.provenance == other.provenance
+        return self.value == other
 
     def __bool__(self) -> bool:
         """Return whether the value is non-empty."""
@@ -43,17 +54,29 @@ class ResolvedValue:
             return bool(self.value.strip())
         return bool(self.value)
 
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, tuple) and len(other) == 2:
-            val, prov = other
-            if prov == "group":
-                prov_match = self.provenance.startswith("groups.")
-            else:
-                prov_match = self.provenance == prov or self.provenance.startswith(f"{prov}.")
-            return self.value == val and prov_match
-        if isinstance(other, ResolvedValue):
-            return self.value == other.value and self.provenance == other.provenance
-        return self.value == other
+    def __getitem__(self, key: Any) -> Any:
+        return self.value[key]
+
+    def get(self, key: Any, default: Any = None) -> Any:
+        """Get an item from the underlying mapping value."""
+        if isinstance(self.value, dict):
+            return self.value.get(key, default)
+        return default
+
+    def __contains__(self, key: Any) -> bool:
+        return key in self.value if isinstance(self.value, (dict, list, str)) else False
+
+    def keys(self):
+        """Return mapping keys of the underlying value."""
+        return self.value.keys() if isinstance(self.value, dict) else {}.keys()
+
+    def values(self):
+        """Return mapping values of the underlying value."""
+        return self.value.values() if isinstance(self.value, dict) else {}.values()
+
+    def items(self):
+        """Return mapping items of the underlying value."""
+        return self.value.items() if isinstance(self.value, dict) else {}.items()
 
 
 @dataclass
@@ -73,24 +96,55 @@ class GroupConfiguration:
 
 
 def canonical_group_name(group: str) -> str:
-    """Return the canonical group name for runtime variants (e.g. _first)."""
-    if "service_kube_control_plane_first" in group:
-        return group.replace("service_kube_control_plane_first", "service_kube_control_plane")
+    """Map runtime group alias (e.g. _control_plane_first_) to canonical group name."""
+    if "_control_plane_first_" in group:
+        return group.replace("_control_plane_first_", "_control_plane_")
     return group
 
 
 def merge_cloud_init_sections(
     base: dict[str, Any], posts: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    """Merge base cloud-init and ordered post-boot sections without mutating inputs."""
+    """Merge base cloud-init with ordered post-configuration sections without mutating base."""
     merged = copy.deepcopy(base)
     for post in posts:
-        for k, v in post.items():
-            if k in merged and isinstance(merged[k], list) and isinstance(v, list):
-                merged[k] = merged[k] + copy.deepcopy(v)
+        for section, content in post.items():
+            if section not in merged:
+                merged[section] = copy.deepcopy(content)
+            elif isinstance(merged[section], list) and isinstance(content, list):
+                merged[section] = list(merged[section]) + copy.deepcopy(content)
+            elif isinstance(merged[section], dict) and isinstance(content, dict):
+                merged[section] = {**merged[section], **copy.deepcopy(content)}
             else:
-                merged[k] = copy.deepcopy(v)
+                merged[section] = copy.deepcopy(content)
     return merged
+
+
+def has_effective_configuration(template: dict[str, Any] | None) -> bool:
+    """Return True if template contains any active flexible-group configuration."""
+    if not template or not isinstance(template, dict):
+        return False
+
+    def _scope_active(scope: Any) -> bool:
+        if not isinstance(scope, dict):
+            return False
+        if _is_non_empty(scope.get("boot_kernel_params")):
+            return True
+        ci = scope.get("cloud_init")
+        if isinstance(ci, dict) and _is_non_empty(ci.get("config_file")):
+            return True
+        if _is_non_empty(scope.get("image_override")):
+            return True
+        return False
+
+    if _scope_active(template.get("common")):
+        return True
+    groups = template.get("groups")
+    if isinstance(groups, dict):
+        for g_data in groups.values():
+            if _scope_active(g_data):
+                return True
+    return False
 
 
 def _resolve_field(
@@ -110,16 +164,12 @@ def _resolve_field(
     Returns:
         Tuple of (resolved_value, provenance).
     """
-    groups = config_data.get("groups", {})
-    target_group = group
-    if isinstance(groups, dict) and target_group not in groups:
-        candidate = canonical_group_name(group)
-        if candidate in groups:
-            target_group = candidate
-
     # Check exact-group scope
-    if isinstance(groups, dict) and target_group in groups:
-        group_scope = groups[target_group]
+    groups = config_data.get("groups", {})
+    canon_group = canonical_group_name(group)
+    lookup_group = group if (isinstance(groups, dict) and group in groups) else canon_group
+    if isinstance(groups, dict) and lookup_group in groups:
+        group_scope = groups[lookup_group]
         if isinstance(group_scope, dict):
             value = group_scope
             for key in field_path:
@@ -129,7 +179,7 @@ def _resolve_field(
                     value = None
                     break
             if _is_non_empty(value):
-                return value, f"groups.{target_group}." + ".".join(field_path)
+                return value, f"groups.{lookup_group}." + ".".join(field_path)
 
     # Check common scope
     common = config_data.get("common")
@@ -185,20 +235,18 @@ def resolve_group(config_data: dict[str, Any], group: str) -> GroupConfiguration
     )
 
     # Resolve image_override (exact-group only)
-    image_override_val = {}
+    image_override = {}
     image_override_prov = "default"
     groups = config_data.get("groups", {})
-    target_group = (
-        group if (isinstance(groups, dict) and group in groups)
-        else canonical_group_name(group)
-    )
-    if isinstance(groups, dict) and target_group in groups:
-        group_scope = groups[target_group]
+    canon_group = canonical_group_name(group)
+    lookup_group = group if (isinstance(groups, dict) and group in groups) else canon_group
+    if isinstance(groups, dict) and lookup_group in groups:
+        group_scope = groups[lookup_group]
         if isinstance(group_scope, dict):
             override = group_scope.get("image_override")
             if isinstance(override, dict) and override:
-                image_override_val = override
-                image_override_prov = f"groups.{target_group}.image_override"
+                image_override = override
+                image_override_prov = f"groups.{lookup_group}.image_override"
 
     return GroupConfiguration(
         boot_kernel_params=ResolvedValue(
@@ -210,5 +258,5 @@ def resolve_group(config_data: dict[str, Any], group: str) -> GroupConfiguration
         cloud_init_config_file=ResolvedValue(
             cloud_init_config_file_value, cloud_init_config_file_provenance
         ),
-        image_override=ResolvedValue(image_override_val, image_override_prov),
+        image_override=ResolvedValue(image_override, image_override_prov),
     )

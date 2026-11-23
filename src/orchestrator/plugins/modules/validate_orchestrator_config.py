@@ -389,6 +389,7 @@ def _validate_file(
 
 def _run_l2_validation(
     input_project_dir: str,
+    schema_dir: str,
     state: _ValidationState,
     logger: logging.Logger,
 ) -> None:
@@ -617,6 +618,7 @@ def run_module() -> None:
         )
     _run_l2_validation(
         input_project_dir,
+        schema_dir,
         state,
         RedactingLogger(logger, state.secrets) if state.secrets else logger,
     )

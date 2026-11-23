@@ -1,0 +1,126 @@
+{
+  "catalog": {
+    "name": "Invalid Package Image Catalog",
+    "version": "1.0",
+    "schema_version": 2,
+    "identifier": "invalid-image-fg-catalog",
+    "description": "Catalog fixture: Invalid Package Image Catalog",
+    "functionallayer": [
+      {
+        "name": "fg_app_rhel_10_2_x86_64",
+        "components": [
+          "baseos_group_10.2",
+          "img_group"
+        ]
+      }
+    ],
+    "groups": {
+      "baseos_group_10.2": {
+        "name": "baseos_group_10.2",
+        "type": "baseos",
+        "os": "rhel",
+        "os_version": "10.2",
+        "description": "Minimal OS packages for RHEL 10.2",
+        "components": [
+          "bash",
+          "chrony",
+          "ghcr_io/openchami/image_thrillhouse"
+        ]
+      },
+      "img_group": {
+        "name": "img_group",
+        "type": "group",
+        "description": "Image group with bad image",
+        "components": [
+          "bad_image"
+        ]
+      }
+    },
+    "packages": {
+      "bash": {
+        "name": "bash",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "chrony": {
+        "name": "chrony",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ghcr_io/openchami/image_thrillhouse": {
+        "name": "ghcr.io/openchami/image-thrillhouse",
+        "packagetype": "image",
+        "tag": "v0.0.26",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "bad_image": {
+        "name": "registry.test/bad/image",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.test",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

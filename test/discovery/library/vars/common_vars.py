@@ -135,34 +135,97 @@ SUPPORTED_ARCHITECTURES: List[str] = [
 #
 # Pattern regex: ^.+_rhel_\d+_\d+_(x86_64|aarch64)$
 import re
+
+PREDEFINED_ROLE_PREFIXES = (
+    "service_kube_",
+    "slurm_",
+    "login_node_",
+    "login_compiler_node_",
+    "os_",
+)
+FLEXIBLE_ROLE_PREFIX = "fg_"
+SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
+
 FUNCTIONAL_GROUP_PATTERN = re.compile(
     r'^(.+)_rhel_(\d+)_(\d+)_(x86_64|aarch64)$'
+)
+
+FLEXIBLE_FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r"^fg_(?P<label>[a-zA-Z0-9_-]+)_(?P<os>[a-z]+)_"
+    r"(?P<major>\d+)(?:_(?P<minor>\d+))*_(?P<arch>x86_64|aarch64)$"
+)
+
+PREDEFINED_FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r"^(?P<prefix>service_kube_|slurm_|login_node_|login_compiler_node_|os_)"
+    r"(?P<rest>[a-zA-Z0-9_-]*)_(?P<os>rhel|rocky|ubuntu|sles)_"
+    r"(?P<major>\d+)(?:_(?P<minor>\d+))*_(?P<arch>x86_64|aarch64)$"
 )
 
 # Combined list for backward compatibility (empty - all groups must be dynamic now)
 SUPPORTED_FUNCTIONAL_GROUPS: List[str] = []
 
 
+def validate_mapping_functional_group(group_name: str) -> tuple[bool, str]:
+    """Validate functional group name and return truthful evidence on rejection.
+
+    Args:
+        group_name: Group name to validate.
+
+    Returns:
+        Tuple of (is_valid, rejection_reason).
+    """
+    if not group_name:
+        return False, "Functional group name is empty"
+
+    if group_name.startswith(FLEXIBLE_ROLE_PREFIX):
+        match = FLEXIBLE_FUNCTIONAL_GROUP_PATTERN.match(group_name)
+        if match:
+            return True, ""
+        arch_match = re.search(r"_([a-zA-Z0-9]+)$", group_name)
+        if arch_match:
+            arch = arch_match.group(1)
+            if arch not in SUPPORTED_ARCHITECTURES:
+                return (
+                    False,
+                    f"Unsupported architecture suffix '{arch}' in flexible group '{group_name}'; "
+                    f"must be one of {list(SUPPORTED_ARCHITECTURES)}",
+                )
+        return (
+            False,
+            f"Flexible group '{group_name}' is missing required platform suffix "
+            f"or has malformed identity; must match fg_<label>_<os>_<version>_(x86_64|aarch64)",
+        )
+
+    if any(group_name.startswith(p) for p in PREDEFINED_ROLE_PREFIXES):
+        if (
+            PREDEFINED_FUNCTIONAL_GROUP_PATTERN.match(group_name)
+            or FUNCTIONAL_GROUP_PATTERN.match(group_name)
+        ):
+            return True, ""
+        arch_match = re.search(r"_([a-zA-Z0-9]+)$", group_name)
+        if arch_match and arch_match.group(1) not in SUPPORTED_ARCHITECTURES:
+            return (
+                False,
+                f"Unsupported architecture suffix '{arch_match.group(1)}' "
+                f"in predefined group '{group_name}'",
+            )
+        return (
+            False,
+            f"Predefined group '{group_name}' is missing required OS or version suffix",
+        )
+
+    return (
+        False,
+        f"Group '{group_name}' is missing mandatory 'fg_' prefix for flexible functional groups",
+    )
+
+
 def is_supported_functional_group(group_name: str) -> bool:
     """Check if a functional group name is supported.
 
-    In Omnia 2.3, ALL functional groups MUST follow the pattern:
-        <any_prefix>_rhel_<major>_<minor>_<arch>
-
-    The prefix can be ANY string. The mandatory part is:
-        _rhel_<major>_<minor>_(x86_64|aarch64)
-
-    Valid examples:
-        slurm_control_node_rhel_10_2_x86_64   ✅
-        slurm_node_rhel_10_2_x86_64           ✅
-        os_rhel_10_2_x86_64                   ✅
-        sujal_rhel_10_0_x86_64                ✅
-        my_custom_group_rhel_9_4_aarch64      ✅
-
-    Invalid examples:
-        slurm_node_rocky_9_4_aarch64          ❌ (only rhel supported)
-        slurm_node_ubuntu_22_04_x86_64        ❌ (only rhel supported)
-        slurm_node_x86_64                     ❌ (missing _rhel_<version>_)
+    In Omnia 2.3, functional groups MUST follow:
+    - Predefined role: <predefined_prefix>_<os>_<major>_<minor>_<arch>
+    - Flexible role: fg_<label>_<os>_<version>_<arch>
 
     Args:
         group_name: Functional group name to validate.
@@ -170,14 +233,8 @@ def is_supported_functional_group(group_name: str) -> bool:
     Returns:
         True if the group is supported, False otherwise.
     """
-    if not group_name:
-        return False
-
-    # Pattern: <any_prefix>_rhel_<major>_<minor>_<arch>
-    if FUNCTIONAL_GROUP_PATTERN.match(group_name):
-        return True
-
-    return False
+    is_valid, _ = validate_mapping_functional_group(group_name)
+    return is_valid
 
 
 def parse_functional_group(group_name: str) -> Dict[str, str]:
@@ -202,9 +259,34 @@ def parse_functional_group(group_name: str) -> Dict[str, str]:
     if not group_name:
         return result
 
-    # Check pattern: <any_prefix>_rhel_<major>_<minor>_<arch>
+    # Check flexible group pattern: fg_<label>_<os>_<version>_<arch>
+    fg_match = FLEXIBLE_FUNCTIONAL_GROUP_PATTERN.match(group_name)
+    if fg_match:
+        result["prefix"] = f"fg_{fg_match.group('label')}"
+        result["os_type"] = fg_match.group("os")
+        result["os_major"] = fg_match.group("major")
+        result["os_minor"] = fg_match.group("minor") or "0"
+        result["arch"] = fg_match.group("arch")
+        result["is_valid"] = True
+        return result
+
+    # Check predefined pattern
+    pre_match = PREDEFINED_FUNCTIONAL_GROUP_PATTERN.match(group_name)
+    if pre_match:
+        result["prefix"] = f"{pre_match.group('prefix')}{pre_match.group('rest')}".rstrip("_")
+        result["os_type"] = pre_match.group("os")
+        result["os_major"] = pre_match.group("major")
+        result["os_minor"] = pre_match.group("minor") or "0"
+        result["arch"] = pre_match.group("arch")
+        result["is_valid"] = True
+        return result
+
+    # Check legacy/generic pattern
     match = FUNCTIONAL_GROUP_PATTERN.match(group_name)
-    if match:
+    if match and (
+        match.group(1).startswith("fg_")
+        or any(match.group(1).startswith(p) for p in PREDEFINED_ROLE_PREFIXES)
+    ):
         result["prefix"] = match.group(1)
         result["os_type"] = "rhel"
         result["os_major"] = match.group(2)

@@ -19,7 +19,6 @@ from typing import Any
 
 try:
     from ansible.module_utils.functional_group_resolver import (
-        GroupConfiguration,
         resolve_group,
     )
 except ImportError:
@@ -31,23 +30,36 @@ except ImportError:
     if str(ORCHESTRATOR_ROOT / "plugins/module_utils") not in sys.path:
         sys.path.insert(0, str(ORCHESTRATOR_ROOT / "plugins/module_utils"))
     from functional_group_resolver import (
-        GroupConfiguration,
         resolve_group,
     )
 
 
 def resolve_functional_group_config(
-    config_data: dict[str, Any], group: str
+    arg1: Any, arg2: Any = None
 ) -> dict[str, Any]:
     """Resolve effective configuration for a functional group.
 
+    Supports both filter calling conventions:
+      - item.name | resolve_functional_group_config(config_data)
+      - config_data | resolve_functional_group_config(item.name)
+
     Args:
-        config_data: Parsed functional_group_config.yml data.
-        group: Functional group name.
+        arg1: Either functional group name (str) or config_data (dict).
+        arg2: Either config_data (dict) or functional group name (str).
 
     Returns:
         Dictionary with resolved configuration values.
     """
+    if isinstance(arg1, str) and isinstance(arg2, dict):
+        group, config_data = arg1, arg2
+    elif isinstance(arg1, dict) and isinstance(arg2, str):
+        config_data, group = arg1, arg2
+    elif isinstance(arg1, str):
+        group, config_data = arg1, {}
+    else:
+        config_data = arg1 if isinstance(arg1, dict) else {}
+        group = str(arg2) if arg2 is not None else ""
+
     resolved = resolve_group(config_data, group)
 
     return {
