@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import re
+import yaml
 from logging import Logger
 from typing import Any
 
@@ -233,8 +234,6 @@ def validate_cloud_init_reference(
 
     # Read and validate cloud-init content
     try:
-        import yaml
-
         with open(full_path, "r", encoding="utf-8") as f:
             cloud_init_data = yaml.safe_load(f)
 
@@ -266,7 +265,7 @@ def validate_cloud_init_reference(
             logger,
             msg.functional_group_cloud_init_parse_msg(referenced_by, str(e)),
         )
-    except Exception as e:
+    except (OSError, IOError) as e:
         record_error(
             errors,
             logger,

@@ -1114,3 +1114,281 @@ def validation_counts_msg(valid_count: int, invalid_count: int) -> str:
 def validation_log_msg(path: str) -> str:
     """Return the validation log path message."""
     return f"Log file: {path}"
+
+
+# ── Functional group configuration (functional_group_config.yml) ─────────────
+
+def functional_group_legacy_conflict_msg() -> str:
+    """Return the legacy/new cloud-init conflict error message."""
+    return (
+        "functional_group_config: cloud_init.config_file is set "
+        "while orchestrator_config 'additional_cloud_init_config_file' is also "
+        "set. Move the cloud-init content into functional_group_config.yml and "
+        "clear 'additional_cloud_init_config_file', or clear the new value."
+    )
+
+
+def functional_group_legacy_kernel_conflict_msg() -> str:
+    """Return the legacy/new kernel-parameter conflict error message."""
+    return (
+        "functional_group_config: boot_kernel_params is set while deprecated "
+        "orchestrator_config 'boot_kernel_params' is also set. Move the value "
+        "to functional_group_config.yml common or group scope and remove it "
+        "from orchestrator_config.yml."
+    )
+
+
+def functional_group_removed_boot_kernel_params_msg() -> str:
+    """Return the removed boot_kernel_params migration error message.
+
+    ER-ORCH-009 FR-6.2: boot_kernel_params has been removed from
+    orchestrator_config.yml. If supplied, fail validation before mutation
+    and direct users to functional_group_config.yml.
+    """
+    return (
+        "orchestrator_config.yml contains 'boot_kernel_params', which has been "
+        "removed (ER-ORCH-009). For flexible groups, move the value to "
+        "functional_group_config.yml under 'common' or an exact 'groups.<fg_name>' "
+        "scope. Predefined groups retain Omnia kernel-parameter defaults and do "
+        "not require a project-level override."
+    )
+
+
+def functional_group_image_override_incomplete_msg(
+    group: str, missing: list[str], unknown: list[str]
+) -> str:
+    """Return the partial image-override error message."""
+    details = []
+    if missing:
+        details.append(f"missing {', '.join(missing)}")
+    if unknown:
+        details.append(f"unknown {', '.join(unknown)}")
+    return (
+        f"functional_group_config: groups.{group}.image_override must be empty "
+        "or contain exactly kernel, initrd, and rootfs "
+        f"({'; '.join(details)})."
+    )
+
+
+def functional_group_image_artifact_invalid_msg(
+    group: str, key: str, value: str
+) -> str:
+    """Return the unsafe image artifact reference error message."""
+    return (
+        f"functional_group_config: groups.{group}.image_override.{key} "
+        f"'{value}' must be an object key relative to the image-storage "
+        "endpoint (letters, digits, '.', '_', '-', '/'; no scheme, leading "
+        "'/', or '..')."
+    )
+
+
+def functional_group_file_vault_msg(path: str) -> str:
+    """Return the vault-encrypted cloud-init file error message."""
+    return (
+        f"functional_group_config: cloud-init file '{path}' is "
+        "vault-encrypted. Cloud-init content is published as node metadata and "
+        "must not contain secrets; provide a plaintext file."
+    )
+
+
+def functional_group_file_empty_msg(path: str) -> str:
+    """Return the empty cloud-init file error message."""
+    return (
+        f"functional_group_config: cloud-init file '{path}' is empty. Provide "
+        "content or clear cloud_init.config_file to inherit."
+    )
+
+
+def functional_group_unknown_group_msg(group: str) -> str:
+    """Return the unknown functional-group error message."""
+    return (
+        f"functional_group_config: groups.{group} is not a functional group in "
+        "the PXE mapping. Group keys must be exact "
+        "FUNCTIONAL_GROUP_NAME values from pxe_mapping_file.csv."
+    )
+
+
+def functional_group_type_msg(path: str, actual: str, expected: str) -> str:
+    """Return the functional-group configuration type error message."""
+    return (
+        f"functional_group_config: {path} is {actual}; expected {expected}."
+    )
+
+
+def functional_group_prefix_required_msg(group: str) -> str:
+    """Return the non-flexible group-key rejection message (ER-ORCH-009)."""
+    return (
+        f"functional_group_config: groups.{group} is not a flexible functional "
+        "group. Only groups carrying the mandatory 'fg_' prefix may be "
+        "configured in this file. Predefined groups (service_kube_, slurm_, "
+        "login_node_, login_compiler_node_, os_) are configured through "
+        "omnia_config.yml and storage_config.yml, not here."
+    )
+
+
+def functional_group_file_missing_msg(path: str, referenced_by: str) -> str:
+    """Return the missing referenced cloud-init file error message."""
+    return (
+        f"functional_group_config: {referenced_by} references cloud-init file "
+        f"'{path}', which does not exist or is not a regular file."
+    )
+
+
+def functional_group_file_unreadable_msg(path: str, detail: str) -> str:
+    """Return the unreadable referenced cloud-init file error message."""
+    return (
+        "functional_group_config: cloud-init file "
+        f"'{path}' could not be read ({detail})."
+    )
+
+
+def functional_group_file_outside_allowed_root_msg(
+    path: str, allowed_roots: list[str]
+) -> str:
+    """Return the disallowed cloud-init path error message."""
+    return (
+        "functional_group_config: cloud-init file "
+        f"'{path}' resolves outside the allowed roots: "
+        f"{', '.join(allowed_roots)}."
+    )
+
+
+def functional_group_yaml_parse_failed_msg(path: str, detail: str) -> str:
+    """Return the invalid referenced cloud-init YAML error message."""
+    return (
+        "functional_group_config: Failed to parse cloud-init YAML file "
+        f"'{path}' ({detail})."
+    )
+
+
+def functional_group_protected_param_msg(
+    referenced_by: str, parameter: str
+) -> str:
+    """Return the protected kernel parameter error message."""
+    return (
+        f"functional_group_config: {referenced_by} sets protected kernel "
+        f"parameter '{parameter}'. Provisioning identity parameters cannot be "
+        "overridden per functional group."
+    )
+
+
+def functional_group_kernel_param_format_msg(
+    referenced_by: str, token: str
+) -> str:
+    """Return the malformed kernel parameter error message."""
+    return (
+        f"functional_group_config: {referenced_by} boot_kernel_params token "
+        f"'{token}' is not a valid kernel parameter."
+    )
+
+
+def functional_group_architecture_required_msg(
+    group: str, supported: tuple[str, ...]
+) -> str:
+    """Return the missing/unsupported group architecture suffix message."""
+    return (
+        f"functional_group_config: groups.{group} must end with one of the "
+        f"supported architecture suffixes: {', '.join(supported)}."
+    )
+
+
+def functional_group_reference_architecture_conflict_msg(
+    group: str,
+    group_arch: str,
+    reference_kind: str,
+    referenced_arch: str,
+) -> str:
+    """Return an architecture conflict for a group-scoped reference."""
+    return (
+        f"functional_group_config: groups.{group} targets architecture "
+        f"'{group_arch}' but {reference_kind} names '{referenced_arch}'."
+    )
+
+
+def functional_group_plaintext_secret_msg(referenced_by: str) -> str:
+    """Return the plaintext secret error message."""
+    return (
+        f"functional_group_config: {referenced_by} appears to contain a "
+        "plaintext secret. Use Ansible Vault for credential material."
+    )
+
+
+def functional_group_unsupported_os_msg(group: str, detail: str) -> str:
+    """Return the unsupported OS warning message (non-blocking)."""
+    return (
+        f"functional_group_config: groups.{group} names {detail}, which is "
+        "outside the supported RHEL 10.0/10.2 set. Continuing."
+    )
+
+
+def functional_group_cloud_init_disallowed_directive_msg(
+    referenced_by: str, directives: list[str]
+) -> str:
+    """Return the disallowed cloud-init directive error message."""
+    return (
+        f"functional_group_config: {referenced_by} contains disallowed "
+        f"cloud-init directive(s): {', '.join(directives)}. "
+        "Flexible groups support only write_files and runcmd."
+    )
+
+
+def functional_group_missing_field_msg(
+    referenced_by: str, field: str
+) -> str:
+    """Return the missing required field error message."""
+    return (
+        f"functional_group_config: {referenced_by} is missing required field "
+        f"'{field}'."
+    )
+
+
+def functional_group_cloud_init_secret_msg(
+    referenced_by: str, secrets: list[str]
+) -> str:
+    """Return the secret-bearing content error message."""
+    return (
+        f"functional_group_config: {referenced_by} content appears to contain "
+        f"secret-bearing pattern(s): {', '.join(secrets)}. "
+        "Cloud-init content is published as node metadata and must not contain secrets."
+    )
+
+
+def functional_group_path_escaped_msg(
+    referenced_by: str, path: str
+) -> str:
+    """Return the path-escaped boundary error message."""
+    return (
+        f"functional_group_config: {referenced_by} path '{path}' escapes the "
+        "project input directory. Paths must remain within the active project "
+        "input boundary."
+    )
+
+
+def functional_group_path_not_found_msg(
+    referenced_by: str, path: str
+) -> str:
+    """Return the file not found error message."""
+    return (
+        f"functional_group_config: {referenced_by} references file '{path}', "
+        "which does not exist."
+    )
+
+
+def functional_group_cloud_init_parse_msg(
+    referenced_by: str, detail: str
+) -> str:
+    """Return the cloud-init YAML parse error message."""
+    return (
+        f"functional_group_config: Failed to parse cloud-init YAML for "
+        f"{referenced_by}: {detail}."
+    )
+
+
+def functional_group_cloud_init_read_msg(
+    referenced_by: str, detail: str
+) -> str:
+    """Return the cloud-init file read error message."""
+    return (
+        f"functional_group_config: Failed to read cloud-init file for "
+        f"{referenced_by}: {detail}."
+    )

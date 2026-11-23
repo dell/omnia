@@ -26,8 +26,8 @@ import os
 from logging import Logger
 from typing import Any, Callable
 
-from ..messages import orchestrator_messages as msg
-from ...functional_group_resolver import resolve_group
+from orchestrator_validation.messages import orchestrator_messages as msg
+from functional_group_resolver import resolve_group
 from .additional_cloud_init_validator import _read_functional_group_names
 from .functional_group_cloud_init_rules import (
     validate_cloud_init_reference,
@@ -100,6 +100,7 @@ def _validate_legacy_inputs(
             record_error(errors, logger, msg.functional_group_legacy_kernel_conflict_msg())
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _validate_scope(
     scope: Any,
     referenced_by: str,
@@ -125,6 +126,7 @@ def _validate_scope(
     return scope
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _validate_groups(
     config_data: dict[str, Any],
     groups: dict[str, Any],
