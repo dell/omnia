@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "description": "Configuration for flexible functional groups (groups with the mandatory fg_ name prefix). This file is optional; when absent or empty, Orchestrator preserves existing behavior.",
+  "properties": {
+    "common": {
+      "type": "object",
+      "description": "Common settings that apply to all flexible groups unless overridden at exact-group level.",
+      "properties": {
+        "boot_kernel_params": {
+          "type": "string",
+          "description": "Additional kernel command-line parameters for boot. These are advisory-validated; protected or unsafe parameters produce a non-blocking warning.",
+          "default": ""
+        },
+        "boot_kernel_params_mode": {
+          "type": "string",
+          "description": "Mode for applying boot_kernel_params. 'append' adds parameters to the existing kernel command line. 'override' replaces non-platform default parameters (platform-managed parameters are always retained).",
+          "enum": ["append", "override"],
+          "default": "append"
+        },
+        "cloud_init": {
+          "type": "object",
+          "description": "Cloud-init configuration for flexible groups.",
+          "properties": {
+            "config_file": {
+              "type": "string",
+              "description": "Path to a cloud-init configuration file for this group. The file supports write_files and runcmd directives only.",
+              "default": ""
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "groups": {
+      "type": ["object", "null"],
+      "description": "Exact-group settings that override common settings for specific flexible groups. Group keys must start with the mandatory fg_ prefix and must exactly match functional group names in the reviewed PXE mapping file.",
+      "patternProperties": {
+        "^fg_": {
+          "type": "object",
+          "description": "Configuration for a specific flexible group. The group name must start with fg_ and match the pattern fg_<user-label>_<os-name>_<os-version>_<architecture>.",
+          "properties": {
+            "boot_kernel_params": {
+              "type": "string",
+              "description": "Additional kernel command-line parameters for boot. These are advisory-validated; protected or unsafe parameters produce a non-blocking warning.",
+              "default": ""
+            },
+            "boot_kernel_params_mode": {
+              "type": "string",
+              "description": "Mode for applying boot_kernel_params. 'append' adds parameters to the existing kernel command line. 'override' replaces non-platform default parameters (platform-managed parameters are always retained).",
+              "enum": ["append", "override"],
+              "default": "append"
+            },
+            "cloud_init": {
+              "type": "object",
+              "description": "Cloud-init configuration for this flexible group.",
+              "properties": {
+                "config_file": {
+                  "type": "string",
+                  "description": "Path to a cloud-init configuration file for this group. The file supports write_files and runcmd directives only.",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            },
+            "image_override": {
+              "type": "object",
+              "description": "Complete image override for this flexible group. All three objects must be valid and reachable for the override to apply. If any object is missing or invalid, the Image Build Manager tuple is used instead.",
+              "properties": {
+                "kernel": {
+                  "type": "string",
+                  "description": "S3 object key or local path for the kernel image.",
+                  "default": ""
+                },
+                "initrd": {
+                  "type": "string",
+                  "description": "S3 object key or local path for the initrd image.",
+                  "default": ""
+                },
+                "rootfs": {
+                  "type": "string",
+                  "description": "S3 object key or local path for the rootfs image.",
+                  "default": ""
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

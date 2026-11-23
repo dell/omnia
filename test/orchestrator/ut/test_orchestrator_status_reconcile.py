@@ -369,3 +369,24 @@ def test_managed_partial_retry_preserves_unselected_node_history():
     assert nodes["x1000c0s0b0n0"]["status"] == "success"
     assert nodes["x1000c0s0b0n1"]["status"] == "failed"
     assert nodes["x1000c0s0b0n1"]["reprovision_required"] is True
+
+
+def test_functional_group_mode_reconciles_status():
+    """Verify orchestrator_status_reconcile in functional_group mode."""
+    from module_utils.orchestrator_status.flexible_group_status import (
+        reconcile_functional_group_status,
+    )
+    stages = [
+        {"stage": "validation", "status": "success"},
+        {"stage": "smd_group", "status": "success"},
+    ]
+    report = reconcile_functional_group_status(
+        project_name="proj1",
+        run_id="run-1",
+        operation="add",
+        target_group="fg_web_rhel_10_2_x86_64",
+        stage_results=stages,
+        planned_stages=["validation", "smd_group"],
+    )
+    assert report["overall_status"] == "success"
+    assert report["target_group"] == "fg_web_rhel_10_2_x86_64"
