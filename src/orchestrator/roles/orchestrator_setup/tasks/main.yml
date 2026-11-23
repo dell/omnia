@@ -289,8 +289,6 @@
     nvidia_driver_version_aarch64: >-
       {{ _configured_slurm_cluster.nvidia_driver_version_aarch64
          | default('580.159.04', true) }}
-    boot_kernel_params: >-
-      {{ _orch_config.boot_kernel_params | default('') }}
     additional_cloud_init_config_file: >-
       {{ _orch_config.additional_cloud_init_config_file | default('') }}
     pxe_mapping_file_path: >-
@@ -610,7 +608,6 @@
       enable_powerscale_csi: {{ enable_powerscale_csi | default(false) }}
       openldap_support: {{ openldap_support | default(false) }}
       dns_enabled: {{ dns_enabled | default(true) }}
-      boot_kernel_params: {{ boot_kernel_params | default('') | to_json }}
       cluster_os_type: "{{ cluster_os_type | default('') }}"
       cluster_os_version: "{{ cluster_os_version | default('') }}"
       admin_nic_ip: "{{ admin_nic_ip | default('') }}"
