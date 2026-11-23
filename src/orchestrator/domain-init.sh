@@ -24,6 +24,7 @@
 #   3. Creates Ansible log directory:  /var/log/omnia/orchestrator/
 #   4. Creates runtime data directories (input, output, log)
 #   5. Copies input template files from source tree to runtime data path
+#   6. Copies example cloud-init template to runtime data path
 #
 # Source (flat):   src/orchestrator/input/
 # Destination:     <ORCHESTRATOR_DATA_PATH>/input/<project>/
@@ -45,6 +46,7 @@
 #   sudo mkdir -p /var/log/omnia/orchestrator
 #   mkdir -p "$ORCHESTRATOR_DATA_PATH"/{input,output,log}/"$OMNIA_PROJECT_NAME"
 #   cp -a input/*.yml "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/"
+#   cp -a examples/functional_group_cloud_init_template.yml "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/"
 # =============================================================================
 
 set -euo pipefail
@@ -201,6 +203,20 @@ _check_existing_files() {
     esac
 }
 
+_stage_new_files() {
+    local src="$1"
+    local dest="$2"
+    mkdir -p -m 0750 "$dest"
+    for item in "$src"/*; do
+        [ -e "$item" ] || [ -L "$item" ] || continue
+        local fname
+        fname="$(basename "$item")"
+        if [ ! -e "$dest/$fname" ] && [ ! -L "$dest/$fname" ]; then
+            cp -a "$item" "$dest/$fname"
+        fi
+    done
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Copy flat input/ files to the runtime project directory
 # Source:  src/<domain>/input/            (flat — no project subdirectory)
@@ -225,6 +241,12 @@ copy_input_files() {
 
     # Check for existing files and prompt if needed
     if ! _check_existing_files "$dest_dir"; then
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Staging only new/missing template files in ${dest_dir}${NC}"
+        _stage_new_files "$src_dir" "$dest_dir"
+        local cloud_init_template="$SCRIPT_DIR/examples/functional_group_cloud_init_template.yml"
+        if [ -f "$cloud_init_template" ] && [ ! -e "$dest_dir/functional_group_cloud_init_template.yml" ] && [ ! -L "$dest_dir/functional_group_cloud_init_template.yml" ]; then
+            cp -a "$cloud_init_template" "$dest_dir/"
+        fi
         return 0
     fi
 
@@ -240,6 +262,15 @@ copy_input_files() {
     local count
     count=$(find "$dest_dir" -type f | wc -l)
     echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
+
+    # Copy the reference cloud-init template to the input directory
+    local cloud_init_template="$SCRIPT_DIR/examples/functional_group_cloud_init_template.yml"
+    if [ -f "$cloud_init_template" ]; then
+        cp -a "$cloud_init_template" "$dest_dir/"
+        echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied functional_group_cloud_init_template.yml → ${dest_dir}${NC}"
+    else
+        echo -e "  ${YELLOW}[${DOMAIN_NAME}] Cloud-init template not found at ${cloud_init_template} — skipping${NC}"
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -393,4 +424,6 @@ main() {
     echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }
 
-main "$@"
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    main "$@"
+fi

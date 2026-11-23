@@ -48,6 +48,7 @@ Not testing:
 # pylint: disable=wrong-import-position
 
 import json
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -70,6 +71,14 @@ from module_utils.orchestrator_validation.validators import (  # noqa: E402
     functional_group_config_validator as functional_validator,
 )
 from catalog.validator import validate_catalog  # noqa: E402
+SOURCE_PLUGIN_ROOT = ORCHESTRATOR_ROOT / "plugins"
+if str(SOURCE_PLUGIN_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_PLUGIN_ROOT))
+
+
+from module_utils.orchestrator_validation.validators import (
+    functional_group_config_validator as functional_validator,
+)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────
@@ -108,7 +117,7 @@ class TestValidIdentities:
     """Valid fg_ groups with proper platform suffixes pass validation."""
 
     def test_single_valid_fg_group(self, tmp_path):
-        """FR-1.1: A single valid fg_ group passes validation."""
+        """ORCH_FVT_FG_V001: A single valid fg_ group passes validation."""
         group = "fg_research_rhel_10_0_x86_64"
         errors = _validate(
             tmp_path,
@@ -118,7 +127,7 @@ class TestValidIdentities:
         assert not errors, f"Unexpected errors: {errors}"
 
     def test_multiple_valid_fg_groups(self, tmp_path):
-        """AC-001: Multiple valid fg_ groups (up to 10) pass validation."""
+        """ORCH_FVT_FG_V002: Multiple valid fg_ groups (up to 10) pass validation."""
         groups = [
             "fg_web_rhel_10_0_x86_64",
             "fg_db_rhel_10_2_x86_64",
@@ -129,14 +138,14 @@ class TestValidIdentities:
         assert not errors, f"Unexpected errors: {errors}"
 
     def test_ten_fg_groups_accepted(self, tmp_path):
-        """AC-001: Exactly ten fg_ groups are accepted."""
+        """ORCH_FVT_FG_V003: Exactly ten fg_ groups are accepted."""
         groups = [f"fg_group{i}_rhel_10_0_x86_64" for i in range(10)]
         config = {"groups": {g: {} for g in groups}}
         errors = _validate(tmp_path, config, groups)
         assert not errors, f"Unexpected errors: {errors}"
 
     def test_predefined_groups_excluded_from_fg_count(self, tmp_path):
-        """AC-003: Predefined groups are not counted toward the fg_ limit."""
+        """ORCH_FVT_FG_V004: Predefined groups are not counted toward the fg_ limit."""
         fg_groups = [f"fg_group{i}_rhel_10_0_x86_64" for i in range(10)]
         all_groups = fg_groups + ["slurm_node_rhel_10_0_x86_64"]
         config = {"groups": {g: {} for g in fg_groups}}
@@ -144,7 +153,7 @@ class TestValidIdentities:
         assert not errors, f"Unexpected errors: {errors}"
 
     def test_aarch64_architecture_accepted(self, tmp_path):
-        """FR-1.1: aarch64 architecture is a valid platform suffix."""
+        """ORCH_FVT_FG_V005: aarch64 architecture is a valid platform suffix."""
         group = "fg_hpc_rhel_10_0_aarch64"
         errors = _validate(
             tmp_path,
@@ -217,7 +226,7 @@ class TestInvalidIdentities:
         ],
     )
     def test_predefined_groups_rejected_in_fg_config(self, tmp_path, group):
-        """AC-012: Predefined group names cannot appear in
+        """ORCH_FVT_FG_V006: Predefined group names cannot appear in
         functional_group_config.yml group keys."""
         errors = _validate(
             tmp_path,
@@ -228,7 +237,7 @@ class TestInvalidIdentities:
         assert any("flexible functional group" in e for e in errors)
 
     def test_non_fg_prefix_rejected(self, tmp_path):
-        """FR-1.1: Groups without fg_ prefix are rejected."""
+        """ORCH_FVT_FG_V007: Groups without fg_ prefix are rejected."""
         group = "custom_research_rhel_10_0_x86_64"
         errors = _validate(
             tmp_path,
@@ -304,3 +313,7 @@ class TestInvalidIdentities:
         assert not errors, f"Unqualified OS should not produce blocking errors: {errors}"
         assert warnings, "Expected non-blocking advisory warning"
         assert any("only RHEL 10.0 and 10.2 are qualified" in w for w in warnings)
+        """ORCH_FVT_FG_V008: An empty configuration template changes nothing."""
+        group = "fg_research_rhel_10_0_x86_64"
+        errors = _validate(tmp_path, {"common": {}, "groups": {}}, [group])
+        assert not errors, f"Unexpected errors: {errors}"

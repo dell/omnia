@@ -16,6 +16,28 @@
         "schema_version": { "type": "integer", "minimum": 1 },
         "identifier": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
         "description": { "type": "string" },
+        "generated": { "type": "boolean" },
+        "authoring": {
+          "type": "object",
+          "properties": {
+            "generated": { "type": "boolean" },
+            "tool": { "type": "string" },
+            "contract": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "operator_review": {
+          "type": "object",
+          "properties": {
+            "approved": { "type": "boolean" },
+            "status": { "type": "string" },
+            "reviewer": { "type": "string" },
+            "review_date": { "type": "string" },
+            "authoring_contract": { "type": "string" },
+            "notes": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
         "functionallayer": {
           "type": "array",
           "items": { "$ref": "#/definitions/functional_layer" }
