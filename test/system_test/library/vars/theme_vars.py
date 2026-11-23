@@ -188,13 +188,11 @@ THEMES: Dict[str, Dict] = {
         "description": "Ordered Slurm cluster shutdown and power-on, then Slurm "
                        "services, LDAP jobs, GPU jobs, MPI jobs, and IPoIB verification",
         "profile": "slurm_reboot",
-        "cleanup_steps": CLEANUP_STEPS,
+        "cleanup_steps": (),
         "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
         "fvt_domains": ("orchestrator",),
         "credential_domains": ("orchestrator",),
         "creds_suite": "orchestrator",
-        "cleanup_requires": {},
-        "cleanup_when_deployed": (),
         "stages": (
             "reboot_cluster",
             "verify_slurm_services",

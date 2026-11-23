@@ -28,24 +28,6 @@
 # =============================================================================
 
 # =============================================================================
-# CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'
-#           unless --yes)
-# =============================================================================
-cleanup:
-  orchestrator:
-    enabled: true
-    cleanup_credentials: true
-    cleanup_slurm: true
-    cleanup_k8s: true
-    cleanup_benchmark_tools: true
-  main:
-    enabled: true
-    cleanup_all: true
-  nfs:
-    slurm_share: true
-    k8s_share: true
-
-# =============================================================================
 # REPORT  (one folder and one SVT report per run)
 # =============================================================================
 report:
