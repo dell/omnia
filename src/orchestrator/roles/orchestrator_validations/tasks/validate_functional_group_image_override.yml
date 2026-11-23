@@ -1,0 +1,139 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# validate_functional_group_image_override.yml — Validate image override
+# for flexible functional groups (ER-ORCH-009)
+#
+# This task validates that image override objects (kernel, initrd, rootfs)
+# are reachable from the configured image-storage endpoint when provided.
+# If the override is invalid or unreachable, the Image Build Manager tuple
+# is used as fallback.
+
+- name: Set functional group name
+  ansible.builtin.set_fact:
+    _fg_name: "{{ item }}"
+
+- name: Check if functional group has image override
+  ansible.builtin.set_fact:
+    _fg_has_override: >-
+      {{ functional_group_config.groups[_fg_name].image_override is defined
+         and functional_group_config.groups[_fg_name].image_override | length > 0 }}
+  when:
+    - functional_group_config is defined
+    - functional_group_config.groups is defined
+    - _fg_name in functional_group_config.groups
+
+- name: Load image override configuration
+  ansible.builtin.set_fact:
+    _fg_image_override: "{{ functional_group_config.groups[_fg_name].image_override }}"
+  when:
+    - _fg_has_override | default(false)
+
+- name: Validate image override completeness
+  ansible.builtin.assert:
+    that:
+      - _fg_image_override.kernel is defined
+      - _fg_image_override.kernel | length > 0
+      - _fg_image_override.initrd is defined
+      - _fg_image_override.initrd | length > 0
+      - _fg_image_override.rootfs is defined
+      - _fg_image_override.rootfs | length > 0
+    fail_msg: >-
+      Image override for functional group {{ _fg_name }} must contain all three
+      artifacts (kernel, initrd, rootfs). Missing or empty artifacts will cause
+      the override to be ignored and the Image Build Manager tuple to be used instead.
+    quiet: true
+  when:
+    - _fg_has_override | default(false)
+
+- name: Verify image override artifacts are accessible
+  block:
+    - name: Set boot image endpoint from build status
+      ansible.builtin.set_fact:
+        _fg_image_endpoint: >-
+          {{ _build_status_data.s3_configurations.endpoint_url
+             | regex_replace('/+$', '') }}
+      when:
+        - _build_status_data is defined
+        - _build_status_data.s3_configurations is defined
+
+    - name: Define override artifacts for verification
+      ansible.builtin.set_fact:
+        _fg_override_artifacts:
+          - name: kernel
+            path: "{{ _fg_image_override.kernel }}"
+          - name: initrd
+            path: "{{ _fg_image_override.initrd }}"
+          - name: rootfs
+            path: "{{ _fg_image_override.rootfs }}"
+        _fg_override_failures: []
+
+    - name: Verify override artifacts are accessible from the OIM
+      ansible.builtin.uri:
+        url: >-
+          {{ _fg_image_endpoint }}/{{
+             override_artifact.path | regex_replace('^/+', '') }}
+        method: HEAD
+        follow_redirects: safe
+        return_content: false
+        timeout: 15
+        validate_certs: false
+        status_code: 200
+      loop: "{{ _fg_override_artifacts }}"
+      loop_control:
+        loop_var: override_artifact
+        label: "{{ override_artifact.name }}"
+      register: _fg_override_checks
+      failed_when: false
+
+    - name: Collect inaccessible override artifacts
+      ansible.builtin.set_fact:
+        _fg_override_failures: >-
+          {{ _fg_override_failures + [{
+               'name': artifact_check.override_artifact.name,
+               'url': _fg_image_endpoint + '/' +
+                      (artifact_check.override_artifact.path | regex_replace('^/+', '')),
+               'status': artifact_check.status | default(-1)
+             }] }}
+      loop: >-
+        {{ _fg_override_checks.results | default([]) }}
+      loop_control:
+        loop_var: artifact_check
+      when:
+        - artifact_check.status | default(-1) | int != 200
+
+    - name: Warn if override artifacts are inaccessible
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Image override for functional group {{ _fg_name }} is not
+          accessible ({{ _fg_override_failures | length }} artifacts failed).
+          The Image Build Manager tuple will be used as fallback.
+      when:
+        - _fg_override_failures | default([]) | length > 0
+
+    - name: Store validated image override for functional group
+      ansible.builtin.set_fact:
+        _validated_image_overrides: >-
+          {{ _validated_image_overrides | default({}) | combine({
+               _fg_name: _fg_image_override
+             }) }}
+      when:
+        - _fg_override_failures | default([]) | length == 0
+
+  rescue:
+    - name: Warn on image override validation error
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Image override validation failed for functional group
+          {{ _fg_name }}. The Image Build Manager tuple will be used as fallback.

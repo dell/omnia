@@ -48,6 +48,9 @@ from ansible.module_utils.orchestrator_validation.core.validation_engine import 
     logic_storage as validate_storage_config,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_functional_group as validate_functional_group_config,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     schema as validate_against_schema,
 )
 from ansible.module_utils.orchestrator_validation.messages import (
@@ -524,6 +527,64 @@ def _run_l2_validation(
                     "omnia_config auxiliary inputs", auxiliary_errors
                 )
             )
+
+    # Validate functional_group_config.yml (optional, ER-ORCH-009)
+    functional_group_config_path = os.path.join(
+        input_project_dir, "functional_group_config.yml"
+    )
+    if os.path.isfile(functional_group_config_path):
+        functional_group_schema_path = os.path.join(
+            schema_dir, "functional_group_config.json"
+        )
+        functional_group_data = load_yaml(functional_group_config_path)
+        functional_group_schema = load_json(functional_group_schema_path)
+
+        if functional_group_data is not None and functional_group_schema is not None:
+            schema_errors = [
+                redact(error, state.secrets)
+                for error in validate_against_schema(
+                    functional_group_data,
+                    functional_group_schema,
+                    "functional_group_config",
+                    logger,
+                )
+            ]
+            if schema_errors:
+                state.errors.extend(schema_errors)
+                state.mark_file(functional_group_config_path, False)
+                logger.error(
+                    msg.l2_validation_errors_msg(
+                        "functional_group_config", schema_errors
+                    )
+                )
+            else:
+                # Run semantic validation
+                functional_group_errors = validate_functional_group_config(
+                    functional_group_data,
+                    orchestrator_data if isinstance(orchestrator_data, dict) else {},
+                    input_project_dir,
+                    logger,
+                )
+                if functional_group_errors:
+                    state.errors.extend(functional_group_errors)
+                    state.mark_file(functional_group_config_path, False)
+                    logger.error(
+                        msg.l2_validation_errors_msg(
+                            "functional_group_config", functional_group_errors
+                        )
+                    )
+                else:
+                    state.mark_file(functional_group_config_path, True)
+        elif functional_group_data is None:
+            error = msg.yaml_parse_failed_msg(functional_group_config_path)
+            state.errors.append(error)
+            state.mark_file(functional_group_config_path, False)
+            logger.error(error)
+        elif functional_group_schema is None:
+            error = msg.schema_file_not_found_msg(functional_group_schema_path)
+            state.errors.append(error)
+            state.mark_file(functional_group_config_path, False)
+            logger.error(error)
 
 
 def run_module() -> None:
