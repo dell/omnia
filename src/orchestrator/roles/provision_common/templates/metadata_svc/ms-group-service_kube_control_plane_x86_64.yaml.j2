@@ -21,18 +21,14 @@
       disable_root: false
 
       write_files:
-        - path: /usr/local/bin/etcd-disk-setup.sh
+{% if etcd_disk_entry is not none %}
+        - path: /usr/local/bin/local-disk-prep.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
           content: |
-            {{ lookup('template', 'templates/k8s-scripts/etcd-disk-setup.sh.j2') | indent(12) }}
+            {{ lookup('template', 'templates/k8s-scripts/local-disk-prep.sh.j2') | indent(12) }}
 
-        - path: /usr/local/bin/etcd-fstab-update.sh
-          owner: root:root
-          permissions: '{{ file_mode_755 }}'
-          content: |
-            {{ lookup('template', 'templates/k8s-scripts/etcd-fstab-update.sh.j2') | indent(12) }}
-
+{% endif %}
         - path: /usr/local/bin/doca-install.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -299,9 +295,7 @@
 {% endfor %}
         # K8s NFS mount entries
         - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
-{% if etcd_on_local_disk | default(false) %}
-        - /usr/local/bin/etcd-fstab-update.sh
-{% else %}
+{% if etcd_disk_entry is none %}
         - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/etcd      /var/lib/etcd        nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
 {% endif %}
         - echo "{{ k8s_nfs_server_path }}/{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}/kubelet   /var/lib/kubelet     nfs {{ k8s_nfs_mnt_opts | default(k8s_nfs_default_mnt_opts) }} 0 0" >> /etc/fstab
@@ -408,6 +402,15 @@
           rm -f "$tmpfile"
           trap - EXIT
         - mount -av
+{% if etcd_disk_entry is not none %}
+        - |
+          /usr/local/bin/local-disk-prep.sh --purpose etcd --entry {{ etcd_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" \
+            --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping \
+            --map-file {{ k8s_client_mount_path }}/kafka_disk_mapping/disk-map.approved.json \
+            --disk-type {{ etcd_disk_entry.disk_type }} --disk-identity {{ etcd_disk_entry.disk_identity | default('serial') }} \
+            {{ etcd_model_arg }} --fs-type {{ etcd_disk_entry.fs_type }} --mount-point {{ etcd_disk_entry.mount_point | default('/var/lib/etcd') }} \
+            --mount-options {{ etcd_disk_entry.mount_options | quote }} || exit 1
+{% endif %}
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
@@ -442,9 +445,6 @@
           if [ ! -f "$MARKER" ]; then
             # Join Kubernetes cluster
             echo "Initial boot - initializing and setting up service_kube_control_plane_x86_64"
-{% if etcd_on_local_disk | default(false) %}
-            /usr/local/bin/etcd-disk-setup.sh
-{% endif %}
             # Stop and reset any incomplete state left by an earlier PXE attempt.
             systemctl stop kubelet.service || true
             kubeadm reset --force --cri-socket=unix:///var/run/crio/crio.sock || true
@@ -645,9 +645,6 @@
             
             # CRI and kubelet already enabled above
             # You can log health status etc if you wish:
-{% if etcd_on_local_disk | default(false) %}
-            /usr/local/bin/etcd-fstab-update.sh
-{% endif %}
             mkdir -p /root/.kube
             cp -f /etc/kubernetes/admin.conf /root/.kube/config
             chown root:root /root/.kube/config
