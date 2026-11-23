@@ -48,9 +48,12 @@ options:
       - list_boot_configurations
       - reconcile_boot_configurations
       - prune_boot_configurations
+      - delete_boot_configurations
       - reconcile_instanceinfos
       - reconcile_metadata_groups
       - prune_metadata_groups
+      - delete_metadata_groups
+      - inspect_metadata_group_ownership
       - reconcile_cluster_defaults
   cluster_uri:
     description: HTTPS URL of the OpenCHAMI gateway.
@@ -243,9 +246,12 @@ def main():
                     "list_boot_configurations",
                     "reconcile_boot_configurations",
                     "prune_boot_configurations",
+                    "delete_boot_configurations",
                     "reconcile_instanceinfos",
                     "reconcile_metadata_groups",
                     "prune_metadata_groups",
+                    "delete_metadata_groups",
+                    "inspect_metadata_group_ownership",
                     "reconcile_cluster_defaults",
                 ],
             },
@@ -263,6 +269,7 @@ def main():
                 "elements": "str",
                 "default": [],
             },
+            "metadata_group_name": {"type": "str"},
             "protected_group_labels": {
                 "type": "list",
                 "elements": "str",
@@ -426,6 +433,11 @@ def main():
                 target_macs=module.params["boot_configuration_macs"],
                 check_mode=module.check_mode,
             )
+        elif action == "delete_boot_configurations":
+            result = reconciler.delete_boot_configurations(
+                names=_required(module, "boot_configuration_names"),
+                check_mode=module.check_mode,
+            )
         elif action == "reconcile_instanceinfos":
             result = reconciler.reconcile_instance_infos(
                 desired=_required(module, "instance_infos"),
@@ -448,6 +460,30 @@ def main():
                 ],
                 check_mode=module.check_mode,
             )
+        elif action == "delete_metadata_groups":
+            result = reconciler.delete_metadata_groups(
+                names=_required(module, "metadata_group_names"),
+                project_name=_required(module, "project_name"),
+                check_mode=module.check_mode,
+            )
+        elif action == "inspect_metadata_group_ownership":
+            target_name = module.params.get("metadata_group_name")
+            if not target_name and module.params.get("metadata_group_names"):
+                target_name = module.params["metadata_group_names"][0]
+            if not target_name:
+                module.fail_json(
+                    msg=(
+                        "metadata_group_name or metadata_group_names is required "
+                        "for inspect_metadata_group_ownership"
+                    )
+                )
+            result = {
+                "changed": False,
+                "ownership": reconciler.inspect_metadata_group_ownership(
+                    name=target_name,
+                    project_name=_required(module, "project_name"),
+                ),
+            }
         elif action == "reconcile_cluster_defaults":
             result = reconciler.reconcile_cluster_defaults(
                 desired=_required(module, "cluster_defaults"),

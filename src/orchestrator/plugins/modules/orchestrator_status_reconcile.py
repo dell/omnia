@@ -150,6 +150,7 @@ def main() -> None:
             "operation": {"type": "str", "choices": ["add", "remove", "configure"]},
             "target_group": {"type": "str"},
             "stage_results": {"type": "list", "elements": "dict", "default": []},
+            "planned_stages": {"type": "list", "elements": "str", "default": []},
         },
         supports_check_mode=True,
     )
@@ -164,6 +165,7 @@ def main() -> None:
                     operation=module.params["operation"] or "add",
                     target_group=module.params["target_group"] or "",
                     stage_results=module.params["stage_results"],
+                    planned_stages=module.params["planned_stages"] or None,
                     previous_status=module.params["previous_status"] or None,
                     timestamp=module.params["timestamp"],
                 )

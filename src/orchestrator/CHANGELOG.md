@@ -53,6 +53,10 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - Custom inventory (`-i`) support for `pxeboot.yml` playbook for build_stream retry/resume (#432).
 - Boot freshness check via `/proc/uptime` in phone-home verification.
 - Race-free PXE failure collection using localhost loop over BMC hostvars.
+- Flexible functional-group lifecycle, discovery, and log collection
+  (ER-ORCH-009) with `functional_group_config.yml` per-group configuration.
+- Single `manage-functional-group` tag for add/remove/configure operations
+  with boot/cloud-init/both publication scopes (HLD v13).
 
 ### Changed
 - Metadata Service InstanceInfo, Group, and ClusterDefaults resources are now
@@ -71,3 +75,6 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
   `node_registration_retries`, and `node_registration_delay` controls.
 - Node completion is verified directly through SSH, boot freshness, and
   cloud-init status.
+
+### Security
+- Security hardening for functional-group configuration (ER-ORCH-009).

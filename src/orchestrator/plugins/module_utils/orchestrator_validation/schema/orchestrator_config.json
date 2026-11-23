@@ -23,12 +23,7 @@
     },
     "additional_cloud_init_config_file": {
       "type": "string",
-      "description": "Path to additional cloud-init configuration file for stateless node provisioning. Leave empty to disable.",
-      "default": ""
-    },
-    "boot_kernel_params": {
-      "type": "string",
-      "description": "Additional kernel command-line parameters applied to all functional groups.",
+      "description": "Path to additional cloud-init configuration file for stateless node provisioning. Leave empty to disable. Applies only to predefined functional groups (service_kube_*, slurm_*, login_node_*, login_compiler_node_*, os_*). For flexible groups (fg_*), use functional_group_config.yml instead.",
       "default": ""
     },
     "catalog_file_path": {
@@ -61,5 +56,6 @@
     "pxe_mapping_file_path",
     "language",
     "default_lease_time"
-  ]
+  ],
+  "additionalProperties": false
 }
