@@ -43,6 +43,7 @@ unknown field is refused with "Unsupported fields"):
 | `image_build_manager` | `s3_access_id`, `s3_secret_key`, `aarch64_ssh_password` |
 | `orchestrator` | `provision_password`, `bmc_username`, `bmc_password`, `slurm_db_password`, `openldap_db_username`, `openldap_db_password`, `csi_username`, `csi_password` |
 | `build_stream` | `gitlab_root_password`, `gitlab_ssh_password`, `build_stream_auth_username`, `build_stream_auth_password`, `postgres_user`, `postgres_password` |
+| `telemetry` (theme observability) | `bmc_username`, `bmc_password`, `mysqldb_user`, `mysqldb_password`, `mysqldb_root_password`, `ldms_sampler_password` (and, only when those sources are on, `csi_username`, `csi_password`, `ufm_username`, `ufm_password`, `vast_username`, `vast_password`). Written by `test/telemetry/setup_env.sh --domain-creds-stdin` |
 
 Empty fields are ignored. This is the layout `test/pipeline` uses, so an OpenBao that
 already serves it needs no change. To list the field **names** of a secret (never the

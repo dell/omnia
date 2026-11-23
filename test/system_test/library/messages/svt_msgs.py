@@ -204,6 +204,9 @@ SETUP_MSGS = {
         "the JSON keyed by domain to stdin, e.g. provider | ./setup_env.sh --yes"
     ),
     "creds_stdin_too_large": "the credential JSON on stdin exceeds {limit} bytes",
+    "creds_stdin_invalid": "the credential JSON on stdin must be one object keyed by domain, "
+                           "each value an object of fields, e.g. {\"telemetry\": "
+                           "{\"bmc_username\": ...}} (values are never printed)",
     "creds_incomplete": "still missing: {domains}. HOW TO FIX: "
                         "./setup_env.sh --set-domain-creds --domain <domain>",
     "creds_after_install": "set after the install (./setup_env.sh)",
@@ -256,6 +259,12 @@ RUN_MSGS = {
                 "replaces it in the report and the earlier one is kept in its history",
     "retry_resume": "--retry resumes at {stage}: the stages before it passed in this run",
     "retry_done": "--retry: every stage of run {run_id} already passed; only summary runs",
+    "skip_stages": "'all' leaves out: {stages} (theme {theme}; --skip-stages none runs every "
+                   "stage, --skip-stages <a,b> leaves out others)",
+    "skip_reason": "left out of 'all' (theme {theme} default or --skip-stages); run it with "
+                   "./run_validation.sh svt_{theme} <stage> or --skip-stages none",
+    "skip_unknown": "--skip-stages: unknown stage(s) {names}; the theme stages are: {stages} "
+                    "('none' runs every stage)",
 }
 
 LOCK_MSGS = {

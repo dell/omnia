@@ -74,7 +74,14 @@ from setup_gitlab_project import (  # noqa: E402  # test/pipeline, the shared Gi
     _validate_url,
 )
 from library.vars.common_vars import INPUTS_FILE  # noqa: E402
-from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title  # noqa: E402
+from library.vars.theme_vars import (  # noqa: E402
+    THEMES,
+    default_clean_reinstall,
+    default_skip_stages,
+    soft_stages,
+    stage_info,
+    theme_title,
+)
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
 PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
@@ -358,6 +365,8 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         f'  SVT_THEME: "{theme}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
+        # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
+        f'  SVT_DEFAULT_CLEAN_REINSTALL: "{str(default_clean_reinstall(theme)).lower()}"',
         '  GIT_DEPTH: "1"',
         "",
         "stages:",
@@ -388,8 +397,12 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         if job in THEMES[theme]["stages"]:
             lines += ["  rules:",
                       f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
-                      "      when: never",
-                      "    - when: on_success",
+                      "      when: never"]
+            if job in default_skip_stages(theme):
+                # Left out by default (empty SVT_SKIP_STAGES); "none" or another list runs it.
+                lines += ["    - if: '$SVT_SKIP_STAGES == null || $SVT_SKIP_STAGES == \"\"'",
+                          "      when: never"]
+            lines += ["    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
         elif job == LAST_STAGE:
             lines += ["  when: always", "  artifacts:", "    when: always",

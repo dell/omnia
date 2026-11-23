@@ -43,7 +43,8 @@ SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key; required unless
 SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
 SVT_THEME, SVT_USER_INPUTS (name of the cluster's inputs file in clusters/<name>/svt/,
-default user_inputs.yml), SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
+default user_inputs.yml), SVT_CLEAN_REINSTALL (empty: SVT_DEFAULT_CLEAN_REINSTALL, the
+theme's default from the child pipeline), SVT_POLL_SECONDS, SVT_JOB_ORDER,
 SVT_CREDENTIAL_DOMAINS, SVT_LABEL, BAO_SERVER_URL, BAO_AUTH_ROLE,
 BAO_DATA_PATH, BAO_CACERT (optional file variable: verify OpenBao with this CA;
 BAO_TLS_SKIP_VERIFY=false: verify with the system CA store),
@@ -592,7 +593,9 @@ def initialization() -> int:
     runs attached, because the OpenBao JSON goes on its stdin.
     """
     theme = _theme()
-    force = _env("SVT_CLEAN_REINSTALL", "true").lower() == "true"
+    # The cluster's clean_reinstall, else the theme's default (the child pipeline variable).
+    force = (_env("SVT_CLEAN_REINSTALL") or _env("SVT_DEFAULT_CLEAN_REINSTALL")
+             or "true").lower() == "true"
     payload = bao_credentials()
     rc = run_detached("configure", f"./setup_env.sh --theme {theme} --configure")
     _record_run()
