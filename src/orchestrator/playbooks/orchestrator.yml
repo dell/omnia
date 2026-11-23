@@ -265,13 +265,11 @@
     - execute
     - provision
 
-# IPoIB addressing (runs only when ib_addr_mode is set in network_spec)
-- name: Configure IPoIB addressing
-  ansible.builtin.import_playbook: provision/configure_ib_ipv6.yml
+- name: Validate provisioning
+  ansible.builtin.import_playbook: validate/validate_provisioning.yml
   tags:
     - execute
     - provision
-    - ib_ipv6
 
 - name: Validate provisioning
   ansible.builtin.import_playbook: validate/validate_provisioning.yml
