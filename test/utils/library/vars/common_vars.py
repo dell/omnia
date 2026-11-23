@@ -204,6 +204,39 @@ FUNCTIONAL_GROUP_NAME_PATTERN = re.compile(
     r"_(?:x86_64|aarch64)$"
 )
 
+FLEXIBLE_FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r"^fg_(?P<label>[a-zA-Z0-9_-]+?)"
+    r"(?:_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+)?"
+    r"_(?:x86_64|aarch64)$"
+)
+
+
+def is_valid_functional_group(group_name: str) -> bool:
+    """Return True if group_name matches a valid functional group pattern."""
+    return bool(
+        FUNCTIONAL_GROUP_NAME_PATTERN.match(group_name)
+        or FLEXIBLE_FUNCTIONAL_GROUP_PATTERN.match(group_name)
+    )
+
+
+def extract_role_prefix(group_name: str) -> str:
+    """Extract normalized role prefix from a functional group name."""
+    if not group_name:
+        return ""
+    if group_name.startswith("fg_"):
+        match = FLEXIBLE_FUNCTIONAL_GROUP_PATTERN.match(group_name)
+        if match:
+            return f"fg_{match.group('label')}"
+        if "_rhel_" in group_name:
+            return group_name.split("_rhel_")[0]
+        return group_name.rsplit("_", 1)[0]
+    match = FUNCTIONAL_GROUP_NAME_PATTERN.match(group_name)
+    if match:
+        for role in FUNCTIONAL_GROUP_ROLES:
+            if group_name.startswith(role):
+                return role
+    return group_name
+
 # Same OS/version-agnostic matching, scoped to the K8s and Slurm/login role
 # subsets respectively (used to detect which collect_pxe.yml sections are
 # populated without hardcoding a single arch/OS variant).
