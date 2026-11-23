@@ -98,6 +98,9 @@ TEST_NAMES: Dict[str, str] = {
     "pxe_mapping_orchestrator_contract": (
         "Verify PXE mapping CSV format for Orchestrator compatibility"
     ),
+    "discovery_flexible_group_mapping": (
+        "Verify Discovery flexible group mapping compatibility (exact fg_ identity and rejection evidence)"
+    ),
 
     # IB Validation (V016-V021)
     "ib_conditional_population": (
@@ -211,6 +214,13 @@ TEST_LOG_MSGS: Dict[str, str] = {
     ),
     "orchestrator_contract_failed": (
         "Missing required columns for Orchestrator: {missing}"
+    ),
+    "flexible_group_mapping_ok": (
+        "Discovery flexible group mapping verified: exact fg_ identities preserved "
+        "and invalid groups rejected with truthful evidence"
+    ),
+    "flexible_group_mapping_failed": (
+        "Discovery flexible group mapping verification failed: {reason}"
     ),
 
     # IB Validation (V016-V021)

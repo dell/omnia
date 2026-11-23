@@ -92,6 +92,21 @@ options:
         required: false
         type: str
         default: ""
+    os_type:
+        description: Target OS type used to inject OS identity into unversioned functional groups
+        required: false
+        type: str
+        default: "rhel"
+    os_version:
+        description: Target OS version used to inject OS identity into unversioned functional groups
+        required: false
+        type: str
+        default: "10_0"
+    omit_invalid_groups:
+        description: Whether to omit servers with invalid functional group names instead of falling back
+        required: false
+        type: bool
+        default: false
 author:
     - Dell Inc.
 '''
@@ -119,6 +134,14 @@ server_count:
     description: Number of servers written to the mapping file
     type: int
     returned: always
+rejected_servers:
+    description: List of servers whose OME groups were invalid, with truthful rejection evidence
+    type: list
+    returned: always
+omitted_servers:
+    description: List of servers omitted from output due to invalid functional group when omit_invalid_groups is true
+    type: list
+    returned: always
 '''
 
 
@@ -131,30 +154,50 @@ SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
 # Pattern to detect architecture suffix (e.g. _x86_64 or _aarch64)
 _ARCH_PATTERN = re.compile(r"_(?P<arch>x86_64|aarch64)$")
 
-# Functional group pattern (Omnia 2.3):
-# <any_prefix>_rhel_<major>_<minor>_<arch>
-#
-# This is the MANDATORY format for all functional groups in Omnia 2.3.
-# - The prefix can be ANY string (e.g., slurm_node, os, sujal, custom_group)
-# - The OS MUST be "rhel"
-# - The OS version (major_minor) is REQUIRED
-# - The architecture (x86_64 or aarch64) is REQUIRED
-#
-# Valid examples:
-#   slurm_control_node_rhel_10_2_x86_64   OK
-#   slurm_node_rhel_10_2_x86_64           OK
-#   os_rhel_10_2_x86_64                   OK
-#   sujal_rhel_10_0_x86_64                OK  (custom prefix allowed)
-#   my_custom_group_rhel_9_4_aarch64      OK  (any prefix allowed)
-#
-# Invalid examples:
-#   slurm_node_rocky_9_4_aarch64          INVALID (only rhel supported)
-#   slurm_node_x86_64                     INVALID (missing _rhel_<version>_)
-#   slurm_node                            INVALID (missing _rhel_<version>_<arch>)
-#
-# Pattern regex: ^.+_rhel_\d+_\d+_(x86_64|aarch64)$
-_FUNCTIONAL_GROUP_PATTERN = re.compile(
-    r'^(.+)_rhel_(\d+)_(\d+)_(x86_64|aarch64)$'
+PREDEFINED_ROLE_PREFIXES = (
+    "service_kube_",
+    "slurm_",
+    "login_node_",
+    "login_compiler_node_",
+    "os_",
+)
+FLEXIBLE_ROLE_PREFIX = "fg_"
+
+KNOWN_OTHER_ARCHS = {
+    "ppc64le",
+    "ppc64",
+    "arm",
+    "arm64",
+    "aarch32",
+    "riscv64",
+    "riscv",
+    "i386",
+    "i686",
+    "x86",
+    "s390x",
+    "noarch",
+}
+
+# Versioned flexible group pattern: fg_<label>_<os>_<version>_<arch>
+_FLEXIBLE_GROUP_VERSIONED_PATTERN = re.compile(
+    r"^fg_(?P<label>[a-zA-Z0-9_-]+)_(?P<os>[a-z]+)_"
+    r"(?P<version>[0-9]+(?:_[0-9]+)*)_(?P<arch>x86_64|aarch64)$"
+)
+
+# Unversioned flexible group pattern: fg_<label>_<arch>
+_FLEXIBLE_GROUP_UNVERSIONED_PATTERN = re.compile(
+    r"^fg_(?P<label>[a-zA-Z0-9_-]+)_(?P<arch>x86_64|aarch64)$"
+)
+
+# Predefined role versioned pattern
+_PREDEFINED_GROUP_VERSIONED_PATTERN = re.compile(
+    r"^(?P<role>[a-zA-Z0-9_-]+)_(?P<os>rhel|rocky|ubuntu|sles)_"
+    r"(?P<version>[0-9]+(?:_[0-9]+)*)_(?P<arch>x86_64|aarch64)$"
+)
+
+# Predefined role unversioned pattern
+_PREDEFINED_GROUP_UNVERSIONED_PATTERN = re.compile(
+    r"^(?P<role>[a-zA-Z0-9_-]+)_(?P<arch>x86_64|aarch64)$"
 )
 
 # Roles that receive PARENT_SERVICE_TAG (set to a service_kube_node
@@ -163,34 +206,120 @@ _FUNCTIONAL_GROUP_PATTERN = re.compile(
 CHILD_ROLE_PREFIXES = ("slurm_node_",)
 
 
+def resolve_functional_group(
+    group_name: str,
+    os_type: str = "rhel",
+    os_version: str = "10_0",
+) -> tuple[bool, str, str]:
+    """Validate and resolve functional group identity.
+
+    Supports:
+    - Predefined groups (e.g. slurm_node_rhel_10_2_x86_64 or unversioned slurm_node_x86_64)
+    - Flexible groups with mandatory 'fg_' prefix:
+      - Already versioned: fg_<label>_<os>_<version>_<arch> (preserved as-is)
+      - Unversioned: fg_<label>_<arch> (injects os_type and os_version)
+    - Rejects invalid prefixes (non-predefined groups without 'fg_' prefix)
+    - Rejects invalid or missing architecture suffixes (must be x86_64 or aarch64)
+
+    Args:
+        group_name: OME group name candidate.
+        os_type: Target OS type (e.g. 'rhel').
+        os_version: Target OS version (e.g. '10_0' or '10.0').
+
+    Returns:
+        Tuple of (is_valid, resolved_group_name, error_reason).
+    """
+    if not group_name:
+        return False, "", "Functional group name is empty"
+
+    os_type = (os_type or "rhel").strip().lower()
+    os_version = (os_version or "10_0").strip().replace(".", "_")
+
+    # 1. Flexible functional group (mandatory 'fg_' prefix)
+    if group_name.startswith(FLEXIBLE_ROLE_PREFIX):
+        # Check if already versioned: fg_<label>_<os>_<version>_<arch>
+        match_versioned = _FLEXIBLE_GROUP_VERSIONED_PATTERN.match(group_name)
+        if match_versioned:
+            return True, group_name, ""
+
+        # Check if unversioned: fg_<label>_<arch>
+        match_unversioned = _FLEXIBLE_GROUP_UNVERSIONED_PATTERN.match(group_name)
+        if match_unversioned:
+            arch = match_unversioned.group("arch")
+            label = match_unversioned.group("label")
+            resolved = f"fg_{label}_{os_type}_{os_version}_{arch}"
+            return True, resolved, ""
+
+        # Failed both patterns: inspect reason for failure
+        tokens = group_name.split("_")
+        last_token = tokens[-1].lower() if tokens else ""
+        if last_token in KNOWN_OTHER_ARCHS:
+            return (
+                False,
+                "",
+                f"Unsupported architecture suffix '{tokens[-1]}' in flexible group '{group_name}'; "
+                f"must be one of {list(SUPPORTED_ARCHITECTURES)}",
+            )
+        return (
+            False,
+            "",
+            f"Flexible group '{group_name}' is missing required architecture suffix; "
+            f"must end with '_x86_64' or '_aarch64'",
+        )
+
+    # 2. Predefined functional group
+    if any(group_name.startswith(p) for p in PREDEFINED_ROLE_PREFIXES):
+        match_pre_ver = _PREDEFINED_GROUP_VERSIONED_PATTERN.match(group_name)
+        if match_pre_ver:
+            return True, group_name, ""
+
+        match_pre_unver = _PREDEFINED_GROUP_UNVERSIONED_PATTERN.match(group_name)
+        if match_pre_unver:
+            arch = match_pre_unver.group("arch")
+            role = match_pre_unver.group("role")
+            resolved = f"{role}_{os_type}_{os_version}_{arch}"
+            return True, resolved, ""
+
+        tokens = group_name.split("_")
+        last_token = tokens[-1].lower() if tokens else ""
+        if last_token in KNOWN_OTHER_ARCHS:
+            return (
+                False,
+                "",
+                f"Unsupported architecture suffix '{tokens[-1]}' "
+                f"in predefined group '{group_name}'",
+            )
+        return (
+            False,
+            "",
+            f"Predefined group '{group_name}' is missing required architecture suffix",
+        )
+
+    # 3. Not predefined and does not have fg_ prefix
+    return (
+        False,
+        "",
+        f"Group '{group_name}' is missing mandatory 'fg_' prefix for flexible functional groups",
+    )
+
+
 def _is_supported_functional_group(group_name: str) -> bool:
     """Check if an OME group name matches a supported Omnia role pattern.
 
-    In Omnia 2.3, functional groups MUST follow the pattern:
-        <any_prefix>_rhel_<major>_<minor>_<arch>
-
-    The prefix can be ANY string. The mandatory suffix is:
-        _rhel_<major>_<minor>_(x86_64|aarch64)
-
-    Valid examples:
-        slurm_node_rhel_10_2_x86_64       OK
-        os_rhel_10_2_x86_64               OK
-        sujal_rhel_10_0_x86_64            OK (custom prefix)
-        my_custom_group_rhel_9_4_aarch64  OK (any prefix)
-
-    Invalid examples:
-        slurm_node_x86_64                 INVALID (missing _rhel_<version>_)
-        slurm_node_rocky_9_4_aarch64      INVALID (only rhel supported)
+    In Omnia 2.3, functional groups MUST follow:
+    - Predefined role: <predefined_prefix>_<os>_<version>_<arch>
+    - Flexible role: fg_<label>_<os>_<version>_<arch>
 
     Args:
         group_name: The functional group name to validate.
 
     Returns:
-        True if the group name matches the pattern, False otherwise.
+        True if the group name matches a valid versioned pattern, False otherwise.
     """
     if not group_name:
         return False
-    return bool(_FUNCTIONAL_GROUP_PATTERN.match(group_name))
+    is_valid, resolved, _ = resolve_functional_group(group_name)
+    return is_valid and resolved == group_name
 
 
 def extract_su_from_hostname(bmc_hostname: str) -> str:
@@ -318,6 +447,9 @@ def main() -> None:
         "ib_subnet": {"type": "str", "required": False, "default": ""},
         "ipv6_subnet": {"type": "str", "required": False, "default": ""},
         "admin_subnet": {"type": "str", "required": False, "default": ""},
+        "os_type": {"type": "str", "required": False, "default": "rhel"},
+        "os_version": {"type": "str", "required": False, "default": "10_0"},
+        "omit_invalid_groups": {"type": "bool", "required": False, "default": False},
     }
 
     module = AnsibleModule(
@@ -327,6 +459,7 @@ def main() -> None:
 
     servers = module.params['servers']
     output_file = module.params['output_file']
+    functional_group = module.params['functional_group']
     group_name = module.params['group_name']
     hostname_prefix = module.params['hostname_prefix']
     hostname_start = module.params['hostname_start']
@@ -334,6 +467,9 @@ def main() -> None:
     ib_subnet = module.params['ib_subnet']
     ipv6_subnet = module.params['ipv6_subnet']
     admin_subnet = module.params['admin_subnet']
+    os_type = module.params['os_type'] or "rhel"
+    os_version = module.params['os_version'] or "10_0"
+    omit_invalid_groups = module.params['omit_invalid_groups']
 
     # CSV headers as specified
     headers = [
@@ -352,7 +488,13 @@ def main() -> None:
     ]
 
     if module.check_mode:
-        module.exit_json(changed=True, file_path=output_file, server_count=len(servers))
+        module.exit_json(
+            changed=True,
+            file_path=output_file,
+            server_count=len(servers),
+            rejected_servers=[],
+            omitted_servers=[],
+        )
 
     try:
         # Ensure output directory exists
@@ -362,6 +504,8 @@ def main() -> None:
 
         # Generate PXE mapping rows
         rows = []
+        rejected_servers = []
+        omitted_servers = []
         for idx, server in enumerate(servers):
             hostname_num = hostname_start + idx
             hostname = generate_hostname(hostname_prefix, hostname_num, hostname_padding)
@@ -372,24 +516,34 @@ def main() -> None:
             ib_ipv4 = calculate_ib_ip(ib_subnet, bmc_ip) if ib_nic_name else ""
             ib_ipv6 = calculate_ib_ipv6(ipv6_subnet, bmc_ip) if ib_nic_name else ""
 
-            # Use group_name from OME if available, else fall back to module param default
             server_group = server.get('group_name', '').strip()
+            fallback_fg = functional_group or DEFAULT_FUNCTIONAL_GROUP
 
-            # Servers with invalid OME groups fall back to default functional group
-            # In Omnia 2.3, functional groups must follow: <prefix>_rhel_<major>_<minor>_<arch>
-            if server_group and not _is_supported_functional_group(server_group):
-                svc_tag = server.get('service_tag', 'unknown')
-                module.warn(
-                    f"Device {svc_tag}: OME static group '{server_group}' "
-                    f"is not a valid Omnia 2.3 functional group. "
-                    f"Required pattern: <prefix>_rhel_<major>_<minor>_(x86_64|aarch64). "
-                    f"Adding to default functional group: {DEFAULT_FUNCTIONAL_GROUP}"
+            if server_group:
+                is_valid, resolved_group, error_reason = resolve_functional_group(
+                    server_group, os_type=os_type, os_version=os_version
                 )
-                server_group = ""  # Clear to use default functional group
-
-            # Use OME static group if valid, otherwise use fixed default
-            # No catalog dependency - default is always slurm_node_rhel_10_0_aarch64
-            resolved_functional_group = server_group if server_group else DEFAULT_FUNCTIONAL_GROUP
+                if not is_valid:
+                    svc_tag = server.get('service_tag', 'unknown')
+                    module.warn(
+                        f"Device {svc_tag}: OME static group '{server_group}' "
+                        f"is not a valid functional group ({error_reason}). "
+                        f"Adding to default functional group: {fallback_fg}"
+                    )
+                    rejection_entry = {
+                        "service_tag": svc_tag,
+                        "group_name": server_group,
+                        "reason": error_reason,
+                    }
+                    rejected_servers.append(rejection_entry)
+                    if omit_invalid_groups:
+                        omitted_servers.append(rejection_entry)
+                        continue
+                    resolved_functional_group = fallback_fg
+                else:
+                    resolved_functional_group = resolved_group
+            else:
+                resolved_functional_group = fallback_fg
 
             # Derive GROUP_NAME: try SU from BMC hostname first,
             # then from OME group name, then fall back to module default (grp0)
@@ -454,6 +608,8 @@ def main() -> None:
             changed=True,
             file_path=output_file,
             server_count=len(rows),
+            rejected_servers=rejected_servers,
+            omitted_servers=omitted_servers,
             msg=f"Successfully generated PXE mapping file with {len(rows)} servers"
         )
 
