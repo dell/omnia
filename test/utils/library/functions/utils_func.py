@@ -29,6 +29,8 @@ from ..vars.common_vars import (
     CMDS,
     FUNCTIONAL_GROUPS,
     FUNCTIONAL_GROUP_NAME_PATTERN,
+    FLEXIBLE_FUNCTIONAL_GROUP_PATTERN,
+    is_valid_functional_group,
     K8S_FUNCTIONAL_GROUP_PATTERN,
     SLURM_FUNCTIONAL_GROUP_PATTERN,
     LOG_BUNDLE_PATTERN,
@@ -288,7 +290,7 @@ def validate_collect_pxe_file(host, path: str) -> Dict[str, Any]:
     invalid_groups = []
 
     for key in data.keys():
-        if FUNCTIONAL_GROUP_NAME_PATTERN.match(key):
+        if is_valid_functional_group(key):
             found_groups.append(key)
         else:
             invalid_groups.append(key)

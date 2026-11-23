@@ -25,6 +25,10 @@
 # Uses the domain-specific validate_orchestrator_config module (lean, no
 # dependency on the central input_validation framework).
 
+- name: Include role variables
+  ansible.builtin.include_vars:
+    file: vars/main.yml
+
 - name: Display validation start
   ansible.builtin.debug:
     msg: "{{ orchestrator_validation_start_msg }}"

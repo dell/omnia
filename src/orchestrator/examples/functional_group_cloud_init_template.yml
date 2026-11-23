@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Reference cloud-init template for flexible functional groups
+#
+# This file demonstrates the supported cloud-init directives for flexible groups.
+# Flexible groups support write_files and runcmd directives only.
+#
+# Security note: This file is treated as untrusted data and is never evaluated
+# as Jinja on the OIM. Paths are validated to remain within the active project
+# input boundary. Secret-bearing content is rejected before publication.
+#
+# Copy this template to your project input directory and customize as needed.
+# Reference it from functional_group_config.yml:
+#   groups:
+#     fg_<group_name>:
+#       cloud_init:
+#         config_file: "<path/to/this/file.yml>"
+
+# write_files: Create or overwrite files on the target node
+# Each entry requires:
+#   - path: Absolute path where the file will be created
+#   - content: File content (string)
+#   - owner: File owner (format: "user:group", default: "root:root")
+#   - permissions: File permissions in octal (default: "0644")
+#   - append: If true, append to existing file instead of overwriting (default: false)
+write_files:
+  - path: /etc/custom-config/app.conf
+    content: |
+      # Application configuration
+      APP_ENV=production
+      APP_LOG_LEVEL=info
+    owner: root:root
+    permissions: "0644"
+
+  - path: /etc/sysctl.d/99-custom-tuning.conf
+    content: |
+      # Custom kernel tuning
+      vm.swappiness=10
+      net.ipv4.tcp_keepalive_time=600
+    owner: root:root
+    permissions: "0644"
+
+# runcmd: Execute shell commands during first boot
+# Commands run in order after the system is fully booted
+# Each command is a shell command string
+runcmd:
+  - systemctl enable --now custom-service
+  - yum install -y epel-release
+  - yum-config-manager --enable epel
+  - echo "Custom setup completed" >> /var/log/custom-setup.log
