@@ -17,6 +17,11 @@
 #          [--kubeconfig PATH] [--label-retries N] [--label-interval SECONDS]
 # Sets omnia.dell.com/kafka-storage=true on this node's own Node object when status-<node>.json
 # is ok for purpose kafka and no kafka-label-disabled-<node> marker exists; otherwise removes it.
+#
+# Logging: all output (stdout and stderr) is written to /var/log/local-disk-prep.log
+# on the node and simultaneously to stdout so cloud-init captures it in
+# /var/log/cloud-init-output.log. This provides a single dedicated log location
+# for all disk preparation activity independent of cloud-init log rotation.
 set -uo pipefail
 
 LOG="/var/log/local-disk-prep.log"
@@ -136,6 +141,12 @@ label_failed() {
         echo "$(ts) [WARN] node=$NODE: could not set $LABEL_KEY ($2); the node boots without the label, so Kafka will not schedule here."
         exit 0
     fi
+    # If kubelet.conf does not exist the node has not joined yet — the label was
+    # never set, so nothing needs removing. Treat as a warning, not an error.
+    if [ ! -r "$KUBECONFIG_FILE" ]; then
+        echo "$(ts) [WARN] node=$NODE: could not remove $LABEL_KEY ($2); $KUBECONFIG_FILE not present — node has not joined yet, label was never set."
+        exit 0
+    fi
     echo "$(ts) ERROR node=$NODE entry=$ENTRY purpose=$PURPOSE: could not remove $LABEL_KEY ($2). Remove the label from the OIM."
     exit 1
 }
@@ -234,6 +245,8 @@ modprobe sd_mod
 modprobe megaraid_sas
 echo "Drivers Loaded"
 sleep 20
+# Wait until the kernel has finished registering all block devices so that
+# lsblk, candidate_disks, and disk_field return complete and accurate results.
 runq udevadm settle --timeout=30
 
 # ── Disk helpers ─────────────────────────────────────────────────────────────
@@ -421,6 +434,8 @@ if command -v sgdisk >/dev/null 2>&1; then
     run sgdisk --zap-all "$DISK" || fail "sgdisk failed on $DISK." "Check the disk."
 fi
 runq partprobe "$DISK"
+# Wait for the kernel to process partition table changes from wipefs/sgdisk
+# before pvcreate or parted runs, to avoid stale partition signatures.
 runq udevadm settle --timeout=30
 
 if [ "$PURPOSE" = "kafka" ]; then
@@ -434,6 +449,8 @@ else
     esac
     run parted -s "$DISK" mklabel gpt mkpart primary "$FS_TYPE" 1MiB 100% || fail "partitioning $DISK failed." "Check the disk."
     run partprobe "$DISK"
+    # Wait for the new partition node (e.g. /dev/sda1) to appear in /dev
+    # before mkfs runs; the for loop below is an extra safety check.
     runq udevadm settle --timeout=30
     for i in 1 2 3 4 5; do [ -b "$PART" ] && break; echo "$(ts) [INFO] waiting for $PART (attempt $i)"; sleep 2; done
     [ -b "$PART" ] || fail "partition $PART not found after partitioning." "Check the disk."
