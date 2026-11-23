@@ -59,6 +59,14 @@ def _validate_s3_config(
         logger.warning(msg.s3_endpoint_ignored_msg())
 
 
+def _validate_removed_boot_kernel_params(
+    config_data: dict[str, Any], errors: list[str], logger: Logger | None
+) -> None:
+    """AC-018: Reject boot_kernel_params in orchestrator_config.yml unconditionally."""
+    if "boot_kernel_params" in config_data and config_data.get("boot_kernel_params") not in (None, ""):
+        record_error(errors, logger, msg.functional_group_removed_boot_kernel_params_msg())
+
+
 def validate(
     config_data: dict[str, Any],
     input_project_dir: str,
@@ -79,4 +87,5 @@ def validate(
     _validate_language(config_data, errors, logger)
     _validate_default_lease_time(config_data, errors, logger)
     _validate_s3_config(config_data, errors, logger)
+    _validate_removed_boot_kernel_params(config_data, errors, logger)
     return errors

@@ -1,0 +1,170 @@
+{
+  "catalog": {
+    "name": "Invalid Missing fg_ Prefix Catalog",
+    "version": "1.0",
+    "schema_version": 2,
+    "identifier": "invalid-prefix-fg-catalog",
+    "description": "Catalog fixture: Invalid Missing fg_ Prefix Catalog",
+    "functionallayer": [
+      {
+        "name": "os_rhel_10_2_x86_64",
+        "components": [
+          "baseos_group_10.2",
+          "admin_debug_group"
+        ]
+      },
+      {
+        "name": "webserver_flexible_rhel_10_2_x86_64",
+        "components": [
+          "baseos_group_10.2",
+          "web_group"
+        ]
+      }
+    ],
+    "groups": {
+      "baseos_group_10.2": {
+        "name": "baseos_group_10.2",
+        "type": "baseos",
+        "os": "rhel",
+        "os_version": "10.2",
+        "description": "Minimal OS packages for RHEL 10.2",
+        "components": [
+          "bash",
+          "chrony",
+          "ghcr_io/openchami/image_thrillhouse"
+        ]
+      },
+      "admin_debug_group": {
+        "name": "admin_debug_group",
+        "type": "group",
+        "description": "Admin diagnostic utilities",
+        "components": [
+          "tcpdump",
+          "vim"
+        ]
+      },
+      "web_group": {
+        "name": "web_group",
+        "type": "group",
+        "description": "Web service components",
+        "components": [
+          "nginx"
+        ]
+      }
+    },
+    "packages": {
+      "bash": {
+        "name": "bash",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "chrony": {
+        "name": "chrony",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "ghcr_io/openchami/image_thrillhouse": {
+        "name": "ghcr.io/openchami/image-thrillhouse",
+        "packagetype": "image",
+        "tag": "v0.0.26",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "registry": "ghcr.io",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "tcpdump": {
+        "name": "tcpdump",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
+      "vim": {
+        "name": "vim-enhanced",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
+      "nginx": {
+        "name": "nginx",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "appstream",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
