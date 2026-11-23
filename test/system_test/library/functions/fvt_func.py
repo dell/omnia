@@ -92,9 +92,12 @@ def fvt_python(domain: str, override: Optional[str] = None) -> str:
 
 
 def describe_step(step: FvtStep) -> str:
-    """Return the runner command of a step as text, e.g. ``fvt_build_stream execute exec``."""
+    """Return the runner command of a step as text, e.g. ``fvt_build_stream execute exec``.
+
+    An SVT action (domain ``svt``, catalog_build) is ``svt <action> <argument>``.
+    """
     domain, arguments = step
-    return " ".join([f"fvt_{domain}", *arguments])
+    return " ".join([domain if domain == "svt" else f"fvt_{domain}", *arguments])
 
 
 def fvt_report_json(domain: str) -> str:
