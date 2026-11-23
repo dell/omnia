@@ -107,7 +107,7 @@ declare -A DOMAIN_DESCRIPTIONS=(
 declare -A DOMAIN_GUIDE_FILES=(
     [repo_manager]="repo_manager_config.yml repo_manager_endpoint_config.yml repo_manager_config_credentials.yml"
     [image_build_manager]="image_build_config.yml package_groups.yml image_build_credentials.yml"
-    [orchestrator]="orchestrator_config.yml network_spec.yml omnia_config.yml pxe_mapping_file.csv storage_config.yml security_config.yml additional_cloud_init.yml set_pxe_boot_config.yml orchestrator_credentials.yml"
+    [orchestrator]="orchestrator_config.yml network_spec.yml omnia_config.yml pxe_mapping_file.csv storage_config.yml security_config.yml functional_group_config.yml additional_cloud_init.yml set_pxe_boot_config.yml orchestrator_credentials.yml"
     [discovery]="discovery_config.yml network_spec.yml discovery_credentials.yml"
     [telemetry]="telemetry_config.yml telemetry_storage_config.yml telemetry_packages.yml bmc_group_data.csv telemetry_credentials.yml"
     [build_stream]="build_stream_config.yml build_stream_credentials.yml"
@@ -127,6 +127,7 @@ declare -A INPUT_FILE_LEVEL=(
     [orchestrator/pxe_mapping_file.csv]="required"
     [orchestrator/storage_config.yml]="required"
     [orchestrator/security_config.yml]="required"
+    [orchestrator/functional_group_config.yml]="optional"
     [orchestrator/additional_cloud_init.yml]="optional"
     [orchestrator/set_pxe_boot_config.yml]="optional"
     [orchestrator/orchestrator_credentials.yml]="generated"
@@ -160,6 +161,7 @@ declare -A INPUT_FILE_DESCRIPTIONS=(
     [orchestrator/pxe_mapping_file.csv]="Review the Discovery mapping and correct every hostname, group, service tag, MAC, and node IP before provisioning."
     [orchestrator/storage_config.yml]="Required: provide storage inputs for both selected Slurm and Kubernetes clusters; referenced names must match omnia_config.yml."
     [orchestrator/security_config.yml]="Review the security/OpenLDAP connection type used by provisioning."
+    [orchestrator/functional_group_config.yml]="Optional flexible functional group configuration (boot_kernel_params, cloud_init, image_override, driver_groups); published under manage-functional-group and lifecycle flows."
     [orchestrator/additional_cloud_init.yml]="Optional custom write_files/runcmd content; used only when its path is set in orchestrator_config.yml."
     [orchestrator/set_pxe_boot_config.yml]="Optional PXE/node-registration timing and restart overrides; built-in defaults apply when absent."
     [orchestrator/orchestrator_credentials.yml]="Created and Vault-encrypted by the orchestrator run for node, BMC, and service secrets."
@@ -509,8 +511,11 @@ _show_domain_input_notes() {
                 echo "    - Set network_spec.yml primary_oim_admin_ip equal to SYSTEM_ADMIN_NIC_IPV4 from omnia.env."
             fi
             echo "    - Provide storage_config.yml inputs for the selected Slurm and Kubernetes clusters."
+            echo "    - Optionally configure flexible functional groups in functional_group_config.yml."
             echo "    - Ensure Image Build and Repo Manager status paths point to successful outputs."
             echo "    - Run: omnia.sh --run orchestrator"
+            echo "      Flexible groups publish under default/provision/execute flows, or dedicated tag:"
+            echo "      omnia.sh --run orchestrator --tags manage-functional-group"
             echo "      The domain run creates or updates encrypted credentials when required."
             ;;
         discovery)
@@ -1696,6 +1701,48 @@ ENVIRONMENT:
   OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
   IMAGE_BUILD_MANAGER_DATA_PATH Optional image_build_manager data-root override
   OMNIA_PROJECT_NAME    Project name (default: project_default)
+EOF
+            ;;
+        orchestrator)
+            cat <<EOF
+${BOLD}omnia-cli orchestrator${NC} — ${DOMAIN_DESCRIPTIONS[orchestrator]}
+
+USAGE:
+  omnia-cli orchestrator [--project <name>]
+  omnia-cli edit orchestrator [file] [--project <name>]
+  omnia-cli output orchestrator [file] [--project <name>]
+  omnia-cli logs orchestrator [--project <name>]
+
+INPUT INVENTORY:
+  orchestrator_config.yml     [required] Mapping path, catalog path, boot parameters
+  network_spec.yml            [required] Cluster networks and OIM admin IP
+  omnia_config.yml            [required] Cluster definitions and role selections
+  pxe_mapping_file.csv        [required] Node inventory and mapping
+  storage_config.yml          [required] Storage definitions
+  security_config.yml         [required] Security and OpenLDAP configuration
+  functional_group_config.yml [optional] Flexible functional group configuration
+  additional_cloud_init.yml   [optional] Custom write_files/runcmd content
+  set_pxe_boot_config.yml     [optional] PXE/registration timing overrides
+  orchestrator_credentials.yml [generated] Vault-encrypted credentials
+
+PUBLIC TAGS:
+  precheck, validate, credentials, prepare, deploy, provision, execute,
+  validate-deployment, pxeboot, verify_node_registration,
+  manage-functional-group, cleanup, cleanup_credentials
+
+FLEXIBLE FUNCTIONAL GROUPS:
+  - Single management tag: manage-functional-group (add/remove/configure)
+  - Flexible groups also publish under default, provision, and execute lifecycle flows
+
+CHECKS:
+  - Output directory exists below configured orchestrator data root
+  - Status file: orchestrator_status.yml (overall_status == "success")
+  - Generated inventories and runtime artifacts
+
+ENVIRONMENT:
+  OMNIA_DATA_PATH          Root data directory (default: /opt/omnia)
+  ORCHESTRATOR_DATA_PATH   Optional orchestrator data-root override
+  OMNIA_PROJECT_NAME       Project name (default: project_default)
 EOF
             ;;
         *)
