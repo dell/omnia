@@ -25,7 +25,7 @@ import pytest
 
 from library.functions import (
     TestLogger,
-    load_test_config,
+    resolve_target_source_root,
     run_playbook,
 )
 from library.functions.oci_image_ingest_func import (
@@ -82,12 +82,12 @@ def test_deploy_oci_image_ingest(host):
             result.get("error", "See playbook output above"),
         )
 
-    config = load_test_config()
+    source_root = resolve_target_source_root()
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook=PLAYBOOK_UTILS,
         tag="oci_image_ingest",
         rc=result["rc"],
         duration=result["duration"],
-        input_path=config.get("clone_path", "/root/omnia") + "/src/utils/input",
-        workdir=config.get("clone_path", "/root/omnia") + "/" + PLAYBOOK_WORKDIR,
+        input_path=source_root + "/src/utils/input",
+        workdir=source_root + "/" + PLAYBOOK_WORKDIR,
     )
