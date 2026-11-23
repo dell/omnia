@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 """Measure the effective size of a PR: added code lines, excluding comments, blanks and Markdown."""
 import argparse
-import re
 import os
+import re
 import statistics
 import subprocess
 import sys
