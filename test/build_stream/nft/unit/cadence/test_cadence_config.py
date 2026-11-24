@@ -287,3 +287,95 @@ class TestConfigLoadingResolution:
                 str(credentials_file),
                 strict=True,
             )
+
+
+class TestExternalGitLabConfig:
+    """ER-BSM-003: cadence follows gitlab_mode: external."""
+
+    EXTERNAL = """
+enable_build_stream: true
+gitlab_mode: "external"
+gitlab_host: ""
+gitlab_external_url: "https://gitlab.example.test:8443/"
+gitlab_project_namespace: "infra"
+gitlab_ca_cert_path: "/etc/pki/tls/certs/gitlab-ca.pem"
+cadence:
+  enabled: true
+  interval_days: 3
+"""
+
+    @pytest.mark.unit
+    def test_external_mode_accepts_empty_gitlab_host(self, temp_dir):
+        """TC-UT-001-020: Empty gitlab_host no longer discards cadence settings."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text(self.EXTERNAL, encoding="utf-8")
+
+        result = load_cadence_config(
+            str(config_file), str(temp_dir / "missing.yml"), strict=True
+        )
+
+        assert result["enabled"] is True
+        assert result["interval_days"] == 3
+        assert result["gitlab_mode"] == "external"
+        assert result["gitlab_external_url"] == "https://gitlab.example.test:8443"
+        assert result["gitlab_ca_cert_path"] == "/etc/pki/tls/certs/gitlab-ca.pem"
+
+    @pytest.mark.unit
+    def test_external_mode_rejects_non_https_url(self, temp_dir):
+        """TC-UT-001-021: gitlab_external_url must be an HTTPS URL."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text(
+            self.EXTERNAL.replace("https://gitlab.example.test:8443/", "http://gitlab.example.test"),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="gitlab_external_url"):
+            load_cadence_config(
+                str(config_file), str(temp_dir / "missing.yml"), strict=True
+            )
+
+    @pytest.mark.unit
+    def test_self_hosted_still_requires_ipv4_host(self, temp_dir):
+        """TC-UT-001-022: self_hosted keeps the IPv4 gitlab_host contract."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text(
+            "enable_build_stream: true\ngitlab_mode: self_hosted\n"
+            "gitlab_host: ''\ncadence:\n  enabled: true\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="IPv4"):
+            load_cadence_config(
+                str(config_file), str(temp_dir / "missing.yml"), strict=True
+            )
+
+    @pytest.mark.unit
+    def test_unknown_gitlab_mode_is_rejected(self, temp_dir):
+        """TC-UT-001-023: gitlab_mode only accepts the two supported values."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text(
+            "gitlab_mode: hybrid\ncadence:\n  enabled: true\n", encoding="utf-8"
+        )
+
+        with pytest.raises(ValueError, match="gitlab_mode"):
+            load_cadence_config(
+                str(config_file), str(temp_dir / "missing.yml"), strict=True
+            )
+
+    @pytest.mark.unit
+    def test_external_mode_loads_api_token_and_project_id(self, temp_dir):
+        """TC-UT-001-024: The external personal access token feeds cadence."""
+        config_file = temp_dir / "build_stream_config.yml"
+        credentials_file = temp_dir / "build_stream_credentials.yml"
+        config_file.write_text(self.EXTERNAL, encoding="utf-8")
+        credentials_file.write_text(
+            "gitlab_api_token: glpat-test\ngitlab_project_id: 7\n",
+            encoding="utf-8",
+        )
+
+        result = load_cadence_config(
+            str(config_file), str(credentials_file), strict=True
+        )
+
+        assert result["gitlab_api_token"] == "glpat-test"
+        assert result["gitlab_project_id"] == "7"

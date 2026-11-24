@@ -31,6 +31,7 @@ from cadence_manager import (
     _repo_resync_status_path,
     is_pipeline_busy,
     fetch_cadence_catalog_from_gitlab,
+    update_catalog_via_gitlab_api,
     submit_repo_sync_request,
     wait_for_sync_result,
     emit_audit_event,
@@ -1050,3 +1051,96 @@ class TestCadenceTimerThread:
                 thread.join(timeout=5)
 
         assert not thread.is_alive()
+
+
+@pytest.mark.unit
+class TestExternalGitLabAccess:
+    """ER-BSM-003: cadence talks to the external GitLab like the role does."""
+
+    EXTERNAL = {
+        "enabled": True,
+        "gitlab_mode": "external",
+        "gitlab_host": "",
+        "gitlab_external_url": "https://gitlab.example.test",
+        "gitlab_ca_cert_path": "/etc/pki/tls/certs/gitlab-ca.pem",
+        "gitlab_api_token": "glpat-test",
+        "gitlab_project_id": "42",
+    }
+
+    @staticmethod
+    def _thread(config, temp_dir):
+        return CadenceTimerThread(
+            config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+    def test_external_url_token_and_ca_are_used(self, sample_cadence_config, temp_dir):
+        """TC-UT-013-001: URL, token and CA bundle come from external settings."""
+        thread = self._thread({**sample_cadence_config, **self.EXTERNAL}, temp_dir)
+
+        assert thread.gitlab_url == "https://gitlab.example.test"
+        assert thread.gitlab_token == "glpat-test"
+        assert thread.gitlab_verify == "/etc/pki/tls/certs/gitlab-ca.pem"
+        assert thread._gitlab_configuration_complete()  # pylint: disable=protected-access
+
+    def test_external_without_ca_uses_system_trust_store(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-013-002: No CA bundle means verification stays on."""
+        config = {**sample_cadence_config, **self.EXTERNAL, "gitlab_ca_cert_path": ""}
+
+        assert self._thread(config, temp_dir).gitlab_verify is True
+
+    def test_self_hosted_keeps_existing_url_token_and_tls(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-013-003: self_hosted behavior is unchanged."""
+        config = {
+            **sample_cadence_config,
+            "gitlab_host": "10.0.0.5",
+            "gitlab_https_port": 8443,
+            "gitlab_root_token": "root-token",
+            "gitlab_project_id": "42",
+        }
+        thread = self._thread(config, temp_dir)
+
+        assert thread.gitlab_url == "https://10.0.0.5:8443"
+        assert thread.gitlab_token == "root-token"
+        assert thread.gitlab_verify is False
+
+    def test_fetch_passes_verify_to_requests(self, temp_dir):
+        """TC-UT-013-004: The CA bundle reaches the GET request."""
+        response = Mock(status_code=404, text="")
+        with patch("cadence_manager.requests.get", return_value=response) as get:
+            fetch_cadence_catalog_from_gitlab(
+                "https://gitlab.example.test", "t", "42", "c.json", "main",
+                temp_dir / "catalog.json", "/etc/pki/tls/certs/gitlab-ca.pem",
+            )
+
+        assert get.call_args.kwargs["verify"] == "/etc/pki/tls/certs/gitlab-ca.pem"
+
+    def test_update_passes_verify_to_requests(self):
+        """TC-UT-013-005: The CA bundle reaches the PUT request."""
+        response = Mock(status_code=200, text="")
+        with patch("cadence_manager.requests.put", return_value=response) as put:
+            assert update_catalog_via_gitlab_api(
+                "https://gitlab.example.test", "t", "42", "c.json", "{}", "1.1",
+                "main", True,
+            )
+
+        assert put.call_args.kwargs["verify"] is True
+
+    def test_missing_ca_file_is_a_safe_failure(self, temp_dir):
+        """TC-UT-013-006: An unreadable CA file fails closed, never insecure."""
+        with patch("cadence_manager.requests.get", side_effect=OSError("no CA")):
+            assert fetch_cadence_catalog_from_gitlab(
+                "https://gitlab.example.test", "t", "42", "c.json", "main",
+                temp_dir / "catalog.json", "/missing/ca.pem",
+            ) is False
+        with patch("cadence_manager.requests.put", side_effect=OSError("no CA")):
+            assert update_catalog_via_gitlab_api(
+                "https://gitlab.example.test", "t", "42", "c.json", "{}", "1.1",
+                "main", "/missing/ca.pem",
+            ) is False

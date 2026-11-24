@@ -457,7 +457,7 @@ initialization:
               --form "value=${VAR_VALUE}" \
               --form "masked=true" \
               --form "protected=true" \
-              --cacert "${CI_SERVER_TLS_CA_FILE}")
+              ${CI_SERVER_TLS_CA_FILE:+--cacert "${CI_SERVER_TLS_CA_FILE}"})
 
             if [ "$HTTP_CODE" = "201" ]; then
               echo "    ${VAR_NAME} stored successfully"

@@ -95,6 +95,19 @@ node_registration_final_success_msg: >
   nodes completed cloud-init and registered successfully.
   Proceeding with BuildStream post-processing.
 
+# External GitLab (gitlab_mode: external)
+gitlab_external_credentials_missing_msg: >-
+  gitlab_mode is external but gitlab_external_url (https), gitlab_project_namespace,
+  gitlab_project_name or the gitlab_api_token credential is missing or invalid. Check
+  build_stream_config.yml and run the build_stream credentials step.
+gitlab_external_lookup_failure_msg: >-
+  Could not query the external GitLab for the Omnia project. Check that gitlab_external_url
+  is reachable, gitlab_ca_cert_path trusts its certificate and gitlab_api_token is valid.
+gitlab_external_project_missing_msg: >-
+  The Omnia project {{ gitlab_project_namespace | default('') }}/{{ gitlab_project_name | default('') }}
+  does not exist on the external GitLab. Run the build_stream execute step first
+  (ansible-playbook build_stream.yml --tags execute).
+
 # Input validation messages
 gitlab_host_invalid_format_msg: >-
   gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
