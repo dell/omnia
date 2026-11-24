@@ -39,6 +39,12 @@ import yaml
 from omnia_auto import read_remote_yaml
 
 from .execute_probe_func import data_path, domain_input_path, run_cmd
+from .gitlab_mode_func import (
+    external_settings,
+    external_tls,
+    gitlab_mode_of,
+    read_vault_mapping,
+)
 from .gitlab_ssh_func import gitlab_tls
 from .http_func import http_json, tls_from_pem
 from ..vars.execute_vars import (
@@ -52,11 +58,12 @@ from ..vars.execute_vars import (
     BSM_CONFIG_KEYS,
     BSM_CREDENTIAL_KEYS,
     BSM_CREDENTIALS_FILE,
-    BSM_CREDENTIALS_KEY,
     BSM_DOMAIN,
     BSM_TLS_CERT,
     GITLAB_API,
-    OMNIA_ENV_FILE,
+    GITLAB_EXTERNAL_PROJECT_ID_KEY,
+    GITLAB_EXTERNAL_TOKEN_KEY,
+    GITLAB_MODE_EXTERNAL,
 )
 
 
@@ -79,20 +86,7 @@ def bsm_tls(host: Any) -> ssl.SSLContext:
 
 def _read_credentials(host: Any, input_dir: str) -> Dict[str, Any]:
     """Decrypt build_stream_credentials.yml with its vault key on the OIM."""
-    result = run_cmd(
-        host, "vault_view",
-        env_file=OMNIA_ENV_FILE,
-        path=f"{input_dir}/{BSM_CREDENTIALS_FILE}",
-        key=f"{input_dir}/{BSM_CREDENTIALS_KEY}",
-    )
-    if result.rc != 0:
-        raise RuntimeError(
-            f"Cannot decrypt {input_dir}/{BSM_CREDENTIALS_FILE} (rc={result.rc})"
-        )
-    data = yaml.safe_load(result.stdout) or {}
-    if not isinstance(data, dict):
-        raise RuntimeError(f"{BSM_CREDENTIALS_FILE} is not a mapping")
-    return data
+    return read_vault_mapping(host, input_dir)
 
 
 def read_bsm_credentials(host: Any, input_dir: str) -> Dict[str, Any]:
@@ -110,9 +104,15 @@ def read_bsm_credentials(host: Any, input_dir: str) -> Dict[str, Any]:
 def load_bsm_context(host: Any) -> Dict[str, Any]:
     """Resolve BuildStream/GitLab endpoints, credentials and TLS from the OIM.
 
+    The GitLab side follows ``gitlab_mode`` in build_stream_config.yml:
+    ``hosted`` reads ``gitlab_host``/``gitlab_https_port``, the stored root token
+    and the GitLab CA over SSH (unchanged); ``external`` reads
+    ``gitlab_external_url``, the ``gitlab_api_token`` personal access token and
+    ``gitlab_ca_cert_path`` (system trust store when empty).
+
     Returns:
-        Dict with keys: success, error and, on success, config (parsed
-        build_stream_config.yml), input_dir, bsm_url, gitlab_url,
+        Dict with keys: success, error and, on success, gitlab_mode, config
+        (parsed build_stream_config.yml), input_dir, bsm_url, gitlab_url,
         gitlab_api (project API base), gitlab_branch, gitlab_headers,
         bsm_tls, gitlab_tls.
     """
@@ -121,36 +121,46 @@ def load_bsm_context(host: Any) -> Dict[str, Any]:
         config = read_remote_yaml(host, f"{input_dir}/{BSM_CONFIG_FILE}")
         credentials = _read_credentials(host, input_dir)
         bsm_tls_context = bsm_tls(host)
-        gitlab_context = gitlab_tls(host)
+        external = gitlab_mode_of(config) == GITLAB_MODE_EXTERNAL
+        gitlab_context = (external_tls(host, external_settings(config)["ca_path"])
+                          if external else gitlab_tls(host))
     except (RuntimeError, ValueError, yaml.YAMLError) as exc:
         return {"success": False, "error": str(exc)}
 
-    missing = [
-        key for key in ("api_host", "api_port", "gitlab_host", "gitlab_port")
-        if not config.get(BSM_CONFIG_KEYS[key])
-    ] + [key for key, name in BSM_CREDENTIAL_KEYS.items() if not credentials.get(name)]
+    if external:
+        settings = external_settings(config)
+        required = {"api_host": config.get(BSM_CONFIG_KEYS["api_host"]),
+                    "api_port": config.get(BSM_CONFIG_KEYS["api_port"]),
+                    "gitlab_external_url": settings["url"]}
+        token_key, project_key = GITLAB_EXTERNAL_TOKEN_KEY, GITLAB_EXTERNAL_PROJECT_ID_KEY
+        gitlab_url = settings["url"]
+    else:
+        required = {key: config.get(BSM_CONFIG_KEYS[key])
+                    for key in ("api_host", "api_port", "gitlab_host", "gitlab_port")}
+        token_key = BSM_CREDENTIAL_KEYS["gitlab_token"]
+        project_key = BSM_CREDENTIAL_KEYS["gitlab_project_id"]
+        gitlab_url = (f"https://{config.get(BSM_CONFIG_KEYS['gitlab_host'])}:"
+                      f"{config.get(BSM_CONFIG_KEYS['gitlab_port'])}")
+    missing = [key for key, value in required.items() if not value]
+    missing += [name for name in (token_key, project_key) if not credentials.get(name)]
     if missing:
         return {"success": False,
                 "error": f"BuildStream configuration incomplete: {', '.join(missing)}"}
 
-    gitlab_url = (f"https://{config[BSM_CONFIG_KEYS['gitlab_host']]}:"
-                  f"{config[BSM_CONFIG_KEYS['gitlab_port']]}")
-    project_id = urllib.parse.quote(
-        str(credentials[BSM_CREDENTIAL_KEYS["gitlab_project_id"]]), safe=""
-    )
+    project_id = urllib.parse.quote(str(credentials[project_key]), safe="")
     return {
         "success": True,
         "error": "",
+        "gitlab_mode": GITLAB_MODE_EXTERNAL if external else "hosted",
         "config": config,
         "input_dir": input_dir,
         "bsm_url": (f"https://{config[BSM_CONFIG_KEYS['api_host']]}:"
                     f"{config[BSM_CONFIG_KEYS['api_port']]}"),
         "gitlab_url": gitlab_url,
         "gitlab_api": f"{gitlab_url}{GITLAB_API}/projects/{project_id}",
-        "gitlab_branch": config.get(BSM_CONFIG_KEYS["gitlab_branch"]) or "main",
-        "gitlab_headers": {
-            "PRIVATE-TOKEN": str(credentials[BSM_CREDENTIAL_KEYS["gitlab_token"]])
-        },
+        "gitlab_branch": (config.get(BSM_CONFIG_KEYS["gitlab_branch"])
+                          or "main"),
+        "gitlab_headers": {"PRIVATE-TOKEN": str(credentials[token_key])},
         "bsm_tls": bsm_tls_context,
         "gitlab_tls": gitlab_context,
     }

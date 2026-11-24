@@ -263,3 +263,15 @@ gitlab_cleanup_find_roots:
   - /var
   - /root
   - /home
+
+# External GitLab: CI/CD variables Omnia normally writes. Listed for manual review only
+# when the setup journal cannot prove which of them Omnia created.
+cleanup_external_variable_review_keys:
+  - GITLAB_API_TOKEN
+  - BSM_API_URL
+  - BSM_API_USERNAME
+  - BSM_API_PASSWORD
+  - BSM_API_CERT
+  - BSM_LOG_TAIL_LINES
+  - BSM_CLIENT_ID
+  - BSM_CLIENT_SECRET

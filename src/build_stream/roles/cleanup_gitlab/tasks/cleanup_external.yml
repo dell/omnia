@@ -30,6 +30,9 @@
         _ecl_results: []
         _ecl_resources: []
         _ecl_project_id: "{{ gitlab_project_id | default('') | string }}"
+        _ecl_journal_reliable: false
+        _ecl_journal_issue: ""
+        _ecl_api_failures: 0
 
     - name: Read the setup journal
       block:
@@ -41,12 +44,35 @@
         - name: Parse the journal
           ansible.builtin.set_fact:
             _ecl_journal: "{{ _ecl_journal_raw.content | b64decode | from_json }}"
-            _ecl_resources: "{{ (_ecl_journal_raw.content | b64decode | from_json).resources | default([]) }}"
-            _ecl_project_id: "{{ (_ecl_journal_raw.content | b64decode | from_json).project_id | default(_ecl_project_id) | string }}"
+
+        - name: Accept the journal only when it is a supported ownership record
+          ansible.builtin.set_fact:
+            _ecl_journal_reliable: true
+            _ecl_resources: "{{ _ecl_journal.resources }}"
+            _ecl_project_id: "{{ _ecl_journal.project_id | default(_ecl_project_id) | string }}"
+          when:
+            - _ecl_journal is mapping
+            - _ecl_journal.schema_version | default(0) == 1
+            - _ecl_journal.resources is defined
+            - _ecl_journal.resources is sequence
+            - _ecl_journal.resources is not string
+
+        - name: Record why the journal cannot be trusted
+          ansible.builtin.set_fact:
+            _ecl_journal_issue: "has an unsupported schema or structure"
+          when: not _ecl_journal_reliable
       rescue:
-        - name: Fall back to API-based discovery when the journal is missing or unreadable
-          ansible.builtin.debug:
-            msg: "WARNING: external GitLab setup journal is missing or unreadable; using API-based discovery."
+        - name: Record that the journal is missing, unreadable or malformed
+          ansible.builtin.set_fact:
+            _ecl_journal_issue: "is missing, unreadable or malformed"
+
+    - name: Warn that remote CI/CD variables will not be deleted without ownership evidence
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: the external GitLab setup journal {{ _ecl_journal_issue }}. Omnia cannot tell which CI/CD variables it created,
+          so NO remote CI/CD variables will be deleted. Review these keys in the GitLab project manually and remove only those
+          that Omnia created: {{ cleanup_external_variable_review_keys | join(', ') }}.
+      when: not _ecl_journal_reliable
 
     - name: Revoke BSM client credentials before deleting the BSM_API_PASSWORD variable
       ansible.builtin.include_tasks: cleanup_build_stream_oauth.yml
@@ -63,10 +89,7 @@
               PRIVATE-TOKEN: "{{ gitlab_api_token }}"
             _ecl_variable_keys: >-
               {{ (_ecl_resources | selectattr('type', 'equalto', 'variable') | selectattr('action', 'equalto', 'created')
-                  | map(attribute='key') | list
-                  if _ecl_resources | selectattr('type', 'equalto', 'variable') | list | length > 0
-                  else ['GITLAB_API_TOKEN', 'BSM_API_URL', 'BSM_API_USERNAME', 'BSM_API_PASSWORD', 'BSM_API_CERT', 'BSM_LOG_TAIL_LINES'])
-                 + ['BSM_CLIENT_ID', 'BSM_CLIENT_SECRET'] }}
+                  | map(attribute='key') | list + ['BSM_CLIENT_ID', 'BSM_CLIENT_SECRET']) if _ecl_journal_reliable else [] }}
           no_log: true
 
         - name: Remove Omnia-owned CI/CD variables (customer variables are preserved)
@@ -137,11 +160,24 @@
 
         - name: Record the API cleanup results
           ansible.builtin.set_fact:
+            _ecl_api_failures: >-
+              {{ (_ecl_var_results.results | default([]) | rejectattr('status', 'in', [200, 204, 404]) | list | length)
+                 + (_ecl_token_results.results | default([]) | rejectattr('status', 'in', [204, 404]) | list | length)
+                 + (_ecl_trigger_results.results | default([]) | rejectattr('status', 'in', [200, 204, 404]) | list | length)
+                 + (0 if _ecl_tokens.status | default(0) == 200 else 1)
+                 + (0 if _ecl_triggers.status | default(0) == 200 else 1) }}
             _ecl_results: >-
               {{ _ecl_results
                  + ['variables removed: ' ~ (_ecl_var_results.results | default([]) | selectattr('status', 'in', [200, 204]) | list | length)]
                  + ['access tokens revoked: ' ~ (_ecl_token_results.results | default([]) | selectattr('status', 'equalto', 204) | list | length)]
                  + ['triggers deleted: ' ~ (_ecl_trigger_results.results | default([]) | selectattr('status', 'in', [200, 204]) | list | length)] }}
+
+        - name: Warn about remote resources that could not be cleaned up
+          ansible.builtin.debug:
+            msg: >-
+              WARNING: {{ _ecl_api_failures }} GitLab API cleanup call(s) failed. The remote resources were NOT removed.
+              The local setup journal and trigger token are kept as ownership evidence; fix the cause and run cleanup again.
+          when: _ecl_api_failures | int > 0
 
     - name: Warn when the GitLab API cleanup could not run
       ansible.builtin.debug:
@@ -149,6 +185,17 @@
           WARNING: external GitLab API cleanup was skipped (missing URL, project ID or gitlab_api_token).
           Remove the Omnia CI/CD variables, the omnia-ci token and the trigger from the project manually if needed.
       when: _ecl_results | length == 0
+
+    - name: Decide whether the local ownership evidence can be removed
+      ansible.builtin.set_fact:
+        _ecl_remote_clean: "{{ _ecl_journal_reliable and (_ecl_results | length > 0) and (_ecl_api_failures | int == 0) }}"
+
+    - name: Keep the local ownership evidence until remote cleanup has fully succeeded
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: remote GitLab cleanup is not complete, so the journal ({{ _ecl_journal_path }}) and the trigger token file
+          are kept. Re-run cleanup after the listed issues are resolved.
+      when: not _ecl_remote_clean | bool
 
     - name: Remove local external GitLab state (journal, lock, trigger token)
       ansible.builtin.file:
@@ -159,6 +206,7 @@
         - "{{ _ecl_journal_path }}"
         - "{{ _ecl_journal_path }}.lock"
         - "{{ _ecl_trigger_token_path }}"
+      when: _ecl_remote_clean | bool
 
     - name: Blank the GitLab API token and project ID in the credentials file
       ansible.builtin.include_tasks: cleanup_external_credentials.yml
@@ -170,3 +218,4 @@
           - "External GitLab cleanup finished for {{ _ecl_url | default('n/a', true) }} (project NOT deleted)."
           - "Runner: operator-managed, nothing to unregister."
           - "{{ _ecl_results | default([]) }}"
+          - "Remote cleanup complete: {{ _ecl_remote_clean | bool }}"

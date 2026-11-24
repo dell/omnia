@@ -43,6 +43,14 @@
         regexp: "^gitlab_project_id:"
         line: 'gitlab_project_id: "{{ _egl_project_id }}"'
         state: present
+
+    - name: Store the omnia-ci token for the cadence watcher (the customer PAT is not used at runtime)
+      ansible.builtin.lineinfile:
+        path: "{{ _egl_cred_file }}"
+        regexp: "^gitlab_ci_token:"
+        line: 'gitlab_ci_token: "{{ _egl_ci_token }}"'
+        state: present
+      no_log: true
   always:
     - name: Re-encrypt the credentials file
       ansible.builtin.command: >-

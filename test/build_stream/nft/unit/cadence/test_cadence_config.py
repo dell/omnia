@@ -363,13 +363,13 @@ cadence:
             )
 
     @pytest.mark.unit
-    def test_external_mode_loads_api_token_and_project_id(self, temp_dir):
-        """TC-UT-001-024: The external personal access token feeds cadence."""
+    def test_external_mode_loads_ci_token_and_project_id(self, temp_dir):
+        """TC-UT-001-024: The project-scoped omnia-ci token feeds cadence."""
         config_file = temp_dir / "build_stream_config.yml"
         credentials_file = temp_dir / "build_stream_credentials.yml"
         config_file.write_text(self.EXTERNAL, encoding="utf-8")
         credentials_file.write_text(
-            "gitlab_api_token: glpat-test\ngitlab_project_id: 7\n",
+            "gitlab_ci_token: glpat-ci\ngitlab_project_id: 7\n",
             encoding="utf-8",
         )
 
@@ -377,5 +377,23 @@ cadence:
             str(config_file), str(credentials_file), strict=True
         )
 
-        assert result["gitlab_api_token"] == "glpat-test"
+        assert result["gitlab_ci_token"] == "glpat-ci"
         assert result["gitlab_project_id"] == "7"
+
+    @pytest.mark.unit
+    def test_external_mode_never_loads_customer_pat(self, temp_dir):
+        """TC-UT-001-025: The customer PAT is a setup-time credential, not loaded at runtime."""
+        config_file = temp_dir / "build_stream_config.yml"
+        credentials_file = temp_dir / "build_stream_credentials.yml"
+        config_file.write_text(self.EXTERNAL, encoding="utf-8")
+        credentials_file.write_text(
+            "gitlab_api_token: glpat-customer\ngitlab_project_id: 7\n",
+            encoding="utf-8",
+        )
+
+        result = load_cadence_config(
+            str(config_file), str(credentials_file), strict=True
+        )
+
+        assert "gitlab_api_token" not in result
+        assert not result.get("gitlab_ci_token")
