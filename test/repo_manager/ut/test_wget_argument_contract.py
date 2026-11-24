@@ -12,7 +12,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import source_loader  # noqa: F401  # pylint: disable=unused-import
 from source_loader import REPO_MANAGER_ROOT
 
 from ansible.module_utils.repo_manager import download_common
