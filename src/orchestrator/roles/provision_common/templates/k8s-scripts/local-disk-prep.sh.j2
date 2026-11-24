@@ -1,0 +1,467 @@
+#!/bin/bash
+{% raw %}
+# local-disk-prep.sh
+# Prepares one declared local disk (etcd or kafka) from this node's row in the
+# approved disk map. Fresh install (marker absent): wipe and prepare the disk.
+# Reboot (marker present): reattach only, never wipe, format, pvcreate or vgcreate.
+# Fails closed: any uncertainty stops the node and changes no disk.
+# Every failure writes one "ERROR node=<n> entry=<e> purpose=<p>:" line and status-<node>.json.
+#
+# Usage: local-disk-prep.sh --purpose etcd|kafka --entry NAME --node NODE \
+#          --map-file PATH --status-dir DIR --disk-type TYPE --disk-identity serial|wwn \
+#          [--model MODEL] [--fs-type ext4|xfs --mount-point PATH --mount-options OPTS] \
+#          [--volume-group NAME] [--marker PATH] [--nfs-dir PATH]
+#
+# Label step (kafka workers, run after the node has joined or the kubelet is up):
+#        local-disk-prep.sh --label-only --purpose kafka --entry NAME --node NODE --status-dir DIR \
+#          [--kubeconfig PATH] [--label-retries N] [--label-interval SECONDS]
+# Sets omnia.dell.com/kafka-storage=true on this node's own Node object when status-<node>.json
+# is ok for purpose kafka and no kafka-label-disabled-<node> marker exists; otherwise removes it.
+#
+# Logging: all output (stdout and stderr) is written to /var/log/local-disk-prep.log
+# on the node and simultaneously to stdout so cloud-init captures it in
+# /var/log/cloud-init-output.log. This provides a single dedicated log location
+# for all disk preparation activity independent of cloud-init log rotation.
+set -uo pipefail
+
+LOG="/var/log/local-disk-prep.log"
+PURPOSE=""; ENTRY=""; NODE=""; MAP_FILE=""; STATUS_DIR=""
+DISK_TYPE=""; DISK_IDENTITY="serial"; MODEL=""
+FS_TYPE=""; MOUNT_POINT=""; MOUNT_OPTIONS=""; VOLUME_GROUP=""
+MARKER="/etc/kubernetes/.cluster_initialized"; NFS_DIR="/etc/kubernetes"
+ETCD_LABEL="omnia_etcd"
+LABEL_ONLY=""; KUBECONFIG_FILE="/etc/kubernetes/kubelet.conf"; LABEL_RETRIES=12; LABEL_INTERVAL=5
+LABEL_KEY="omnia.dell.com/kafka-storage"; LABEL_VALUE="true"
+
+exec > >(tee -a "$LOG") 2>&1
+
+ts() { date +%F_%T; }
+
+run() {
+    echo "$(ts) [CMD] $*"
+    "$@"
+    local rc=$?
+    echo "$(ts) [RC=$rc] $*"
+    return $rc
+}
+
+runq() {
+    echo "$(ts) [CMD] $* (ok to fail)"
+    "$@" 2>&1 || true
+}
+
+usage_error() { echo "$(ts) [ERROR] $*"; exit 2; }
+
+# ── Arguments (allowlisted before any use) ───────────────────────────────────
+
+while [ $# -gt 0 ]; do
+    if [ "$1" = "--label-only" ]; then LABEL_ONLY=1; shift; continue; fi
+    [ $# -ge 2 ] || usage_error "missing value for $1"
+    case "$1" in
+        --purpose)       PURPOSE="$2" ;;
+        --entry)         ENTRY="$2" ;;
+        --node)          NODE="$2" ;;
+        --map-file)      MAP_FILE="$2" ;;
+        --status-dir)    STATUS_DIR="$2" ;;
+        --disk-type)     DISK_TYPE="$2" ;;
+        --disk-identity) DISK_IDENTITY="$2" ;;
+        --model)         MODEL="$2" ;;
+        --fs-type)       FS_TYPE="$2" ;;
+        --mount-point)   MOUNT_POINT="$2" ;;
+        --mount-options) MOUNT_OPTIONS="$2" ;;
+        --volume-group)  VOLUME_GROUP="$2" ;;
+        --marker)        MARKER="$2" ;;
+        --nfs-dir)       NFS_DIR="$2" ;;
+        --kubeconfig)    KUBECONFIG_FILE="$2" ;;
+        --label-retries) LABEL_RETRIES="$2" ;;
+        --label-interval) LABEL_INTERVAL="$2" ;;
+        *) usage_error "unknown argument $1" ;;
+    esac
+    shift 2
+done
+
+valid() { [[ "$2" =~ $1 ]] || usage_error "invalid value '$2' for $3"; }
+valid '^(etcd|kafka)$' "$PURPOSE" --purpose
+valid '^[A-Za-z0-9_-]{1,64}$' "$ENTRY" --entry
+valid '^[A-Za-z0-9._:-]{1,255}$' "$NODE" --node
+valid '^/[A-Za-z0-9/_.-]+$' "$STATUS_DIR" --status-dir
+if [ -n "$LABEL_ONLY" ]; then
+    [ "$PURPOSE" = "kafka" ] || usage_error "--label-only applies to purpose kafka only"
+    valid '^/[A-Za-z0-9/_.-]+$' "$KUBECONFIG_FILE" --kubeconfig
+    valid '^[0-9]{1,3}$' "$LABEL_RETRIES" --label-retries
+    valid '^[0-9]{1,3}$' "$LABEL_INTERVAL" --label-interval
+else
+    valid '^/[A-Za-z0-9/_.-]+$' "$MAP_FILE" --map-file
+    valid '^(boss|hdd|ssd|nvme)$' "$DISK_TYPE" --disk-type
+    valid '^(serial|wwn)$' "$DISK_IDENTITY" --disk-identity
+    valid '^/[A-Za-z0-9/_.-]+$' "$MARKER" --marker
+    valid '^/[A-Za-z0-9/_.-]+$' "$NFS_DIR" --nfs-dir
+    [ -z "$MODEL" ] || valid '^[A-Za-z0-9 ._+/-]{1,128}$' "$MODEL" --model
+    if [ "$PURPOSE" = "etcd" ]; then
+        valid '^(ext4|xfs)$' "$FS_TYPE" --fs-type
+        valid '^/[A-Za-z0-9/_.-]+$' "$MOUNT_POINT" --mount-point
+        valid '^[A-Za-z0-9,=._@/-]+$' "$MOUNT_OPTIONS" --mount-options
+        case ",$MOUNT_OPTIONS," in *,nofail,*) usage_error "nofail is not allowed for etcd" ;; esac
+    else
+        valid '^[A-Za-z0-9_-]{1,64}$' "$VOLUME_GROUP" --volume-group
+    fi
+fi
+
+# ── Failure and status ───────────────────────────────────────────────────────
+
+write_status() {
+    mkdir -p "$STATUS_DIR" 2>/dev/null || return 0
+    jq -n --arg node "$NODE" --arg entry "$ENTRY" --arg purpose "$PURPOSE" \
+          --arg result "$1" --arg reason "$2" --arg action "$3" \
+          --arg updated "$(date -u +%FT%TZ)" \
+          '{node:$node,entry:$entry,purpose:$purpose,result:$result,reason:$reason,action:$action,updated:$updated}' \
+          > "$STATUS_DIR/status-$NODE.json" \
+        || echo "$(ts) [WARN] could not write $STATUS_DIR/status-$NODE.json"
+}
+
+fail() {
+    echo "$(ts) ERROR node=$NODE entry=$ENTRY purpose=$PURPOSE: $1 $2"
+    write_status failed "$1" "$2"
+    exit 1
+}
+
+# ── Label step: set or remove the Kafka label on this node's own Node object ─
+
+kubeconfig_value() { awk -v k="$1:" '$1==k {print $2; exit}' "$KUBECONFIG_FILE" 2>/dev/null; }
+
+api_call() {
+    local method="$1" body="$2" out="$3"
+    local args=(-sS --max-time 15 -o "$out" -w '%{http_code}' --cacert "$API_CA" --cert "$API_CERT" --key "$API_KEY" -X "$method")
+    [ -z "$body" ] || args+=(-H 'Content-Type: application/merge-patch+json' -d "$body")
+    curl "${args[@]}" "$API_SERVER/api/v1/nodes/$NODE" 2>/dev/null || echo 000
+}
+
+label_failed() {
+    if [ "$1" = "present" ]; then
+        echo "$(ts) [WARN] node=$NODE: could not set $LABEL_KEY ($2); the node boots without the label, so Kafka will not schedule here."
+        exit 0
+    fi
+    # If kubelet.conf does not exist the node has not joined yet — the label was
+    # never set, so nothing needs removing. Treat as a warning, not an error.
+    if [ ! -r "$KUBECONFIG_FILE" ]; then
+        echo "$(ts) [WARN] node=$NODE: could not remove $LABEL_KEY ($2); $KUBECONFIG_FILE not present — node has not joined yet, label was never set."
+        exit 0
+    fi
+    echo "$(ts) ERROR node=$NODE entry=$ENTRY purpose=$PURPOSE: could not remove $LABEL_KEY ($2). Remove the label from the OIM."
+    exit 1
+}
+
+label_only() {
+    local status_file="$STATUS_DIR/status-$NODE.json" marker_file="$STATUS_DIR/kafka-label-disabled-$NODE"
+    local want="present" why="status ok" attempt code current body tmp
+    if [ -e "$marker_file" ]; then want="absent"; why="disable marker $marker_file exists"
+    elif [ ! -r "$status_file" ]; then want="absent"; why="no readable $status_file"
+    elif [ "$(jq -r '.purpose // ""' "$status_file" 2>/dev/null)" != "kafka" ]; then want="absent"; why="status is not for purpose kafka"
+    elif [ "$(jq -r '.result // ""' "$status_file" 2>/dev/null)" != "ok" ]; then want="absent"; why="status result is not ok"
+    fi
+    echo "$(ts) [INFO] label $LABEL_KEY should be $want on $NODE ($why)"
+    API_SERVER=$(kubeconfig_value server)
+    API_CA=$(kubeconfig_value certificate-authority); API_CA=${API_CA:-/etc/kubernetes/pki/ca.crt}
+    API_CERT=$(kubeconfig_value client-certificate); API_CERT=${API_CERT:-/var/lib/kubelet/pki/kubelet-client-current.pem}
+    API_KEY=$(kubeconfig_value client-key); API_KEY=${API_KEY:-$API_CERT}
+    [[ "$API_SERVER" =~ ^https://[A-Za-z0-9._:-]+$ ]] || label_failed "$want" "no valid server in $KUBECONFIG_FILE"
+    for f in "$API_CA" "$API_CERT" "$API_KEY"; do
+        [[ "$f" =~ ^/[A-Za-z0-9/_.-]+$ ]] && [ -r "$f" ] || label_failed "$want" "credential file $f is not readable"
+    done
+    tmp=$(mktemp)
+    code=000
+    for attempt in $(seq 1 "$LABEL_RETRIES"); do
+        code=$(api_call GET "" "$tmp")
+        [ "$code" = "200" ] && break
+        echo "$(ts) [INFO] attempt $attempt/$LABEL_RETRIES: Node $NODE not readable yet (HTTP $code)"
+        sleep "$LABEL_INTERVAL"
+    done
+    [ "$code" = "200" ] || { rm -f "$tmp"; label_failed "$want" "Node object not readable, last HTTP $code"; }
+    current=$(jq -r --arg k "$LABEL_KEY" '.metadata.labels[$k] // ""' "$tmp")
+    if [ "$want" = "present" ] && [ "$current" = "$LABEL_VALUE" ]; then
+        echo "$(ts) [OK] label already $LABEL_KEY=$LABEL_VALUE"; rm -f "$tmp"; return 0
+    fi
+    if [ "$want" = "absent" ] && [ -z "$current" ]; then
+        echo "$(ts) [OK] label already absent"; rm -f "$tmp"; return 0
+    fi
+    if [ "$want" = "present" ]; then
+        body=$(jq -nc --arg k "$LABEL_KEY" --arg v "$LABEL_VALUE" '{metadata:{labels:{($k):$v}}}')
+    else
+        body=$(jq -nc --arg k "$LABEL_KEY" '{metadata:{labels:{($k):null}}}')
+    fi
+    code=$(api_call PATCH "$body" "$tmp"); rm -f "$tmp"
+    [ "$code" = "200" ] || label_failed "$want" "PATCH returned HTTP $code"
+    echo "$(ts) [OK] label $want on $NODE"
+}
+
+if [ -n "$LABEL_ONLY" ]; then
+    label_only
+    exit $?
+fi
+
+echo ""
+echo "$(ts) [INFO] ===== START local-disk-prep node=$NODE entry=$ENTRY purpose=$PURPOSE ====="
+
+# ── NFS gate: fresh-install state must be confirmed ──────────────────────────
+
+mountpoint -q "$NFS_DIR" \
+    || fail "the NFS mount $NFS_DIR could not be confirmed; no disk changed." \
+            "Check the NFS export and reboot the node."
+
+# ── Approved map row ─────────────────────────────────────────────────────────
+
+[ -r "$MAP_FILE" ] \
+    || fail "approved disk map $MAP_FILE cannot be read; no disk changed." \
+            "Check the nfs_k8s mount and that the map was written."
+jq -e . "$MAP_FILE" >/dev/null 2>&1 \
+    || fail "approved disk map $MAP_FILE is not valid JSON; no disk changed." \
+            "Rewrite the map from the OIM."
+ROWS=$(jq -c --arg n "$NODE" --arg e "$ENTRY" '[.rows[]? | select(.node==$n and .entry==$e)]' "$MAP_FILE")
+ROW_COUNT=$(jq 'length' <<<"$ROWS")
+[ "$ROW_COUNT" -ne 0 ] \
+    || fail "node $NODE is missing from the approved disk map $MAP_FILE; no disk changed." \
+            "Add the node to storage_config.yml and rewrite the map."
+[ "$ROW_COUNT" -eq 1 ] \
+    || fail "node $NODE has $ROW_COUNT rows for '$ENTRY' in $MAP_FILE; no disk changed." \
+            "Remove the duplicate rows."
+row() { jq -r --arg k "$1" '.[0][$k] // ""' <<<"$ROWS"; }
+ROW_DISK_ID=$(row disk_id); ROW_IDENTITY=$(row disk_identity)
+ROW_TYPE=$(row disk_type); ROW_MODEL=$(row model); ROW_PURPOSE=$(row purpose)
+[ "$ROW_PURPOSE" = "$PURPOSE" ] \
+    || fail "map row for '$ENTRY' has purpose '$ROW_PURPOSE', expected '$PURPOSE'; no disk changed." \
+            "Rewrite the map from the OIM."
+[ -z "$ROW_IDENTITY" ] || DISK_IDENTITY="$ROW_IDENTITY"
+[ -z "$ROW_TYPE" ] || DISK_TYPE="$ROW_TYPE"
+[ -z "$ROW_MODEL" ] || MODEL="$ROW_MODEL"
+if [ -e "$MARKER" ]; then MODE="reboot"; else MODE="fresh"; fi
+echo "$(ts) [INFO] mode=$MODE disk_type=$DISK_TYPE identity=$DISK_IDENTITY disk_id=${ROW_DISK_ID:-selector}"
+
+# ── Drivers ──────────────────────────────────────────────────────────────────
+
+echo "Loading Drivers"
+modprobe nvme
+modprobe ahci
+modprobe sd_mod
+modprobe megaraid_sas
+echo "Drivers Loaded"
+sleep 20
+# Wait until the kernel has finished registering all block devices so that
+# lsblk, candidate_disks, and disk_field return complete and accurate results.
+runq udevadm settle --timeout=30
+
+# ── Disk helpers ─────────────────────────────────────────────────────────────
+
+disk_field() { lsblk -dno "$2" "$1" 2>/dev/null | xargs || true; }
+
+system_disks() {
+    local src mp
+    {
+        for mp in / /boot /boot/efi /var /var/lib/etcd /var/lib/kubelet /var/lib/containerd; do
+            src=$(findmnt -n -o SOURCE --mountpoint "$mp" 2>/dev/null || true)
+            [ -b "$src" ] && echo "$src"
+        done
+        awk 'NR>1 {print $1}' /proc/swaps
+    } | while read -r src; do
+        [ -b "$src" ] && lsblk -nsrpo NAME,TYPE "$src" 2>/dev/null | awk '$2=="disk" {print $1}'
+    done | sort -u
+}
+
+is_boss() {
+    local d="$1" name model pci sub
+    name=$(basename "$d")
+    model=$(disk_field "$d" MODEL)
+    pci=""
+    case "$name" in nvme*) pci=$(cat "/sys/class/nvme/${name%n*}/address" 2>/dev/null || true) ;; esac
+    sub=""
+    [ -n "$pci" ] && sub=$(lspci -D -s "$pci" -v 2>/dev/null | grep -i Subsystem || true)
+    echo "$model $sub" | grep -qi boss
+}
+
+disk_tier() {
+    local d="$1" tran rota
+    tran=$(disk_field "$d" TRAN); rota=$(disk_field "$d" ROTA)
+    if is_boss "$d"; then echo boss
+    elif [ "$tran" = "nvme" ] || [[ "$d" == /dev/nvme* ]]; then echo nvme
+    elif [ "$rota" = "0" ]; then echo ssd
+    else echo hdd
+    fi
+}
+
+candidate_disks() {
+    local sys d model
+    sys=$(system_disks)
+    for d in $(lsblk -dpno NAME); do
+        [ "$(disk_field "$d" TYPE)" = "disk" ] || continue
+        case "$d" in /dev/zram*|/dev/nbd*|/dev/rbd*|/dev/ram*|/dev/loop*) continue ;; esac
+        [ "$(disk_field "$d" RM)" = "1" ] && continue
+        [ "$(disk_field "$d" TRAN)" = "usb" ] && continue
+        model=$(disk_field "$d" MODEL)
+        echo "$model" | grep -Eqi 'idsdm|internal dual sd|virtual (floppy|cd|disk)' && continue
+        echo "$sys" | grep -qx "$d" && continue
+        echo "$d"
+    done
+}
+
+# ── Resolve the one disk ─────────────────────────────────────────────────────
+
+MATCHES=()
+count_matches() { echo "$#"; }
+if [ -n "$ROW_DISK_ID" ]; then
+    FIELD=$([ "$DISK_IDENTITY" = "wwn" ] && echo WWN || echo SERIAL)
+    for d in $(candidate_disks); do
+        [ "$(disk_field "$d" "$FIELD")" = "$ROW_DISK_ID" ] && MATCHES+=("$d")
+    done
+    MATCH_COUNT=$(count_matches "${MATCHES[@]+"${MATCHES[@]}"}")
+    if [ "$MATCH_COUNT" -eq 0 ]; then
+        if [ "$MODE" = "reboot" ]; then
+            fail "disk with $DISK_IDENTITY '$ROW_DISK_ID' ($ENTRY) not found; no disk changed." \
+                 "Fix or replace the disk, clean the node's NFS data and reprovision."
+        fi
+        fail "node $NODE: no '$DISK_TYPE' disk with $DISK_IDENTITY '$ROW_DISK_ID' found for '$ENTRY'." \
+             "Check disk_id in node_overrides."
+    fi
+    [ "$MATCH_COUNT" -eq 1 ] \
+        || fail "$DISK_IDENTITY '$ROW_DISK_ID' matches $MATCH_COUNT devices (${MATCHES[*]}) for '$ENTRY'; no disk changed." \
+                "Correct disk_id in node_overrides."
+    ACTUAL_TIER=$(disk_tier "${MATCHES[0]}")
+    [ "$ACTUAL_TIER" = "$DISK_TYPE" ] \
+        || fail "node $NODE: disk $ROW_DISK_ID is '$ACTUAL_TIER', but '$ENTRY' requires '$DISK_TYPE'; no disk changed." \
+                "Correct disk_type or disk_id."
+else
+    for d in $(candidate_disks); do
+        [ "$(disk_tier "$d")" = "$DISK_TYPE" ] || continue
+        [ -z "$MODEL" ] || [ "$(disk_field "$d" MODEL)" = "$MODEL" ] || continue
+        MATCHES+=("$d")
+    done
+    MATCH_COUNT=$(count_matches "${MATCHES[@]+"${MATCHES[@]}"}")
+    [ "$MATCH_COUNT" -ne 0 ] \
+        || fail "node $NODE: no '$DISK_TYPE' disk found for '$ENTRY'; no disk changed." \
+                "Attach the disk or correct disk_type."
+    [ "$MATCH_COUNT" -eq 1 ] \
+        || fail "node $NODE: $MATCH_COUNT disks match '$ENTRY' (${MATCHES[*]}); no disk changed." \
+                "Set node_overrides disk_id to the serial or WWN."
+fi
+DISK="${MATCHES[0]}"
+IDENT_FIELD=$([ "$DISK_IDENTITY" = "wwn" ] && echo WWN || echo SERIAL)
+[ -n "$(disk_field "$DISK" "$IDENT_FIELD")" ] \
+    || fail "node $NODE: $DISK has no serial or WWN; '$ENTRY' cannot be mapped." \
+            "Use a disk that reports a serial or WWN."
+echo "$(ts) [OK] Resolved disk: $DISK"
+
+# ── Disk in use ──────────────────────────────────────────────────────────────
+
+disk_in_use() {
+    local d="$1" fstype label vg
+    lsblk -nrpo MOUNTPOINTS "$d" | grep -q . && return 0
+    while read -r fstype label; do
+        [ -z "$fstype" ] && continue
+        if [ "$PURPOSE" = "etcd" ] && [ "$label" = "$ETCD_LABEL" ]; then continue; fi
+        if [ "$fstype" = "LVM2_member" ]; then
+            vg=$(pvs --noheadings -o vg_name "$d" 2>/dev/null | xargs || true)
+            [ "$PURPOSE" = "kafka" ] && [ "$vg" = "$VOLUME_GROUP" ] && continue
+        fi
+        return 0
+    done < <(lsblk -nrpo FSTYPE,LABEL "$d")
+    return 1
+}
+
+# ── Etcd helpers ─────────────────────────────────────────────────────────────
+
+set_etcd_owner() {
+    getent group etcd >/dev/null || run groupadd --system etcd
+    id etcd >/dev/null 2>&1     || run useradd --system -M -s /sbin/nologin -g etcd etcd
+    run chown etcd:etcd "$MOUNT_POINT" || fail "cannot set ownership on $MOUNT_POINT." "Check the node."
+    run chmod 700 "$MOUNT_POINT"       || fail "cannot set mode on $MOUNT_POINT." "Check the node."
+}
+
+mount_etcd() {
+    local fstab_line="LABEL=$ETCD_LABEL $MOUNT_POINT $FS_TYPE $MOUNT_OPTIONS 0 2"
+    run mkdir -p "$MOUNT_POINT"
+    sed -i "\|[[:space:]]${MOUNT_POINT}[[:space:]]|d" /etc/fstab
+    echo "$fstab_line" >> /etc/fstab
+    runq systemctl daemon-reload
+    mountpoint -q "$MOUNT_POINT" || run mount "$MOUNT_POINT"
+    mountpoint -q "$MOUNT_POINT" \
+        || fail "mount of $MOUNT_POINT failed." "Check the disk and fstab, then reprovision."
+    set_etcd_owner
+}
+
+# ── Reboot: reattach only ────────────────────────────────────────────────────
+
+if [ "$MODE" = "reboot" ]; then
+    if [ "$PURPOSE" = "etcd" ]; then
+        DEV=$(blkid -L "$ETCD_LABEL" 2>/dev/null || true)
+        [ -n "$DEV" ] \
+            || fail "marker present but no filesystem labelled '$ETCD_LABEL' found; no disk changed." \
+                    "Fix the disk, clean the node's NFS data and reprovision."
+        PARENT=$(lsblk -no PKNAME "$DEV" 2>/dev/null | head -1 || true)
+        [ "/dev/$PARENT" = "$DISK" ] || [ "$DEV" = "$DISK" ] \
+            || fail "filesystem '$ETCD_LABEL' is on $DEV, not on the declared disk $DISK; no disk changed." \
+                    "Fix the disk, clean the node's NFS data and reprovision."
+        mount_etcd
+    else
+        if [ "$(lvmconfig --typeconfig full devices/use_devicesfile 2>/dev/null | cut -d= -f2)" = "1" ]; then
+            runq vgimportdevices "$VOLUME_GROUP"
+        fi
+        runq vgscan --mknodes
+        VG_ON_DISK=$(pvs --noheadings -o vg_name "$DISK" 2>/dev/null | xargs || true)
+        [ "$VG_ON_DISK" = "$VOLUME_GROUP" ] \
+            || fail "marker present but volume group '$VOLUME_GROUP' not found on $DISK; no disk changed." \
+                    "Fix the disk, clean the node's NFS data and reprovision."
+        run vgchange -ay "$VOLUME_GROUP" || fail "cannot activate volume group '$VOLUME_GROUP'." "Check the disk."
+    fi
+    write_status ok "" ""
+    echo "$(ts) [OK] ===== DONE (reboot) ====="
+    exit 0
+fi
+
+# ── Fresh install: refuse disks in use, then wipe and prepare ────────────────
+
+disk_in_use "$DISK" \
+    && fail "node $NODE: $DISK is in use (mounted or has a signature) and cannot be used for '$ENTRY'; no disk changed." \
+            "Use an unused disk or clear it, then reprovision."
+
+echo "$(ts) [STEP] Wiping $DISK"
+for p in $(lsblk -nlpo NAME,TYPE "$DISK" | awk '$2=="part" {print $1}'); do
+    runq umount "$p"
+done
+if [ "$PURPOSE" = "kafka" ] && vgs "$VOLUME_GROUP" >/dev/null 2>&1; then
+    run vgchange -an "$VOLUME_GROUP" || fail "cannot deactivate volume group '$VOLUME_GROUP'." "Drain the node."
+    run vgremove -ff -y "$VOLUME_GROUP" || fail "cannot remove volume group '$VOLUME_GROUP'." "Check the disk."
+fi
+run wipefs -af "$DISK" || fail "wipefs failed on $DISK." "Check the disk."
+if command -v sgdisk >/dev/null 2>&1; then
+    run sgdisk --zap-all "$DISK" || fail "sgdisk failed on $DISK." "Check the disk."
+fi
+runq partprobe "$DISK"
+# Wait for the kernel to process partition table changes from wipefs/sgdisk
+# before pvcreate or parted runs, to avoid stale partition signatures.
+runq udevadm settle --timeout=30
+
+if [ "$PURPOSE" = "kafka" ]; then
+    run pvcreate -ff -y "$DISK" || fail "pvcreate failed on $DISK." "Check the disk."
+    run vgcreate "$VOLUME_GROUP" "$DISK" || fail "vgcreate failed for '$VOLUME_GROUP'." "Check the disk."
+    vgs "$VOLUME_GROUP" >/dev/null 2>&1 || fail "volume group '$VOLUME_GROUP' not found after creation." "Check the disk."
+else
+    case "$DISK" in
+        *nvme*|*mmcblk*) PART="${DISK}p1" ;;
+        *)               PART="${DISK}1" ;;
+    esac
+    run parted -s "$DISK" mklabel gpt mkpart primary "$FS_TYPE" 1MiB 100% || fail "partitioning $DISK failed." "Check the disk."
+    run partprobe "$DISK"
+    # Wait for the new partition node (e.g. /dev/sda1) to appear in /dev
+    # before mkfs runs; the for loop below is an extra safety check.
+    runq udevadm settle --timeout=30
+    for i in 1 2 3 4 5; do [ -b "$PART" ] && break; echo "$(ts) [INFO] waiting for $PART (attempt $i)"; sleep 2; done
+    [ -b "$PART" ] || fail "partition $PART not found after partitioning." "Check the disk."
+    if [ "$FS_TYPE" = "xfs" ]; then
+        run mkfs.xfs -f -L "$ETCD_LABEL" "$PART" || fail "mkfs.xfs failed on $PART." "Check the disk."
+    else
+        run mkfs.ext4 -F -L "$ETCD_LABEL" "$PART" || fail "mkfs.ext4 failed on $PART." "Check the disk."
+    fi
+    mount_etcd
+fi
+
+write_status ok "" ""
+echo "$(ts) [OK] ===== DONE (fresh) ====="
+{% endraw %}

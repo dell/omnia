@@ -368,6 +368,56 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
 
+- name: Default etcd_disk_entry to none
+  ansible.builtin.set_fact:
+    etcd_disk_entry: null
+    etcd_model_arg: ''
+  when: target_category | default('') == 'kubernetes'
+
+- name: Resolve local_storage etcd entry for this functional group
+  ansible.builtin.set_fact:
+    etcd_disk_entry: "{{ item }}"
+  loop: >-
+    {{ local_storage | default([])
+       | selectattr('purpose', 'equalto', 'etcd') | list }}
+  when:
+    - target_category | default('') == 'kubernetes'
+    - etcd_disk_entry is none
+    - functional_group_name is match('^(' ~ (item.functional_group_prefix | default([]) | join('|')) ~ ')')
+
+- name: Build etcd disk model argument for cloud-init template
+  ansible.builtin.set_fact:
+    etcd_model_arg: "{{ '--model ' ~ (etcd_disk_entry.model | quote) }}"
+  when:
+    - target_category | default('') == 'kubernetes'
+    - etcd_disk_entry is not none
+    - etcd_disk_entry.model is defined
+
+- name: Default kafka_disk_entry to none
+  ansible.builtin.set_fact:
+    kafka_disk_entry: null
+    kafka_model_arg: ''
+  when: target_category | default('') == 'kubernetes'
+
+- name: Resolve local_storage kafka entry for this functional group
+  ansible.builtin.set_fact:
+    kafka_disk_entry: "{{ item }}"
+  loop: >-
+    {{ local_storage | default([])
+       | selectattr('purpose', 'equalto', 'kafka') | list }}
+  when:
+    - target_category | default('') == 'kubernetes'
+    - kafka_disk_entry is none
+    - functional_group_name is match('^(' ~ (item.functional_group_prefix | default([]) | join('|')) ~ ')')
+
+- name: Build kafka disk model argument for cloud-init template
+  ansible.builtin.set_fact:
+    kafka_model_arg: "{{ '--model ' ~ (kafka_disk_entry.model | quote) }}"
+  when:
+    - target_category | default('') == 'kubernetes'
+    - kafka_disk_entry is not none
+    - kafka_disk_entry.model is defined
+
 # Strip only the catalog OS/version segment for template lookup. The rendered
 # destination and every OpenCHAMI identity continue to use the versioned FG.
 - name: Derive template base name from fg_name
