@@ -28,11 +28,11 @@ from typing import Any, Dict
 import pytest
 from omnia_auto import TestLogger
 
-from . import run_func, svt_report_func, track_func
+from . import catalog_func, run_func, svt_report_func, track_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
 from .omnia_run_func import describe_run, run_info, run_omnia_step
-from ..messages.svt_msgs import SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
+from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
 from ..vars.common_vars import REPORT_SECTION_ENV
 from ..vars.test_case_vars import TEST_CASES
 
@@ -92,8 +92,11 @@ def _info(tc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _run_step(theme: str, tc: Dict[str, Any]) -> Dict[str, Any]:
-    """Run the step of ``tc``: ./omnia.sh (RUN) or the FVT step."""
-    return run_omnia_step(theme, tc["run"]) if "run" in tc else run_fvt_step(tc["step"])
+    """Run the step of ``tc``: ./omnia.sh (RUN), an SVT action or the FVT step."""
+    if "run" in tc:
+        return run_omnia_step(theme, tc["run"])
+    # "action": an SVT action instead of an FVT step (catalog_build: select or skip a catalog).
+    return catalog_func.run_action(tc) if tc.get("action") else run_fvt_step(tc["step"])
 
 
 def run_svt_test(theme: str, name: str) -> None:
@@ -107,7 +110,8 @@ def run_svt_test(theme: str, name: str) -> None:
             "command": label, "fvt": _info(tc)}))
         pytest.skip(resumed)
     blocked = _FAILED.get(tc["stage"])
-    if blocked:
+    # "always": a test that runs even after an earlier failure of its stage (cleanup).
+    if blocked and not tc.get("always"):
         reason = TEST_LOG_MSGS["blocked"].format(test=blocked)
         _report(theme, svt_report_func.make_item({
             "id": tc["id"], "name": tc["title"], "status": "Skipped", "details": reason,
@@ -115,11 +119,24 @@ def run_svt_test(theme: str, name: str) -> None:
         pytest.skip(reason)
     logger = TestLogger(tc["title"], tc["id"])
     result = _run_step(theme, tc)
+    if result.get("skipped"):
+        _report(theme, svt_report_func.make_item({
+            "id": tc["id"], "name": tc["title"], "status": "Skipped",
+            "details": result["skipped"], "fvt": result["fvt"]}))
+        pytest.skip(result["skipped"])
+    note = f"$ {result['command']}"
+    # "stop_leftovers": after a failed exec, stop the playbook workers it left running.
+    if not result["success"] and tc.get("stop_leftovers"):
+        stopped = catalog_func.stop_leftovers(tc["step"][0], print)
+        if stopped:
+            note += "\n" + CATALOG_MSGS["leftovers_stopped"].format(
+                domain=tc["step"][0], pids=", ".join(str(pid) for pid in stopped))
     _report(theme, svt_report_func.make_item({
         "id": tc["id"], "name": tc["title"], "status": "Passed" if result["success"] else "Failed",
         "duration": result["duration"], "command": label, "output": result["output"],
-        "results": result["results"], "fvt": result["fvt"], "details": f"$ {result['command']}",
-        "error": "" if result["success"] else f"{label} failed (rc={result['rc']})"}))
+        "results": result["results"], "fvt": result["fvt"], "details": note,
+        "error": "" if result["success"] else (result.get("error")
+                                               or f"{label} failed (rc={result['rc']})")}))
     _track(theme, tc["stage"], tc["id"], result["success"])
     fields = [("Command" if "run" in tc else "FVT step", label), ("rc", result["rc"]),
               ("FVT results", len(result["results"]))]

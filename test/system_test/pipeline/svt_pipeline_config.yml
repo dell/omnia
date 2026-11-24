@@ -90,6 +90,9 @@ svt:
     observability_deploy: 2
     observability_idrac: 1
     observability_ldms: 1
+    # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
+    # own entry.
+    catalog_stage: 3
     # Report and email.
     summary: 1
 
@@ -139,6 +142,8 @@ clusters:
     # CI/CD > Variables, or per run in Run pipeline) without --update; this value is what
     # --update and --set-variables write. Its stages become the cluster's pipeline jobs.
     theme: "build_stream"
+    # theme catalog_build: one job per catalog of ../catalog_build_test_config.yml, resolved
+    # when the CI files are rendered; after changing the catalog list run --update --update-inputs.
     # "false": leave this cluster out of the default selection (SVT_CLUSTERS). Its trigger job
     # stays, so a run can still pick it by name (SVT_CLUSTERS=<name> in Run pipeline).
     # enabled: true

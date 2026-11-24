@@ -36,7 +36,7 @@ flags are in `build_stream_test_config.yml` ([TEST_CONFIG.md](TEST_CONFIG.md)).
 
 `timeouts_hours` keys are the job names: `preflight` (the checks and the checkout), `initialization`, then the
 theme's stages (`prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cleanup`) and
-`summary`. A job without its own entry uses `default_hours` (6 when that is missing too). The
+`summary`. The catalog_build jobs (`catalog_01`, `catalog_02` ...) use `catalog_stage` when they have no entry of their own. A job without its own entry uses `default_hours` (6 when that is missing too). The
 shortest allowed limit is 10 minutes. The runner's own maximum timeout still applies, so raise
 that too for long stages.
 
