@@ -724,6 +724,18 @@ UT_TEST_CASE_IDS = {
         "test_pulp_quadlet_contract.py"
         "::test_network_filesystems_map_to_selinux_booleans"
     ): "RM_UT_337",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_selinux_relabel_paths_follow_detected_filesystems"
+    ): "RM_UT_338",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_volumes_apply_relabel_per_storage_path"
+    ): "RM_UT_339",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_volumes_do_not_use_global_selinux_option"
+    ): "RM_UT_340",
 }
 
 

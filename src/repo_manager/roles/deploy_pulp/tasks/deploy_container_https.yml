@@ -69,6 +69,16 @@
   loop_control:
     label: "{{ item.item }}"
 
+- name: Select Pulp storage paths that need SELinux relabeling
+  ansible.builtin.set_fact:
+    _pulp_selinux_relabel_paths: >-
+      {{ (_pulp_storage_fstypes.results
+          | rejectattr('stdout', 'in', pulp_network_fs_selinux_booleans)
+          | map(attribute='item.path')
+          | list)
+         if (ansible_selinux.status | default('disabled')) == 'enabled'
+         else [] }}
+
 - name: Remove obsolete Pulp HTTP and custom nginx artifacts
   ansible.builtin.file:
     path: "{{ item }}"
