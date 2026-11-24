@@ -1063,7 +1063,7 @@ class TestExternalGitLabAccess:
         "gitlab_host": "",
         "gitlab_external_url": "https://gitlab.example.test",
         "gitlab_ca_cert_path": "/etc/pki/tls/certs/gitlab-ca.pem",
-        "gitlab_ci_token": "glpat-test",
+        "gitlab_api_token": "glpat-test",
         "gitlab_project_id": "42",
     }
 
@@ -1084,19 +1084,6 @@ class TestExternalGitLabAccess:
         assert thread.gitlab_token == "glpat-test"
         assert thread.gitlab_verify == "/etc/pki/tls/certs/gitlab-ca.pem"
         assert thread._gitlab_configuration_complete()  # pylint: disable=protected-access
-
-    def test_external_never_falls_back_to_customer_pat(
-        self, sample_cadence_config, temp_dir
-    ):
-        """TC-UT-013-006: Without the omnia-ci token the watcher has no GitLab token."""
-        config = {
-            **sample_cadence_config, **self.EXTERNAL,
-            "gitlab_ci_token": "", "gitlab_api_token": "glpat-customer",
-        }
-        thread = self._thread(config, temp_dir)
-
-        assert thread.gitlab_token == ""
-        assert not thread._gitlab_configuration_complete()  # pylint: disable=protected-access
 
     def test_external_without_ca_uses_system_trust_store(
         self, sample_cadence_config, temp_dir

@@ -99,7 +99,7 @@ RELOAD_LOGGED_KEYS = (
 # Cadence secrets reported as updated, never by value
 RELOAD_LOGGED_SECRET_KEYS = (
     "gitlab_root_token",
-    "gitlab_ci_token",
+    "gitlab_api_token",
     "gitlab_project_id",
 )
 
@@ -527,12 +527,12 @@ def _load_gitlab_credentials(
                 raise ValueError("gitlab_root_token must be a non-empty string")
             credential_updates["gitlab_root_token"] = token
 
-        # External mode: the long-running watcher uses only the project-scoped
-        # omnia-ci access token. The customer's personal access token
-        # (gitlab_api_token) is a setup-time credential and is never loaded here.
-        ci_token = creds.get("gitlab_ci_token")
-        if isinstance(ci_token, str) and ci_token.strip():
-            credential_updates["gitlab_ci_token"] = ci_token
+        # External mode stores the customer's personal access token here;
+        # the credential file template renders it as an empty string in
+        # hosted mode, which is not an error.
+        api_token = creds.get("gitlab_api_token")
+        if isinstance(api_token, str) and api_token.strip():
+            credential_updates["gitlab_api_token"] = api_token
 
         if "gitlab_project_id" in creds:
             project_id = creds["gitlab_project_id"]
@@ -739,7 +739,7 @@ def _validate_catalog_document(document: Any) -> bool:
 def _gitlab_token_from(config: Dict[str, Any]) -> str:
     """Return the GitLab API token that matches the configured GitLab mode."""
     if config.get("gitlab_mode") == GITLAB_MODE_EXTERNAL:
-        return config.get("gitlab_ci_token", "")
+        return config.get("gitlab_api_token", "")
     return config.get("gitlab_root_token", "")
 
 
@@ -1222,7 +1222,7 @@ class CadenceTimerThread(Thread):
                 "Catalog updates to GitLab will be skipped. "
                 "Configure gitlab_host (hosted) or gitlab_external_url "
                 "(external), the GitLab token (gitlab_root_token or "
-                "gitlab_ci_token) and gitlab_project_id in "
+                "gitlab_api_token) and gitlab_project_id in "
                 "build_stream_config.yml or build_stream_credentials.yml"
             )
 
@@ -1240,7 +1240,7 @@ class CadenceTimerThread(Thread):
 
         # A temporarily unreadable credentials file must not erase credentials
         # already held by the running watcher.
-        for key in ("gitlab_root_token", "gitlab_ci_token", "gitlab_project_id"):
+        for key in ("gitlab_root_token", "gitlab_api_token", "gitlab_project_id"):
             if not reloaded.get(key) and self.config.get(key):
                 reloaded[key] = self.config[key]
 
