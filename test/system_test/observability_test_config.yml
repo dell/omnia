@@ -20,8 +20,9 @@
 # telemetry sources (iDRAC and LDMS on, the others off) are in user_inputs.yml
 # (block telemetry); credentials are never written here
 # (./setup_env.sh --theme observability --set-domain-creds).
-# ./setup_env.sh --configure writes the observability block and the cleanup
-# flags into the FVT suites' test/<suite>/test_config.yml. A change here needs
+# Cleanup flags are shared by every theme and live only in the cleanup block of
+# user_inputs.yml. ./setup_env.sh --configure writes the observability block into
+# the FVT suites' test/<suite>/test_config.yml. A change here needs
 # ./setup_env.sh --configure (a new run).
 #
 # Default flow: a deployed cluster. ./run_validation.sh svt_observability all
@@ -42,47 +43,6 @@ observability:
   #   external appliance is configured by the FVT.
   configure_ome: false
   configure_sfm: false
-
-# =============================================================================
-# CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'
-#           unless --yes). Not run by default for this theme.
-# =============================================================================
-# Same suites and flags as build_stream_test_config.yml: build_stream (only when
-# installed), telemetry, orchestrator, discovery (only when deployed),
-# image_build_manager, repo_manager, then main (omnia.sh --cleanup).
-cleanup:
-  build_stream:
-    enabled: true
-    postgres_backup: false
-    cleanup_credentials: true
-  telemetry:
-    enabled: true
-    # true: also delete the sink PVCs (Kafka, VictoriaMetrics, VictoriaLogs) and the
-    # log, input and output directories. true for a complete reset.
-    delete_sinks_volume: true
-    cleanup_credentials: true
-    cleanup_logs: true
-  orchestrator:
-    enabled: true
-    cleanup_credentials: true
-    cleanup_slurm: true
-    cleanup_k8s: true
-    cleanup_benchmark_tools: true
-  discovery:
-    enabled: true
-  image_build_manager:
-    enabled: true
-    cleanup_credentials: true
-  repo_manager:
-    enabled: true
-    cleanup_credentials: true
-  main:
-    enabled: true
-    # true: omnia.sh --cleanup --all (the whole OMNIA_DATA_PATH); false: omnia.sh --cleanup.
-    cleanup_all: true
-  nfs:
-    slurm_share: true
-    k8s_share: true
 
 # =============================================================================
 # REPORT  (one folder and one SVT report per run)
