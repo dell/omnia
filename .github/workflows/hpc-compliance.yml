@@ -33,6 +33,7 @@ jobs:
   hpc-compliance:
     name: HPC Compliance Scanner
     runs-on: ubuntu-latest
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
     steps:
       - uses: actions/checkout@v4
         with:

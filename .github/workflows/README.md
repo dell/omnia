@@ -12,14 +12,15 @@ All workflows run on pull requests targeting `main`, `release_*`, `issue-*`, `pu
 | 4 | **HPC Compliance Scanner** | `hpc-compliance.yml` | 1 | Mixed | HPC anti-patterns + Checkmarx pre-scan (see below) |
 | 5 | **PR Hygiene** | `pr-hygiene.yml` | 1 | Blocking | Validates PR title format, branch naming, and spec/code separation |
 | 6 | **PR Issue and Network Policy** | `pr-policy.yml` | 1 | Blocking | Requires a linked issue and rejects added `100.x.x.x` IPv4 addresses |
-| 7 | **Secret Leak Scan** | `gitleaks.yml` | 1 | Blocking | Scans for secrets and credentials using `gitleaks` with custom `.gitleaks.toml` |
-| 8 | **Dependency Vulnerability Scan** | `pip-audit.yml` | 1 | Blocking | `pip-audit` scans Python dependencies for known CVEs |
-| 9 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
-| 10 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
-| 11 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
-| 12 | **Secure Code Review** | `secure-code-review.yml` | 1 | Advisory | Scans added lines against secure-coding rules from past security fixes; posts a pass/fail checklist PR comment, never blocks |
+| 7 | **PR Effective Size** | `line-length.yml` | 1 | Blocking | Measures effective added lines (comments/blank lines stripped); fails above 1000 lines |
+| 8 | **Secret Leak Scan** | `gitleaks.yml` | 1 | Blocking | Scans for secrets and credentials using `gitleaks` with custom `.gitleaks.toml` |
+| 9 | **Dependency Vulnerability Scan** | `pip-audit.yml` | 1 | Blocking | `pip-audit` scans Python dependencies for known CVEs |
+| 10 | **Pylint** | `pylint.yml` | 1 | Blocking | Lint Python code -- minimum score >= 8.0 per file |
+| 11 | **Unit Tests & Coverage** | `pytest.yml` | 1 | Blocking | Runs `pytest` with coverage reporting |
+| 12 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
+| 13 | **Secure Code Review** | `secure-code-review.yml` | 1 | Advisory | Scans added lines against secure-coding rules from past security fixes; posts a pass/fail checklist PR comment, never blocks |
 
-**Total: 12 workflows, 14 jobs**
+**Total: 13 workflows, 15 jobs**
 
 > **Note:** YAML linting is handled by `ansible-lint` (production profile). A separate `yamllint` workflow is not required.
 
@@ -70,6 +71,7 @@ The `hpc-compliance.yml` workflow enforces Omnia-specific HPC rules that `ansibl
 | ShellCheck | `shellcheck` | Zero errors | `ansible.md` §14 |
 | PR Hygiene | `pr-hygiene.yml` | Valid PR title format, branch naming, spec/code separation | `general.md` §11 |
 | PR Policy | `pr-policy.yml` | Linked issue and no added `100.x.x.x` IPv4 addresses | Repository policy |
+| PR Effective Size | `line-length.yml` | Effective added lines <= 1000 | Repository policy |
 
 ### Security
 
@@ -115,6 +117,42 @@ The `pr-hygiene.yml` workflow enforces PR-level validation rules:
 
 ---
 
+## PR Effective Size Details
+
+The `line-length.yml` workflow measures the effective size of a PR by counting added code lines only (removed lines are reported but never counted toward the limit). Comments and blank lines are stripped before counting.
+
+| Check | Description | Threshold | Severity |
+|-------|-------------|-----------|----------|
+| **Effective Added Lines** | Counts added lines after stripping comments and blank lines | 1000 lines | ERROR |
+
+**Excluded files:**
+- Markdown (`.md`)
+- JSON (`.json`)
+- Binary files (`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.ico`, `.pdf`, `.gz`, `.tar`, `.zip`, `.rpm`, `.iso`)
+- `.github/workflows/` directory
+
+**Report output:**
+- Effective added lines (limit: 1000)
+- Effective removed lines
+- Net change
+- Files touched
+- Average effective line length
+- Top 10 files by added lines
+
+**Bypass options:**
+- Add the `skip-size-check` label to make the check report-only (no failure)
+- PRs with `sync` prefix in title are automatically skipped (e.g., `sync(main): merge main into feature/*`)
+
+**Rationale for 1000 line threshold:**
+Based on analysis of 100 merged PRs (excluding giant sync PRs):
+- Median: 177 lines
+- 75th percentile: 796 lines
+- 90th percentile: 1,899 lines
+- 84% of normal PRs pass the 1000 line threshold
+- Encourages smaller, focused changes while allowing flexibility for legitimate large PRs
+
+---
+
 ## Security Scanning
 
 | Scanner | Tool | What It Checks |
@@ -131,9 +169,34 @@ The `pr-hygiene.yml` workflow enforces PR-level validation rules:
 | **Commit Hygiene** | Commit author validation, message format, copyright headers, test co-changes |
 | **PR Hygiene** | PR title format, branch naming (`pub/*`), spec/code separation |
 | **PR Issue and Network Policy** | Required issue reference and blocked `100.x.x.x` IPv4 addresses in PR metadata or added lines |
+| **PR Effective Size** | Effective added lines (comments/blank lines stripped); fails above 1000 lines |
 
 Configure **Validate linked issue and IP policy** as a required status check in the
 repository branch ruleset so a failing result prevents merge.
+
+### Sync PR Exemption
+
+The following workflows automatically skip PRs with `sync` prefix in the title (e.g., `sync(main): merge main into feature/*`):
+- Commit Hygiene (all 3 jobs)
+- PR Hygiene
+- PR Issue and Network Policy
+- HPC Compliance Scanner
+- PR Effective Size
+
+This allows feature branch sync PRs to bypass hygiene checks since they are mechanical merges rather than real code changes.
+
+### Bypass Labels
+
+For special cases where hygiene checks need to be bypassed, the following labels can be added to the PR:
+
+| Label | Purpose | Workflow |
+|-------|---------|----------|
+| `skip-size-check` | Skip PR effective size check enforcement (report-only mode) | PR Effective Size |
+| `skip-policy-check` | Skip PR policy check (issue-linking requirement) | PR Issue and Network Policy |
+
+Use these labels sparingly and only for legitimate cases:
+- `skip-size-check`: Large but justified PRs (e.g., major feature completions, test infrastructure)
+- `skip-policy-check`: PRs without linked issues (e.g., CI/CD improvements, documentation, refactoring)
 
 ---
 
