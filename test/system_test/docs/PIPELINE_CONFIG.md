@@ -108,7 +108,7 @@ waits. All clusters of the file run at the same time, each on its own OIM.
 
 | Key | Default | Meaning | Becomes |
 |---|---|---|---|
-| `clean_reinstall` | `true` | `true`: the initialization job runs `./setup_env.sh --force`: cleanup (including the NFS shares), then a full install. `false`: no cleanup, install only what changed | `<PREFIX>_SVT_CLEAN_REINSTALL` |
+| `clean_reinstall` | `true` | `true`: the initialization job (once) runs `./setup_env.sh --install --force`: cleanup (including the NFS shares), then a full install and the Omnia environment; a later theme starts its own run without a cleanup. `false`: no cleanup, install only what changed | `<PREFIX>_SVT_CLEAN_REINSTALL` |
 | `skip_stages` | empty | Theme stages to leave out, comma separated, e.g. `cadence,automatic_cleanup` | `<PREFIX>_SVT_SKIP_STAGES` |
 | `user_inputs` | `user_inputs.yml` | Inputs file of this cluster: a file of `clusters/<cluster>/svt/` in the GitLab project, with the syntax of `user_inputs.yml`. The checkout job copies it to the OIM as `user_inputs.yml`, so one cluster can keep several (`user_inputs_ib.yml`, `user_inputs_small.yml` ...) and choose by changing this variable in GitLab (Settings > CI/CD > Variables) without `--update`. Empty means `user_inputs.yml`. A plain file name only (`.yml`/`.yaml`, no folder); a name that is not in the project fails the checkout before anything on the OIM is touched | `<PREFIX>_SVT_USER_INPUTS` |
 

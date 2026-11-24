@@ -93,28 +93,38 @@ that opens when you click it in the GitLab graph.
    │ preflight │──▶│ initialization │──▶│ ▶ build_stream  │──▶│ ▶ catalog_build  │──▶│ summary │
    └───────────┘   └────────────────┘   └─────────────────┘   └──────────────────┘   └─────────┘
      once              once              theme 1 (expand)      theme 2 (expand)         once
-   SSH, OpenBao,     the shared cleanup   runs even if the      runs even if theme 1    always runs;
-   Omnia checkout    (user_inputs.yml)    cleanup failed? no:   passed OR failed        red if anything
-                                          skipped if init failed                        failed
+   SSH, OpenBao,     cleanup, omnia.sh    skipped if the        runs even if theme 1    always runs;
+   Omnia checkout    install, Omnia env,  initialization        passed OR failed        red if anything
+                     credentials, ready   failed                                        failed
 
  expand "build_stream"                              expand "catalog_build"
-   setup ─▶ prepare_build_stream ─▶ build_deploy     setup ─▶ catalog_01 ─▶ catalog_02 ─▶ ... ─▶
-        ─▶ cadence ─▶ automatic_cleanup ─▶ theme_result            (one job per catalog) theme_result
+   prepare_build_stream ─▶ build_deploy ─▶            catalog_01 ─▶ catalog_02 ─▶ ... ─▶
+   cadence ─▶ automatic_cleanup ─▶ theme_result        (one job per catalog) theme_result
 ```
 
 - **preflight** (once): SSH to the OIM, OpenBao reachable, the Omnia checkout on the OIM, the
   `svt/` inputs copied.
-- **initialization** (once): the shared `cleanup` block of `user_inputs.yml` runs with the first
-  theme (complete reset, NFS shares included). `svt.clean_reinstall: "false"` skips it.
-- **theme ▶** (one per theme, in list order): `setup` starts the theme's run (`--configure`,
-  install, credentials from the one OpenBao block, readiness). A theme after the first cleans up
-  again first, so every theme starts from a clean OIM. Then the theme's stages, then
-  `theme_result` (the theme's SVT summary and verdict, kept on the OIM).
+- **initialization** (once): the complete start of the OIM, with the first theme: `--configure`,
+  the clean reinstall (`--install --yes --force`: the shared `cleanup` block of `user_inputs.yml`,
+  NFS shares included, then `omnia.sh -s` and the Omnia environment), the credentials from the
+  one OpenBao block, the PowerScale CSI files and the readiness checks. `svt.clean_reinstall:
+  "false"` skips the cleanup.
+- **theme ▶** (one per theme, in list order): there is no setup job. The theme starts directly with
+  its first stage (`prepare_build_stream`, `catalog_01` ...), then the others, then `theme_result`
+  (the theme's SVT summary and verdict, kept on the OIM). The first theme uses the run the
+  initialization started. A theme after the first one starts its own run inside its first stage
+  job (`--configure`, `--install --yes`: no cleanup, the installation and the credential stores
+  are kept). A retry of that job continues the same run.
 - **A failed theme does not stop the next one.** If `initialization` fails, no theme runs and only
   the summary runs.
-- **summary** (once): reads every theme's result, builds **one report** (`svt_report/index.html`
-  with a card per theme, and `<theme>.html`, the theme's SVT report with a **Previous | Index |
-  Next** bar) and sends **one email**. The pipeline is red when any theme failed.
+- **summary** (once): reads every theme's result, builds **one report**,
+  `svt_report/svt_report.html` (a single file: an overview that explains the run, then one page per
+  theme with the theme's own SVT report; Previous / Next buttons, tabs, arrow keys, light and
+  dark) and sends **one email** with that file attached. The pipeline is red when any theme failed.
+- **The GitLab graph:** GitLab draws the downstream pipelines of a pipeline in one column to the
+  right of its last stage, newest first, whatever the order of the trigger jobs. That is why the
+  themes appear after `summary`. Each theme pipeline is therefore named
+  `SVT <cluster>, theme <n> of <m>: <theme>`, and the report lists them in run order.
 - A run can use fewer themes: set `<CLUSTER>_SVT_THEMES` (a subset of the rendered list, in the
   rendered order) in GitLab or in Run pipeline. A new theme or a new order needs `--update`.
 
@@ -136,8 +146,8 @@ Enter to skip a cluster) and stores it as a masked, protected variable. It commi
 |---|---|
 | `.gitlab-ci.yml` | One trigger job per cluster (`svt_<cluster>`), each holding the resource group `svt-<cluster>` |
 | `.gitlab-ci-svt-cluster-<cluster>.yml` | The cluster pipeline: preflight, initialization, one trigger per theme, summary |
-| `.gitlab-ci-svt-<theme>.yml` | The jobs of one theme (nested pipeline): setup, its stages, theme_result |
-| `svt_ci.py`, `svt_pipeline_config.yml` | The runner helper; a reference copy of your config |
+| `.gitlab-ci-svt-<theme>.yml` | The jobs of one theme (nested pipeline): its stages, then theme_result |
+| `svt_ci.py`, `svt_report_page.py`, `svt_pipeline_config.yml` | The runner helper and the report page builder; a reference copy of your config |
 | `clusters/<cluster>/svt/secret.yaml`, `values.yaml` | PowerScale CSI; `--create` adds them copied from the product's reference examples, you edit them (never replaced by `--update-inputs`). Copied next to `user_inputs.yml` on the OIM at every checkout; the initialization job then runs `./setup_env.sh --stage-files`, which moves them to the paths of `omnia_config.yml` (default: the orchestrator's project input folder) only when `enable_powerscale_csi` is true, and then both must exist (see SETUP.md, PowerScale CSI) |
 | `clusters/<cluster>/svt/user_inputs.yml` | The cluster values (from `test/system_test`; edit them in GitLab). Other files with the same syntax can sit beside it; the CI/CD variable `<CLUSTER>_SVT_USER_INPUTS` (`svt.user_inputs` in the config) names the one the cluster's pipeline uses, default `user_inputs.yml` |
 | `clusters/<cluster>/svt/<theme>_test_config.yml` | The theme settings of that cluster (catalogs, cleanup flags ...) |

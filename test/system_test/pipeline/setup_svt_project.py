@@ -83,14 +83,14 @@ from library.vars.common_vars import INPUTS_FILE  # noqa: E402
 from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title  # noqa: E402
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
-PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
+PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"), ("svt_report_page.py", "svt_report_page.py"))
 PLACEHOLDER_INPUTS = ("secret.yaml", "values.yaml")
 POWERSCALE_EXAMPLES = (TEST_ROOT.parent / "src" / "orchestrator" / "examples"
                        / "powerscale_reference_files" / "CSI_driver")
 FIRST_STAGE, LAST_STAGE = "initialization", "summary"
-THEME_SETUP, THEME_RESULT = "setup", "theme_result"
+THEME_RESULT = "theme_result"
 # A theme job without its own timeouts_hours entry takes the entry of this job.
-TIMEOUT_ALIASES = {THEME_SETUP: "initialization", THEME_RESULT: "summary"}
+TIMEOUT_ALIASES = {THEME_RESULT: "summary"}
 OIM_LOGIN_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 # Global keys: config section.key -> CI/CD variable.
@@ -273,8 +273,10 @@ def plan_variable(plan: Dict[str, Any]) -> str:
 
 
 def jobs_of(stages: Tuple[str, ...]) -> List[str]:
-    """Return the jobs of a theme pipeline in order: setup, the SVT stages, theme_result."""
-    return [THEME_SETUP, *stages, THEME_RESULT]
+    """Return the jobs of a theme pipeline in order: the SVT stages, then theme_result. A theme
+    starts directly with its first stage: the initialization of the cluster pipeline did the
+    cleanup, the installation and the credentials."""
+    return [*stages, THEME_RESULT]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
@@ -413,28 +415,46 @@ def _default_block() -> List[str]:
             "      - svt_ci/", ""]
 
 
+def credential_domains(themes: List[str]) -> List[str]:
+    """Return the credential stores the themes need, once each, in theme order (the initialization
+    job writes them all: a later theme starts without reading OpenBao again)."""
+    domains: List[str] = []
+    for theme in themes:
+        for domain in THEMES[theme]["credential_domains"]:
+            if domain not in domains:
+                domains.append(domain)
+    return domains
+
+
 def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
     """Return (the cluster pipeline text, longest job timeout in seconds).
 
     preflight and initialization run once, then one trigger job per theme in the order of
     clusters.<name>.themes (a theme runs whether the one before passed or failed), then the one
     summary with the combined report and email. Each theme trigger opens as its own pipeline.
+    The initialization is the complete start of the OIM (cleanup, install, the Omnia environment,
+    credentials, readiness); a theme begins directly with its first stage.
     """
     themes = cluster_themes(config, cluster)
     names = [f"theme_{theme}" for theme in themes]
     jobs = ["preflight", FIRST_STAGE, *names, LAST_STAGE]
     var = f"{prefix(cluster)}_SVT_THEMES"
+    bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in ("preflight", FIRST_STAGE, LAST_STAGE))
+    plans = [(theme, plan_variable(catalog_plan(theme))) for theme in themes]
     lines = [
         HEADER.rstrip("\n"),
         f"# SVT cluster {cluster}: " + " -> ".join(jobs),
         "workflow:",
+        f'  name: "SVT {cluster}: {" then ".join(themes)}"',
         "  rules:",
         "    - if: '$CI_PIPELINE_SOURCE == \"parent_pipeline\"'",
         "",
         "variables:",
         f'  SVT_THEME_ORDER: "{",".join(themes)}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
+        f'  SVT_CREDENTIAL_DOMAINS: "{",".join(credential_domains(themes))}"',
+        *[f'  SVT_CATALOG_PLAN_{theme.upper()}: "{plan}"' for theme, plan in plans if plan],
         '  GIT_DEPTH: "1"',
         "",
         "stages:",
@@ -444,9 +464,12 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
         "# SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, svt/ inputs copied",
         "preflight:", "  stage: preflight", f"  timeout: {_timeout(config, 'preflight')[0]}",
         "  script:", "    - python3 svt_ci.py preflight", "",
-        "# The cleanup every theme needs first (the shared cleanup block of user_inputs.yml)",
+        "# The complete initialization, once: configure, the clean reinstall (shared cleanup of",
+        "# user_inputs.yml, then omnia.sh -s and the Omnia environment), OpenBao credentials,",
+        "# PowerScale CSI files and the readiness checks. Every theme starts at its first stage.",
         f"{FIRST_STAGE}:", f"  stage: {FIRST_STAGE}",
         f"  timeout: {_timeout(config, FIRST_STAGE)[0]}",
+        *(["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"] if bao else []),
         "  script:", "    - python3 svt_ci.py initialization", "",
     ]
     for index, theme in enumerate(themes):
@@ -463,13 +486,16 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
             "  variables:",
             f'    SVT_THEME: "{theme}"',
             f'    SVT_THEME_INDEX: "{index}"',
+            f'    SVT_THEME_NUMBER: "{index + 1}"',
+            f'    SVT_THEME_COUNT: "{len(themes)}"',
             '    SVT_CLUSTER_PIPELINE_ID: "$CI_PIPELINE_ID"',
+            '    SVT_CLUSTER_PIPELINE_CREATED_AT: "$CI_PIPELINE_CREATED_AT"',
             "  trigger:", "    include:", f"      - local: {ci_file(theme)}",
             "    strategy: depend", "    forward:", "      yaml_variables: true",
             "      pipeline_variables: true", "",
         ]
     lines += [
-        "# One report (an index and a page per theme, linked Previous / Next) and one email",
+        "# ONE report (svt_report/svt_report.html: an overview and a page per theme) and one email",
         f"{LAST_STAGE}:", f"  stage: {LAST_STAGE}", f"  timeout: {_timeout(config, LAST_STAGE)[0]}",
         "  when: always", "  artifacts:", "    when: always", "    expire_in: 30 days",
         "    paths:", "      - svt_report/", "      - svt_ci/", "      - pipeline_job_status/",
@@ -482,14 +508,14 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
 def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
     """Return (the pipeline text of ``theme``, longest job timeout in seconds).
 
-    The jobs of one theme: setup (this theme's configure, install, credentials and
-    readiness), its stages, and theme_result (the theme's report and verdict). preflight,
-    initialization and summary are not here: the cluster pipeline has them once.
+    The jobs of one theme: its stages, then theme_result (the theme's report and verdict). There
+    is no setup job: preflight, initialization (cleanup, install, credentials, readiness) and
+    summary are in the cluster pipeline, once. The first stage job of a theme after the first
+    starts that theme's run (no cleanup) before its stage.
     """
     plan = catalog_plan(theme)
     stages, soft, info = theme_stages(theme, plan)
     jobs = jobs_of(stages)
-    bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
         HEADER.rstrip("\n"),
@@ -497,6 +523,7 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         f"{ci_file(theme)})",
         "# Jobs: " + " -> ".join(jobs),
         "workflow:",
+        "  name: 'SVT $SVT_CLUSTER, theme $SVT_THEME_NUMBER of $SVT_THEME_COUNT: $SVT_THEME'",
         "  rules:",
         "    - if: '$CI_PIPELINE_SOURCE == \"parent_pipeline\"'",
         "",
@@ -512,9 +539,7 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         "",
         *_default_block(),
     ]
-    descriptions = {THEME_SETUP: ("Setup", "configure (a new run of this theme), install, "
-                                  "credentials from OpenBao, readiness"),
-                    THEME_RESULT: ("Result", "the theme's SVT summary and verdict, kept for "
+    descriptions = {THEME_RESULT: ("Result", "the theme's SVT summary and verdict, kept for "
                                    "the cluster summary")}
     for job in jobs:
         timeout = _timeout(config, job)[0]
@@ -524,18 +549,14 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         if job in soft:
             lines += ["  # A failure here does not stop the stages after it; the verdict fails.",
                       "  allow_failure: true"]
-        if job == THEME_SETUP and bao:
-            lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
         if job in stages:
             lines += ["  rules:",
                       f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
                       "      when: never",
                       "    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
-        elif job == THEME_RESULT:
-            lines += ["  when: always", "  script:", "    - python3 svt_ci.py theme-result"]
         else:
-            lines += ["  script:", f"    - python3 svt_ci.py {job}"]
+            lines += ["  when: always", "  script:", "    - python3 svt_ci.py theme-result"]
         lines.append("")
     return "\n".join(lines), longest
 

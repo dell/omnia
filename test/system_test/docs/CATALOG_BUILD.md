@@ -506,7 +506,7 @@ cd test/system_test/pipeline
 ./setup_svt_project.py --update --gitlab-url https://<gitlab-host> --update-inputs
 ```
 
-The catalog_build theme is a nested pipeline `setup -> catalog_01 -> catalog_02 -> ... -> theme_result`
+The catalog_build theme is a nested pipeline `catalog_01 -> catalog_02 -> ... -> theme_result`
 (the cluster pipeline around it has `preflight`, `initialization` and `summary` once, see
 [PIPELINE.md](PIPELINE.md)): each catalog is its own GitLab job (log, status, Retry button), titled with the catalog
 in `.gitlab-ci-svt.yml`. With `continue_on_failure: true` a failed catalog job does not
