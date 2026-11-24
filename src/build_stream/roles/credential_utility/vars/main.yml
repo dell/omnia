@@ -37,9 +37,9 @@ bs_cred_config:
   mandatory: []
   conditional_mandatory:
     - password: gitlab_root_password
-      condition: "{{ (enable_build_stream | default(false) | bool) and (gitlab_mode | default('self_hosted')) == 'self_hosted' }}"
+      condition: "{{ (enable_build_stream | default(false) | bool) and (gitlab_mode | default('hosted')) == 'hosted' }}"
     - password: gitlab_ssh_password
-      condition: "{{ (enable_build_stream | default(false) | bool) and (gitlab_mode | default('self_hosted')) == 'self_hosted' }}"
+      condition: "{{ (enable_build_stream | default(false) | bool) and (gitlab_mode | default('hosted')) == 'hosted' }}"
     - password: gitlab_api_token
       condition: "{{ (enable_build_stream | default(false) | bool) and (gitlab_mode | default('')) == 'external' }}"
     - username: build_stream_auth_username

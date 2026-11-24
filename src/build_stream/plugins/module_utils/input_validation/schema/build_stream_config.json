@@ -21,12 +21,12 @@
         },
         "gitlab_mode": {
             "type": "string",
-            "enum": ["self_hosted", "external"],
-            "description": "GitLab deployment mode: self_hosted (Omnia installs GitLab) or external (customer-managed GitLab)"
+            "enum": ["hosted", "external"],
+            "description": "GitLab deployment mode: hosted (Omnia installs GitLab in a container on the OIM) or external (customer-managed GitLab)"
         },
         "gitlab_host": {
             "type": "string",
-            "description": "Target host IPv4 address for GitLab deployment (self_hosted mode)"
+            "description": "Target host IPv4 address for GitLab deployment (hosted mode)"
         },
         "gitlab_external_url": {
             "type": "string",
@@ -224,7 +224,7 @@
             "if": {
                 "properties": {
                     "enable_build_stream": {"const": true},
-                    "gitlab_mode": {"const": "self_hosted"}
+                    "gitlab_mode": {"const": "hosted"}
                 },
                 "required": ["enable_build_stream", "gitlab_mode"]
             },

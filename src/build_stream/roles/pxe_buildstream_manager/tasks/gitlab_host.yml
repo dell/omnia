@@ -20,8 +20,8 @@
 # External mode (ER-BSM-003): the customer's GitLab is reached only through its
 # REST API with gitlab_api_token. There is no GitLab host to pin, authorize or
 # register for SSH, so those steps are skipped.
-- name: Register the self-hosted GitLab server for SSH
-  when: (gitlab_mode | default('self_hosted')) != 'external'
+- name: Register the hosted GitLab server for SSH
+  when: (gitlab_mode | default('hosted')) != 'external'
   block:
     - name: Check gitlab_host for Jinja template injection patterns
       ansible.builtin.set_fact:
@@ -76,7 +76,7 @@
       no_log: true
 
 - name: Load the external GitLab credentials (API only, no SSH)
-  when: (gitlab_mode | default('self_hosted')) == 'external'
+  when: (gitlab_mode | default('hosted')) == 'external'
   block:
     - name: Load BuildStream credentials
       ansible.builtin.include_role:

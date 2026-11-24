@@ -15,13 +15,14 @@
 # One compensating action for _egl_item (an entry from the journal rollback plan).
 - name: Select the compensating API call
   ansible.builtin.set_fact:
-    _egl_comp_path: >-
-      {%- if _egl_item.type == 'variable' -%}/projects/{{ _egl_project_id }}/variables/{{ _egl_item.key }}
-      {%- elif _egl_item.type == 'trigger' -%}/projects/{{ _egl_project_id }}/triggers/{{ _egl_item.id }}
-      {%- elif _egl_item.type == 'access_token' -%}/projects/{{ _egl_project_id }}/access_tokens/{{ _egl_item.token_id }}
-      {%- elif _egl_item.type == 'branch_protection' -%}/projects/{{ _egl_project_id }}/protected_branches/{{ _egl_item.name | urlencode }}
-      {%- elif _egl_item.type == 'project' -%}/projects/{{ _egl_item.id }}
-      {%- endif -%}
+    _egl_comp_path: "{{ _egl_comp_paths[_egl_item.type] | default('') }}"
+  vars:
+    _egl_comp_paths:
+      variable: "/projects/{{ _egl_project_id }}/variables/{{ _egl_item.key | default('') }}"
+      trigger: "/projects/{{ _egl_project_id }}/triggers/{{ _egl_item.id | default('') }}"
+      access_token: "/projects/{{ _egl_project_id }}/access_tokens/{{ _egl_item.token_id | default('') }}"
+      branch_protection: "/projects/{{ _egl_project_id }}/protected_branches/{{ _egl_item.name | default('') | urlencode }}"
+      project: "/projects/{{ _egl_item.id | default('') }}"
 
 - name: "Compensate {{ _egl_item.type }}"  # noqa name[template]
   ansible.builtin.uri:

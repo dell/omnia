@@ -49,15 +49,15 @@ build_stream_port: 8010
 
 # Mandatory: GitLab deployment mode (no default; set it explicitly)
 # Accepted values:
-#   self_hosted - Omnia deploys GitLab CE (Omnibus) and a runner on gitlab_host
+#   hosted - Omnia deploys GitLab CE (Omnibus) and a runner on gitlab_host
 #   external    - Omnia connects to a customer-managed GitLab (CE/EE 17.x-19.x).
 #                 Omnia does NOT install GitLab or deploy a runner; you must
 #                 provide a pre-registered, online runner for the project.
-# Upgrade note: existing deployments must add gitlab_mode: "self_hosted".
+# Upgrade note: existing deployments must add gitlab_mode: "hosted".
 gitlab_mode: ""
 
 # Target host for GitLab deployment / cleanup
-# Required when gitlab_mode is self_hosted; ignored (with a warning) when external
+# Required when gitlab_mode is hosted; ignored (with a warning) when external
 # Accepted values: IP address of the server where GitLab will be installed
 # Notes:
 #   - Must be accessible from the OIM server

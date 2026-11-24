@@ -65,10 +65,10 @@
     - name: Fail with the external-mode alternative
       ansible.builtin.fail:
         msg: >-
-          sync_gitlab_files.yml supports gitlab_mode: self_hosted only. For an external GitLab
+          sync_gitlab_files.yml supports gitlab_mode: hosted only. For an external GitLab
           run: ansible-playbook build_stream.yml --tags execute
           (it pushes changed CI templates and input files through the GitLab API).
-      when: (gitlab_mode | default('self_hosted')) == 'external'
+      when: (gitlab_mode | default('hosted')) == 'external'
 
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost

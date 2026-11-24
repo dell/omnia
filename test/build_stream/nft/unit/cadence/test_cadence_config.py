@@ -335,11 +335,11 @@ cadence:
             )
 
     @pytest.mark.unit
-    def test_self_hosted_still_requires_ipv4_host(self, temp_dir):
-        """TC-UT-001-022: self_hosted keeps the IPv4 gitlab_host contract."""
+    def test_hosted_still_requires_ipv4_host(self, temp_dir):
+        """TC-UT-001-022: hosted keeps the IPv4 gitlab_host contract."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text(
-            "enable_build_stream: true\ngitlab_mode: self_hosted\n"
+            "enable_build_stream: true\ngitlab_mode: hosted\n"
             "gitlab_host: ''\ncadence:\n  enabled: true\n",
             encoding="utf-8",
         )

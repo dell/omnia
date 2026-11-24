@@ -16,7 +16,7 @@ L2 (business logic) validator for build_stream_credentials.yml.
 
 Validates cross-field credential constraints:
   - When enable_build_stream is true, mandatory credentials must be present
-  - gitlab_mode self_hosted requires gitlab_root_password and gitlab_ssh_password;
+  - gitlab_mode hosted requires gitlab_root_password and gitlab_ssh_password;
     external requires gitlab_api_token (ER-BSM-003)
   - postgres_user/password required for database deployment
 """

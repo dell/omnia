@@ -51,8 +51,8 @@
       ansible.builtin.assert:
         that:
           - gitlab_mode is defined
-          - gitlab_mode in ['self_hosted', 'external']
-        fail_msg: "gitlab_mode must be 'self_hosted' or 'external' in build_stream_config.yml."
+          - gitlab_mode in ['hosted', 'external']
+        fail_msg: "gitlab_mode must be 'hosted' or 'external' in build_stream_config.yml."
         quiet: true
 
 - name: Prepare GitLab host credentials from provision secrets
@@ -63,7 +63,7 @@
       ansible.builtin.include_role:
         name: hosted_gitlab
         tasks_from: prereq_checks.yml
-      when: gitlab_mode == 'self_hosted'
+      when: gitlab_mode == 'hosted'
 
 - name: Validate BuildStream prerequisites
   hosts: oim

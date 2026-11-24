@@ -88,7 +88,7 @@
           {{
             gitlab_cleanup_credentials_available | bool
             and (
-              (gitlab_mode | default('self_hosted')) == 'external'
+              (gitlab_mode | default('hosted')) == 'external'
               or (
                 (gitlab_ssh_password | default('') | string | length > 0)
                 and (gitlab_host | default('') | string | length > 0)
@@ -104,7 +104,7 @@
     # GitLab are removed, over the API. There is no GitLab host to reach, so the
     # remote host cleanup below is skipped.
     - name: Clean up the external GitLab integration
-      when: (gitlab_mode | default('self_hosted')) == 'external'
+      when: (gitlab_mode | default('hosted')) == 'external'
       block:
         - name: Load BuildStream configuration inputs
           ansible.builtin.include_vars:
@@ -118,7 +118,7 @@
 
     - name: Skip remote GitLab host cleanup in external mode
       ansible.builtin.meta: end_play
-      when: (gitlab_mode | default('self_hosted')) == 'external'
+      when: (gitlab_mode | default('hosted')) == 'external'
 
     # OMN-DEF #1428: GitLab cleanup is only reached when it was explicitly
     # requested (--tags cleanup / --tags cleanup_gitlab, standalone

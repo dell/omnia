@@ -80,7 +80,7 @@ def missing_gitlab_host_msg() -> str:
 
 def invalid_gitlab_mode_msg() -> str:
     """Returns message when gitlab_mode is missing or not an allowed value."""
-    return "gitlab_mode must be 'self_hosted' or 'external'."
+    return "gitlab_mode must be 'hosted' or 'external'."
 
 
 def missing_external_param_msg(param) -> str:
@@ -110,10 +110,10 @@ def gitlab_host_ignored_warning_msg() -> str:
 
 
 def external_params_ignored_warning_msg() -> str:
-    """Returns warning when external-only parameters are set in self_hosted mode."""
+    """Returns warning when external-only parameters are set in hosted mode."""
     return (
         "WARNING: gitlab_external_url and gitlab_project_namespace are ignored "
-        "when gitlab_mode is 'self_hosted'."
+        "when gitlab_mode is 'hosted'."
     )
 
 

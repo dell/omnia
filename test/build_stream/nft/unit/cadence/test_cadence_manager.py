@@ -1093,10 +1093,10 @@ class TestExternalGitLabAccess:
 
         assert self._thread(config, temp_dir).gitlab_verify is True
 
-    def test_self_hosted_keeps_existing_url_token_and_tls(
+    def test_hosted_keeps_existing_url_token_and_tls(
         self, sample_cadence_config, temp_dir
     ):
-        """TC-UT-013-003: self_hosted behavior is unchanged."""
+        """TC-UT-013-003: hosted behavior is unchanged."""
         config = {
             **sample_cadence_config,
             "gitlab_host": "10.0.0.5",

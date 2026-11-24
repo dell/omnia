@@ -70,7 +70,7 @@ CADENCE_CONFIG_KEYS = {
     "sync_poll_interval_seconds",
 }
 GITLAB_PROJECT_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
-GITLAB_MODE_SELF_HOSTED = "self_hosted"
+GITLAB_MODE_HOSTED = "hosted"
 GITLAB_MODE_EXTERNAL = "external"
 EXTERNAL_GITLAB_URL_PATTERN = re.compile(
     r"^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?"
@@ -225,7 +225,7 @@ def load_cadence_config(
         "sync_timeout_seconds": 3600,
         "sync_poll_interval_seconds": 10,
         # GitLab API configuration (loaded from build_stream_config.yml)
-        "gitlab_mode": GITLAB_MODE_SELF_HOSTED,
+        "gitlab_mode": GITLAB_MODE_HOSTED,
         "gitlab_host": "",
         "gitlab_https_port": 443,
         "gitlab_external_url": "",
@@ -380,9 +380,9 @@ def _load_gitlab_config_fields(
     config: Dict[str, Any],
 ) -> None:
     """Validate and load GitLab settings using the input-schema contract."""
-    mode = data.get("gitlab_mode", GITLAB_MODE_SELF_HOSTED) or GITLAB_MODE_SELF_HOSTED
-    if mode not in (GITLAB_MODE_SELF_HOSTED, GITLAB_MODE_EXTERNAL):
-        raise ValueError("gitlab_mode must be 'self_hosted' or 'external'")
+    mode = data.get("gitlab_mode", GITLAB_MODE_HOSTED) or GITLAB_MODE_HOSTED
+    if mode not in (GITLAB_MODE_HOSTED, GITLAB_MODE_EXTERNAL):
+        raise ValueError("gitlab_mode must be 'hosted' or 'external'")
     config["gitlab_mode"] = mode
 
     if "gitlab_host" in data:
@@ -390,7 +390,7 @@ def _load_gitlab_config_fields(
         if not isinstance(host, str):
             raise ValueError("gitlab_host must be a string")
         if (
-            mode == GITLAB_MODE_SELF_HOSTED
+            mode == GITLAB_MODE_HOSTED
             and data.get("enable_build_stream") is True
             and not IPV4_PATTERN.fullmatch(host)
         ):
@@ -529,7 +529,7 @@ def _load_gitlab_credentials(
 
         # External mode stores the customer's personal access token here;
         # the credential file template renders it as an empty string in
-        # self-hosted mode, which is not an error.
+        # hosted mode, which is not an error.
         api_token = creds.get("gitlab_api_token")
         if isinstance(api_token, str) and api_token.strip():
             credential_updates["gitlab_api_token"] = api_token
@@ -757,7 +757,7 @@ def _gitlab_tls_verify(config: Dict[str, Any]):
 
     External GitLab is a customer-managed server: certificates are always
     validated, against the configured CA bundle or the system trust store.
-    The self-hosted GitLab uses a certificate Omnia generates itself, so the
+    The hosted GitLab uses a certificate Omnia generates itself, so the
     long-standing behavior (no validation) is kept for that mode only.
     """
     if config.get("gitlab_mode") != GITLAB_MODE_EXTERNAL:
@@ -791,7 +791,7 @@ def fetch_cadence_catalog_from_gitlab(
             api_url,
             headers=headers,
             params={"ref": branch},
-            verify=verify,  # nosec B501 - False only for the self-hosted GitLab
+            verify=verify,  # nosec B501 - False only for the hosted GitLab
             timeout=30,
         )
         if response.status_code != 200:
@@ -890,7 +890,7 @@ def update_catalog_via_gitlab_api(
             api_url,
             headers=headers,
             json=payload,
-            verify=verify,  # nosec B501 - False only for the self-hosted GitLab
+            verify=verify,  # nosec B501 - False only for the hosted GitLab
             timeout=30
         )
 
@@ -1220,7 +1220,7 @@ class CadenceTimerThread(Thread):
                 "warning",
                 "GitLab configuration incomplete for cadence polling. "
                 "Catalog updates to GitLab will be skipped. "
-                "Configure gitlab_host (self_hosted) or gitlab_external_url "
+                "Configure gitlab_host (hosted) or gitlab_external_url "
                 "(external), the GitLab token (gitlab_root_token or "
                 "gitlab_api_token) and gitlab_project_id in "
                 "build_stream_config.yml or build_stream_credentials.yml"

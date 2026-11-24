@@ -19,9 +19,9 @@
   delegate_to: localhost
   run_once: true
 
-# Self-hosted mode only: SSH to the Omnia-installed GitLab to mint a root token.
-- name: Resolve the self-hosted GitLab project
-  when: (gitlab_mode | default('self_hosted')) != 'external'
+# Hosted mode only: SSH to the Omnia-installed GitLab to mint a root token.
+- name: Resolve the hosted GitLab project
+  when: (gitlab_mode | default('hosted')) != 'external'
   block:
     - name: Check build_stream_config for Jinja template injection patterns
       ansible.builtin.set_fact:
@@ -133,7 +133,7 @@
 # External mode (ER-BSM-003): API only. The project is created by the
 # build_stream execute step; it is looked up here, never created or SSH-ed to.
 - name: Resolve the external GitLab project
-  when: (gitlab_mode | default('self_hosted')) == 'external'
+  when: (gitlab_mode | default('hosted')) == 'external'
   block:
     - name: Check external GitLab inputs for Jinja template injection patterns
       ansible.builtin.set_fact:
@@ -166,7 +166,9 @@
       block:
         - name: Query GitLab for the project by path
           ansible.builtin.uri:
-            url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ (gitlab_project_namespace ~ '/' ~ gitlab_project_name) | urlencode | replace('/', '%2F') }}"
+            url: >-
+              {{ gitlab_external_url_computed }}/api/v4/projects/{{
+              (gitlab_project_namespace ~ '/' ~ gitlab_project_name) | urlencode | replace('/', '%2F') }}
             method: GET
             headers:
               PRIVATE-TOKEN: "{{ gitlab_upload_token }}"

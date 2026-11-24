@@ -168,10 +168,12 @@
           overall_status: "prepared"
           build_stream_host: "{{ build_stream_host_ip | default('') }}"
           build_stream_port: {{ build_stream_port | default(8010) }}
-          gitlab_mode: "{{ gitlab_mode | default('self_hosted') }}"
+          gitlab_mode: "{{ gitlab_mode | default('hosted') }}"
           gitlab_host: "{{ gitlab_host | default('') }}"
           gitlab_https_port: {{ gitlab_https_port | default(443) }}
-          gitlab_url: "{{ (gitlab_external_url | default('')) if (gitlab_mode | default('self_hosted')) == 'external' else 'https://' ~ (gitlab_host | default('')) ~ ':' ~ (gitlab_https_port | default(443)) }}"
+          gitlab_url: "{{ (gitlab_external_url | default(''))
+            if (gitlab_mode | default('hosted')) == 'external'
+            else 'https://' ~ (gitlab_host | default('')) ~ ':' ~ (gitlab_https_port | default(443)) }}"
           bsm_api_url: "https://{{ build_stream_host_ip | default('') }}:{{ build_stream_port | default(8010) }}"
         dest: "{{ output_project_dir }}/build_stream_status.yml"
         mode: "0644"

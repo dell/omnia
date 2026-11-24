@@ -16,7 +16,7 @@ L2 (business logic) validator for build_stream_config.yml.
 
 Validates cross-field constraints that cannot be expressed in JSON Schema:
   - If enable_build_stream is true, build_stream_host_ip and gitlab_mode are required
-  - gitlab_mode self_hosted requires gitlab_host; external requires
+  - gitlab_mode hosted requires gitlab_host; external requires
     gitlab_external_url and gitlab_project_namespace (ER-BSM-003)
   - gitlab_ca_cert_path, when set, must be an existing PEM CA bundle
   - Port numbers must be valid
@@ -26,7 +26,7 @@ Validates cross-field constraints that cannot be expressed in JSON Schema:
 
 from typing import List
 
-GITLAB_MODES = ("self_hosted", "external")
+GITLAB_MODES = ("hosted", "external")
 
 
 def validate(config_data, logger=None) -> List[str]:
@@ -70,7 +70,7 @@ def validate(config_data, logger=None) -> List[str]:
     gitlab_host = config_data.get("gitlab_host", "")
     if gitlab_mode not in GITLAB_MODES:
         errors.append(msg.invalid_gitlab_mode_msg())
-    elif gitlab_mode == "self_hosted":
+    elif gitlab_mode == "hosted":
         if not gitlab_host or not str(gitlab_host).strip():
             errors.append(msg.missing_gitlab_host_msg())
         if _is_set(config_data, "gitlab_external_url") or _is_set(
@@ -103,7 +103,7 @@ def validate(config_data, logger=None) -> List[str]:
         errors.append(msg.log_ci_preview_exceeds_max_msg(preview, tail_max))
 
     # Warn if BSM and GitLab on same host
-    if gitlab_mode == "self_hosted" and host_ip and gitlab_host and str(host_ip).strip() == str(gitlab_host).strip():
+    if gitlab_mode == "hosted" and host_ip and gitlab_host and str(host_ip).strip() == str(gitlab_host).strip():
         warning = msg.same_host_warning_msg()
         if logger:
             logger.warning(warning)

@@ -77,7 +77,7 @@ def _valid_config(**extra):
         "enable_build_stream": True,
         "build_stream_host_ip": "10.0.0.1",
         "build_stream_port": 8010,
-        "gitlab_mode": "self_hosted",
+        "gitlab_mode": "hosted",
         "gitlab_host": "10.0.0.2",
         **extra,
     }
@@ -98,7 +98,7 @@ class TestShippedInputFile:
         shipped = yaml.safe_load(CONFIG_YML.read_text(encoding="utf-8"))
         shipped.update(
             build_stream_host_ip="10.0.0.1",
-            gitlab_mode="self_hosted",
+            gitlab_mode="hosted",
             gitlab_host="10.0.0.2",
         )
         jsonschema.validate(shipped, json.loads(SCHEMA_JSON.read_text(encoding="utf-8")))
