@@ -265,6 +265,16 @@ TEST_CASES = {
         "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+functional")),
     },
     # ============================================================ theme cluster_lifecycle
+    # When use_discovery_mapping=true in the theme's test_config, the
+    # orchestrator's pxe_mapping_file.csv is replaced with the latest
+    # timestamped bmc_pxe_mapping_file_<ts>.csv from the discovery output.
+    # When use_discovery_mapping=false (default), this test is a no-op.
+    "cluster_lifecycle_use_discovery_mapping": {
+        "id": "SVT_CLUSTER_LIFECYCLE_014", "order": 3005, "stage": "deploy_slurm_cluster",
+        "title": "Discovery mapping: copy the latest discovery PXE mapping to orchestrator "
+                 "input (use_discovery_mapping=true) or skip (use_discovery_mapping=false)",
+        "step": ("svt", ("pxe_use_discovery_mapping",)),
+    },
     # deploy_slurm_cluster -------------------------------------------
     "cluster_lifecycle_precheck_exec": {
         "id": "SVT_CLUSTER_LIFECYCLE_001", "order": 3010, "stage": "deploy_slurm_cluster",

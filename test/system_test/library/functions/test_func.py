@@ -32,6 +32,7 @@ from . import catalog_func, run_func, svt_report_func, track_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
 from .omnia_run_func import describe_run, run_info, run_omnia_step
+from .pxe_publish_func import LOCAL_DOMAIN, run_local_step
 from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
 from ..vars.common_vars import REPORT_SECTION_ENV
 from ..vars.test_case_vars import TEST_CASES
@@ -96,7 +97,12 @@ def _run_step(theme: str, tc: Dict[str, Any]) -> Dict[str, Any]:
     if "run" in tc:
         return run_omnia_step(theme, tc["run"])
     # "action": an SVT action instead of an FVT step (catalog_build: select or skip a catalog).
-    return catalog_func.run_action(tc) if tc.get("action") else run_fvt_step(tc["step"])
+    if tc.get("action"):
+        return catalog_func.run_action(tc)
+    # LOCAL_DOMAIN ("svt"): a local SVT step (pxe_publish_func.py), not a remote FVT runner.
+    if tc["step"][0] == LOCAL_DOMAIN:
+        return run_local_step(tc["step"])
+    return run_fvt_step(tc["step"])
 
 
 def run_svt_test(theme: str, name: str) -> None:
