@@ -182,12 +182,22 @@ def _cards(groups: List[Dict[str, Any]], meta: Dict[str, Any]) -> str:
     steps = _counts(items)
     duration = format_duration(sum(group["duration"] for group in groups))
     planned = len(meta.get("stages") or []) or len(groups)
+    scenarios = list(meta.get("scenario_stages") or [])
+    if scenarios:
+        ran = [group for group in groups
+               if group["stage"] in scenarios and group["status"] != "Skipped"]
+        steps_card = (f'<div class="card"><div class="label">Scenarios</div>'
+                      f'<div class="value">{len(ran)}</div>'
+                      f'<div class="sub">cleanup, deploy and the stages after it that ran</div></div>')
+    else:
+        steps_card = (f'<div class="card"><div class="label">SVT Steps</div>'
+                      f'<div class="value">{len(items)}</div>'
+                      f'<div class="sub">setup phases and stage tests</div></div>')
     return (
         '<div class="cards">'
         f'<div class="card"><div class="label">Stages</div><div class="value">{len(groups)}</div>'
         f'<div class="sub">of {planned} planned</div></div>'
-        f'<div class="card"><div class="label">SVT Steps</div><div class="value">{len(items)}</div>'
-        f'<div class="sub">setup phases and stage tests</div></div>'
+        f'{steps_card}'
         f'<div class="card passed clickable" onclick="filterBy(\'pass\')"><div class="label">Passed</div>'
         f'<div class="value">{steps["Passed"]}</div></div>'
         f'<div class="card failed clickable" onclick="filterBy(\'fail\')"><div class="label">Failed</div>'

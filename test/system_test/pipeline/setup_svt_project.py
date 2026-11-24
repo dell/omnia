@@ -425,6 +425,7 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
         # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
         f'  SVT_DEFAULT_CLEAN_REINSTALL: "{str(default_clean_reinstall(theme)).lower()}"',
+        f'  SVT_DEFAULT_SKIP_STAGES: "{",".join(default_skip_stages(theme))}"',
         *([f'  SVT_CATALOG_PLAN: "{plan_variable(plan)}"'] if plan else []),
         '  GIT_DEPTH: "1"',
         "",

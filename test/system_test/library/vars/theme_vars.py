@@ -230,7 +230,12 @@ THEMES: Dict[str, Dict] = {
         # Default: an already deployed cluster. ./run_validation.sh svt_observability all and
         # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
-        "default_skip_stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy"),
+        "default_skip_stages": ("initialization", "prepare_base", "repo_sync", "image_build",
+                                "cluster_deploy"),
+        # The stages the report counts as scenarios: cleanup (when enabled), then the deploy
+        # stage and the stages after it that ran. Precheck is a gate, not a scenario.
+        "scenario_stages": ("observability_cleanup", "observability_deploy",
+                            "observability_idrac", "observability_ldms"),
         # Stages that are off unless <theme>_test_config.yml stages: turns them on.
         "optional_stages": ("observability_cleanup",),
         "default_clean_reinstall": False,

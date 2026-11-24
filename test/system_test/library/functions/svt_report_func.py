@@ -329,6 +329,7 @@ def run_meta(theme: str, run: Dict[str, Any]) -> Dict[str, Any]:
             "stages": [FIRST_STAGE, *(stage for stage in THEMES[theme]["stages"]
                                       if stage not in skipped)],
             "skipped_stages": skipped,
+            "scenario_stages": list(THEMES[theme].get("scenario_stages") or []),
             "run_id": run.get("run_id", ""), "started_at": run.get("started_at", ""),
             "state": f"Failed at {failed['step']}" if failed.get("step") else "Open",
             "previous_run": (f"{previous['run_id']} ({previous.get('state', '')})"

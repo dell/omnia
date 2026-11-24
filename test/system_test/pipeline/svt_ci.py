@@ -614,6 +614,14 @@ def _check_catalog_plan() -> None:
     _say(f"catalog plan matches the pipeline jobs ({len(entries)} catalog(s))")
 
 
+def _readiness_skipped() -> bool:
+    """Whether the initialization stage (readiness checks) is left out: the theme's default,
+    or SVT_SKIP_STAGES (empty = the default, "none" = every stage runs)."""
+    raw = _env("SVT_SKIP_STAGES")
+    names = [name.strip() for name in (raw or _env("SVT_DEFAULT_SKIP_STAGES")).split(",")]
+    return "initialization" in names
+
+
 def initialization() -> int:
     """Clean reinstall, credentials, the PowerScale files, then the initialization stage.
 
@@ -646,6 +654,9 @@ def initialization() -> int:
     if rc != 0:
         _say(f"./setup_env.sh failed (rc={rc}); the summary still reports the run")
         return rc
+    if _readiness_skipped():
+        _say("initialization stage left out (theme default or SVT_SKIP_STAGES); setup is done")
+        return 0
     return run_detached("initialization", f"./run_validation.sh svt_{theme} initialization")
 
 
