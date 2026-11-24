@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+external_gitlab_project_marker: "managed-by:omnia-buildstream"
+external_gitlab_project_description: >-
+  Omnia BuildStream catalog project ({{ external_gitlab_project_marker }}). Managed by Omnia; do not delete.
+
+external_gitlab_journal_name: "external_gitlab_journal.json"
+external_gitlab_trigger_token_name: ".gitlab_trigger_token"
+
+external_gitlab_ci_token_name: "omnia-ci"
+external_gitlab_ci_token_scopes:
+  - api
+external_gitlab_ci_token_access_level: 40
+external_gitlab_ci_token_expiry_days: 360
+external_gitlab_trigger_description: "Omnia Software Catalog Webhook"
+
+external_gitlab_runner_retries: 6
+external_gitlab_runner_delay: 10
+
+external_gitlab_status_codes:
+  ok: [200]
+  project_create: [201]
+  var_check: [200, 404]
+  var_write: [200, 201]
+
+# Pipeline-created variables (BSM client registration); removed on cleanup.
+external_gitlab_runtime_variables:
+  - BSM_CLIENT_ID
+  - BSM_CLIENT_SECRET
+
+# Local files pushed to the repository (create-only files are never overwritten).
+external_gitlab_ci_files:
+  - .gitlab-ci.yml
+  - .gitlab-ci-build.yml
+  - .gitlab-ci-cadence.yml
+  - .gitlab-ci-deploy.yml
+  - .gitlab-ci-deploy-child-template.yml
+  - .gitlab-ci-cleanup.yml
+  - .gitlab-ci-cleanup-child-template.yml
+external_gitlab_ci_source_dir: "{{ role_path }}/../hosted_gitlab/files"
+external_gitlab_samples_dir: "{{ (role_path ~ '/../../../main/samples') | realpath }}"
+external_gitlab_top_level_catalogs:
+  - catalog_rhel.json
+  - cadence_catalog_rhel.json
+external_gitlab_input_repo_dir: "input"
+external_gitlab_omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default((role_path | realpath) + '/../../..', true) }}"
+external_gitlab_bs_cert_path: "{{ hostvars['localhost']['oim_shared_path'] }}/build_stream/ssl/bs_cert.pem"
+
+external_gitlab_input_files:
+  - "repo_manager/repo_manager_config.yml"
+  - "repo_manager/repo_manager_endpoint_config.yml"
+  - "image_build_manager/image_build_config.yml"
+  - "image_build_manager/package_groups.yml"
+  - "orchestrator/omnia_config.yml"
+  - "orchestrator/orchestrator_config.yml"
+  - "orchestrator/network_spec.yml"
+  - "orchestrator/security_config.yml"
+  - "orchestrator/storage_config.yml"
+  - "orchestrator/additional_cloud_init.yml"
+  - "orchestrator/pxe_mapping_file.csv"
+  - "orchestrator/set_pxe_boot_config.yml"
+
+# Messages
+external_gitlab_not_external_msg: "external_gitlab role requires gitlab_mode: external."
+external_gitlab_config_format_msg: >-
+  gitlab_external_url, gitlab_project_namespace or gitlab_project_name in build_stream_config.yml
+  contains invalid characters or template syntax.
+external_gitlab_token_missing_msg: >-
+  gitlab_api_token is empty. Run the credential utility to populate gitlab_api_token
+  (personal access token with api and write_repository scopes).
+external_gitlab_bs_creds_missing_msg: >-
+  Build stream auth username/password or build_stream_host_ip is empty. Run the credential
+  utility and set build_stream_host_ip before configuring the external GitLab.
+external_gitlab_collision_msg: >-
+  A project named '{{ gitlab_project_name }}' already exists in namespace
+  '{{ gitlab_project_namespace }}' but is not managed by Omnia (the '{{ external_gitlab_project_marker }}'
+  marker is missing from its description). No resources were modified. Choose a different
+  gitlab_project_name or namespace, or add the marker to the project description if Omnia
+  should adopt it.
+external_gitlab_no_runner_msg: >-
+  No online runner found for the project. Register a GitLab Runner available for the project
+  (project, group or instance scoped) and ensure it is online.
+external_gitlab_api_failure_msg: "External GitLab API call failed: {{ _egl_api_error | default('unknown error') }}"

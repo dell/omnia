@@ -1,0 +1,23 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Display the external GitLab configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "External GitLab configured: {{ _egl_url }}"
+      - "Project: {{ _egl_project_path }} (ID {{ _egl_project_id }}, {{ 'created' if _egl_project_created | bool else 'adopted' }})"
+      - "Project URL: {{ _egl_project_web_url }}"
+      - "Runner: operator-provided (not managed by Omnia)"
+      - "CA trust: {{ _egl_ca if _egl_ca | length > 0 else 'system default' }}"
+      - "Setup journal: {{ _egl_journal_path }}"

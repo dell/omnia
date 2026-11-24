@@ -81,6 +81,65 @@ BSM_CREDENTIAL_KEYS = {
     "gitlab_token": "gitlab_root_token",
     "gitlab_project_id": "gitlab_project_id",
 }
+
+# =============================================================================
+# GITLAB MODE (build_stream_config.yml: gitlab_mode)
+# =============================================================================
+# hosted: Omnia installs GitLab CE and a runner on gitlab_host (SSH).
+# external: customer-managed GitLab reached only through its REST API.
+GITLAB_MODE_KEY = "gitlab_mode"
+GITLAB_MODE_HOSTED = "hosted"
+GITLAB_MODE_EXTERNAL = "external"
+GITLAB_MODES = (GITLAB_MODE_HOSTED, GITLAB_MODE_EXTERNAL)
+# Keys of build_stream_config.yml / build_stream_credentials.yml used in external mode.
+GITLAB_EXTERNAL_CONFIG_KEYS = {
+    "url": "gitlab_external_url",
+    "namespace": "gitlab_project_namespace",
+    "name": "gitlab_project_name",
+    "ca": "gitlab_ca_cert_path",
+    "branch": "gitlab_default_branch",
+    "visibility": "gitlab_project_visibility",
+    "hosted_host": "gitlab_host",
+}
+GITLAB_EXTERNAL_TOKEN_KEY = "gitlab_api_token"
+GITLAB_EXTERNAL_PROJECT_ID_KEY = "gitlab_project_id"
+GITLAB_DEFAULT_PROJECT_NAME = "omnia-catalog"
+GITLAB_DEFAULT_BRANCH = "main"
+GITLAB_DEFAULT_VISIBILITY = "private"
+
+# What the external_gitlab role creates (roles/external_gitlab/vars/main.yml).
+EXTERNAL_PROJECT_MARKER = "managed-by:omnia-buildstream"
+EXTERNAL_CI_TOKEN_NAME = "omnia-ci"
+EXTERNAL_CI_TOKEN_SCOPE = "api"
+EXTERNAL_CI_TOKEN_ACCESS_LEVEL = 40
+EXTERNAL_CI_TOKEN_MAX_DAYS = 360
+EXTERNAL_TRIGGER_DESCRIPTION = "Omnia Software Catalog Webhook"
+EXTERNAL_TRIGGER_TOKEN_FILE = ".gitlab_trigger_token"
+EXTERNAL_JOURNAL_FILE = "external_gitlab_journal.json"
+EXTERNAL_JOURNAL_SCHEMA_VERSION = 1
+EXTERNAL_JOURNAL_RESOURCE_TYPES = (
+    "project", "runner", "access_token", "trigger", "variable", "file",
+)
+EXTERNAL_SUPPORTED_MAJOR_VERSIONS = (17, 18, 19)
+EXTERNAL_REQUIRED_SCOPES = ("api", "write_repository")
+EXTERNAL_MIN_NAMESPACE_ACCESS_LEVEL = 40
+EXTERNAL_PRIVATE_FILE_MODES = frozenset({"600", "400"})
+EXTERNAL_CA_MAX_MODE = 0o644
+# CI/CD variable -> (masked, protected) as configure_cicd_variables.yml sets them.
+EXTERNAL_CI_VARIABLES = {
+    "GITLAB_API_TOKEN": (True, True),
+    "BSM_API_URL": (False, False),
+    "BSM_API_USERNAME": (False, True),
+    "BSM_API_PASSWORD": (True, True),
+    "BSM_API_CERT": (False, False),
+    "BSM_LOG_TAIL_LINES": (False, False),
+}
+GITLAB_VERSION_PATH = "/version"
+GITLAB_TOKEN_SELF_PATH = "/personal_access_tokens/self"
+GITLAB_USER_PATH = "/user"
+GITLAB_PEM_CERT_MARKER = "BEGIN CERTIFICATE"
+GITLAB_PEM_KEY_MARKER = "PRIVATE KEY"
+
 BSM_CI_CLIENT_ID_VAR = "BSM_CLIENT_ID"
 BSM_CI_CLIENT_SECRET_VAR = "BSM_CLIENT_SECRET"
 
@@ -564,6 +623,8 @@ CMDS = {
     # Placeholders are quoted; the glob suffix stays outside the quotes.
     "log_remove_fixtures": "rm -f {directory}/fvt_*.log",
     "log_stat": "stat -c '%a|%C' {path}",
+    # Prints "<owner uid>|<octal mode>" (external GitLab CA, journal, trigger token).
+    "stat_owner_mode": "stat -c '%u|%a' {path}",
     "log_domain_copies": "ls -1 {base}/*/{name} 2>/dev/null",
     "omnia_sh": "cd {workdir} && ./omnia.sh {arguments}",
     "ansible_playbook": (

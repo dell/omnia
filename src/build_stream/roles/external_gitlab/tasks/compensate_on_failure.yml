@@ -1,0 +1,76 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Rescue handler: undo, in reverse order, only what this run created. Adopted
+# projects and pre-existing resources are never deleted. Each step is logged.
+- name: Capture the original failure
+  ansible.builtin.set_fact:
+    _egl_original_failure: "{{ ansible_failed_result.msg | default('unknown failure') }}"
+    _egl_comp_log: []
+
+- name: Read the rollback plan from the journal
+  journal:
+    path: "{{ _egl_journal_path | default('/nonexistent/external_gitlab_journal.json') }}"
+    action: rollback_plan
+    run_id: "{{ _egl_run_id | default('none') }}"
+  register: _egl_plan
+  failed_when: false
+  when: _egl_journal_path is defined
+
+- name: Roll back created resources in reverse order
+  ansible.builtin.include_tasks: compensate_resource.yml
+  loop: "{{ _egl_plan.plan | default([]) | rejectattr('type', 'equalto', 'file') | list }}"
+  loop_control:
+    loop_var: _egl_item
+    label: "{{ _egl_item.type }}"
+  when: _egl_project_id is defined
+
+- name: Delete files pushed in this run (adopted project only; a deleted project takes its files along)
+  gitlab_repo_sync:
+    url: "{{ _egl_url }}"
+    token: "{{ gitlab_api_token }}"
+    project_id: "{{ _egl_project_id }}"
+    branch: "{{ _egl_branch }}"
+    ca_cert_path: "{{ _egl_ca }}"
+    state: absent
+    commit_message: "Roll back Omnia BuildStream file sync"
+    files: "{{ _egl_comp_files_list }}"
+  register: _egl_comp_files
+  failed_when: false
+  no_log: true
+  vars:
+    _egl_comp_files_list: >-
+      {%- set out = [] -%}
+      {%- for entry in _egl_plan.plan | default([]) if entry.type == 'file' -%}
+      {%- set _ = out.append({'path': entry.name}) -%}
+      {%- endfor -%}
+      {{ out }}
+  when:
+    - _egl_project_id is defined
+    - not (_egl_project_created | default(false) | bool)
+    - (_egl_plan.plan | default([]) | selectattr('type', 'equalto', 'file') | list | length) > 0
+
+- name: Remove the locally stored trigger token if it was created in this run
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost']['output_project_dir'] }}/{{ external_gitlab_trigger_token_name }}"
+    state: absent
+  failed_when: false
+  when: _egl_trigger_created | default(false) | bool
+
+- name: Fail with the original error and the compensation summary
+  ansible.builtin.fail:
+    msg: >-
+      External GitLab setup failed: {{ _egl_original_failure }}
+      Compensation actions taken: {{ _egl_comp_log | default([]) | length }}
+      ({{ _egl_comp_log | default([]) | join('; ') }}). Local state was not updated.

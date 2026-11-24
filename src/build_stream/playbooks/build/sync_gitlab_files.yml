@@ -49,6 +49,27 @@
         create_oim_group: true
       when: not build_stream_setup_done | default(false) | bool
 
+- name: Stop when the GitLab is customer-managed (external mode)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Load build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+
+    # This playbook reaches the Omnia-installed GitLab over SSH. In external
+    # mode there is no such host: the build_stream execute step pushes changed
+    # CI templates and input files over the GitLab API (unchanged files are skipped).
+    - name: Fail with the external-mode alternative
+      ansible.builtin.fail:
+        msg: >-
+          sync_gitlab_files.yml supports gitlab_mode: hosted only. For an external GitLab
+          run: ansible-playbook build_stream.yml --tags execute
+          (it pushes changed CI templates and input files through the GitLab API).
+      when: (gitlab_mode | default('hosted')) == 'external'
+
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
   gather_facts: false

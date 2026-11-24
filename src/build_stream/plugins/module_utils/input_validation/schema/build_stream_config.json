@@ -19,9 +19,26 @@
             "maximum": 65535,
             "description": "BuildStream API server port"
         },
+        "gitlab_mode": {
+            "type": "string",
+            "enum": ["hosted", "external"],
+            "description": "GitLab deployment mode: hosted (Omnia installs GitLab in a container on the OIM) or external (customer-managed GitLab)"
+        },
         "gitlab_host": {
             "type": "string",
-            "description": "Target host IPv4 address for GitLab deployment"
+            "description": "Target host IPv4 address for GitLab deployment (hosted mode)"
+        },
+        "gitlab_external_url": {
+            "type": "string",
+            "description": "HTTPS URL of the customer-managed GitLab (external mode)"
+        },
+        "gitlab_project_namespace": {
+            "type": "string",
+            "description": "GitLab group/namespace for the project (external mode)"
+        },
+        "gitlab_ca_cert_path": {
+            "type": "string",
+            "description": "Path to a custom CA PEM bundle for HTTPS calls to the external GitLab"
         },
         "gitlab_project_name": {
             "type": "string",
@@ -193,16 +210,52 @@
                 "required": [
                     "build_stream_host_ip",
                     "build_stream_port",
-                    "gitlab_host"
+                    "gitlab_mode"
                 ],
                 "properties": {
                     "build_stream_host_ip": {
                         "minLength": 1,
                         "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-                    },
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "properties": {
+                    "enable_build_stream": {"const": true},
+                    "gitlab_mode": {"const": "hosted"}
+                },
+                "required": ["enable_build_stream", "gitlab_mode"]
+            },
+            "then": {
+                "required": ["gitlab_host"],
+                "properties": {
                     "gitlab_host": {
                         "minLength": 1,
                         "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                    }
+                }
+            }
+        },
+        {
+            "if": {
+                "properties": {
+                    "enable_build_stream": {"const": true},
+                    "gitlab_mode": {"const": "external"}
+                },
+                "required": ["enable_build_stream", "gitlab_mode"]
+            },
+            "then": {
+                "required": ["gitlab_external_url", "gitlab_project_namespace"],
+                "properties": {
+                    "gitlab_external_url": {
+                        "minLength": 1,
+                        "pattern": "^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$"
+                    },
+                    "gitlab_project_namespace": {
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*(/[A-Za-z0-9][A-Za-z0-9_.-]*)*$"
                     }
                 }
             }

@@ -78,6 +78,74 @@ def missing_gitlab_host_msg() -> str:
     )
 
 
+def invalid_gitlab_mode_msg() -> str:
+    """Returns message when gitlab_mode is missing or not an allowed value."""
+    return "gitlab_mode must be 'hosted' or 'external'."
+
+
+def missing_external_param_msg(param) -> str:
+    """Returns message when a parameter required for external mode is missing."""
+    return f"{param} is required when gitlab_mode is 'external'."
+
+
+def invalid_external_url_msg(value) -> str:
+    """Returns message when gitlab_external_url is not an HTTPS URL."""
+    return (
+        f"gitlab_external_url '{value}' is invalid. Provide an HTTPS URL, "
+        "for example https://gitlab.example.com."
+    )
+
+
+def invalid_project_namespace_msg(value) -> str:
+    """Returns message when gitlab_project_namespace is malformed."""
+    return (
+        f"gitlab_project_namespace '{value}' is invalid. Use a GitLab group path "
+        "such as 'infra/omnia-builds' (letters, digits, '_', '.', '-' and '/')."
+    )
+
+
+def gitlab_host_ignored_warning_msg() -> str:
+    """Returns warning when gitlab_host is set although gitlab_mode is external."""
+    return "WARNING: gitlab_host is ignored when gitlab_mode is 'external'."
+
+
+def external_params_ignored_warning_msg() -> str:
+    """Returns warning when external-only parameters are set in hosted mode."""
+    return (
+        "WARNING: gitlab_external_url and gitlab_project_namespace are ignored "
+        "when gitlab_mode is 'hosted'."
+    )
+
+
+def ca_cert_error_msg(detail) -> str:
+    """Returns message for a custom CA certificate problem."""
+    return str(detail)
+
+
+def unsupported_gitlab_version_msg(version) -> str:
+    """Returns message when the external GitLab version is outside 17.x-19.x."""
+    return (
+        f"GitLab version {version} is not supported. "
+        "Supported versions: 17.x, 18.x, 19.x."
+    )
+
+
+def missing_pat_scopes_msg(missing) -> str:
+    """Returns message when the personal access token lacks required scopes."""
+    return (
+        f"gitlab_api_token is missing required scope(s): {', '.join(missing)}. "
+        "Create the token with the 'api' and 'write_repository' scopes."
+    )
+
+
+def insufficient_namespace_role_msg(namespace) -> str:
+    """Returns message when the token user is not Owner/Maintainer on the namespace."""
+    return (
+        f"The gitlab_api_token user needs the Owner or Maintainer role on "
+        f"namespace '{namespace}'."
+    )
+
+
 def invalid_gitlab_port_msg(port) -> str:
     """Returns message for an invalid GitLab HTTPS port."""
     return (

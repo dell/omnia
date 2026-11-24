@@ -1,0 +1,50 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# External mode: Omnia does not deploy or register a runner. Any online runner
+# (project, group or instance scoped, no tag required) satisfies the check.
+- name: Verify an online runner is available for the project
+  block:
+    - name: List online runners available to the project
+      ansible.builtin.uri:
+        url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/runners?status=online&per_page=100"
+        method: GET
+        headers: "{{ _egl_headers }}"
+        ca_path: "{{ _egl_ca | default(omit, true) }}"
+        validate_certs: true
+        status_code: [200]
+        timeout: 30
+      register: _egl_runners
+      no_log: true
+  rescue:
+    - name: Fail with a diagnostic when the runner API call fails
+      ansible.builtin.fail:
+        msg: >-
+          Runner verification failed: the GitLab runners API call returned an error
+          (HTTP {{ _egl_runners.status | default('no response') }}) for project {{ _egl_project_id }}.
+          Verify connectivity and that the token user is a Maintainer of the project.
+
+- name: Fail when no online runner is available
+  ansible.builtin.fail:
+    msg: "{{ external_gitlab_no_runner_msg }}"
+  when: (_egl_runners.json | default([]) | length) == 0
+
+- name: Record the operator-provided runner as user_provided
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _egl_res: {type: runner, action: user_provided, state: verified}
+
+- name: Report the runner check
+  ansible.builtin.debug:
+    msg: "Verified {{ _egl_runners.json | length }} online runner(s) available for project {{ _egl_project_id }}; Omnia does not manage them."

@@ -28,7 +28,11 @@ must be supplied before running `build_stream.yml`.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `gitlab_host` | string (IP) | **Mandatory** | `""` | IP of the target host where GitLab CE will be deployed. Must be reachable from OIM. |
+| `gitlab_mode` | enum | **Mandatory** | `""` (must be set) | `hosted` (Omnia deploys GitLab CE and a runner on `gitlab_host`) \| `external` (Omnia configures a customer-managed GitLab CE/EE 17.x-19.x; no install, no runner deployment). Existing deployments must add `gitlab_mode: "hosted"`. |
+| `gitlab_host` | string (IP) | **Mandatory** when `hosted` | `""` | IP of the target host where GitLab CE will be deployed. Must be reachable from OIM. Ignored (warning) when `external`. |
+| `gitlab_external_url` | string (HTTPS URL) | **Mandatory** when `external` | `""` | Base URL of the customer-managed GitLab, e.g. `https://gitlab.example.com`. |
+| `gitlab_project_namespace` | string | **Mandatory** when `external` | `""` | Group path for the project, e.g. `infra/omnia-builds`. The token user needs Owner or Maintainer on it. |
+| `gitlab_ca_cert_path` | string (path) | Optional | `""` | PEM CA bundle for Omnia's own HTTPS calls to the external GitLab (root-owned, mode 0644 or stricter). Empty uses the system trust store. Configure the same CA on your runner yourself. |
 | `gitlab_project_name` | string | Optional | `"omnia-catalog"` | GitLab project name Omnia creates/manages. |
 | `gitlab_project_visibility` | enum | Optional | `"private"` | `private` \| `internal` \| `public`. |
 | `gitlab_default_branch` | string | Optional | `"main"` | Default branch for repo and API ops. |
@@ -91,7 +95,7 @@ following tags:
 | Tag | Type | Credentials | Notes |
 |-----|------|-------------|-------|
 | `gitlab` | mandatory + optional | `gitlab_root_password`; `docker_username`, `docker_password` | Root password is mandatory. Docker creds are optional (for pulling images from private registries). |
-| `build_stream` | mandatory + conditional | `gitlab_root_password`; `build_stream_auth_*`, `postgres_user`, `postgres_password` | GitLab root password is mandatory. BSM auth and Postgres creds are conditional on `enable_build_stream`. |
+| `build_stream` | mandatory + conditional | `gitlab_root_password`, `gitlab_ssh_password` (`hosted`); `gitlab_api_token` (`external`); `build_stream_auth_*`, `postgres_user`, `postgres_password` | The GitLab credentials depend on `gitlab_mode`. `gitlab_api_token` is a personal access token with the `api` and `write_repository` scopes. BSM auth and Postgres creds are conditional on `enable_build_stream`. |
 
 Credential source files:
 
@@ -113,7 +117,9 @@ Credential source files:
 
 | Prerequisite | Validated by |
 |-------------|-------------|
-| Target `gitlab_host` is reachable from OIM | `hosted_gitlab/prereq_checks.yml` |
+| `external` mode: GitLab URL reachable over HTTPS, version 17.x-19.x, token scopes and namespace role | `external_gitlab/validate_external.yml` (`validate_external_gitlab` module) |
+| `external` mode: at least one online runner available for the project (operator-provided) | `external_gitlab/verify_runner.yml` |
+| Target `gitlab_host` is reachable from OIM (`hosted`) | `hosted_gitlab/prereq_checks.yml` |
 | `gitlab_host` meets min CPU / RAM / disk | `hosted_gitlab/check_oim_prerequisites.yml` |
 | SSH access to `gitlab_host` via `provision_password` | credential_utility + `add_host` |
 | PostgreSQL available for BSM state | `prepare_build_stream.yml` |

@@ -1,0 +1,98 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Load BuildStream configuration inputs
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+
+- name: Load BuildStream credentials when not already loaded
+  ansible.builtin.include_role:
+    name: credential_utility
+    tasks_from: decrypt_include_encrypt.yml
+  vars:
+    credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
+    vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
+  when: gitlab_api_token is not defined or (gitlab_api_token | string | length) == 0
+
+- name: Check external GitLab inputs for Jinja template injection patterns
+  ansible.builtin.set_fact:
+    _egl_has_jinja: >-
+      {{ ((gitlab_external_url | default('')) ~ (gitlab_project_namespace | default('')) ~ (gitlab_project_name | default('')))
+         is search('\\{\\{|\\{%|\\{#') }}
+
+- name: Validate external mode prerequisites
+  ansible.builtin.assert:
+    that:
+      - gitlab_mode | default('') == 'external'
+      - enable_build_stream | default(false) | bool
+      - gitlab_external_url | default('') is match('^https://')
+      - gitlab_project_namespace | default('') | length > 0
+      - gitlab_project_name | default('') | length > 0
+      - not (_egl_has_jinja | bool)
+    fail_msg: "{{ external_gitlab_config_format_msg }}"
+    quiet: true
+
+- name: Ensure the GitLab API token and BuildStream credentials are available
+  ansible.builtin.assert:
+    that:
+      - gitlab_api_token | default('') | length > 0
+    fail_msg: "{{ external_gitlab_token_missing_msg }}"
+    quiet: true
+  no_log: true
+
+- name: Ensure BuildStream API credentials are available
+  ansible.builtin.assert:
+    that:
+      - build_stream_auth_username | default('') | length > 0
+      - build_stream_auth_password | default('') | length > 0
+      - build_stream_host_ip | default('') | trim | length > 0
+    fail_msg: "{{ external_gitlab_bs_creds_missing_msg }}"
+    quiet: true
+  no_log: true
+
+- name: Set external GitLab facts
+  ansible.builtin.set_fact:
+    _egl_url: "{{ gitlab_external_url | trim | regex_replace('/+$', '') }}"
+    _egl_ca: "{{ gitlab_ca_cert_path | default('', true) | trim }}"
+    _egl_project_path: "{{ gitlab_project_namespace }}/{{ gitlab_project_name }}"
+    _egl_branch: "{{ gitlab_default_branch | default('main') }}"
+    _egl_journal_path: "{{ hostvars['localhost']['output_project_dir'] }}/{{ external_gitlab_journal_name }}"
+    _egl_run_id: "{{ now(utc=true).strftime('%Y%m%dT%H%M%S') }}-{{ 99999999 | random }}"
+    _egl_headers:
+      PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+  no_log: true
+
+- name: Validate the custom CA certificate
+  ansible.builtin.include_tasks: configure_ca_cert.yml
+
+- name: Validate connectivity, version, token scopes and namespace role
+  validate_external_gitlab:
+    url: "{{ _egl_url }}"
+    token: "{{ gitlab_api_token }}"
+    namespace: "{{ gitlab_project_namespace }}"
+    ca_cert_path: "{{ _egl_ca }}"
+  register: _egl_validation
+  no_log: true
+
+- name: Remember validated namespace and token expiry
+  ansible.builtin.set_fact:
+    _egl_namespace_id: "{{ _egl_validation.info.namespace_id }}"
+    _egl_pat_expires_at: "{{ _egl_validation.info.token_expires_at | default('') }}"
+
+- name: Warn when the GitLab API token expires within 30 days
+  ansible.builtin.debug:
+    msg: "WARNING: gitlab_api_token expires on {{ _egl_pat_expires_at }}. Rotate it before then."
+  when:
+    - _egl_pat_expires_at | length > 0
+    - (_egl_pat_expires_at | to_datetime('%Y-%m-%d') - now()).days < 30

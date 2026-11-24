@@ -1,0 +1,130 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Read the BSM API certificate
+  ansible.builtin.slurp:
+    src: "{{ external_gitlab_bs_cert_path }}"
+  register: _egl_bs_cert
+
+- name: Build the CI/CD variable set
+  ansible.builtin.set_fact:
+    _egl_variables:
+      - {key: GITLAB_API_TOKEN, value: "{{ _egl_ci_token }}", masked: true, protected: true}
+      - {key: BSM_API_URL, value: "https://{{ build_stream_host_ip }}:{{ build_stream_port | default(8010) }}", masked: false, protected: false}
+      - {key: BSM_API_USERNAME, value: "{{ build_stream_auth_username }}", masked: false, protected: true}
+      - {key: BSM_API_PASSWORD, value: "{{ build_stream_auth_password }}", masked: true, protected: true}
+      - {key: BSM_API_CERT, value: "{{ _egl_bs_cert.content | b64decode }}", masked: false, protected: false}
+      - {key: BSM_LOG_TAIL_LINES, value: "{{ log_ci_preview_lines | default(log_tail_lines_default | default(50)) }}", masked: false, protected: false}
+  no_log: true
+
+- name: Check which CI/CD variables already exist
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/variables/{{ item.key }}"
+    method: GET
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    status_code: "{{ external_gitlab_status_codes.var_check }}"
+  register: _egl_var_check
+  loop: "{{ _egl_variables }}"
+  loop_control:
+    label: "{{ item.key }}"
+  no_log: true
+
+- name: Create missing CI/CD variables
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/variables"
+    method: POST
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    body_format: json
+    body:
+      key: "{{ item.item.key }}"
+      value: "{{ item.item.value }}"
+      variable_type: env_var
+      masked: "{{ item.item.masked }}"
+      protected: "{{ item.item.protected }}"
+    status_code: "{{ external_gitlab_status_codes.var_write }}"
+  when: item.status == 404
+  loop: "{{ _egl_var_check.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  no_log: true
+
+- name: Update existing CI/CD variables (reconcile, never delete)
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/variables/{{ item.item.key }}"
+    method: PUT
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    body_format: json
+    body:
+      value: "{{ item.item.value }}"
+      variable_type: env_var
+      masked: "{{ item.item.masked }}"
+      protected: "{{ item.item.protected }}"
+    status_code: "{{ external_gitlab_status_codes.var_write }}"
+  when: item.status == 200
+  loop: "{{ _egl_var_check.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  no_log: true
+
+- name: Record each variable key (created by Omnia vs pre-existing)
+  ansible.builtin.include_tasks: record.yml
+  loop: "{{ _egl_var_check.results }}"
+  loop_control:
+    loop_var: _egl_vc
+    label: "{{ _egl_vc.item.key }}"
+  vars:
+    _egl_res:
+      type: variable
+      key: "{{ _egl_vc.item.key }}"
+      action: "{{ 'created' if _egl_vc.status == 404 else 'adopted' }}"
+      state: applied
+
+- name: Read pipeline-created secret variables
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/variables/{{ item }}"
+    method: GET
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    status_code: "{{ external_gitlab_status_codes.var_check }}"
+  register: _egl_runtime_check
+  loop: "{{ external_gitlab_runtime_variables }}"
+  no_log: true
+
+- name: Protect pipeline-created secret variables
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4/projects/{{ _egl_project_id }}/variables/{{ item.item }}"
+    method: PUT
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    body_format: json
+    body:
+      value: "{{ item.json.value }}"
+      masked: "{{ item.json.masked }}"
+      protected: true
+    status_code: "{{ external_gitlab_status_codes.var_write }}"
+  when:
+    - item.status == 200
+    - not (item.json.protected | bool)
+  loop: "{{ _egl_runtime_check.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  no_log: true

@@ -77,6 +77,7 @@ def _valid_config(**extra):
         "enable_build_stream": True,
         "build_stream_host_ip": "10.0.0.1",
         "build_stream_port": 8010,
+        "gitlab_mode": "hosted",
         "gitlab_host": "10.0.0.2",
         **extra,
     }
@@ -95,7 +96,11 @@ class TestShippedInputFile:
     def test_shipped_file_passes_schema_and_overlay(self):
         """GIVEN the shipped file with a host set THEN schema and overlay accept it."""
         shipped = yaml.safe_load(CONFIG_YML.read_text(encoding="utf-8"))
-        shipped.update(build_stream_host_ip="10.0.0.1", gitlab_host="10.0.0.2")
+        shipped.update(
+            build_stream_host_ip="10.0.0.1",
+            gitlab_mode="hosted",
+            gitlab_host="10.0.0.2",
+        )
         jsonschema.validate(shipped, json.loads(SCHEMA_JSON.read_text(encoding="utf-8")))
         assert asdict(apply_log_query_inputs(LogQueryConfig(), shipped)) == asdict(LogQueryConfig())
 

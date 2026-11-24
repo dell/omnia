@@ -1,0 +1,32 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Custom CA is used only for Omnia's own HTTPS calls to the external GitLab.
+# The operator configures CA trust on their runner. Without a custom CA the
+# system trust store is used.
+- name: Validate the custom CA bundle (existence, PEM format, root-owned, mode 0644 or stricter)
+  validate_external_gitlab:
+    url: "{{ _egl_url }}"
+    token: "{{ gitlab_api_token }}"
+    namespace: "{{ gitlab_project_namespace }}"
+    ca_cert_path: "{{ _egl_ca }}"
+    ca_only: true
+  no_log: true
+  when: _egl_ca | length > 0
+
+- name: Report the CA trust source
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Using custom CA bundle ' ~ _egl_ca ~ ' for Omnia API calls to the external GitLab. Configure the same CA on your runner.'
+         if _egl_ca | length > 0 else 'No custom CA configured; using the system default CA trust store.' }}

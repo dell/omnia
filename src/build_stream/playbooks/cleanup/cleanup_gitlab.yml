@@ -87,14 +87,39 @@
         gitlab_cleanup_credentials_available: >-
           {{
             gitlab_cleanup_credentials_available | bool
-            and (gitlab_ssh_password | default('') | string | length > 0)
-            and (gitlab_host | default('') | string | length > 0)
+            and (
+              (gitlab_mode | default('hosted')) == 'external'
+              or (
+                (gitlab_ssh_password | default('') | string | length > 0)
+                and (gitlab_host | default('') | string | length > 0)
+              )
+            )
           }}
 
 - name: Prepare GitLab host credentials for cleanup
   hosts: localhost
   gather_facts: false
   tasks:
+    # External mode (ER-BSM-003): only Omnia-owned resources on the customer's
+    # GitLab are removed, over the API. There is no GitLab host to reach, so the
+    # remote host cleanup below is skipped.
+    - name: Clean up the external GitLab integration
+      when: (gitlab_mode | default('hosted')) == 'external'
+      block:
+        - name: Load BuildStream configuration inputs
+          ansible.builtin.include_vars:
+            file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+          failed_when: false
+
+        - name: Run the external GitLab cleanup
+          ansible.builtin.include_role:
+            name: cleanup_gitlab
+            tasks_from: cleanup_external.yml
+
+    - name: Skip remote GitLab host cleanup in external mode
+      ansible.builtin.meta: end_play
+      when: (gitlab_mode | default('hosted')) == 'external'
+
     # OMN-DEF #1428: GitLab cleanup is only reached when it was explicitly
     # requested (--tags cleanup / --tags cleanup_gitlab, standalone
     # cleanup_gitlab.yml, or '-e cleanup_gitlab=true'). When credentials are

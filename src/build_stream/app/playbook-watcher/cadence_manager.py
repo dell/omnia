@@ -70,6 +70,12 @@ CADENCE_CONFIG_KEYS = {
     "sync_poll_interval_seconds",
 }
 GITLAB_PROJECT_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+GITLAB_MODE_HOSTED = "hosted"
+GITLAB_MODE_EXTERNAL = "external"
+EXTERNAL_GITLAB_URL_PATTERN = re.compile(
+    r"^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?"
+    r"(/[A-Za-z0-9._~/-]*)?$"
+)
 IPV4_PATTERN = re.compile(
     r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}"
     r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
@@ -81,8 +87,11 @@ RELOAD_LOGGED_KEYS = (
     "interval_days",
     "sync_timeout_seconds",
     "sync_poll_interval_seconds",
+    "gitlab_mode",
     "gitlab_host",
     "gitlab_https_port",
+    "gitlab_external_url",
+    "gitlab_ca_cert_path",
     "gitlab_project_name",
     "gitlab_default_branch",
 )
@@ -90,6 +99,7 @@ RELOAD_LOGGED_KEYS = (
 # Cadence secrets reported as updated, never by value
 RELOAD_LOGGED_SECRET_KEYS = (
     "gitlab_root_token",
+    "gitlab_api_token",
     "gitlab_project_id",
 )
 
@@ -215,8 +225,11 @@ def load_cadence_config(
         "sync_timeout_seconds": 3600,
         "sync_poll_interval_seconds": 10,
         # GitLab API configuration (loaded from build_stream_config.yml)
+        "gitlab_mode": GITLAB_MODE_HOSTED,
         "gitlab_host": "",
         "gitlab_https_port": 443,
+        "gitlab_external_url": "",
+        "gitlab_ca_cert_path": "",
         "gitlab_project_name": "omnia-catalog",
         "gitlab_default_branch": "main",
         # Fixed values (not configurable)
@@ -367,18 +380,46 @@ def _load_gitlab_config_fields(
     config: Dict[str, Any],
 ) -> None:
     """Validate and load GitLab settings using the input-schema contract."""
+    mode = data.get("gitlab_mode", GITLAB_MODE_HOSTED) or GITLAB_MODE_HOSTED
+    if mode not in (GITLAB_MODE_HOSTED, GITLAB_MODE_EXTERNAL):
+        raise ValueError("gitlab_mode must be 'hosted' or 'external'")
+    config["gitlab_mode"] = mode
+
     if "gitlab_host" in data:
         host = data["gitlab_host"]
         if not isinstance(host, str):
             raise ValueError("gitlab_host must be a string")
-        if data.get("enable_build_stream") is True and not IPV4_PATTERN.fullmatch(
-            host
+        if (
+            mode == GITLAB_MODE_HOSTED
+            and data.get("enable_build_stream") is True
+            and not IPV4_PATTERN.fullmatch(host)
         ):
             raise ValueError(
                 "gitlab_host must be a valid IPv4 address when BuildStream "
                 "is enabled"
             )
         config["gitlab_host"] = host
+
+    if mode == GITLAB_MODE_EXTERNAL:
+        url = data.get("gitlab_external_url", "")
+        if not isinstance(url, str):
+            raise ValueError("gitlab_external_url must be a string")
+        url = url.strip().rstrip("/")
+        if data.get("enable_build_stream") is True and not (
+            EXTERNAL_GITLAB_URL_PATTERN.fullmatch(url)
+        ):
+            raise ValueError(
+                "gitlab_external_url must be an HTTPS URL when gitlab_mode "
+                "is external"
+            )
+        config["gitlab_external_url"] = url
+
+        ca_path = data.get("gitlab_ca_cert_path", "")
+        if ca_path is None:
+            ca_path = ""
+        if not isinstance(ca_path, str):
+            raise ValueError("gitlab_ca_cert_path must be a string")
+        config["gitlab_ca_cert_path"] = ca_path.strip()
 
     if "gitlab_https_port" in data:
         port = data["gitlab_https_port"]
@@ -486,6 +527,13 @@ def _load_gitlab_credentials(
                 raise ValueError("gitlab_root_token must be a non-empty string")
             credential_updates["gitlab_root_token"] = token
 
+        # External mode stores the customer's personal access token here;
+        # the credential file template renders it as an empty string in
+        # hosted mode, which is not an error.
+        api_token = creds.get("gitlab_api_token")
+        if isinstance(api_token, str) and api_token.strip():
+            credential_updates["gitlab_api_token"] = api_token
+
         if "gitlab_project_id" in creds:
             project_id = creds["gitlab_project_id"]
             if isinstance(project_id, bool) or not isinstance(
@@ -502,7 +550,7 @@ def _load_gitlab_credentials(
         log_secure_info(
             "info",
             f"GitLab credentials loaded: "
-            f"token={'present' if config.get('gitlab_root_token') else 'missing'}, "
+            f"token={'present' if _gitlab_token_from(config) else 'missing'}, "
             f"project_id={'present' if config.get('gitlab_project_id') else 'missing'}"
         )
 
@@ -688,6 +736,35 @@ def _validate_catalog_document(document: Any) -> bool:
     )
 
 
+def _gitlab_token_from(config: Dict[str, Any]) -> str:
+    """Return the GitLab API token that matches the configured GitLab mode."""
+    if config.get("gitlab_mode") == GITLAB_MODE_EXTERNAL:
+        return config.get("gitlab_api_token", "")
+    return config.get("gitlab_root_token", "")
+
+
+def _gitlab_url_from(config: Dict[str, Any]) -> str:
+    """Return the GitLab base URL that matches the configured GitLab mode."""
+    if config.get("gitlab_mode") == GITLAB_MODE_EXTERNAL:
+        return config.get("gitlab_external_url", "")
+    gitlab_host = config.get("gitlab_host", "")
+    gitlab_port = config.get("gitlab_https_port", 443)
+    return f"https://{gitlab_host}:{gitlab_port}" if gitlab_host else ""
+
+
+def _gitlab_tls_verify(config: Dict[str, Any]):
+    """Return the ``verify`` argument for requests calls to GitLab.
+
+    External GitLab is a customer-managed server: certificates are always
+    validated, against the configured CA bundle or the system trust store.
+    The hosted GitLab uses a certificate Omnia generates itself, so the
+    long-standing behavior (no validation) is kept for that mode only.
+    """
+    if config.get("gitlab_mode") != GITLAB_MODE_EXTERNAL:
+        return False
+    return config.get("gitlab_ca_cert_path") or True
+
+
 def fetch_cadence_catalog_from_gitlab(
     gitlab_url: str,
     gitlab_token: str,
@@ -695,8 +772,12 @@ def fetch_cadence_catalog_from_gitlab(
     catalog_filename: str,
     branch: str,
     catalog_path: Path,
+    verify: Any = False,
 ) -> bool:
-    """Fetch, validate, and atomically install the cadence catalog."""
+    """Fetch, validate, and atomically install the cadence catalog.
+
+    ``verify`` is passed to ``requests`` (``True``, ``False`` or a CA bundle path).
+    """
     encoded_project_id = quote(str(project_id), safe="")
     encoded_filename = quote(catalog_filename, safe="")
     api_url = (
@@ -710,7 +791,7 @@ def fetch_cadence_catalog_from_gitlab(
             api_url,
             headers=headers,
             params={"ref": branch},
-            verify=False,  # nosec B501 - Match existing internal GitLab TLS behavior
+            verify=verify,  # nosec B501 - False only for the hosted GitLab
             timeout=30,
         )
         if response.status_code != 200:
@@ -746,7 +827,7 @@ def fetch_cadence_catalog_from_gitlab(
             "Cadence catalog fetched from GitLab and installed atomically",
         )
         return True
-    except requests.RequestException:
+    except (requests.RequestException, OSError):
         log_secure_info(
             "warning",
             "GitLab cadence catalog fetch request failed; local catalog preserved",
@@ -763,6 +844,7 @@ def update_catalog_via_gitlab_api(
     catalog_content: str,
     new_version: str,
     branch: str = "main",
+    verify: Any = False,
 ) -> bool:
     """Update cadence catalog in GitLab via API.
 
@@ -774,6 +856,7 @@ def update_catalog_via_gitlab_api(
         catalog_content: New file content (JSON string)
         new_version: Version for commit message
         branch: Target branch (default: main)
+        verify: ``requests`` TLS verification (True, False or a CA bundle path)
 
     Returns:
         True if update succeeded, False otherwise.
@@ -807,7 +890,7 @@ def update_catalog_via_gitlab_api(
             api_url,
             headers=headers,
             json=payload,
-            verify=False,  # nosec B501 - Match existing TLS behavior in GitLab roles
+            verify=verify,  # nosec B501 - False only for the hosted GitLab
             timeout=30
         )
 
@@ -825,7 +908,7 @@ def update_catalog_via_gitlab_api(
             )
             return False
 
-    except requests.RequestException:
+    except (requests.RequestException, OSError):
         log_secure_info(
             "error",
             "GitLab API request failed",
@@ -1094,6 +1177,7 @@ class CadenceTimerThread(Thread):
         self.interval_days = DEFAULT_CADENCE_INTERVAL_DAYS
         self.interval_seconds = DEFAULT_CADENCE_INTERVAL_SECONDS
         self.gitlab_url = ""
+        self.gitlab_verify: Any = False
         self.gitlab_project_name = "omnia-catalog"
         self.gitlab_branch = "main"
         self.gitlab_token = ""
@@ -1118,11 +1202,8 @@ class CadenceTimerThread(Thread):
         self.interval_seconds = self.interval_days * SECONDS_PER_DAY
 
         # Load GitLab configuration from build_stream_config.yml
-        gitlab_host = config.get("gitlab_host", "")
-        gitlab_port = config.get("gitlab_https_port", 443)
-        self.gitlab_url = (
-            f"https://{gitlab_host}:{gitlab_port}" if gitlab_host else ""
-        )
+        self.gitlab_url = _gitlab_url_from(config)
+        self.gitlab_verify = _gitlab_tls_verify(config)
         self.gitlab_project_name = config.get(
             "gitlab_project_name", "omnia-catalog"
         )
@@ -1130,7 +1211,7 @@ class CadenceTimerThread(Thread):
 
         # GitLab token must be loaded from credentials file
         # For now, we'll make it optional and log a warning if missing
-        self.gitlab_token = config.get("gitlab_root_token", "")
+        self.gitlab_token = _gitlab_token_from(config)
         self.gitlab_project_id = config.get("gitlab_project_id", "")
 
         # Validate required GitLab configuration (warning only, not fatal)
@@ -1139,8 +1220,10 @@ class CadenceTimerThread(Thread):
                 "warning",
                 "GitLab configuration incomplete for cadence polling. "
                 "Catalog updates to GitLab will be skipped. "
-                "Configure gitlab_host, gitlab_root_token, and gitlab_project_id "
-                "in build_stream_config.yml or build_stream_credentials.yml"
+                "Configure gitlab_host (hosted) or gitlab_external_url "
+                "(external), the GitLab token (gitlab_root_token or "
+                "gitlab_api_token) and gitlab_project_id in "
+                "build_stream_config.yml or build_stream_credentials.yml"
             )
 
     def _reload_config(self) -> bool:
@@ -1157,7 +1240,7 @@ class CadenceTimerThread(Thread):
 
         # A temporarily unreadable credentials file must not erase credentials
         # already held by the running watcher.
-        for key in ("gitlab_root_token", "gitlab_project_id"):
+        for key in ("gitlab_root_token", "gitlab_api_token", "gitlab_project_id"):
             if not reloaded.get(key) and self.config.get(key):
                 reloaded[key] = self.config[key]
 
@@ -1232,6 +1315,7 @@ class CadenceTimerThread(Thread):
             self.catalog_filename,
             self.gitlab_branch,
             Path(catalog_file_path),
+            self.gitlab_verify,
         )
 
     def _load_or_initialize_schedule(self) -> None:
@@ -1508,6 +1592,7 @@ class CadenceTimerThread(Thread):
             catalog_content,
             new_version,
             self.gitlab_branch,
+            self.gitlab_verify,
         ):
             log_secure_info(
                 "error",

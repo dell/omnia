@@ -266,7 +266,7 @@ default:
             --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
             -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
             "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/${_RF_ENCODED_PATH}/raw?ref=${CI_COMMIT_REF_NAME}" \
-            --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
+            ${CI_SERVER_TLS_CA_FILE:+--cacert "${CI_SERVER_TLS_CA_FILE}"} 2>/dev/null)
 
           if [ "$_RF_HTTP_CODE" = "200" ]; then
             mkdir -p "${CI_PROJECT_DIR}/input/repo_manager"
@@ -287,7 +287,7 @@ default:
             --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
             -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
             "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/${_RF_ENCODED_PATH}/raw?ref=${CI_COMMIT_REF_NAME}" \
-            --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
+            ${CI_SERVER_TLS_CA_FILE:+--cacert "${CI_SERVER_TLS_CA_FILE}"} 2>/dev/null)
 
           if [ "$_RF_HTTP_CODE" = "200" ]; then
             mkdir -p "${CI_PROJECT_DIR}/input/image_build_manager"
@@ -616,7 +616,7 @@ initialization:
               --form "value=${VAR_VALUE}" \
               --form "masked=true" \
               --form "protected=true" \
-              --cacert "${CI_SERVER_TLS_CA_FILE}")
+              ${CI_SERVER_TLS_CA_FILE:+--cacert "${CI_SERVER_TLS_CA_FILE}"})
 
             if [ "$HTTP_CODE" = "201" ]; then
               echo "    ${VAR_NAME} stored successfully"
@@ -701,7 +701,7 @@ initialization:
           -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
           -H "Content-Type: application/json" \
           -d "{\"description\": \"BSM Job: ${JOB_ID}\"}" \
-          --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null || true
+          ${CI_SERVER_TLS_CA_FILE:+--cacert "${CI_SERVER_TLS_CA_FILE}"} 2>/dev/null || true
       fi
 
       # --- Write job.env dotenv artifact ---

@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# One compensating action for _egl_item (an entry from the journal rollback plan).
+- name: Select the compensating API call
+  ansible.builtin.set_fact:
+    _egl_comp_path: "{{ _egl_comp_paths[_egl_item.type] | default('') }}"
+  vars:
+    _egl_comp_paths:
+      variable: "/projects/{{ _egl_project_id }}/variables/{{ _egl_item.key | default('') }}"
+      trigger: "/projects/{{ _egl_project_id }}/triggers/{{ _egl_item.id | default('') }}"
+      access_token: "/projects/{{ _egl_project_id }}/access_tokens/{{ _egl_item.token_id | default('') }}"
+      branch_protection: "/projects/{{ _egl_project_id }}/protected_branches/{{ _egl_item.name | default('') | urlencode }}"
+      project: "/projects/{{ _egl_item.id | default('') }}"
+
+- name: "Compensate {{ _egl_item.type }}"  # noqa name[template]
+  ansible.builtin.uri:
+    url: "{{ _egl_url }}/api/v4{{ _egl_comp_path }}"
+    method: DELETE
+    headers: "{{ _egl_headers }}"
+    ca_path: "{{ _egl_ca | default(omit, true) }}"
+    validate_certs: true
+    status_code: [200, 202, 204, 404]
+  register: _egl_comp_result
+  failed_when: false
+  no_log: true
+  when: _egl_comp_path | length > 0
+
+- name: Record the compensation result
+  ansible.builtin.set_fact:
+    _egl_comp_log: >-
+      {{ _egl_comp_log + [_egl_item.type ~ ' ' ~ (_egl_item.key | default(_egl_item.name | default(_egl_item.id | default('')))) ~ ': '
+         ~ ('ok' if (_egl_comp_result.status | default(0)) in [200, 202, 204, 404] else 'FAILED')] }}
+
+- name: Drop the compensated resource from the journal
+  journal:
+    path: "{{ _egl_journal_path }}"
+    action: remove
+    run_id: "{{ _egl_run_id }}"
+    resource: "{{ _egl_item | dict2items | rejectattr('key', 'in', ['run_id']) | items2dict }}"
+  failed_when: false
+  when: (_egl_comp_result.status | default(0)) in [200, 202, 204, 404]
