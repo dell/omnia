@@ -25,57 +25,8 @@
 # =============================================================================
 
 # =============================================================================
-# CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'
-#           unless --yes)
+# CLEANUP  moved to user_inputs.yml (block cleanup): one cleanup shared by every theme.
 # =============================================================================
-# Removes the previous installation with each suite's own cleanup FVT, in this
-# order: build_stream, telemetry, orchestrator, image_build_manager,
-# repo_manager, then main (omnia.sh --cleanup). Every flag below is written
-# into that suite's test/<suite>/test_config.yml, so each cleanup FVT runs with
-# the value set here.
-#   enabled: true | false (default: true). false skips that suite's cleanup.
-#   The other keys are the suite's own flags; see test/<suite>/test_config.yml
-#   for their meaning.
-cleanup:
-  build_stream:
-    enabled: true
-    postgres_backup: false
-    cleanup_credentials: true
-  telemetry:
-    enabled: true
-    delete_sinks_volume: true
-    cleanup_credentials: true
-    cleanup_logs: true
-  orchestrator:
-    enabled: true
-    cleanup_credentials: true
-    cleanup_slurm: true
-    cleanup_k8s: true
-    cleanup_benchmark_tools: true
-  image_build_manager:
-    enabled: true
-    cleanup_credentials: true
-  repo_manager:
-    enabled: true
-    cleanup_credentials: true
-  main:
-    enabled: true
-    cleanup_all: true
-  nfs:
-    slurm_share: true
-    k8s_share: true
-
-# =============================================================================
-# DISCOVERY MAPPING  (SVT only: not written into any suite)
-# =============================================================================
-# use_discovery_mapping: true | false (default: false).
-#   true:  use the latest timestamped bmc_pxe_mapping_file_<ts>.csv from the
-#          discovery output (OMNIA_DATA_PATH/discovery/output/<project>/) as
-#          the orchestrator's pxe_mapping_file.csv, replacing the static file
-#          that the dataset generator wrote from user_inputs.yml.
-#   false: keep the existing pxe_mapping_file.csv in the orchestrator input
-#          (the one the dataset generator wrote from user_inputs.yml).
-use_discovery_mapping: false
 
 # =============================================================================
 # REPORT  (one folder and one SVT report per run)
