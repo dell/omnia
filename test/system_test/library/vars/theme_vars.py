@@ -229,6 +229,8 @@ THEMES: Dict[str, Dict] = {
         # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
         "default_skip_stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy"),
+        # Stages that are off unless <theme>_test_config.yml stages: turns them on.
+        "optional_stages": ("observability_cleanup",),
         "default_clean_reinstall": False,
         # omnia.sh -r <domain> RUN steps allowed in this theme (OMNIA_RUN_TAGS).
         "run_domains": ("repo_manager", "image_build_manager", "orchestrator", "telemetry"),

@@ -133,6 +133,7 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
         cleanup[suite].setdefault(CLEANUP_ENABLED_KEY, True)
     return {"theme": theme, "path": path, "cleanup": cleanup,
             "nfs": _load_nfs_block(theme, nfs_block, path),
+            "stages": _load_stages_block(theme, data.get("stages") or {}, path),
             "report": _load_report_block(data.get("report") or {}, path),
             "fvt_settings": _load_theme_block(theme, data.get(theme) or {}, path)}
 
@@ -181,6 +182,19 @@ def _load_report_block(block: Any, path: str) -> Dict[str, str]:
                 path=path, key=key, value=text))
         report[key] = text
     return report
+
+
+def _load_stages_block(theme: str, block: Any, path: str) -> Dict[str, bool]:
+    """Return the on/off flag of each optional stage of ``theme`` (default off)."""
+    optional = tuple(THEMES[theme].get("optional_stages") or ())
+    if not isinstance(block, dict):
+        raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="stages"))
+    bad = sorted(set(block) - set(optional))
+    if bad:
+        raise ConfigError(CONFIG_MSGS["unknown_flag"].format(
+            path=path, suite="stages", names=", ".join(bad), known=", ".join(optional)))
+    return {stage: _require_bool(block.get(stage, False), f"stages.{stage}", path)
+            for stage in optional}
 
 
 def _load_nfs_block(theme: str, block: Any, path: str) -> Dict[str, bool]:

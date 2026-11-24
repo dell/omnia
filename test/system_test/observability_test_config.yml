@@ -94,3 +94,13 @@ report:
   report_name: ""
   # run_id: "" = a new svt-<UTC time> at every ./setup_env.sh --configure.
   run_id: ""
+
+# =============================================================================
+# STAGES  (on or off. A stage that is off is left out of 'all' and of the pipeline,
+#          and runs only when asked for by name: ./run_validation.sh svt_observability <stage>)
+# =============================================================================
+stages:
+  # observability_cleanup removes the iDRAC and LDMS telemetry of an earlier deployment
+  # before the new one is deployed. Off by default: the deploy stage replaces the
+  # telemetry on its own. true: 'all' and the pipeline run it.
+  observability_cleanup: false

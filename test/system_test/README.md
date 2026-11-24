@@ -125,7 +125,7 @@ Two kinds of SVT test:
 | `repo_sync` | hard, **skipped by default** | `005`-`006` | `./omnia.sh -r repo_manager --tags execute`; `execute verify` | |
 | `image_build` | hard, **skipped by default** | `007`-`008` | `./omnia.sh -r image_build_manager --tags build`; `build verify` | |
 | `cluster_deploy` | hard, **skipped by default** | `009`-`013` | `./omnia.sh -r orchestrator --tags provision`, `--tags pxeboot`; provision, Kubernetes and Slurm cluster checks | |
-| `observability_cleanup` | soft | `014`-`017` | `./omnia.sh -r telemetry --tags cleanup_ldms`, `cleanup_idrac` | `TEL_FVT_CLEANUP_V007`, `V006` |
+| `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014`-`017` | `./omnia.sh -r telemetry --tags cleanup_ldms`, `cleanup_idrac` | `TEL_FVT_CLEANUP_V007`, `V006` |
 | `observability_precheck` | hard | `018`-`021` | `./omnia.sh -r telemetry --tags precheck`, `--tags validate` | `TEL_FVT_PRECHECK_V001`-`V003`, `TEL_FVT_VALIDATE_V001` |
 | `observability_deploy` | hard | `022`-`023` | `./omnia.sh -r telemetry` | `TEL_FVT_DEPLOY_V001`-`V008`, `V110` |
 | `observability_idrac` | soft | `024`-`025` | readiness, then data flow | `V010`, `V011`, `V012`, `V016`, `V017`, `V112`, `V113`; `V013`, `V014`, `V015`, `V018` |

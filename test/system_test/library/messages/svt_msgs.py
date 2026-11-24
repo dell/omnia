@@ -261,8 +261,9 @@ RUN_MSGS = {
     "retry_done": "--retry: every stage of run {run_id} already passed; only summary runs",
     "skip_stages": "'all' leaves out: {stages} (theme {theme}; --skip-stages none runs every "
                    "stage, --skip-stages <a,b> leaves out others)",
-    "skip_reason": "left out of 'all' (theme {theme} default or --skip-stages); run it with "
-                   "./run_validation.sh svt_{theme} <stage> or --skip-stages none",
+    "skip_reason": "left out of 'all' (theme {theme}: its default, --skip-stages, or a stage "
+                   "turned off in {theme}_test_config.yml stages:); run it by name with "
+                   "./run_validation.sh svt_{theme} <stage>",
     "skip_unknown": "--skip-stages: unknown stage(s) {names}; the theme stages are: {stages} "
                     "('none' runs every stage)",
 }

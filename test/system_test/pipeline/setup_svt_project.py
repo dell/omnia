@@ -165,6 +165,16 @@ def trigger_job(cluster: str, theme: str) -> str:
     return f"svt_{cluster}" if len(THEMES) == 1 else f"svt_{cluster}_{theme}"
 
 
+def disabled_stages(theme: str) -> List[str]:
+    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false)."""
+    try:
+        with open(SVT_ROOT / f"{theme}_test_config.yml", "r", encoding="utf-8") as stream:
+            block = (yaml.safe_load(stream) or {}).get("stages") or {}
+    except (OSError, yaml.YAMLError):
+        block = {}
+    return [name for name in THEMES[theme].get("optional_stages") or () if not block.get(name)]
+
+
 def ci_file(theme: str) -> str:
     """Return the child pipeline file of a theme (the jobs of one cluster)."""
     return f".gitlab-ci-svt-{theme}.yml"
@@ -395,10 +405,15 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         if job == FIRST_STAGE and bao:
             lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
         if job in THEMES[theme]["stages"]:
-            lines += ["  rules:",
-                      f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
-                      "      when: never"]
-            if job in default_skip_stages(theme):
+            off = job in disabled_stages(theme)
+            lines += ["  rules:"]
+            if off:
+                # Off in <theme>_test_config.yml stages:, whatever SVT_SKIP_STAGES says.
+                lines += ["    - when: never"]
+            else:
+                lines += [f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
+                          "      when: never"]
+            if job in default_skip_stages(theme) and not off:
                 # Left out by default (empty SVT_SKIP_STAGES); "none" or another list runs it.
                 lines += ["    - if: '$SVT_SKIP_STAGES == null || $SVT_SKIP_STAGES == \"\"'",
                           "      when: never"]

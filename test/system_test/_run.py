@@ -143,7 +143,7 @@ def _parser(theme: str) -> argparse.ArgumentParser:
     return parser
 
 
-def _skipped(args: argparse.Namespace, theme: str) -> List[str]:
+def _requested_skips(args: argparse.Namespace, theme: str) -> List[str]:
     """Return the theme stages 'all' leaves out: --skip-stages, else the theme's default."""
     if args.stage != "all":
         return []
@@ -157,6 +157,15 @@ def _skipped(args: argparse.Namespace, theme: str) -> List[str]:
         raise ValueError(RUN_MSGS["skip_unknown"].format(
             names=", ".join(unknown), stages=", ".join(THEME_STAGES[theme])))
     return names
+
+
+def _skipped(args: argparse.Namespace, theme: str, disabled: List[str]) -> List[str]:
+    """Return the stages 'all' leaves out: the requested ones, plus the optional stages that
+    the theme config leaves off (they stay off whatever --skip-stages says)."""
+    if args.stage != "all":
+        return []
+    requested = _requested_skips(args, theme)
+    return requested + [stage for stage in disabled if stage not in requested]
 
 
 def _selected(args: argparse.Namespace, theme: str) -> List[str]:
@@ -319,7 +328,8 @@ def _locked_stages(args: argparse.Namespace, theme: str) -> int:
               != LAST_STAGE else RUN_MSGS["retry_done"].format(
                   run_id=run_func.load_run().get("run_id", "")), flush=True)
     try:
-        skipped = _skipped(args, theme)
+        disabled = [name for name, on in load_svt_config(theme)["stages"].items() if not on]
+        skipped = _skipped(args, theme, disabled)
         ctx = {"run_id": _resolve(args, theme), "theme": theme}
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
