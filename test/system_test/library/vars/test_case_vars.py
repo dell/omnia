@@ -20,9 +20,15 @@ ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
 ``test/<domain>/_run.py fvt_<domain>``: ``exec`` runs the playbook, ``verify``
 runs its verification tests. Within a stage, a test is skipped once an earlier
 test of the stage failed.
+
+catalog_build (order 2000+): generated from the plan of the current run
+(catalog_vars.catalog_test_cases), one stage per catalog.
 """
 
+from .catalog_vars import CATALOG_PLAN, catalog_test_cases
+
 _BS = "build_stream"
+_ORCH = "orchestrator"
 
 TEST_CASES = {
     # ---------------------------------------------- stage prepare_build_stream
@@ -101,4 +107,78 @@ TEST_CASES = {
         "title": "Automatic cleanup of the cadence image (S3, registry, NFS)",
         "step": (_BS, ("execute", "verify", "--suite", "auto_cleanup")),
     },
+    # ============================================================ theme cluster_lifecycle
+    # deploy_slurm_cluster -------------------------------------------
+    "cluster_lifecycle_precheck_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_001", "order": 3010, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator precheck",
+        "step": (_ORCH, ("precheck", "exec")),
+    },
+    "cluster_lifecycle_precheck_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_002", "order": 3011, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator precheck: verification",
+        "step": (_ORCH, ("precheck", "verify")),
+    },
+    "cluster_lifecycle_prepare_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_003", "order": 3012, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator prepare",
+        "step": (_ORCH, ("prepare", "exec")),
+    },
+    "cluster_lifecycle_prepare_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_004", "order": 3013, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator prepare: verification",
+        "step": (_ORCH, ("prepare", "verify")),
+    },
+    "cluster_lifecycle_provision_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_005", "order": 3014, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator provision",
+        "step": (_ORCH, ("provision", "exec")),
+    },
+    "cluster_lifecycle_provision_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_006", "order": 3015, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator provision: verification",
+        "step": (_ORCH, ("provision", "verify")),
+    },
+    "cluster_lifecycle_pxeboot_exec": {
+        "id": "SVT_CLUSTER_LIFECYCLE_007", "order": 3016, "stage": "deploy_slurm_cluster",
+        "title": "Orchestrator PXE boot",
+        "step": (_ORCH, ("pxeboot", "exec")),
+    },
+    "cluster_lifecycle_pxeboot_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_008", "order": 3017, "stage": "deploy_slurm_cluster",
+        "title": "PXE boot: connectivity and cloud-init",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "connectivity")),
+    },
+    # slurm cluster verification (part of deploy_slurm_cluster) ------
+    "cluster_lifecycle_slurm_cluster_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_009", "order": 3030, "stage": "deploy_slurm_cluster",
+        "title": "Slurm cluster membership, services and scheduler",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_cluster")),
+    },
+    # slurm_jobs ----------------------------------------------------
+    "cluster_lifecycle_slurm_jobs_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_010", "order": 3040, "stage": "slurm_jobs",
+        "title": "Slurm job submission (control, login, compiler, concurrent)",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_jobs")),
+    },
+    "cluster_lifecycle_ipoib_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_011", "order": 3041, "stage": "slurm_jobs",
+        "title": "Slurm jobs over IPoIB (IPv4/IPv6/dual-stack traffic path)",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "ipoib_network")),
+    },
+    # slurm_node_remove ----------------------------------------------
+    "cluster_lifecycle_slurm_node_remove": {
+        "id": "SVT_CLUSTER_LIFECYCLE_012", "order": 3050, "stage": "slurm_node_remove",
+        "title": "Delete a Slurm compute node",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
+                         "--marker", "node_lifecycle+node_remove")),
+    },
+    "cluster_lifecycle_slurm_node_add": {
+        "id": "SVT_CLUSTER_LIFECYCLE_013", "order": 3051, "stage": "slurm_node_add",
+        "title": "Add a Slurm compute node",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
+                         "--marker", "node_lifecycle+node_add")),
+    },
 }
+# ------------------------------------------------------ theme catalog_build
+TEST_CASES.update(catalog_test_cases(CATALOG_PLAN))
