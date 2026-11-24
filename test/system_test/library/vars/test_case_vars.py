@@ -24,6 +24,7 @@ test of the stage failed.
 
 _BS = "build_stream"
 _ORCH = "orchestrator"
+_TEL = "telemetry"
 
 TEST_CASES = {
     # ---------------------------------------------- stage prepare_build_stream
@@ -173,5 +174,25 @@ TEST_CASES = {
         "title": "Add a Slurm compute node",
         "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
                          "--marker", "node_lifecycle+node_add")),
+    },
+    # ============================================================ Kubernetes stream
+    # deploy_k8s_cluster ----------------------------------------------
+    "cluster_lifecycle_k8s_cluster_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_014", "order": 3060, "stage": "deploy_k8s_cluster",
+        "title": "Kubernetes cluster health (membership, services, control plane, etcd, storage)",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster")),
+    },
+    # k8s_telemetry ---------------------------------------------------
+    "cluster_lifecycle_k8s_telemetry": {
+        "id": "SVT_CLUSTER_LIFECYCLE_015", "order": 3070, "stage": "k8s_telemetry",
+        "title": "Telemetry deploy and verify (offline / Pulp)",
+        "step": (_TEL, ("deploy", "exec")),
+    },
+    # k8s_token_renew -------------------------------------------------
+    "cluster_lifecycle_k8s_token_renew": {
+        "id": "SVT_CLUSTER_LIFECYCLE_018", "order": 3090, "stage": "k8s_token_renew",
+        "title": "Renew Kubernetes bootstrap tokens",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster",
+                         "--marker", "token_renew")),
     },
 }

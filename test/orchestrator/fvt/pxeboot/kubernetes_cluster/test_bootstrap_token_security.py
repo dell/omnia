@@ -75,6 +75,7 @@ def test_kubernetes_cp_join_file_format(host):
 @pytest.mark.functional
 @pytest.mark.buildstream
 @pytest.mark.kubernetes
+@pytest.mark.token_renew
 @pytest.mark.order(40813)
 def test_kubernetes_bootstrap_token_ttl(host):
     """Run refresh script, extract tokens from join files, verify TTL in kubeadm token list."""
