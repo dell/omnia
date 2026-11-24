@@ -229,6 +229,80 @@ TEST_CASES = {
         "id": "IMGBM_FVT_VALIDATE_V004",
         "title": "Verify repo_ssl_verify is wired into build templates",
     },
+    # ── Validate — external repo_manager contract (deploy) ─────────────────
+    "deploy_external_contract": {
+        "id": "IMGBM_FVT_VALIDATE_E002",
+        "title": "Deploy validate with external repo_status.yml",
+    },
+    # ── Validate — external repo_manager contract (verify) ───────────────
+    "external_contract_minimal": {
+        "id": "IMGBM_FVT_VALIDATE_V005",
+        "title": "External contract: minimal status passes full pipeline",
+    },
+    "external_contract_multi_version": {
+        "id": "IMGBM_FVT_VALIDATE_V006",
+        "title": "External contract: multi-version status parses correctly",
+    },
+    "external_contract_aarch64_only": {
+        "id": "IMGBM_FVT_VALIDATE_V007",
+        "title": "External contract: aarch64-only repos accepted",
+    },
+    "external_contract_custom_port": {
+        "id": "IMGBM_FVT_VALIDATE_V008",
+        "title": "External contract: explicit port propagates to consumer",
+    },
+    "external_contract_url_port": {
+        "id": "IMGBM_FVT_VALIDATE_V009",
+        "title": "External contract: port derived from URL",
+    },
+    "external_contract_cert_path": {
+        "id": "IMGBM_FVT_VALIDATE_V010",
+        "title": "External contract: certificate metadata propagates",
+    },
+    "external_contract_empty_cert": {
+        "id": "IMGBM_FVT_VALIDATE_V011",
+        "title": "External contract: empty cert for internet source",
+    },
+    "external_contract_producer_ignored": {
+        "id": "IMGBM_FVT_VALIDATE_V012",
+        "title": "External contract: producer metadata ignored by consumer",
+    },
+    "external_contract_priority": {
+        "id": "IMGBM_FVT_VALIDATE_V013",
+        "title": "External contract: priority values propagate",
+    },
+    "external_contract_failed_rejected": {
+        "id": "IMGBM_FVT_VALIDATE_V014",
+        "title": "External contract: failed status rejected",
+    },
+    "external_contract_missing_repos": {
+        "id": "IMGBM_FVT_VALIDATE_V015",
+        "title": "External contract: missing repositories rejected",
+    },
+    "external_contract_empty_repos": {
+        "id": "IMGBM_FVT_VALIDATE_V016",
+        "title": "External contract: empty repositories rejected",
+    },
+    "external_contract_mixed_arch": {
+        "id": "IMGBM_FVT_VALIDATE_V017",
+        "title": "External contract: mixed architecture separates repo lists",
+    },
+    "external_contract_internet_sample": {
+        "id": "IMGBM_FVT_VALIDATE_V018",
+        "title": "External contract: bundled internet sample passes pipeline",
+    },
+    "external_contract_pulp_sample": {
+        "id": "IMGBM_FVT_VALIDATE_V019",
+        "title": "External contract: bundled Pulp sample passes pipeline",
+    },
+    "external_contract_additional_props": {
+        "id": "IMGBM_FVT_VALIDATE_V020",
+        "title": "External contract: additional top-level properties allowed",
+    },
+    "external_contract_repo_extra_fields": {
+        "id": "IMGBM_FVT_VALIDATE_V021",
+        "title": "External contract: repo entries may carry extra fields",
+    },
     # ── Cleanup ───────────────────────────────────────────────────────────
     "deploy_cleanup_images": {
         "id": "IMGBM_FVT_CLEANUP_IMAGES_E001",

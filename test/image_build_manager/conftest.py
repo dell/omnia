@@ -95,7 +95,7 @@ _FVT_SCENARIO_ORDER = {
 
 _FVT_SUITE_ORDER = {
     "precheck": {"": 0, "connectivity": 1},
-    "validate": {"": 0, "status": 1},
+    "validate": {"": 0, "status": 1, "contract": 2},
     "prepare": {"": 0, "container": 1, "s3": 2},
     "build": {
         "": 0,

@@ -318,6 +318,41 @@ TEST_LOG_MSGS = {
         "Template check blocked by invalid repo_ssl_verify configuration"
     ),
 
+    # External repo_manager contract
+    "contract_validation_ok": (
+        "External repo_status contract validation passed"
+    ),
+    "contract_validation_failed": (
+        "External repo_status contract validation failed"
+    ),
+    "contract_parse_failed": (
+        "External repo_status parsing failed"
+    ),
+    "contract_port_ok": (
+        "External contract: port {port} propagated correctly"
+    ),
+    "contract_cert_ok": (
+        "External contract: certificate metadata propagated"
+    ),
+    "contract_producer_ignored_ok": (
+        "External contract: producer metadata accepted and ignored"
+    ),
+    "contract_rejected_ok": (
+        "External contract: invalid status correctly rejected"
+    ),
+    "contract_rejection_expected": (
+        "External contract: expected rejection but validation passed"
+    ),
+    "contract_sample_ok": (
+        "External contract: bundled {sample} sample passes full pipeline"
+    ),
+    "contract_deploy_ok": (
+        "Playbook passed with external repo_status (duration={duration:.1f}s, path={path})"
+    ),
+    "contract_deploy_failed": (
+        "Playbook failed with external repo_status (rc={rc}, duration={duration:.1f}s)"
+    ),
+
     # cleanup_images
     "cleanup_images_s3_ok": (
         "All S3 images deleted after cleanup_images"
@@ -574,6 +609,55 @@ TEST_ASSERT_MSGS = {
         "\u2551   1. Run: ./omnia.sh --setup-venv\n"
         "\u2551   2. Verify: /etc/omnia/omnia.env exists\n"
         "\u2551   3. Verify: /etc/profile.d/omnia-env.sh exists\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL REPO CONTRACT VALIDATION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Errors: {errors}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify the external repo_status.yml has overall_status: success\n"
+        "\u2551   2. Verify it contains a non-empty repositories section\n"
+        "\u2551   3. Verify repo URLs follow https://<host>/<path>/ format\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_parse_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL REPO STATUS PARSE FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Error: {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify the file exists and is valid YAML\n"
+        "\u2551   2. Verify it contains overall_status and repositories keys\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_rejection_expected": (
+        "External contract: expected rejection but validation passed.\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the validator rejects status != success\n"
+        "  2. Verify the validator rejects empty/missing repositories"
+    ),
+
+    "contract_deploy_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL CONTRACT DEPLOY FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Playbook: {playbook}\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551 Duration: {duration:.1f}s\n"
+        "\u2551 External repo_status: {path}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check the playbook output above\n"
+        "\u2551   2. Verify the external repo_status.yml has reachable URLs\n"
+        "\u2551   3. Verify the certificate path exists on the OIM\n"
+        "\u2551   4. Check logs: ls {log_path}\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }
