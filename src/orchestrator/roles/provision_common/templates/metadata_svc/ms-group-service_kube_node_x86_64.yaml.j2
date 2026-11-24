@@ -21,6 +21,14 @@
       disable_root: false
 
       write_files:
+{% if kafka_disk_entry is not none %}
+        - path: /usr/local/bin/local-disk-prep.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/k8s-scripts/local-disk-prep.sh.j2') | indent(12) }}
+
+{% endif %}
         - path: /usr/local/bin/doca-install.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -293,6 +301,15 @@
           trap - EXIT
         - systemctl restart rpcbind
         - mount -av
+{% if kafka_disk_entry is not none %}
+        - |
+          /usr/local/bin/local-disk-prep.sh --purpose kafka --entry {{ kafka_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" \
+            --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping \
+            --map-file {{ k8s_client_mount_path }}/kafka_disk_mapping/disk-map.approved.json \
+            --disk-type {{ kafka_disk_entry.disk_type }} --disk-identity {{ kafka_disk_entry.disk_identity | default('serial') }} \
+            {{ kafka_model_arg }} --volume-group {{ kafka_disk_entry.volume_group }} \
+            || { /usr/local/bin/local-disk-prep.sh --label-only --purpose kafka --entry {{ kafka_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping || true; exit 1; }
+{% endif %}
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
@@ -416,6 +433,9 @@
             # Reload systemd and restart kubelet to apply changes
             systemctl daemon-reload
             systemctl restart kubelet
+{% if kafka_disk_entry is not none %}
+            /usr/local/bin/local-disk-prep.sh --label-only --purpose kafka --entry {{ kafka_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping || true
+{% endif %}
             # Mark initialization complete so all of above is skipped on reboot!
             touch "$MARKER"
             echo "Cloud-Init has completed successfully."
@@ -431,6 +451,9 @@
             systemctl daemon-reload
             systemctl restart kubelet
             
+{% if kafka_disk_entry is not none %}
+            /usr/local/bin/local-disk-prep.sh --label-only --purpose kafka --entry {{ kafka_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping || true
+{% endif %}
             # CRI and kubelet already enabled above
             systemctl status kubelet
             echo "Cloud-Init finished successfully after the reboot."
