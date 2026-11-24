@@ -318,6 +318,10 @@ CONFIG_MSGS = {
     "not_bool": "{path}: {where} must be true or false, not {value!r}",
     "unknown_theme": "{path}: theme {theme!r} is not supported (supported: {known})",
     "unknown_suite": "{path}: cleanup has unknown suite(s) {names} (known: {known})",
+    "cleanup_moved": (
+        "{theme_path} has a cleanup block. The cleanup is shared by every theme and is set only "
+        "in the cleanup block of {path}: move it there and delete it from the theme file"
+    ),
     "unknown_flag": "{path}: cleanup.{suite} has unknown key(s) {names} (known: {known})",
     "suite_section_missing": "{path}: has no {section!r} section to write the cleanup flags into",
     "suite_key_missing": "{path}: has no {key!r} key; the suite no longer supports this flag",

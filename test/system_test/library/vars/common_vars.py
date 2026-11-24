@@ -180,7 +180,7 @@ FAILURE_TAIL_LINES = 150
 
 # ---- moved from the function modules (one place for every constant)
 # Top-level keys of <theme>_test_config.yml besides the theme block.
-CONFIG_KEYS = ("cleanup", "report", "stages", "use_discovery_mapping")
+CONFIG_KEYS = ("report", "stages", "use_discovery_mapping")
 
 NFS_CLEANUP_KEY = "nfs"
 

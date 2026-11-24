@@ -13,6 +13,11 @@ OpenBao's address, secret path and TLS setting are kept **only** in the `openbao
 module and theme that needs passwords, now and later. The dataset generator does not write
 it into any Omnia input file.
 
+Every theme reads the same server and path: each asks only for its own credential domains
+(`build_stream`: repo_manager, image_build_manager, orchestrator, build_stream; `catalog_build`:
+repo_manager, image_build_manager; `cluster_lifecycle`: orchestrator). A cluster whose secrets
+are elsewhere sets `secret_path` in its block of `pipeline/svt_pipeline_config.yml`.
+
 ```yaml
 openbao:
   server_url: "https://openbao.example.com:8200"   # "" = OpenBao is not used
