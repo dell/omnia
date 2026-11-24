@@ -25,6 +25,7 @@ import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
+from kubernetes.client.rest import ApiException
 
 DOCUMENTATION = r'''
 ---
@@ -219,7 +220,7 @@ def run_mysql_insert(
             "rc": True,
             "result": f"Inserted IP {ip}"
         }
-    except Exception as e:
+    except (RuntimeError, ApiException, pymysql.err.MySQLError) as e:
         return {
             "rc": False,
             "result": str(e)
