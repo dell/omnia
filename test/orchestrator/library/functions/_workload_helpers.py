@@ -105,6 +105,22 @@ def slurm_shared_storage(context, slurm_config) -> Dict[str, str]:
     }
 
 
+def kafka_declared(context: Any) -> bool:
+    """Return True when storage_config declares at least one local_storage entry with purpose kafka."""
+    entries = context.get("storage_config", {}).get("local_storage", [])
+    if not isinstance(entries, list):
+        return False
+    return any(isinstance(e, dict) and e.get("purpose") == "kafka" for e in entries)
+
+
+def etcd_declared(context: Any) -> bool:
+    """Return True when storage_config declares at least one local_storage entry with purpose etcd."""
+    entries = context.get("storage_config", {}).get("local_storage", [])
+    if not isinstance(entries, list):
+        return False
+    return any(isinstance(e, dict) and e.get("purpose") == "etcd" for e in entries)
+
+
 def optional_skip(summary: str, reason: str = "") -> Dict[str, Any]:
     """Return the canonical successful skip result for an optional capability."""
     return runtime_result(

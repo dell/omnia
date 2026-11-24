@@ -291,6 +291,7 @@ def pytest_configure(config):
         "reprovision": (
             "Provision-rerun idempotency checks; run only when --marker selects reprovision"
         ),
+        "local_storage": "Kafka and etcd local disk post-boot checks (ER-ORCH-011)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

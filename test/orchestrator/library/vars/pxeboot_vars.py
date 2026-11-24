@@ -46,8 +46,8 @@ ETCD_RAFT_INDEX_DELTA_MAX = 100
 # endpoint reports healthy; five minutes covers a full snapshot transfer.
 ETCD_HEALTH_WAIT_TIMEOUT_SECONDS = 300
 ETCD_MEDIA_TYPES = ("ssd", "hdd", "nvme")
-ETCD_SETUP_LOG = "/var/log/etcd-disk-setup.log"
-ETCD_UPDATE_LOG = "/var/log/diskless-etcd-mount.log"
+ETCD_SETUP_LOG = "/var/log/local-disk-prep.log"
+ETCD_UPDATE_LOG = "/var/log/local-disk-prep.log"
 APPTAINER_IMAGE_DIRECTORY = "/hpc_tools/container_images"
 APPTAINER_SCRIPT_DIRECTORY = "/hpc_tools/scripts"
 APPTAINER_DOWNLOAD_SCRIPT = "/hpc_tools/scripts/download_container_image.sh"
@@ -427,17 +427,16 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     # One line per boot script log: <path>|<mtime or missing>|<DONE count>.
     "etcd_boot_scripts": (
-        "for log in /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log; "
+        "for log in /var/log/local-disk-prep.log; "
         "do if [ -s \"$log\" ]; then printf '%s|%s|%s\\n' \"$log\" "
         "\"$(stat -c %Y \"$log\")\" "
-        "\"$(tail -n 5 \"$log\" | grep -c '===== DONE =====')\"; "
+        "\"$(tail -n 5 \"$log\" | grep -c '===== DONE')\"; "
         "else printf '%s|missing|0\\n' \"$log\"; fi; done"
     ),
-    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
-    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
+    "etcd_setup_script": "test -f /var/log/local-disk-prep.log",
+    "etcd_update_script": "test -f /var/log/local-disk-prep.log",
     "etcd_selection_log": (
-        "cat /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
-        "2>/dev/null || true"
+        "cat /var/log/local-disk-prep.log 2>/dev/null || true"
     ),
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
@@ -838,6 +837,20 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "dcgm_socket_path": (
         "test -S /var/run/nvidia-dcgm/nv-hostengine.sock && echo EXISTS || "
         "test -S /tmp/nv-hostengine.sock && echo EXISTS || echo MISSING"
+    ),
+    # ── Kafka local disk — ER-ORCH-011 Story 3 ──────────────────────────────
+    # %s = nfs_k8s mount_point, %s = node IP
+    "kafka_disk_status": (
+        "cat %s/kafka_disk_mapping/status-%s.json 2>/dev/null"
+    ),
+    # %s = node IP as registered in Kubernetes
+    "kafka_node_label": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get node %s "
+        "-o jsonpath='{.metadata.labels.omnia\\.dell\\.com/kafka-storage}'"
+    ),
+    # %s = node IP; error log on the worker node itself
+    "kafka_error_log": (
+        "grep -m 1 'ERROR node=%s' /var/log/local-disk-prep.log 2>/dev/null || true"
     ),
 }
 

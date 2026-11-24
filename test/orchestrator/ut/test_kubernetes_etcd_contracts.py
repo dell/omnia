@@ -31,28 +31,28 @@ BOOT = 1_700_000_000
 
 def test_boot_script_lines_are_parsed():
     """ORCH_UT_075: Boot-script state lines parse into mtime and DONE flags."""
+    # Both ETCD_SETUP_LOG and ETCD_UPDATE_LOG now point to local-disk-prep.log
     states = runtime._parse_boot_scripts(
-        f"{ETCD_SETUP_LOG}|missing|0\n{ETCD_UPDATE_LOG}|{BOOT}|2\nnoise\n"
+        f"{ETCD_SETUP_LOG}|{BOOT}|1\nnoise\n"
     )
 
-    assert states[ETCD_SETUP_LOG] == (None, False)
-    assert states[ETCD_UPDATE_LOG] == (BOOT, True)
+    assert states[ETCD_SETUP_LOG] == (BOOT, True)
 
 
 @pytest.mark.parametrize(
     ("states", "expected"),
     [
-        # First boot: the early fstab-update run fails, disk setup completes.
+        # local-disk-prep.log present and DONE on this boot — passes.
         (
-            {ETCD_SETUP_LOG: (BOOT + 60, True), ETCD_UPDATE_LOG: (BOOT + 30, False)},
+            {ETCD_SETUP_LOG: (BOOT + 60, True)},
             ETCD_SETUP_LOG,
         ),
-        # Later boot: setup log is gone, fstab-update completes.
-        ({ETCD_SETUP_LOG: (None, False), ETCD_UPDATE_LOG: (BOOT + 30, True)}, ETCD_UPDATE_LOG),
-        # A DONE marker left by an earlier boot is stale.
-        ({ETCD_SETUP_LOG: (None, False), ETCD_UPDATE_LOG: (BOOT - 5, True)}, ""),
-        # A current log without DONE means the script failed.
-        ({ETCD_SETUP_LOG: (None, False), ETCD_UPDATE_LOG: (BOOT + 30, False)}, ""),
+        # DONE marker left by an earlier boot is stale.
+        ({ETCD_SETUP_LOG: (BOOT - 5, True)}, ""),
+        # Log present but no DONE marker — script failed.
+        ({ETCD_SETUP_LOG: (BOOT + 30, False)}, ""),
+        # Log missing entirely.
+        ({ETCD_SETUP_LOG: (None, False)}, ""),
     ],
 )
 def test_completed_boot_script_requires_current_done(states, expected):
@@ -106,13 +106,16 @@ def test_partition_resolves_to_parent_and_root_disk():
 @pytest.mark.parametrize(
     ("states", "expected"),
     [
-        ({ETCD_SETUP_LOG: (None, False), ETCD_UPDATE_LOG: (BOOT + 30, True)}, (True, True)),
-        ({ETCD_SETUP_LOG: (BOOT + 40, True), ETCD_UPDATE_LOG: (BOOT + 30, True)}, (True, False)),
-        ({ETCD_SETUP_LOG: (BOOT - 900, True), ETCD_UPDATE_LOG: (BOOT + 30, False)}, (False, True)),
+        # local-disk-prep.log DONE on this boot — reboot path completed.
+        ({ETCD_SETUP_LOG: (BOOT + 30, True)}, (True, False)),
+        # DONE but stale (before boot) — script did not run this boot.
+        ({ETCD_SETUP_LOG: (BOOT - 900, True)}, (False, True)),
+        # No DONE — script failed or hasn't run.
+        ({ETCD_SETUP_LOG: (None, False)}, (False, True)),
     ],
 )
 def test_post_reboot_detects_disk_setup_rerun(monkeypatch, states, expected):
-    """ORCH_UT_079: After reboot, fstab-update must finish and setup must not rerun."""
+    """ORCH_UT_079: After reboot, local-disk-prep must finish and must not rerun unnecessarily."""
     monkeypatch.setattr(recovery, "etcd_boot_script_state", lambda _host, _row: (states, BOOT))
 
     assert recovery._post_reboot_boot_scripts(object(), {"HOSTNAME": "cp1"}) == expected
@@ -129,8 +132,9 @@ def _media_context(monkeypatch, expected, media_by_host):
     ]
     monkeypatch.setattr(runtime, "load_test_config", lambda: {"expected_etcd_disk_media": expected})
     monkeypatch.setattr(
-        runtime, "_context", lambda _host: ({}, rows, rows[0], {"etcd_on_local_disk": True})
+        runtime, "_context", lambda _host: ({"storage_config": {"local_storage": [{"purpose": "etcd"}]}}, rows, rows[0], {})
     )
+    monkeypatch.setattr(runtime, "etcd_declared", lambda _ctx: True)
     monkeypatch.setattr(
         runtime,
         "_etcd_disk_layout",
@@ -192,22 +196,20 @@ def test_ldap_identity_checks_require_external_validation(monkeypatch, openldap,
 
 def test_boot_script_command_output_is_parseable(tmp_path):
     """ORCH_UT_084: The remote boot-script probe emits the parsed line format."""
-    setup_log = tmp_path / "etcd-disk-setup.log"
-    update_log = tmp_path / "diskless-etcd-mount.log"
-    update_log.write_text("[INFO] start\n2026-01-01_00:00:00 [OK] ===== DONE =====\n")
+    # local-disk-prep.log is the single log used by the new mechanism
+    prep_log = tmp_path / "local-disk-prep.log"
+    prep_log.write_text("2026-01-01_00:00:00 [INFO] START\n2026-01-01_00:00:05 [OK] ===== DONE (reboot) =====\n")
     command = (
         PXEBOOT_COMMANDS["etcd_boot_scripts"]
-        .replace(ETCD_SETUP_LOG, str(setup_log))
-        .replace(ETCD_UPDATE_LOG, str(update_log))
+        .replace(ETCD_SETUP_LOG, str(prep_log))
     )
 
     output = subprocess.run(
         ["bash", "-c", command], capture_output=True, text=True, check=True, timeout=10
     ).stdout
     states = runtime._parse_boot_scripts(
-        output.replace(str(setup_log), ETCD_SETUP_LOG).replace(str(update_log), ETCD_UPDATE_LOG)
+        output.replace(str(prep_log), ETCD_SETUP_LOG)
     )
 
-    assert states[ETCD_SETUP_LOG] == (None, False)
-    assert states[ETCD_UPDATE_LOG][1] is True
-    assert isinstance(states[ETCD_UPDATE_LOG][0], int)
+    assert states[ETCD_SETUP_LOG][1] is True
+    assert isinstance(states[ETCD_SETUP_LOG][0], int)

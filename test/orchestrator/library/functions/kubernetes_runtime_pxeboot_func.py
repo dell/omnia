@@ -35,6 +35,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import etcd_declared
 from ._workload_helpers import (
     kubernetes_context as _context,
 )
@@ -453,11 +454,11 @@ def _local_etcd_node_state(host, row) -> tuple[bool, str]:
     uuid = str(selected.get("uuid") or "")
     label = str(selected.get("label") or "")
     fstype = str(selected.get("fstype") or "").lower()
-    expected_fstab_source = f"UUID={uuid}" if uuid else ""
+    # local-disk-prep.sh writes fstab using LABEL=omnia_etcd (not UUID)
     fstab_ok = (
         fstab.rc == 0
         and len(fstab_lines) == 1
-        and fstab_lines[0].startswith(expected_fstab_source + "|")
+        and fstab_lines[0].startswith("LABEL=omnia_etcd|")
         and "|/var/lib/etcd|ext4|" in fstab_lines[0]
     )
     boss_disks = [
@@ -476,8 +477,7 @@ def _local_etcd_node_state(host, row) -> tuple[bool, str]:
             mount_type == "ext4",
             bool(selected),
             fstype == "ext4",
-            label == "etcd_data",
-            bool(uuid),
+            label == "omnia_etcd",
             selected_disk_name != root_disk_name,
             fstab_ok,
             permissions.rc == 0 and permissions.stdout.strip() == "etcd|etcd|700",
@@ -502,8 +502,8 @@ def _control_plane_check(host, summary: str, node_state, failure: str):
     _runtime, rows, _control, config = _context(host)
     if not rows:
         return _skip(summary, "No Kubernetes nodes are mapped")
-    if not bool(config.get("etcd_on_local_disk", False)):
-        return _skip(summary, "etcd_on_local_disk is disabled")
+    if not etcd_declared(_runtime):
+        return _skip(summary, "No etcd local_storage entry declared")
     control_rows = [
         row for row in rows if "control_plane" in row["EXPECTED_FUNCTIONAL_GROUP"]
     ]
@@ -560,7 +560,7 @@ def _local_etcd_provisioning_state(host, row) -> tuple[bool, str]:
     completed = _completed_this_boot(states, boot_time)
     scripts_ok = setup_script.rc == 0 and update_script.rc == 0
     logged_disks = re.findall(
-        r"(?:found|candidate|disk):\s*/dev/([A-Za-z0-9._-]+)",
+        r"Resolved disk:\s*/dev/([A-Za-z0-9._-]+)",
         selection_log.stdout,
     )
     selection_logged = selected_name in logged_disks
