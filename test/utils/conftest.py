@@ -119,6 +119,7 @@ def pytest_configure(config):
         "slurm_config_util": "Slurm config backup/cleanup/rollback tests",
         "cleanup_slurm_config_backups": "Slurm config backup cleanup tests",
         "oci_image_ingest": "OCI image ingest tests (registry automation)",
+        "nft": "Non-functional tests (performance, security, logging)",
         "destructive": "Deletes live state (e.g. the active Slurm config share). "
                         "Opt-in only: excluded unless explicitly selected via --marker destructive",
         "negative": "Negative/error-handling tests (verify proper failure behavior)",
@@ -292,6 +293,7 @@ def pytest_sessionstart(session):
     os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "test_report"))
     report_name = f"utils_{base_name}"
+
     report = TestReport(
         module_name=module_name,
         report_path=str(config.get("report_path", "/opt/omnia/reports")),

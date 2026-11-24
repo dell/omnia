@@ -1,6 +1,6 @@
 # CI/CD Workflows -- omnia-bsm
 
-All workflows run on pull requests targeting `main`, `staging`, `release_*`, `issue-*`, and `pub/**` branches.
+All workflows run on pull requests targeting `main`, `release_*`, `issue-*`, `pub/**`, and `feature/**` branches.
 
 ## Workflow Summary
 
@@ -140,6 +140,6 @@ repository branch ruleset so a failing result prevents merge.
 ## Adding a New Workflow
 
 1. Create the workflow file in `.github/workflows/`
-2. Use the standard branch triggers: `main`, `staging`, `release_*`, `issue-*`, `pub/**`
+2. Use the standard branch triggers: `main`, `release_*`, `issue-*`, `pub/**`, `feature/**`
 3. Update this README with the new workflow details
 4. Ensure the workflow follows the commit format: `ci(workflows): <description>`

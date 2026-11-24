@@ -1181,3 +1181,42 @@ class TestUploadDestinationIsolation(TestUploadFilesMultiFileUpload):
 
         written = {p.name for p in isolated_upload_destinations.rglob("*") if p.is_file()}
         assert {"network_spec.yml", "pxe_mapping_file.csv"} <= written
+
+
+class TestSharedInputLocation:
+    """The folder for files that belong to no domain is inside the build_stream domain."""
+
+    @staticmethod
+    def _defaults(tmp_path):
+        """Return the folder constants of a clean interpreter (the fixtures patch the module)."""
+        import json
+        import os
+        import subprocess
+        import sys
+
+        app_dir = Path(__file__).resolve().parents[6] / "src" / "build_stream" / "app"
+        code = (
+            "import json; from orchestrator.upload.use_cases import upload_files as u; "
+            "print(json.dumps({'shared': u.DEFAULT_PLAYBOOK_INPUT_DIR, "
+            "'domains': u.DOMAIN_INPUT_DIRS}))"
+        )
+        env = dict(os.environ, OMNIA_DATA_PATH=str(tmp_path), OMNIA_PROJECT_NAME="project_x",
+                   ENV="dev", PYTHONPATH=str(app_dir))
+        done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                              env=env, cwd=str(app_dir), check=False)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout.strip().splitlines()[-1])
+
+    def test_default_shared_input_dir_is_inside_the_build_stream_domain(self, tmp_path):
+        """GIVEN OMNIA_DATA_PATH THEN the shared input folder is under build_stream_root."""
+        shared = Path(self._defaults(tmp_path)["shared"])
+
+        assert shared == (
+            tmp_path / "build_stream" / "build_stream_root" / "input" / "project_x"
+        )
+        assert not shared.is_relative_to(tmp_path / "input")
+
+    def test_domain_input_dirs_stay_under_their_own_domain(self, tmp_path):
+        """Each routed domain keeps its inputs under <data>/<domain>/input/<project>."""
+        for domain, directory in self._defaults(tmp_path)["domains"].items():
+            assert Path(directory) == tmp_path / domain / "input" / "project_x"

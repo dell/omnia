@@ -70,21 +70,19 @@ spec:
     - port: prometheus
       interval: {{ vmagent.global.scrape_interval }}
       path: /metrics
-  
-  # Relabel configs
-  relabelConfigs:
+      relabelConfigs:
 {% for cluster in ps_clusters | default([]) %}
-    - sourceLabels: [__address__]
-      targetLabel: cluster
-      replacement: "{{ cluster.clusterName }}"
-    - sourceLabels: [__address__]
-      targetLabel: cluster_endpoint
-      replacement: "{{ cluster.endpoint }}"
+        - sourceLabels: [__address__]
+          targetLabel: cluster
+          replacement: "{{ cluster.clusterName }}"
+        - sourceLabels: [__address__]
+          targetLabel: cluster_endpoint
+          replacement: "{{ cluster.endpoint }}"
 {% endfor %}
-    - targetLabel: source
-      replacement: powerscale
-    - targetLabel: component
-      replacement: otel-collector
+        - targetLabel: source
+          replacement: powerscale
+        - targetLabel: component
+          replacement: otel-collector
 {% endif %}
 
 ---
@@ -103,11 +101,11 @@ spec:
     - port: "{{ csi_volume_exporter.metrics_port }}"
       path: /metrics
       interval: {{ csi_volume_exporter.scrape_interval }}
-  relabelConfigs:
-    - targetLabel: source
-      replacement: powerscale
-    - targetLabel: component
-      replacement: volume-status
+      relabelConfigs:
+        - targetLabel: source
+          replacement: powerscale
+        - targetLabel: component
+          replacement: volume-status
 {% endif %}
 
 ---
