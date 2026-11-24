@@ -258,6 +258,32 @@ RUN_MSGS = {
     "retry_done": "--retry: every stage of run {run_id} already passed; only summary runs",
 }
 
+CATALOG_MSGS = {
+    "invalid": "{path}: catalog_build.{key}: {problem}",
+    "unknown_catalog": "catalog {selection!r} is not in ./omnia.sh --list-catalogs. "
+                       "HOW TO FIX: use one of the names or numbers it lists",
+    "catalog_file_missing": "catalog file {path} not found",
+    "skip_aarch64": "skipped: contains aarch64 ({layers}); include_aarch64 is false",
+    "aarch64_host_missing": "include_aarch64 is true but "
+                            "image_build_manager.image_build_config.aarch64_inventory_host_ip "
+                            "is empty in user_inputs.yml. HOW TO FIX: set it, then "
+                            "./setup_env.sh --theme catalog_build",
+    "plan_header": "catalog plan ({count} catalog(s), {run} to run) -> {path}:",
+    "plan_line": "  {stage:<12} {mark:<5} {catalog}{reason}",
+    "steps_header": "steps per catalog (exec, then verify): {steps}",
+    "settings": "settings: {settings}",
+    "plan_missing": "no catalog plan for run {run_id} ({path}). HOW TO FIX: "
+                    "./setup_env.sh --theme catalog_build --configure",
+    "plan_other_run": "the catalog plan {path} belongs to run {plan_run}, not {run_id}. "
+                      "HOW TO FIX: ./setup_env.sh --theme catalog_build --configure",
+    "inputs_written": "runtime inputs: {details}",
+    "override_applied": "override: {source} -> {target}",
+    "repo_missing": "repo_policies: {key} is not a repository of {path}",
+    "no_runtime_input": "{path} is missing: run ./setup_env.sh --theme catalog_build first",
+    "leftovers_stopped": "stopped what the failed {domain} step left running "
+                         "(orphaned ansible-playbook and children): pids {pids}",
+}
+
 LOCK_MSGS = {
     "held": "another SVT step is running on this OIM: {step} (pid {pid}, run {run_id}, "
             "heartbeat {heartbeat}). HOW TO FIX: wait for it, or stop it; a lock whose "
@@ -282,6 +308,10 @@ CONFIG_MSGS = {
     "not_bool": "{path}: {where} must be true or false, not {value!r}",
     "unknown_theme": "{path}: theme {theme!r} is not supported (supported: {known})",
     "unknown_suite": "{path}: cleanup has unknown suite(s) {names} (known: {known})",
+    "cleanup_moved": (
+        "{theme_path} has a cleanup block. The cleanup is shared by every theme and is set only "
+        "in the cleanup block of {path}: move it there and delete it from the theme file"
+    ),
     "unknown_flag": "{path}: cleanup.{suite} has unknown key(s) {names} (known: {known})",
     "suite_section_missing": "{path}: has no {section!r} section to write the cleanup flags into",
     "suite_key_missing": "{path}: has no {key!r} key; the suite no longer supports this flag",

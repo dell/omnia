@@ -20,7 +20,12 @@ ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
 ``test/<domain>/_run.py fvt_<domain>``: ``exec`` runs the playbook, ``verify``
 runs its verification tests. Within a stage, a test is skipped once an earlier
 test of the stage failed.
+
+catalog_build (order 2000+): generated from the plan of the current run
+(catalog_vars.catalog_test_cases), one stage per catalog.
 """
+
+from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
 _ORCH = "orchestrator"
@@ -104,6 +109,16 @@ TEST_CASES = {
         "step": (_BS, ("execute", "verify", "--suite", "auto_cleanup")),
     },
     # ============================================================ theme cluster_lifecycle
+    # When use_discovery_mapping=true in the theme's test_config, the
+    # orchestrator's pxe_mapping_file.csv is replaced with the latest
+    # timestamped bmc_pxe_mapping_file_<ts>.csv from the discovery output.
+    # When use_discovery_mapping=false (default), this test is a no-op.
+    "cluster_lifecycle_use_discovery_mapping": {
+        "id": "SVT_CLUSTER_LIFECYCLE_014", "order": 3005, "stage": "deploy_slurm_cluster",
+        "title": "Discovery mapping: copy the latest discovery PXE mapping to orchestrator "
+                 "input (use_discovery_mapping=true) or skip (use_discovery_mapping=false)",
+        "step": ("svt", ("pxe_use_discovery_mapping",)),
+    },
     # deploy_slurm_cluster -------------------------------------------
     "cluster_lifecycle_precheck_exec": {
         "id": "SVT_CLUSTER_LIFECYCLE_001", "order": 3010, "stage": "deploy_slurm_cluster",
@@ -178,21 +193,23 @@ TEST_CASES = {
     # ============================================================ Kubernetes stream
     # deploy_k8s_cluster ----------------------------------------------
     "cluster_lifecycle_k8s_cluster_verify": {
-        "id": "SVT_CLUSTER_LIFECYCLE_014", "order": 3060, "stage": "deploy_k8s_cluster",
+        "id": "SVT_CLUSTER_LIFECYCLE_015", "order": 3060, "stage": "deploy_k8s_cluster",
         "title": "Kubernetes cluster health (membership, services, control plane, etcd, storage)",
         "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster")),
     },
     # k8s_telemetry ---------------------------------------------------
     "cluster_lifecycle_k8s_telemetry": {
-        "id": "SVT_CLUSTER_LIFECYCLE_015", "order": 3070, "stage": "k8s_telemetry",
+        "id": "SVT_CLUSTER_LIFECYCLE_016", "order": 3070, "stage": "k8s_telemetry",
         "title": "Telemetry deploy and verify (offline / Pulp)",
         "step": (_TEL, ("deploy", "exec")),
     },
     # k8s_token_renew -------------------------------------------------
     "cluster_lifecycle_k8s_token_renew": {
-        "id": "SVT_CLUSTER_LIFECYCLE_018", "order": 3090, "stage": "k8s_token_renew",
+        "id": "SVT_CLUSTER_LIFECYCLE_017", "order": 3090, "stage": "k8s_token_renew",
         "title": "Renew Kubernetes bootstrap tokens",
         "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster",
                          "--marker", "token_renew")),
     },
 }
+# ------------------------------------------------------ theme catalog_build
+TEST_CASES.update(catalog_test_cases(CATALOG_PLAN))

@@ -19,8 +19,8 @@ its scheduler is in the active catalog.
 | 4 | Slurm | Add a node | slurm_lifecycle (marker node_add) |
 | 5 | K8s | Deploy the Kubernetes cluster | kubernetes_cluster (membership, services, control plane, etcd, storage) |
 | 6 | K8s | Start and monitor telemetry in offline mode | telemetry deploy exec + verify (offline / Pulp) |
-| 7 | K8s | Delete a node | kubernetes_lifecycle (marker node_lifecycle+node_remove) |
-| 8 | K8s | Add a node | kubernetes_lifecycle (marker node_lifecycle+node_add) |
+| 7 | K8s | Delete a node | **Deferred** -- orchestrator does not yet support K8s node removal |
+| 8 | K8s | Add a node | **Deferred** -- depends on delete node |
 | 9 | K8s | Renew tokens | kubernetes_cluster (marker token_renew) |
 
 ## 3. Phased implementation
@@ -43,16 +43,15 @@ All four Slurm FVTs exist. The only prerequisite was adding `node_remove` and
 
 The cluster is already deployed with K8s nodes. The K8s stream verifies the
 cluster, deploys telemetry in offline mode (nodes pull from Pulp, no internet),
-exercises node lifecycle (remove + add) and renews bootstrap tokens.
+and renews bootstrap tokens. Node remove/add are deferred until the orchestrator
+src supports `kubectl drain` / `kubectl delete node` during provision.
 
-**Stages (5, plus initialization):**
+**Stages (3, plus initialization):**
 
 | Stage | Hard/Soft | SVT cases | What it runs |
 |-------|-----------|-----------|-------------|
 | `deploy_k8s_cluster` | hard | 014 | kubernetes_cluster suite (membership, services, control plane, system pods, VIP, versions, workload scheduling, etcd, storage) |
 | `k8s_telemetry` | soft | 015 | telemetry deploy exec + verify (offline / Pulp) |
-| `k8s_node_remove` | soft | 016 | kubernetes_lifecycle suite with node_lifecycle+node_remove marker |
-| `k8s_node_add` | soft | 017 | kubernetes_lifecycle suite with node_lifecycle+node_add marker |
 | `k8s_token_renew` | soft | 018 | kubernetes_cluster suite with token_renew marker |
 
 ## 4. SVT test cases
@@ -74,18 +73,16 @@ exercises node lifecycle (remove + add) and renews bootstrap tokens.
 | SVT_CLUSTER_LIFECYCLE_013 | 3051 | slurm_node_add | Add a Slurm compute node | orchestrator pxeboot verify --suite slurm_lifecycle --marker node_lifecycle+node_add |
 | SVT_CLUSTER_LIFECYCLE_014 | 3060 | deploy_k8s_cluster | Kubernetes cluster health | orchestrator pxeboot verify --suite kubernetes_cluster |
 | SVT_CLUSTER_LIFECYCLE_015 | 3070 | k8s_telemetry | Telemetry deploy and verify (offline) | telemetry deploy exec + telemetry deploy verify |
-| SVT_CLUSTER_LIFECYCLE_016 | 3080 | k8s_node_remove | Delete a Kubernetes worker node | orchestrator pxeboot verify --suite kubernetes_lifecycle --marker node_lifecycle+node_remove |
-| SVT_CLUSTER_LIFECYCLE_017 | 3081 | k8s_node_add | Add a Kubernetes worker node | orchestrator pxeboot verify --suite kubernetes_lifecycle --marker node_lifecycle+node_add |
 | SVT_CLUSTER_LIFECYCLE_018 | 3090 | k8s_token_renew | Renew Kubernetes bootstrap tokens | orchestrator pxeboot verify --suite kubernetes_cluster --marker token_renew |
 
 ## 5. Files
 
 | Action | File | Purpose |
 |--------|------|---------|
-| Create | `test/system_test/cluster_lifecycle_test_config.yml` | Theme settings (cleanup flags, report) |
+| Create | `test/system_test/cluster_lifecycle_test_config.yml` | Theme settings (report; the cleanup is the shared block of `user_inputs.yml`) |
 | Create | `test/system_test/dataset_generator/profiles/cluster_lifecycle.yml` | Input profile: `omnia.env` + orchestrator inputs |
 | Modify | `test/system_test/library/vars/theme_vars.py` | Add `"cluster_lifecycle"` entry to `THEMES` dict with Slurm + K8s stages |
-| Modify | `test/system_test/library/vars/test_case_vars.py` | Add 18 `cluster_lifecycle_*` entries to `TEST_CASES` |
+| Modify | `test/system_test/library/vars/test_case_vars.py` | Add `cluster_lifecycle_*` entries to `TEST_CASES` |
 | Modify | `test/orchestrator/fvt/pxeboot/slurm_lifecycle/test_slurm_lifecycle.py` | Add `node_remove` and `node_add` markers |
 | Modify | `test/orchestrator/library/vars/domain_vars.py` | Register `node_remove`, `node_add`, `token_renew` markers; register `kubernetes_lifecycle` suite |
 | Create | `test/orchestrator/fvt/pxeboot/kubernetes_lifecycle/test_kubernetes_lifecycle.py` | K8s node remove/add FVT tests |
@@ -105,8 +102,6 @@ exercises node lifecycle (remove + add) and renews bootstrap tokens.
 ./run_validation.sh svt_cluster_lifecycle slurm_node_add
 ./run_validation.sh svt_cluster_lifecycle deploy_k8s_cluster
 ./run_validation.sh svt_cluster_lifecycle k8s_telemetry
-./run_validation.sh svt_cluster_lifecycle k8s_node_remove
-./run_validation.sh svt_cluster_lifecycle k8s_node_add
 ./run_validation.sh svt_cluster_lifecycle k8s_token_renew
-./run_validation.sh svt_cluster_lifecycle k8s_node_remove --retry
+./run_validation.sh svt_cluster_lifecycle slurm_node_remove --retry
 ```
