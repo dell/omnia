@@ -318,20 +318,24 @@ THEMES: Dict[str, Dict] = {
         "fvt_settings": {},
     },
     "cluster_lifecycle": {
-        "title": "Cluster Lifecycle (Slurm)",
-        "description": "Cluster lifecycle: deploy, run Slurm workloads, "
-                       "remove a node, add it back",
+        "title": "Cluster Lifecycle (Slurm + Kubernetes)",
+        "description": "Cluster lifecycle: deploy Slurm and Kubernetes clusters, "
+                       "run workloads, remove/add nodes, telemetry and token renewal",
         "profile": "cluster_lifecycle",
         "cleanup_steps": CLEANUP_STEPS,
         "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
-        "fvt_domains": ("orchestrator",),
+        "fvt_domains": ("orchestrator", "telemetry"),
         "credential_domains": ("orchestrator",),
         "creds_suite": "build_stream",
         "cleanup_requires": {},
         "cleanup_when_deployed": ("telemetry",),
         "stages": ("deploy_slurm_cluster", "slurm_jobs",
-                   "slurm_node_remove", "slurm_node_add"),
-        "soft_stages": ("slurm_jobs", "slurm_node_remove", "slurm_node_add"),
+                   "slurm_node_remove", "slurm_node_add",
+                   "deploy_k8s_cluster", "k8s_telemetry",
+                   "k8s_token_renew"),
+        "soft_stages": ("slurm_jobs", "slurm_node_remove", "slurm_node_add",
+                        "k8s_telemetry",
+                        "k8s_token_renew"),
         "stage_info": {
             "deploy_slurm_cluster": (
                 "Deploy Slurm Cluster",
@@ -343,13 +347,25 @@ THEMES: Dict[str, Dict] = {
                 "Job submission from control, login and compiler nodes; "
                 "IPoIB traffic path (IPv4/IPv6/dual-stack)"),
             "slurm_node_remove": (
-                "Delete Node",
+                "Delete Slurm Node",
                 "Remove a Slurm compute node from the PXE mapping, "
                 "re-provision and verify removal"),
             "slurm_node_add": (
-                "Add Node",
+                "Add Slurm Node",
                 "Restore the removed node, re-provision and verify "
                 "re-addition to Slurm membership"),
+            "deploy_k8s_cluster": (
+                "Deploy Kubernetes Cluster",
+                "Verify Kubernetes cluster health: node membership, "
+                "services, control plane, system pods, VIP, etcd and storage"),
+            "k8s_telemetry": (
+                "Telemetry (Offline)",
+                "Deploy and verify telemetry in offline mode "
+                "(nodes pull packages from Pulp, no internet required)"),
+            "k8s_token_renew": (
+                "Renew Tokens",
+                "Run the bootstrap token refresh script and verify "
+                "each renewed token has the configured TTL"),
         },
         "state_probe": None,
         "fvt_settings": {},
