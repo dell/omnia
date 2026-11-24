@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- Optional `external_oci_registry` (Harbor) in `image_build_config.yml`: after the build, the OCI image of every functional group is annotated with provenance, tagged (OS version, release, catalog digest) and pushed with `regctl`, with remote digest verification
+- Registry precheck before any build work (credentials, Registry V2 authentication, Harbor project access)
+- `oci_registry_username` / `oci_registry_password` in the Vault-encrypted `image_build_credentials.yml`, collected only when `external_oci_registry` is set
+- Optional `oci` section per functional group in `build_status.yml`
+
 ## [2.3.0] - 2026-09-01
 
 ### Added

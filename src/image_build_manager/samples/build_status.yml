@@ -44,6 +44,17 @@
 #   kernel           -- S3 key for vmlinuz (includes kernel-version suffix)
 #   initrd           -- S3 key for initramfs (includes kernel-version suffix)
 #   image            -- Full S3 object key for rootfs file
+#   oci              -- Optional. Written only when external_oci_registry is set in
+#                       image_build_config.yml. Keys: registry_mode (external | local),
+#                       reference, external_reference, digest, architecture, tags,
+#                       annotations and, when the push failed, a sanitized error.
+#                       Example:
+#                         oci:
+#                           registry_mode: "external"
+#                           reference: "172.10.5.11:5000/oim/<image-name>:<tag>"
+#                           external_reference: "harbor.example.com/hpc-images/oim/<image-name>:<tag>"
+#                           digest: "sha256:<64 hex>"
+#                           architecture: "amd64"
 # ============================================================================
 
 overall_status: "success"

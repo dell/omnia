@@ -1,0 +1,182 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6, CG-INPUT-001.5
+# ****
+
+---
+# publish_oci_image.yml — annotate, tag and push the OCI image of one functional
+# group. Included once per functional group (loop_var: fg_item) by
+# publish_oci_images.yml. Every step is argv-safe (no shell). Any failure is
+# recorded for the functional group in oci_publish_results and does not fail the
+# build; credentials never appear in a command line or in the recorded error.
+
+- name: Reset the per-image state
+  ansible.builtin.set_fact:
+    _fg_packaged: false
+    _fg_digest: ""
+
+- name: Package and push the OCI image of {{ fg_item.key }}
+  vars:
+    _fg: "{{ fg_item.key }}"
+    _fg_os_tag: "{{ fg_item.value.os_version | default(rhel_tag, true) | string }}"
+    _fg_repo: >-
+      {{ host_name }}/rhel-{{ fg_item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}
+    _fg_local_repo_ref: "{{ registry_host }}:5000/{{ _fg_repo }}"
+    _fg_ext_repo_ref: "{{ _ext_oci_host_ref }}/{{ _ext_oci_namespace }}/{{ _fg_repo }}"
+    _fg_local_ref: "{{ _fg_local_repo_ref }}:{{ _fg_os_tag }}"
+    _fg_tags: "{{ ([_fg_os_tag] + _ext_oci_extra_tags) | unique | list }}"
+    _fg_primary_tag: "{{ _ext_oci_catalog_tag if (_ext_oci_catalog_tag | length) > 0 else (omnia_version | string) }}"
+    _fg_annotations:
+      org.opencontainers.image.source: "{{ _ext_oci_source }}"
+      org.opencontainers.image.revision: "{{ _ext_oci_source | hash('sha256') }}"
+      org.opencontainers.image.created: "{{ _ext_oci_created }}"
+      org.opencontainers.image.version: "{{ omnia_version | string }}"
+      org.opencontainers.image.vendor: "{{ ext_oci_vendor }}"
+      io.dell.omnia.functional_group: "{{ fg_item.key }}"
+      io.dell.omnia.architecture: "{{ build_arch }}"
+      io.dell.omnia.build_job_id: "{{ _ext_oci_job_id }}"
+      io.dell.omnia.published_by: "{{ ext_oci_published_by }}"
+  environment:
+    REGCTL_CONFIG: "{{ _ext_oci_regctl_config }}"
+  block:
+    - name: Find the OCI image in the local registry
+      ansible.builtin.command:
+        cmd: "{{ ext_oci_regctl_bin }} image digest {{ _fg_local_ref | quote }}"
+      register: _fg_local_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Skip a functional group without a local OCI image
+      ansible.builtin.debug:
+        msg: "{{ ext_oci_image_missing_msg }}"
+      when: _fg_local_probe.rc != 0
+
+    - name: Package and push the local OCI image
+      when: _fg_local_probe.rc == 0
+      block:
+        - name: Annotate the local OCI image with provenance
+          ansible.builtin.command:
+            cmd: >-
+              {{ ext_oci_regctl_bin }} image mod {{ _fg_local_ref | quote }} --replace
+              {% for key, value in _fg_annotations.items() %}--annotation {{ (key ~ '=' ~ value) | quote }} {% endfor %}
+          changed_when: true
+
+        - name: Add the release and catalog-digest tags in the local registry
+          ansible.builtin.command:
+            cmd: >-
+              {{ ext_oci_regctl_bin }} image copy {{ _fg_local_ref | quote }}
+              {{ (_fg_local_repo_ref ~ ':' ~ item) | quote }}
+          loop: "{{ _ext_oci_extra_tags | difference([_fg_os_tag]) }}"
+          changed_when: true
+
+        - name: Read the digest of every local tag
+          ansible.builtin.command:
+            cmd: "{{ ext_oci_regctl_bin }} image digest {{ (_fg_local_repo_ref ~ ':' ~ item) | quote }}"
+          register: _fg_local_digests
+          changed_when: false
+          loop: "{{ _fg_tags }}"
+
+        - name: Verify all local tags resolve to one manifest digest
+          ansible.builtin.assert:
+            that:
+              - _fg_local_digests.results | map(attribute='stdout') | map('trim') | unique | list | length == 1
+            fail_msg: "{{ ext_oci_tag_digest_mismatch_msg }}"
+            quiet: true
+
+        - name: Record the verified local digest
+          ansible.builtin.set_fact:
+            _fg_digest: "{{ _fg_local_digests.results[0].stdout | trim }}"
+            _fg_packaged: true
+
+        - name: Copy every tag to the external registry
+          ansible.builtin.command:
+            cmd: >-
+              {{ ext_oci_regctl_bin }} image copy {{ (_fg_local_repo_ref ~ ':' ~ item) | quote }}
+              {{ (_fg_ext_repo_ref ~ ':' ~ item) | quote }}
+          loop: "{{ _fg_tags }}"
+          changed_when: true
+
+        - name: Read the remote digest of every tag
+          ansible.builtin.command:
+            cmd: "{{ ext_oci_regctl_bin }} image digest {{ (_fg_ext_repo_ref ~ ':' ~ item) | quote }}"
+          register: _fg_remote_digests
+          changed_when: false
+          loop: "{{ _fg_tags }}"
+
+        - name: Verify every remote digest equals the local digest
+          ansible.builtin.assert:
+            that:
+              - item.stdout | trim == _fg_digest
+            fail_msg: "{{ ext_oci_remote_digest_mismatch_msg }}"
+            quiet: true
+          loop: "{{ _fg_remote_digests.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+
+        - name: Record the external OCI result
+          ansible.builtin.set_fact:
+            oci_publish_results: >-
+              {{ oci_publish_results | default({}) | combine({_fg: {
+                   'registry_mode': 'external',
+                   'reference': _fg_local_repo_ref ~ ':' ~ _fg_primary_tag,
+                   'external_reference': _fg_ext_repo_ref ~ ':' ~ _fg_primary_tag,
+                   'digest': _fg_digest,
+                   'architecture': ext_oci_arch_map[build_arch],
+                   'tags': _fg_tags,
+                   'annotations': _fg_annotations
+                 }}) }}
+            cacheable: true
+
+        - name: Report the pushed OCI image
+          ansible.builtin.debug:
+            msg: >-
+              OCI image pushed: {{ _fg_ext_repo_ref }} tags={{ _fg_tags | join(',') }} digest={{ _fg_digest }}
+  rescue:
+    - name: Record the OCI failure for {{ fg_item.key }}
+      ansible.builtin.set_fact:
+        oci_publish_results: >-
+          {{ oci_publish_results | default({}) | combine({_fg: _fg_failure}) }}
+        cacheable: true
+      vars:
+        _fg_failed_items: >-
+          {{ ansible_failed_result.results | default([]) | selectattr('failed', 'defined') | selectattr('failed') | list }}
+        _fg_failed_text: >-
+          {{ (ansible_failed_result.stderr | default('', true) | string | trim)
+             or ((_fg_failed_items | first | default({})).stderr | default('', true) | string | trim)
+             or (ansible_failed_result.msg | default('unknown error', true) | string) }}
+        _fg_error_text: >-
+          {% set ns = namespace(text=(_fg_failed_text | regex_replace('\s+', ' ') | truncate(300, true, ''))) -%}
+          {% for secret in [hostvars['localhost']['oci_registry_username'] | default('', true) | string,
+                            hostvars['localhost']['oci_registry_password'] | default('', true) | string] -%}
+            {% if secret | length > 0 -%}
+              {% set ns.text = ns.text | replace(secret, '***') -%}
+            {% endif -%}
+          {% endfor -%}
+          {{ ns.text }}
+        _fg_failure: >-
+          {{ ({'registry_mode': 'local',
+               'reference': _fg_local_repo_ref ~ ':' ~ _fg_primary_tag,
+               'digest': _fg_digest,
+               'architecture': ext_oci_arch_map[build_arch],
+               'error': _fg_error_text}
+              if (_fg_packaged | bool) else {'error': _fg_error_text}) }}
+      no_log: true
+
+    - name: Warn that the OCI image was not pushed
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: OCI image for {{ fg_item.key }} was not pushed to the external registry.
+          The build outputs are unaffected; see the oci section of build_status.yml.

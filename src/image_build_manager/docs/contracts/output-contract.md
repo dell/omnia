@@ -78,6 +78,15 @@ bucket or S3 scheme.
 | `functional_group_images[].<architecture>[].kernel` | string | Exact endpoint-relative kernel object path (`vmlinuz*`) |
 | `functional_group_images[].<architecture>[].initrd` | string | Exact endpoint-relative initrd object path (`initramfs*`) |
 | `functional_group_images[].<architecture>[].image` | string | Exact endpoint-relative rootfs object path (`rhel*` or `rootfs.squashfs`) |
+| `functional_group_images[].<architecture>[].oci` | object | Optional; written only for functional groups processed by the external registry push (`external_oci_registry` set). Existing consumers that read only the three fields above are unaffected |
+| `...oci.registry_mode` | string | `external` when the image was pushed, `local` when the push failed |
+| `...oci.reference` | string | Local registry reference with the catalog-digest (or release) tag |
+| `...oci.external_reference` | string | External registry reference; present only when `registry_mode` is `external` |
+| `...oci.digest` | string | Manifest digest (`sha256:...`) shared by all tags; remote digests were verified equal |
+| `...oci.architecture` | string | OCI platform architecture (`amd64` or `arm64`) |
+| `...oci.tags` | list | OS-version, release and catalog-digest tags pushed |
+| `...oci.annotations` | map | Provenance annotations applied to the manifest |
+| `...oci.error` | string | Sanitized failure reason when the push failed; never contains a credential |
 
 ### Compatibility
 

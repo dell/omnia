@@ -149,3 +149,59 @@ s3_anonymous_access_disabled_msg: >-
   s3_enable_anonymous_access is false: PowerScale S3 buckets are NOT set to
   public. Configure a restrictive bucket policy to enable PXE boot access
   before provisioning nodes.
+
+# =============================================================================
+# External OCI registry (Harbor) push
+# =============================================================================
+# ext_oci_registry is the optional external_oci_registry section of
+# image_build_config.yml. Without it nothing below is used: no network call is
+# made and no registry credential is read.
+ext_oci_registry: "{{ hostvars['localhost']['external_oci_registry'] | default({}, true) }}"
+ext_oci_enabled: "{{ (ext_oci_registry | length) > 0 }}"
+ext_oci_default_ports:
+  https: 443
+  http: 80
+ext_oci_connect_timeout: 30
+# Session regctl configuration lives on memory-backed storage and is removed after the push.
+ext_oci_secret_root: "/dev/shm"
+ext_oci_regctl_bin: "/usr/local/bin/regctl"
+ext_oci_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+ext_oci_vendor: "Dell Technologies"
+ext_oci_published_by: "buildstream"
+
+ext_oci_credentials_missing_msg: >-
+  External OCI registry credentials are missing (phase: precheck):
+  {{ ([] + ([] if _ext_oci_username_set | bool else ['oci_registry_username'])
+         + ([] if _ext_oci_password_set | bool else ['oci_registry_password'])) | join(', ') }}.
+  Run image_build_manager.yml --tags credentials to store them in the Vault-encrypted
+  image_build_credentials.yml. No image build was started.
+ext_oci_connectivity_fail_msg: >-
+  External OCI registry check failed (phase: precheck): cannot reach {{ _ext_oci_base_url }}
+  within {{ ext_oci_connect_timeout }} seconds. Check registry_hostname, registry_port,
+  registry_protocol and the network. No image build was started.
+ext_oci_tls_fail_msg: >-
+  External OCI registry check failed (phase: precheck): TLS verification failed for {{ _ext_oci_base_url }}.
+  Trust the registry CA on the OIM, or set external_oci_registry.tls_verify to false for a
+  self-signed lab registry. No image build was started.
+ext_oci_auth_fail_msg: >-
+  External OCI registry authentication failed (phase: precheck) for {{ _ext_oci_base_url }}
+  (HTTP {{ _ext_oci_v2_check.status | default('n/a') }}). Check oci_registry_username and
+  oci_registry_password (re-run with --tags credentials after clearing the stored values).
+  No image build was started.
+ext_oci_unexpected_fail_msg: >-
+  External OCI registry returned unexpected HTTP status {{ _ext_oci_v2_check.status | default('n/a') }}
+  (phase: precheck) for {{ _ext_oci_base_url }}/v2/. No image build was started.
+ext_oci_namespace_fail_msg: >-
+  Harbor project '{{ _ext_oci_namespace }}' is inaccessible or does not exist on {{ _ext_oci_base_url }}
+  (phase: precheck, HTTP {{ _ext_oci_ns_check.status | default('n/a') }}). Create the project or
+  fix external_oci_registry.namespace_name. No image build was started.
+ext_oci_tag_digest_mismatch_msg: >-
+  Tags of {{ _fg_local_repo_ref }} do not resolve to one manifest digest after annotation:
+  {{ _fg_local_digests.results | map(attribute='stdout') | map('trim') | list | join(', ') }}.
+ext_oci_remote_digest_mismatch_msg: >-
+  Remote digest {{ item.stdout | trim }} of {{ item.item }} differs from the local digest {{ _fg_digest }}.
+ext_oci_image_missing_msg: >-
+  OCI image {{ _fg_local_ref }} was not found in the local registry for functional group {{ _fg }}
+  (reused image group). It is not pushed in this run.

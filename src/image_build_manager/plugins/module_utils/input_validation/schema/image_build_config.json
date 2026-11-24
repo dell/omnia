@@ -47,6 +47,60 @@
             "description": "Where to source functional groups: 'config' derives groups from package_groups.yml keys; 'catalog' resolves groups and packages from catalog JSON (CATALOG_FILE_PATH env var).",
             "default": "config"
         },
+        "external_oci_registry": {
+            "type": "object",
+            "description": "Optional external OCI registry (Harbor). When present, the finished OCI image of every functional group is annotated, tagged and pushed to it after the build. Omit for local-only builds. Holds connection settings only; credentials live in image_build_credentials.yml.",
+            "properties": {
+                "registry_type": {
+                    "type": "string",
+                    "enum": ["harbor"],
+                    "description": "Registry product. Only 'harbor' is supported in this increment."
+                },
+                "registry_protocol": {
+                    "type": "string",
+                    "enum": ["http", "https"],
+                    "description": "Registry protocol. 'http' is accepted only with tls_verify false."
+                },
+                "registry_hostname": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 253,
+                    "pattern": "^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$",
+                    "description": "Host name or IPv4 address of the registry."
+                },
+                "registry_port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "Registry port. Defaults to 443 for https and 80 for http."
+                },
+                "namespace_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$",
+                    "description": "Harbor project (namespace). The project must already exist."
+                },
+                "auth_type": {
+                    "type": "string",
+                    "enum": ["basic"],
+                    "description": "Authentication type. Only 'basic' (user or robot account name and secret) is supported."
+                },
+                "tls_verify": {
+                    "type": "boolean",
+                    "description": "Verify the registry TLS certificate. Set false only for a self-signed lab registry.",
+                    "default": true
+                }
+            },
+            "required": [
+                "registry_type",
+                "registry_protocol",
+                "registry_hostname",
+                "namespace_name",
+                "auth_type"
+            ],
+            "additionalProperties": false
+        },
         "build_image": {
             "type": "object",
             "description": "Build concurrency and timeout settings.",

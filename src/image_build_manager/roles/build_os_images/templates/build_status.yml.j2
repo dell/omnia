@@ -28,6 +28,12 @@
 # Default project-level latest-build path:
 #   /opt/omnia/image_build_manager/output/project_default/build_status.yml
 #
+# Optional "oci" section per functional group image (written only when
+# external_oci_registry is set): registry_mode (external | local), reference,
+# external_reference, digest, architecture, tags, annotations and, when the
+# push failed, a sanitized error. Consumers that read only kernel, initrd and
+# image are unaffected.
+#
 # Consumed by:
 #   - provision domain (BSS template rendering)
 #   - provision/roles/provision_validations/tasks/validate_image.yml
@@ -41,6 +47,9 @@ s3_configurations:
   endpoint_url: "{{ s3_endpoint | default('http://' + admin_nic_ip + ':9000') }}"
   bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
 
+{# oci section (optional): present only for functional groups processed by the
+   external OCI registry push (external_oci_registry set in image_build_config.yml). #}
+{% set _oci_results = hostvars['localhost']['oci_publish_results'] | default({}) %}
 functional_group_images:
 {% for arch_item in build_completed_images | dict2items %}
   - {{ arch_item.key }}:
@@ -49,5 +58,26 @@ functional_group_images:
       kernel: "{{ image.kernel }}"
       initrd: "{{ image.initrd }}"
       image: "{{ image.image }}"
+{% set _oci = _oci_results.get(image.functional_group) %}
+{% if _oci %}
+      oci:
+{% for _key in ['registry_mode', 'reference', 'external_reference', 'digest', 'architecture', 'error'] %}
+{% if _oci.get(_key) %}
+        {{ _key }}: {{ _oci[_key] | to_json }}
+{% endif %}
+{% endfor %}
+{% if _oci.get('tags') %}
+        tags:
+{% for _tag in _oci.tags %}
+          - {{ _tag | to_json }}
+{% endfor %}
+{% endif %}
+{% if _oci.get('annotations') %}
+        annotations:
+{% for _name, _value in _oci.annotations.items() %}
+          {{ _name }}: {{ _value | to_json }}
+{% endfor %}
+{% endif %}
+{% endif %}
 {% endfor %}
 {% endfor %}

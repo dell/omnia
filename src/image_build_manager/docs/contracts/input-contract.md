@@ -30,6 +30,14 @@ when the domain-specific path is unset.
 | `build_image.repo_ssl_verify` | bool | Yes | `true` | Enable TLS certificate and repository GPG verification |
 | `aarch64_inventory_host_ip` | string | No | `""` | ARM host IPv4 address; empty disables aarch64 builds |
 | `aarch64_ssh_user` | string | Conditional | `"root"` | Required when an ARM host IP is configured |
+| `external_oci_registry` | object | No | omitted | Optional Harbor registry. When present, the OCI image of every functional group is annotated, tagged and pushed to it after the build. Omit for local-only builds (no network call, no credential prompt) |
+| `external_oci_registry.registry_type` | string | Yes (with section) | - | `harbor` is the only supported value |
+| `external_oci_registry.registry_protocol` | string | Yes (with section) | - | `https`, or `http` together with `tls_verify: false` |
+| `external_oci_registry.registry_hostname` | string | Yes (with section) | - | Host name or IPv4 address of the registry |
+| `external_oci_registry.registry_port` | int | No | 443 (https), 80 (http) | Registry port |
+| `external_oci_registry.namespace_name` | string | Yes (with section) | - | Harbor project; it must already exist |
+| `external_oci_registry.auth_type` | string | Yes (with section) | - | `basic` (user or robot account name and secret) is the only supported value |
+| `external_oci_registry.tls_verify` | bool | No | `true` | Verify the registry certificate; set `false` only for a self-signed lab registry |
 
 JSON Schema `default` annotations do not populate missing YAML keys. Every field
 marked required must be present in the staged input.
@@ -51,6 +59,8 @@ marked required must be present in the staged input.
 | `s3_access_id` | string | PowerScale only | PowerScale S3 access key ID; MinIO uses `admin` when empty |
 | `s3_secret_key` | string | Yes | MinIO root password or PowerScale S3 secret key; minimum 8 characters |
 | `aarch64_ssh_password` | string | When ARM is enabled | Password used to install the controller's SSH public key |
+| `oci_registry_username` | string | When `external_oci_registry` is set | Registry user or Harbor robot account name |
+| `oci_registry_password` | string | When `external_oci_registry` is set | Registry password or robot account secret |
 
 ---
 

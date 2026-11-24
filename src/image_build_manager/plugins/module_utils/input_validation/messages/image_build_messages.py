@@ -52,6 +52,29 @@ def aarch64_reserved_ip_msg(ip_address):
     )
 
 # =============================================================================
+# EXTERNAL OCI REGISTRY MESSAGES
+# =============================================================================
+
+EXTERNAL_OCI_HTTP_REQUIRES_NO_TLS_VERIFY_MSG = (
+    "image_build_config: external_oci_registry.registry_protocol 'http' is "
+    "accepted only with tls_verify set to false."
+)
+
+EXTERNAL_OCI_TLS_DISABLED_WARN_MSG = (
+    "image_build_config: TLS verification is disabled for the external OCI "
+    "registry. Use this only for a self-signed lab registry."
+)
+
+
+def external_oci_hostname_invalid_msg(hostname):
+    """Returns message when the registry host name is not a valid host."""
+    return (
+        f"image_build_config: external_oci_registry.registry_hostname "
+        f"'{hostname}' is not a valid host name or IPv4 address."
+    )
+
+
+# =============================================================================
 # BUILD IMAGE SETTINGS MESSAGES
 # =============================================================================
 

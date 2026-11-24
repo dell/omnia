@@ -1,0 +1,118 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6, CG-INPUT-001.5
+# ****
+
+---
+# publish_oci_images.yml — post-build packaging and push to the external registry.
+# Runs only when external_oci_registry is set, after the S3 artifacts are
+# verified. For every functional group image of this run (publish_oci_image.yml):
+#   1. annotate the local OCI image with provenance (regctl image mod)
+#   2. add the release and catalog-digest tags (regctl image copy, local registry)
+#   3. verify every local tag resolves to one manifest digest
+#   4. copy every tag to the external registry and verify the remote digests
+# The outcome per functional group is recorded in oci_publish_results and later
+# written to build_status.yml. A failure never fails the build and never touches
+# S3 artifacts or the local images.
+#
+# The regctl configuration holding the registry credentials is created on
+# memory-backed storage with mode 0600, passed only through REGCTL_CONFIG (never
+# on a command line) and always removed.
+
+- name: Set the OCI packaging inputs shared by every functional group
+  ansible.builtin.set_fact:
+    _ext_oci_source: >-
+      {{ _catalog_image_group_id
+         if (_pkg_source == 'catalog' and (_catalog_image_group_id | default('', true) | length) > 0)
+         else 'config' }}
+    _ext_oci_created: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+    _ext_oci_job_id: "{{ _job_id if (_job_id | default('', true) | length) > 0 else 'manual' }}"
+
+- name: Set the provenance tags shared by every functional group
+  ansible.builtin.set_fact:
+    _ext_oci_catalog_tag: "{{ (_ext_oci_source | hash('sha256'))[:8] if _pkg_source == 'catalog' else '' }}"
+
+- name: Set the release and catalog-digest tags
+  ansible.builtin.set_fact:
+    _ext_oci_extra_tags: >-
+      {{ [omnia_version | string]
+         + ([_ext_oci_catalog_tag] if (_ext_oci_catalog_tag | length) > 0 else []) }}
+
+- name: Package and push OCI images
+  block:
+    - name: Create the private directory for the session regctl configuration
+      ansible.builtin.tempfile:
+        state: directory
+        path: "{{ ext_oci_secret_root }}"
+        prefix: ".ext_oci_"
+      register: _ext_oci_tmpdir
+
+    - name: Build the session regctl host entries
+      ansible.builtin.set_fact:
+        _ext_oci_regctl_hosts: >-
+          {{ {} | combine({
+               (registry_host ~ ':5000'): {'hostname': registry_host ~ ':5000', 'tls': 'disabled'},
+               _ext_oci_host_ref: {
+                 'hostname': _ext_oci_host_ref,
+                 'tls': _ext_oci_tls,
+                 'user': hostvars['localhost']['oci_registry_username'],
+                 'pass': hostvars['localhost']['oci_registry_password']
+               }}) }}
+      no_log: true
+
+    - name: Write the session regctl configuration (mode 0600, never on a command line)
+      ansible.builtin.copy:
+        content: "{{ {'hosts': _ext_oci_regctl_hosts} | to_nice_json }}"
+        dest: "{{ _ext_oci_tmpdir.path }}/regctl.json"
+        mode: "0600"
+      no_log: true
+
+    - name: Set the session regctl configuration path
+      ansible.builtin.set_fact:
+        _ext_oci_regctl_config: "{{ _ext_oci_tmpdir.path }}/regctl.json"
+
+    - name: Package and push each functional group image
+      ansible.builtin.include_tasks: publish_oci_image.yml
+      loop: "{{ compute_images_dict | dict2items }}"
+      loop_control:
+        loop_var: fg_item
+        label: "{{ fg_item.key }}"
+  rescue:
+    - name: Warn that the external OCI push could not run
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: the push to the external OCI registry was not performed
+          (failed step: {{ ansible_failed_task.name | default('unknown') }}).
+          The bootable artifacts and the local OCI images are unaffected.
+    - name: Record the failure for functional groups without a result
+      ansible.builtin.set_fact:
+        oci_publish_results: >-
+          {% set ns = namespace(r={}) -%}
+          {% for fg_name in compute_images_dict -%}
+            {% set _ = ns.r.update({fg_name: {'error': 'push to the external OCI registry was not performed'}}) -%}
+          {% endfor -%}
+          {{ ns.r | combine(oci_publish_results | default({})) }}
+        cacheable: true
+  always:
+    - name: Remove the session regctl configuration
+      ansible.builtin.file:
+        path: "{{ _ext_oci_tmpdir.path }}"
+        state: absent
+      when: _ext_oci_tmpdir.path is defined
+    - name: Clear the session registry host entries
+      ansible.builtin.set_fact:
+        _ext_oci_regctl_hosts: {}
+      no_log: true

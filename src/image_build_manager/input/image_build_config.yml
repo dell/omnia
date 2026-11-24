@@ -25,6 +25,7 @@
 #   3. Build Controls         — concurrency, timeout, and rebuild controls
 #   4. Functional Groups      — which OS image variants to build
 #   5. ARM Build Host         — aarch64 remote build host
+#   6. External OCI Registry  — optional push of built images to Harbor
 #
 # NOTE: catalog_file is sourced from CATALOG_FILE_PATH environment variable
 # (set in omnia.env). It is NOT configured here.
@@ -98,3 +99,31 @@ functional_groups_source: "catalog"
 # Leave empty ("") to skip aarch64 builds entirely.
 aarch64_inventory_host_ip: ""
 aarch64_ssh_user: "root"
+
+
+# ---------------------------------------------------------------------------
+# 6. External OCI Registry (optional)
+# ---------------------------------------------------------------------------
+# Leave this section commented out to keep the OCI images in the local
+# registry only (default). When enabled, after each build the OCI image of
+# every functional group is annotated, tagged and pushed to the registry below
+# and the result is recorded in the "oci" section of build_status.yml.
+# Registry credentials are NOT stored here: oci_registry_username and
+# oci_registry_password are collected into the Vault-encrypted
+# image_build_credentials.yml (run with --tags credentials or any build tag).
+#   registry_type      only "harbor" is supported in this increment
+#   registry_protocol  https (or http together with tls_verify: false)
+#   registry_hostname  host name or IPv4 address of the registry
+#   registry_port      optional; defaults to 443 (https) or 80 (http)
+#   namespace_name     Harbor project; it must already exist
+#   auth_type          only "basic" (user or robot account name and secret)
+#   tls_verify         optional; default true. Set false only for a
+#                      self-signed lab registry.
+# external_oci_registry:
+#   registry_type: "harbor"
+#   registry_protocol: "https"
+#   registry_hostname: "harbor.example.com"
+#   registry_port: 443
+#   namespace_name: "hpc-images"
+#   auth_type: "basic"
+#   tls_verify: true

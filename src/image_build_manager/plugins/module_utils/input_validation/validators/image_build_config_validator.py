@@ -17,6 +17,7 @@ Image build configuration validator.
 This module validates image_build_config.yml for:
 - S3 provider/endpoint consistency
 - aarch64 build host dependencies
+- External OCI registry (Harbor) settings
 - Async job timing constraints
 - Functional groups source/list consistency
 - Build concurrency settings
@@ -75,6 +76,36 @@ def _validate_aarch64_config(config_data, errors, logger=None):
             errors.append(msg.AARCH64_SSH_USER_REQUIRED_MSG)
             if logger:
                 logger.error(msg.AARCH64_SSH_USER_REQUIRED_MSG)
+
+
+def _validate_external_oci_registry(config_data, errors, logger=None):
+    """
+    Validate the optional external OCI registry section.
+
+    Rules:
+    - registry_hostname must not contain empty labels ("..").
+    - registry_protocol 'http' is accepted only with tls_verify false.
+    - https with tls_verify false is accepted with a warning.
+    - Field types, enums and character sets are enforced by the L1 schema.
+    """
+    registry = config_data.get("external_oci_registry")
+    if not registry:
+        return
+
+    hostname = str(registry.get("registry_hostname", ""))
+    if ".." in hostname:
+        error = msg.external_oci_hostname_invalid_msg(hostname)
+        errors.append(error)
+        if logger:
+            logger.error(error)
+
+    tls_verify = registry.get("tls_verify", True)
+    if registry.get("registry_protocol") == "http" and tls_verify:
+        errors.append(msg.EXTERNAL_OCI_HTTP_REQUIRES_NO_TLS_VERIFY_MSG)
+        if logger:
+            logger.error(msg.EXTERNAL_OCI_HTTP_REQUIRES_NO_TLS_VERIFY_MSG)
+    elif not tls_verify and logger:
+        logger.warning(msg.EXTERNAL_OCI_TLS_DISABLED_WARN_MSG)
 
 
 def _validate_build_image_settings(config_data, errors, logger=None):
@@ -157,6 +188,7 @@ def validate(config_data, logger=None):
     errors = []
     _validate_s3_config(config_data, errors, logger)
     _validate_aarch64_config(config_data, errors, logger)
+    _validate_external_oci_registry(config_data, errors, logger)
     _validate_build_image_settings(config_data, errors, logger)
     _validate_functional_groups_source(config_data, errors, logger)
     _validate_build_concurrency(config_data, errors, logger)
