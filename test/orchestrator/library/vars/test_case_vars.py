@@ -83,6 +83,32 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify node_mount_point is set when node_key is specified",
         "component": "Mount config node_key consistency",
     },
+    # ── local_storage validation (V013-V017) — ER-ORCH-011 Story 1 ──
+    "precheck_local_storage_declarations": {
+        "id": "ORCH_FVT_PRECHECK_V013",
+        "title": "Verify local_storage required fields and valid enums",
+        "component": "local_storage field validation",
+    },
+    "precheck_local_storage_targeting": {
+        "id": "ORCH_FVT_PRECHECK_V014",
+        "title": "Verify local_storage targets only service Kubernetes groups",
+        "component": "local_storage group targeting",
+    },
+    "precheck_local_storage_semantic_rules": {
+        "id": "ORCH_FVT_PRECHECK_V015",
+        "title": "Verify local_storage semantic rules — Kafka on workers, etcd no nofail",
+        "component": "local_storage semantic rules",
+    },
+    "precheck_local_storage_etcd_nfs_fallback": {
+        "id": "ORCH_FVT_PRECHECK_V016",
+        "title": "Verify etcd uses NFS when no etcd disk entry is declared",
+        "component": "local_storage etcd NFS fallback",
+    },
+    "precheck_kafka_switch_validation": {
+        "id": "ORCH_FVT_PRECHECK_V017",
+        "title": "Verify kafka_on_local_disk defaults to false and rejects non-Boolean",
+        "component": "kafka_on_local_disk switch",
+    },
     # ── OIM readiness (V100-V118) ───────────────────────────────────
     "oim_cpu_threshold": {
         "id": "ORCH_FVT_PRECHECK_V100",
@@ -538,6 +564,17 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V021",
         "title": "Verify Kubernetes local-etcd reboot persistence",
         "component": "Kubernetes local-etcd reboot persistence",
+    },
+    # ── Kafka local disk — ER-ORCH-011 Story 3 ──────────────────────
+    "kafka_node_label": {
+        "id": "ORCH_FVT_PXEBOOT_V601",
+        "title": "Verify Kafka node label follows disk status and disable-marker state",
+        "component": "Kafka node label",
+    },
+    "kafka_disk_status_file": {
+        "id": "ORCH_FVT_PXEBOOT_V602",
+        "title": "Verify per-node Kafka disk status file exists and reports valid result",
+        "component": "Kafka disk status file",
     },
     "kubernetes_recovery": {
         "id": "ORCH_FVT_PXEBOOT_V022",

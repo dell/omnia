@@ -260,6 +260,10 @@ from .kubernetes_runtime_pxeboot_func import (
     check_kubernetes_local_etcd_provisioning,
     check_kubernetes_version_compatibility,
 )
+from .kafka_local_disk_pxeboot_func import (
+    check_kubernetes_kafka_disk_status,
+    check_kubernetes_kafka_node_label,
+)
 from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_csi_dynamic_provisioning,
     check_kubernetes_default_storage_class,
@@ -267,6 +271,13 @@ from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_nfs_provisioner_contract,
     check_kubernetes_snapshot_controller,
     check_kubernetes_workload_scheduling,
+)
+from .local_storage_precheck_func import (
+    check_precheck_kafka_switch_validation,
+    check_precheck_local_storage_declarations,
+    check_precheck_local_storage_etcd_nfs_fallback,
+    check_precheck_local_storage_semantic_rules,
+    check_precheck_local_storage_targeting,
 )
 from .minimal_os_pxeboot_func import (
     check_minimal_os_additional_packages,

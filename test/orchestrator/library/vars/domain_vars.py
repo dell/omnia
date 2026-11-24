@@ -77,6 +77,7 @@ MARKERS: list[str] = [
     "ipoib",
     "fault_injection",
     "reprovision",
+    "local_storage",
 ]
 
 # =====================================================================
