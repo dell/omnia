@@ -258,7 +258,10 @@ THEMES: Dict[str, Dict] = {
         "title": "External Contract",
         "description": "Image Build Manager with externally supplied repo_status.yml: "
                        "prepare infrastructure, contract verification tests, then "
-                       "real --tags build playbook execution",
+                       "real --tags build playbook execution.  Depends on a completed "
+                       "repo_manager run that produced repo_status.yml from an "
+                       "external source (4 of 23 FVT tests require the live file; "
+                       "set REQUIRE_LIVE_REPO_STATUS=1 to fail instead of skip)",
         "profile": "external_contract",
         "cleanup_steps": CLEANUP_STEPS,
         "nfs_shares": {},

@@ -214,6 +214,9 @@ TEST_CASES = {
         "title": "Contract build: real --tags build with external repo_status.yml "
                  "(consumed-path proof and two negative controls)",
         "step": (_IMG, ("validate", "exec", "--suite", "contract")),
+        # Fail (not skip) live-file tests during SVT — the prerequisite
+        # (a completed repo_manager run with external output) must be met.
+        "env": {"REQUIRE_LIVE_REPO_STATUS": "1"},
     },
 }
 # ------------------------------------------------------ theme catalog_build

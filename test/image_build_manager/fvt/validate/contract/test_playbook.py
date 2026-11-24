@@ -26,6 +26,19 @@ with ``--tags build``.  The build tag is the real flow that naturally sets
   4. Certificate path validation
   5. Repository URL reachability check
   6. Full image build execution with the external repo_status
+
+**Data-source category: live file.**
+
+All tests in this module require the real ``repo_status.yml`` produced by
+an earlier ``repo_manager`` run.  When the file is absent:
+
+* Default behaviour: the test **skips** (safe for ad-hoc / dev-box runs).
+* When ``REQUIRE_LIVE_REPO_STATUS=1`` is set (CI / nightly mode): the
+  test **fails** so a green report cannot hide the fact that the live-file
+  path was never exercised.
+
+The SVT ``external_contract`` theme guarantees the file exists by
+depending on a completed ``repo_manager`` stage before this suite runs.
 """
 
 import copy
@@ -52,6 +65,26 @@ from library.messages import (
 
 # Temp staging directory (outside OMNIA_DATA_PATH to prove external sourcing)
 _STAGING_DIR = os.path.join(tempfile.gettempdir(), "omnia_contract_test")
+
+_REQUIRE_LIVE = os.environ.get("REQUIRE_LIVE_REPO_STATUS", "") == "1"
+
+
+def _require_or_skip(tl, path):
+    """Fail or skip when the live repo_status.yml is absent.
+
+    When ``REQUIRE_LIVE_REPO_STATUS=1`` is set, the test fails so that a
+    green report cannot hide the missing live-file path.  Otherwise, it
+    skips (safe for ad-hoc / dev-box runs).
+    """
+    msg = (
+        f"Live repo_status.yml not found at {path}"
+        + (" [REQUIRE_LIVE_REPO_STATUS=1]" if _REQUIRE_LIVE else "")
+    )
+    if _REQUIRE_LIVE:
+        tl.failed(msg, msg)
+        pytest.fail(msg)
+    tl.skipped(msg)
+    pytest.skip(msg)
 
 
 def _load_live_status():
@@ -94,6 +127,7 @@ def _cleanup_staging():
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.live_file
 @pytest.mark.order(0)
 def test_deploy_external_contract(host):
     """Deploy image_build_manager --tags build with external repo_status.
@@ -103,6 +137,8 @@ def test_deploy_external_contract(host):
     staging path, then runs the playbook with --tags build pointing at
     that path.  The build tag is the real flow that naturally loads
     repo_status.yml through the contract validation pipeline.
+
+    **Data source: live file** (requires a completed repo_manager run).
     """
     tc = TC["deploy_external_contract"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -110,9 +146,7 @@ def test_deploy_external_contract(host):
     # --- Load the live status ---
     data, source_path = _load_live_status()
     if data is None:
-        msg = f"Live repo_status.yml not found at {source_path}"
-        tl.skipped(msg)
-        pytest.skip(msg)
+        _require_or_skip(tl, source_path)
 
     # --- The live status must come from an external source ---
     source = verify_external_source(
@@ -203,15 +237,15 @@ def _run_negative_control(tc_key, mutate, expected_task, expected_text):
 
     The live file is valid, so a failure that names ``expected_text`` (taken
     only from the staged file) proves the playbook read the staged file.
+
+    **Data source: live file** (requires a completed repo_manager run).
     """
     tc = TC[tc_key]
     tl = TestLogger(tc["title"], tc["id"])
 
     data, source_path = _load_live_status()
     if data is None:
-        msg = f"Live repo_status.yml not found at {source_path}"
-        tl.skipped(msg)
-        pytest.skip(msg)
+        _require_or_skip(tl, source_path)
 
     data = copy.deepcopy(data)
     mutate(data)
@@ -249,9 +283,13 @@ def _run_negative_control(tc_key, mutate, expected_task, expected_text):
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.live_file
 @pytest.mark.order(1)
 def test_deploy_external_contract_sentinel_url(host):
-    """A sentinel repo URL only present in the staged file must be reported."""
+    """A sentinel repo URL only present in the staged file must be reported.
+
+    **Data source: live file** (requires a completed repo_manager run).
+    """
     sentinel = f"https://127.0.0.1:1/contract-sentinel-{uuid.uuid4().hex[:12]}/"
 
     def mutate(data):
@@ -266,9 +304,13 @@ def test_deploy_external_contract_sentinel_url(host):
 
 @pytest.mark.deploy
 @pytest.mark.sanity
+@pytest.mark.live_file
 @pytest.mark.order(2)
 def test_deploy_external_contract_invalid_status(host):
-    """A staged status with overall_status failed must stop at the contract gate."""
+    """A staged status with overall_status failed must stop at the contract gate.
+
+    **Data source: live file** (requires a completed repo_manager run).
+    """
     def mutate(data):
         data["overall_status"] = "failed"
 

@@ -26,6 +26,26 @@ Contract pipeline under test:
   1. JSON Schema validation (repo_status.json)
   2. Semantic validation (repo_status_validator.validate)
   3. parse_repo_status — extracts consumer-required facts
+
+**Data-source breakdown (20 verification tests):**
+
+==========  =================  ==========================================
+Category    Tests              Data source
+==========  =================  ==========================================
+Synthetic   V005-V017, V020,   ``minimal_external_status()`` — hand-built
+fixtures    V021, V023, V024   dicts in ``contract_func.py``
+Bundled     V018, V019         ``load_sample_status()`` reading
+samples                        ``src/.../samples/repo_manager_output/``
+Live file   **V022**           ``live_status_path()`` → real repo_status
+==========  =================  ==========================================
+
+V022 is the only verification test that requires the live file.  When
+the file is absent, V022 **skips** by default (safe for dev-box runs)
+or **fails** when ``REQUIRE_LIVE_REPO_STATUS=1`` is set (CI / nightly).
+
+A report showing "20 passed, 0 skipped" confirms the live-file path was
+exercised.  A report with skips means the live-file tests were not run —
+the terminal summary surfaces this explicitly.
 """
 
 import os
@@ -46,6 +66,8 @@ from library.functions.contract_func import (
 )
 from library.vars import TEST_CASES as TC
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
+
+_REQUIRE_LIVE = os.environ.get("REQUIRE_LIVE_REPO_STATUS", "") == "1"
 
 
 # =========================================================================
@@ -480,15 +502,25 @@ def test_external_contract_repo_extra_fields(tmp_path):
 
 
 @pytest.mark.functional
+@pytest.mark.live_file
 @pytest.mark.order(27)
 def test_external_contract_source_is_external():
-    """Verify the repo_status.yml under test names repositories on another host."""
+    """Verify the repo_status.yml under test names repositories on another host.
+
+    **Data source: live file** (requires a completed repo_manager run).
+    """
     tc = TC["external_contract_source_is_external"]
     tl = TestLogger(tc["title"], tc["id"])
     config = load_test_config()
     path = live_status_path(config.get("repo_manager_output_path", ""))
     if not os.path.isfile(path):
-        msg = f"Live repo_status.yml not found at {path}"
+        msg = (
+            f"Live repo_status.yml not found at {path}"
+            + (" [REQUIRE_LIVE_REPO_STATUS=1]" if _REQUIRE_LIVE else "")
+        )
+        if _REQUIRE_LIVE:
+            tl.failed(msg, msg)
+            pytest.fail(msg)
         tl.skipped(msg)
         pytest.skip(msg)
     with open(path, "r", encoding="utf-8") as stream:

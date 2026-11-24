@@ -106,7 +106,7 @@ def run_svt_test(theme: str, name: str) -> None:
     elif tc["step"][0] == LOCAL_DOMAIN:
         result = run_local_step(tc["step"])
     else:
-        result = run_fvt_step(tc["step"])
+        result = run_fvt_step(tc["step"], env=tc.get("env"))
     if result.get("skipped"):
         _report(theme, svt_report_func.make_item({
             "id": tc["id"], "name": tc["title"], "status": "Skipped",
