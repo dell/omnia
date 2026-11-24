@@ -1,0 +1,41 @@
+---
+name: PR Effective Size
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+      - 'feature/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pr-size-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  pr-size:
+    name: PR Effective Lines
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check effective PR size (added lines only)
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+          SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-size-check') }}
+        run: |
+          git fetch origin "$BASE_REF"
+          EXTRA=""
+          if [ "$SKIP_LABEL" = "true" ]; then
+            echo "Label 'skip-size-check' present: reporting only."
+            EXTRA="--no-fail"
+          fi
+          python3 .github/scripts/line_length_check.py \
+            --threshold 1000 --base "origin/$BASE_REF" $EXTRA

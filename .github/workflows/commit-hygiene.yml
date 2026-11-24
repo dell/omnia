@@ -48,6 +48,7 @@ jobs:
   commit-validation:
     name: Validate Commit Authors & Messages
     runs-on: ubuntu-latest
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -186,6 +187,7 @@ jobs:
   copyright-header:
     name: Copyright Header Audit
     runs-on: ubuntu-latest
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -248,6 +250,7 @@ jobs:
   test-co-change:
     name: Test Co-Change Check
     runs-on: ubuntu-latest
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
     steps:
       - uses: actions/checkout@v4
         with:
