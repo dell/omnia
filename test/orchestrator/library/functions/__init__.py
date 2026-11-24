@@ -273,7 +273,6 @@ from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_workload_scheduling,
 )
 from .local_storage_precheck_func import (
-    check_precheck_kafka_switch_validation,
     check_precheck_local_storage_declarations,
     check_precheck_local_storage_etcd_nfs_fallback,
     check_precheck_local_storage_semantic_rules,

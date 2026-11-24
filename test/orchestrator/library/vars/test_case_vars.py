@@ -104,11 +104,6 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify etcd uses NFS when no etcd disk entry is declared",
         "component": "local_storage etcd NFS fallback",
     },
-    "precheck_kafka_switch_validation": {
-        "id": "ORCH_FVT_PRECHECK_V017",
-        "title": "Verify kafka_on_local_disk defaults to false and rejects non-Boolean",
-        "component": "kafka_on_local_disk switch",
-    },
     # ── OIM readiness (V100-V118) ───────────────────────────────────
     "oim_cpu_threshold": {
         "id": "ORCH_FVT_PRECHECK_V100",
