@@ -66,7 +66,7 @@ for K8s exists (cluster health, etcd, storage, telemetry deploy, token renewal).
 
 | Action | File | Purpose |
 |--------|------|---------|
-| Create | `test/system_test/cluster_lifecycle_test_config.yml` | Theme settings (cleanup flags, report) |
+| Create | `test/system_test/cluster_lifecycle_test_config.yml` | Theme settings (report; the cleanup is the shared block of `user_inputs.yml`) |
 | Create | `test/system_test/dataset_generator/profiles/cluster_lifecycle.yml` | Input profile: `omnia.env` + orchestrator inputs |
 | Modify | `test/system_test/library/vars/theme_vars.py` | Add `"cluster_lifecycle"` entry to `THEMES` dict |
 | Modify | `test/system_test/library/vars/test_case_vars.py` | Add 13 `cluster_lifecycle_*` entries to `TEST_CASES` |
