@@ -195,13 +195,14 @@ TEST_CASES = {
     # contract_validate ------------------------------------------
     "external_contract_validate_verify": {
         "id": "SVT_EXTERNAL_CONTRACT_003", "order": 4020, "stage": "contract_validate",
-        "title": "Contract verification: schema, semantic, parse, extensibility (17 tests)",
+        "title": "Contract verification: schema, semantic, parse, extensibility (20 tests)",
         "step": (_IMG, ("validate", "verify", "--suite", "contract")),
     },
     # contract_build ---------------------------------------------
     "external_contract_build_exec": {
         "id": "SVT_EXTERNAL_CONTRACT_004", "order": 4030, "stage": "contract_build",
-        "title": "Contract build: real --tags build with external repo_status.yml",
+        "title": "Contract build: real --tags build with external repo_status.yml "
+                 "(consumed-path proof and two negative controls)",
         "step": (_IMG, ("validate", "exec", "--suite", "contract")),
     },
 }

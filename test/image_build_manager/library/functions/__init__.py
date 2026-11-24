@@ -102,6 +102,9 @@ from .contract_func import (
     minimal_external_status,
     write_status_fixture,
     load_sample_status,
+    verify_external_source,
+    status_repo_hosts,
+    live_status_path,
 )
 
 # --- Non-functional security (file permissions / ownership) ---
@@ -188,5 +191,8 @@ __all__ = [
     "minimal_external_status",
     "write_status_fixture",
     "load_sample_status",
+    "verify_external_source",
+    "status_repo_hosts",
+    "live_status_path",
     "run_playbook",
 ]

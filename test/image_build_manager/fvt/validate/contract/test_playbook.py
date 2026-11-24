@@ -28,14 +28,17 @@ with ``--tags build``.  The build tag is the real flow that naturally sets
   6. Full image build execution with the external repo_status
 """
 
+import copy
 import os
 import shutil
 import tempfile
+import uuid
 
 import pytest
 import yaml
 
 from library.functions import TestLogger, run_playbook, load_test_config
+from library.functions.contract_func import live_status_path, verify_external_source
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     PLAYBOOK_ENTRY_POINT,
@@ -45,14 +48,6 @@ from library.vars.common_vars import (
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
-)
-
-# Default repo_status.yml location on the OIM
-_DEFAULT_REPO_STATUS = os.path.join(
-    os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"),
-    "repo_manager", "output",
-    os.environ.get("OMNIA_PROJECT_NAME", "project_default"),
-    "repo_status.yml",
 )
 
 # Temp staging directory (outside OMNIA_DATA_PATH to prove external sourcing)
@@ -65,11 +60,8 @@ def _load_live_status():
     Returns:
         Tuple of (data dict, source path) or (None, path) if not found.
     """
-    path = _DEFAULT_REPO_STATUS
     config = load_test_config()
-    custom = config.get("repo_manager_output_path", "")
-    if custom:
-        path = custom
+    path = live_status_path(config.get("repo_manager_output_path", ""))
 
     if not os.path.isfile(path):
         return None, path
@@ -122,11 +114,23 @@ def test_deploy_external_contract(host):
         tl.skipped(msg)
         pytest.skip(msg)
 
+    # --- The live status must come from an external source ---
+    source = verify_external_source(
+        data, str(load_test_config().get("external_repo_host", "")),
+    )
+    if not source["success"]:
+        tl.failed(LOG["contract_external_source_failed"].format(
+            details=source["details"]), source["details"])
+    assert source["success"], ASSERT["contract_not_external"].format(
+        details=source["details"], hosts=source["hosts"])
+    tl.info(LOG["contract_external_source_ok"].format(details=source["details"]))
+
     # --- Enrich with external producer metadata ---
     data["custom_external_metadata"] = {
         "source": "contract-fvt",
         "producer_version": "external-1.0",
         "build_id": 99999,
+        "run_nonce": uuid.uuid4().hex,
     }
     data.setdefault("execution_contexts", [])
     if not data["execution_contexts"]:
@@ -166,6 +170,10 @@ def test_deploy_external_contract(host):
             )
 
         config = load_test_config()
+        consumed = f"Repo manager output: {staged_path}"
+        assert consumed in result.get("output", ""), ASSERT[
+            "contract_path_not_consumed"
+        ].format(path=staged_path)
         assert result["success"], ASSERT["contract_deploy_failed"].format(
             playbook=PLAYBOOK_ENTRY_POINT,
             rc=result["rc"],
@@ -178,3 +186,94 @@ def test_deploy_external_contract(host):
         )
     finally:
         _cleanup_staging()
+
+
+def _first_repo_entry(data):
+    """Return the first repository entry (dict with ``url``) of a status dict."""
+    for versions in data["repositories"].values():
+        for arches in versions.values():
+            for entry in arches.values():
+                if isinstance(entry, dict) and "url" in entry:
+                    return entry
+    raise AssertionError("no repository entry with a url in repo_status.yml")
+
+
+def _run_negative_control(tc_key, mutate, expected_task, expected_text):
+    """Stage a mutated external repo_status.yml and expect --tags build to fail.
+
+    The live file is valid, so a failure that names ``expected_text`` (taken
+    only from the staged file) proves the playbook read the staged file.
+    """
+    tc = TC[tc_key]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    data, source_path = _load_live_status()
+    if data is None:
+        msg = f"Live repo_status.yml not found at {source_path}"
+        tl.skipped(msg)
+        pytest.skip(msg)
+
+    data = copy.deepcopy(data)
+    mutate(data)
+    staged_path = _stage_external_status(data)
+    tl.info(f"Staged tampered repo_status at {staged_path}")
+
+    try:
+        result = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            tag="build",
+            extra_vars={"repo_manager_output_path": staged_path},
+        )
+        output = result.get("output", "")
+        failed_here = (
+            not result["success"]
+            and expected_task in output
+            and expected_text in output
+        )
+        if failed_here:
+            tl.passed(LOG["contract_negative_ok"].format(
+                task=expected_task, text=expected_text,
+            ))
+        else:
+            tl.failed(
+                LOG["contract_negative_failed"].format(rc=result["rc"]),
+                "Playbook did not fail on the staged file as expected",
+            )
+        assert failed_here, ASSERT["contract_negative_failed"].format(
+            task=expected_task, text=expected_text,
+            rc=result["rc"], path=staged_path,
+        )
+    finally:
+        _cleanup_staging()
+
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.order(1)
+def test_deploy_external_contract_sentinel_url(host):
+    """A sentinel repo URL only present in the staged file must be reported."""
+    sentinel = f"https://127.0.0.1:1/contract-sentinel-{uuid.uuid4().hex[:12]}/"
+
+    def mutate(data):
+        _first_repo_entry(data)["url"] = sentinel
+
+    _run_negative_control(
+        "deploy_external_contract_sentinel_url", mutate,
+        expected_task="Fail if any repo URLs are unreachable",
+        expected_text=sentinel,
+    )
+
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.order(2)
+def test_deploy_external_contract_invalid_status(host):
+    """A staged status with overall_status failed must stop at the contract gate."""
+    def mutate(data):
+        data["overall_status"] = "failed"
+
+    _run_negative_control(
+        "deploy_external_contract_invalid_status", mutate,
+        expected_task="Validate repo_status.yml contract",
+        expected_text="overall_status",
+    )

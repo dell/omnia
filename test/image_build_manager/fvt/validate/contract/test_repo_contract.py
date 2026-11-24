@@ -28,15 +28,21 @@ Contract pipeline under test:
   3. parse_repo_status — extracts consumer-required facts
 """
 
-import pytest
+import os
 
-from library.functions import TestLogger
+import pytest
+import yaml
+
+from library.functions import TestLogger, load_test_config
 from library.functions.contract_func import (
     validate_repo_contract,
     parse_repo_status_external,
     minimal_external_status,
     write_status_fixture,
     load_sample_status,
+    live_status_path,
+    local_addresses,
+    verify_external_source,
 )
 from library.vars import TEST_CASES as TC
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
@@ -471,3 +477,64 @@ def test_external_contract_repo_extra_fields(tmp_path):
     assert parse["result"]["repo_manager_repos_x86_64"][0]["base_url"] == (
         "https://ext.example.com/baseos/"
     )
+
+
+@pytest.mark.functional
+@pytest.mark.order(27)
+def test_external_contract_source_is_external():
+    """Verify the repo_status.yml under test names repositories on another host."""
+    tc = TC["external_contract_source_is_external"]
+    tl = TestLogger(tc["title"], tc["id"])
+    config = load_test_config()
+    path = live_status_path(config.get("repo_manager_output_path", ""))
+    if not os.path.isfile(path):
+        msg = f"Live repo_status.yml not found at {path}"
+        tl.skipped(msg)
+        pytest.skip(msg)
+    with open(path, "r", encoding="utf-8") as stream:
+        data = yaml.safe_load(stream)
+
+    result = verify_external_source(data, str(config.get("external_repo_host", "")))
+    if not result["success"]:
+        tl.failed(LOG["contract_external_source_failed"].format(
+            details=result["details"]), result["details"])
+    assert result["success"], ASSERT["contract_not_external"].format(
+        details=result["details"], hosts=result["hosts"])
+    tl.passed(LOG["contract_external_source_ok"].format(details=result["details"]))
+
+
+@pytest.mark.functional
+@pytest.mark.order(28)
+def test_external_contract_local_source_rejected():
+    """Verify a repo_status.yml whose repositories are on this OIM is rejected."""
+    tc = TC["external_contract_local_source_rejected"]
+    tl = TestLogger(tc["title"], tc["id"])
+    local_ip = next(a for a in sorted(local_addresses())
+                    if a.count(".") == 3 and not a.startswith("127."))
+    data = minimal_external_status(repositories={
+        "10.0": {"x86_64": {"baseos": {"url": f"https://{local_ip}:2225/baseos/"}}},
+    })
+
+    result = verify_external_source(data)
+    tl.passed(LOG["contract_rejected_ok"], result["details"]) if not result["success"] \
+        else tl.failed(LOG["contract_rejection_expected"], result["details"])
+    assert not result["success"] and local_ip in result["details"], (
+        ASSERT["contract_rejection_expected"])
+
+
+@pytest.mark.functional
+@pytest.mark.order(29)
+def test_external_contract_host_pin_mismatch():
+    """Verify external_repo_host rejects a repo_status on any other host."""
+    tc = TC["external_contract_host_pin_mismatch"]
+    tl = TestLogger(tc["title"], tc["id"])
+    data = minimal_external_status()
+
+    accepted = verify_external_source(data, "repo.external.example.com")
+    rejected = verify_external_source(data, "other.example.com")
+    ok = accepted["success"] and not rejected["success"]
+    if ok:
+        tl.passed(LOG["contract_rejected_ok"], rejected["details"])
+    else:
+        tl.failed(LOG["contract_rejection_expected"], rejected["details"])
+    assert ok, ASSERT["contract_rejection_expected"]

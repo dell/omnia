@@ -22,8 +22,12 @@ and parses correctly into consumer-required facts.
 import importlib.util
 import json
 import logging
+import os
+import socket
+import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.parse import urlparse
 
 import ansible.module_utils
 import yaml
@@ -50,6 +54,8 @@ _PARSE_MODULE_PATH = _SRC_IBM / "plugins/modules/parse_repo_status.py"
 _SAMPLE_DIR = _SRC_IBM / "samples" / "repo_manager_output"
 
 _LOGGER = logging.getLogger(__name__)
+_OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
+_OPENSSL_TIMEOUT = 10
 
 
 def _load_module(name, path):
@@ -200,3 +206,132 @@ def load_sample_status(
             return yaml.safe_load(text), str(out)
 
     return yaml.safe_load(text), str(sample_path)
+
+
+def _env_values(path: str = _OMNIA_ENV_FILE) -> Dict[str, str]:
+    """Return KEY=value pairs of an env file (empty when unreadable)."""
+    values: Dict[str, str] = {}
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            for line in stream:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    values[key.strip()] = value.strip().strip("\"'")
+    except OSError:
+        pass
+    return values
+
+
+def local_addresses() -> Set[str]:
+    """Return every address and name that identifies this OIM (lower case)."""
+    names = {"localhost", "127.0.0.1", "::1"}
+    env = _env_values()
+    names.update(env.get(key, "") for key in
+                 ("SYSTEM_ADMIN_NIC_IPV4", "SYSTEM_HOSTNAME"))
+    names.update((socket.gethostname(), socket.getfqdn()))
+    try:
+        listing = subprocess.run(
+            ["ip", "-o", "addr", "show"], capture_output=True, text=True,
+            check=False, timeout=_OPENSSL_TIMEOUT,
+        ).stdout
+        for line in listing.splitlines():
+            fields = line.split()
+            if "inet" in fields or "inet6" in fields:
+                names.add(fields[fields.index("inet6" if "inet6" in fields
+                                              else "inet") + 1].split("/")[0])
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {name.lower() for name in names if name}
+
+
+def status_repo_hosts(data: Dict[str, Any]) -> Set[str]:
+    """Return the host of every repository URL in a repo_status dict."""
+    urls: List[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("url", "base_url") and isinstance(value, str):
+                    urls.append(value)
+                else:
+                    walk(value)
+        elif isinstance(node, str) and node.startswith(("http://", "https://")):
+            urls.append(node)
+
+    walk(data.get("repositories", {}))
+    walk(data.get("base_urls", {}))
+    return {host.lower() for host in
+            (urlparse(url).hostname for url in urls) if host}
+
+
+def cert_names(cert_path: str) -> Set[str]:
+    """Return the IP and DNS subject alternative names of a certificate."""
+    out = subprocess.run(
+        ["openssl", "x509", "-in", cert_path, "-noout", "-ext",
+         "subjectAltName"],
+        capture_output=True, text=True, check=True, timeout=_OPENSSL_TIMEOUT,
+    ).stdout
+    names = set()
+    for item in out.replace("\n", ",").split(","):
+        item = item.strip()
+        if item.startswith(("IP Address:", "DNS:")):
+            names.add(item.split(":", 1)[1].strip().lower())
+    return names
+
+
+def verify_external_source(
+    data: Dict[str, Any], expected_host: str = "",
+) -> Dict[str, Any]:
+    """Check that a repo_status dict describes repositories on another host.
+
+    Fails when any repository host is this OIM, when ``expected_host`` is
+    set and any repository host differs from it, or when the certificate
+    named in the file does not cover the repository hosts.
+
+    Returns:
+        Dict with keys: success, details, hosts, local, errors.
+    """
+    hosts = status_repo_hosts(data)
+    local = local_addresses()
+    errors: List[str] = []
+    if not hosts:
+        errors.append("repo_status.yml names no repository host")
+    clash = sorted(hosts & local)
+    if clash:
+        errors.append(f"repository host(s) are this OIM: {', '.join(clash)}")
+    if expected_host and hosts - {expected_host.lower()}:
+        errors.append(
+            f"repository host(s) {sorted(hosts - {expected_host.lower()})} "
+            f"differ from external_repo_host {expected_host}"
+        )
+    cert = (data.get("repo_manager", {}).get("certificates", {})
+            .get("server_crt", ""))
+    if cert and hosts:
+        try:
+            missing = sorted(hosts - cert_names(cert))
+            if missing:
+                errors.append(
+                    f"certificate {cert} does not cover host(s) {missing}")
+        except (OSError, subprocess.SubprocessError) as exc:
+            errors.append(f"certificate {cert} unreadable: {exc}")
+    return {
+        "success": not errors,
+        "details": "; ".join(errors) or (
+            f"repository host(s) {sorted(hosts)} are external to this OIM"),
+        "hosts": sorted(hosts),
+        "local": sorted(local),
+        "errors": errors,
+    }
+
+
+def live_status_path(custom: str = "") -> str:
+    """Return the repo_status.yml path under test (custom override or default)."""
+    if custom:
+        return custom
+    return os.path.join(
+        os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"),
+        "repo_manager", "output",
+        os.environ.get("OMNIA_PROJECT_NAME", "project_default"),
+        "repo_status.yml",
+    )

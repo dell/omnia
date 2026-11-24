@@ -352,6 +352,18 @@ TEST_LOG_MSGS = {
     "contract_deploy_failed": (
         "Playbook failed with external repo_status (rc={rc}, duration={duration:.1f}s)"
     ),
+    "contract_external_source_ok": (
+        "repo_status source is external: {details}"
+    ),
+    "contract_external_source_failed": (
+        "repo_status source is NOT external: {details}"
+    ),
+    "contract_negative_ok": (
+        "Playbook rejected the staged repo_status at '{task}' naming '{text}'"
+    ),
+    "contract_negative_failed": (
+        "Playbook did not reject the staged repo_status as expected (rc={rc})"
+    ),
 
     # cleanup_images
     "cleanup_images_s3_ok": (
@@ -642,6 +654,47 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. Verify the validator rejects status != success\n"
         "  2. Verify the validator rejects empty/missing repositories"
+    ),
+
+    "contract_not_external": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 repo_status.yml IS NOT FROM AN EXTERNAL SOURCE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Problem: {details}\n"
+        "\u2551 Repository hosts: {hosts}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Place the repo_status.yml produced by the external Repo Manager\n"
+        "\u2551      at repo_manager_output_path (or the project output path)\n"
+        "\u2551   2. Optionally pin it with external_repo_host in test_config.yml\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_path_not_consumed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 STAGED repo_status.yml WAS NOT CONSUMED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected 'Repo manager output: {path}' in the playbook output\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify -e repo_manager_output_path is honoured by image_build_setup\n"
+        "\u2551   2. Check the playbook output above for the path it used\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_negative_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL CONTRACT NEGATIVE CONTROL FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected the playbook to fail at: {task}\n"
+        "\u2551 Expected the output to name: {text}\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551 Staged repo_status: {path}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. If the playbook passed, it ignored the staged file\n"
+        "\u2551   2. Otherwise read the failing task in the output above\n"
+        "\u255a" + _BORDER + "\u255d\n"
     ),
 
     "contract_deploy_failed": (

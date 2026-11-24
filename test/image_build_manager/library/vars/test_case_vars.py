@@ -234,6 +234,14 @@ TEST_CASES = {
         "id": "IMGBM_FVT_VALIDATE_E002",
         "title": "Deploy validate with external repo_status.yml",
     },
+    "deploy_external_contract_sentinel_url": {
+        "id": "IMGBM_FVT_VALIDATE_E003",
+        "title": "External repo_status sentinel URL is consumed from staged file",
+    },
+    "deploy_external_contract_invalid_status": {
+        "id": "IMGBM_FVT_VALIDATE_E004",
+        "title": "External repo_status invalid status is rejected by build playbook",
+    },
     # ── Validate — external repo_manager contract (verify) ───────────────
     "external_contract_minimal": {
         "id": "IMGBM_FVT_VALIDATE_V005",
@@ -302,6 +310,18 @@ TEST_CASES = {
     "external_contract_repo_extra_fields": {
         "id": "IMGBM_FVT_VALIDATE_V021",
         "title": "External contract: repo entries may carry extra fields",
+    },
+    "external_contract_source_is_external": {
+        "id": "IMGBM_FVT_VALIDATE_V022",
+        "title": "External contract: live repo_status repositories are on an external host",
+    },
+    "external_contract_local_source_rejected": {
+        "id": "IMGBM_FVT_VALIDATE_V023",
+        "title": "External contract: a repo_status pointing at this OIM is rejected",
+    },
+    "external_contract_host_pin_mismatch": {
+        "id": "IMGBM_FVT_VALIDATE_V024",
+        "title": "External contract: repo host differing from external_repo_host is rejected",
     },
     # ── Cleanup ───────────────────────────────────────────────────────────
     "deploy_cleanup_images": {

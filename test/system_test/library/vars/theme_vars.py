@@ -278,14 +278,15 @@ THEMES: Dict[str, Dict] = {
                 "and MinIO S3 storage for image builds"),
             "contract_validate": (
                 "Contract Verification",
-                "17 contract verification tests: schema, semantic validation, "
+                "20 contract verification tests: schema, semantic validation, external-source host check, "
                 "parsing, extensibility, accepted and rejected inputs"),
             "contract_build": (
                 "Contract Build",
                 "Real image_build_manager --tags build playbook with externally "
                 "staged repo_status.yml: full pipeline execution (validate, "
                 "parse, cert check, URL reachability, image build, S3/registry "
-                "push, build_status.yml)"),
+                "push, build_status.yml), plus two tampered-file controls proving the "
+                "staged file is the one the playbook reads"),
         },
         "state_probe": None,
         "fvt_settings": {},
