@@ -34,8 +34,6 @@ from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
 _TEL = "telemetry"
-_TEL = "telemetry"
-_ORCH = "orchestrator"
 _ORCH = "orchestrator"
 
 TEST_CASES = {
