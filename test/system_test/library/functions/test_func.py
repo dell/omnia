@@ -30,6 +30,7 @@ from omnia_auto import TestLogger
 from . import catalog_func, run_func, svt_report_func, track_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
+from .pxe_publish_func import LOCAL_DOMAIN, run_local_step
 from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
 from ..vars.common_vars import REPORT_SECTION_ENV
 from ..vars.test_case_vars import TEST_CASES
@@ -99,7 +100,13 @@ def run_svt_test(theme: str, name: str) -> None:
         pytest.skip(reason)
     logger = TestLogger(tc["title"], tc["id"])
     # "action": an SVT action instead of an FVT step (catalog_build: select or skip a catalog).
-    result = catalog_func.run_action(tc) if tc.get("action") else run_fvt_step(tc["step"])
+    # LOCAL_DOMAIN ("svt"): a local SVT step (pxe_publish_func.py), not a remote FVT runner.
+    if tc.get("action"):
+        result = catalog_func.run_action(tc)
+    elif tc["step"][0] == LOCAL_DOMAIN:
+        result = run_local_step(tc["step"])
+    else:
+        result = run_fvt_step(tc["step"])
     if result.get("skipped"):
         _report(theme, svt_report_func.make_item({
             "id": tc["id"], "name": tc["title"], "status": "Skipped",
