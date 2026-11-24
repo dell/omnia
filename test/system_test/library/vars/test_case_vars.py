@@ -35,7 +35,6 @@ from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 _BS = "build_stream"
 _TEL = "telemetry"
 _ORCH = "orchestrator"
-_TEL = "telemetry"
 
 TEST_CASES = {
     # ---------------------------------------------- stage prepare_build_stream
