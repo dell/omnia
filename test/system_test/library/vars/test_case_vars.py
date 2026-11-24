@@ -28,6 +28,7 @@ catalog_build (order 2000+): generated from the plan of the current run
 from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
+_IMG = "image_build_manager"
 _ORCH = "orchestrator"
 
 TEST_CASES = {
@@ -178,6 +179,30 @@ TEST_CASES = {
         "title": "Add a Slurm compute node",
         "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
                          "--marker", "node_lifecycle+node_add")),
+    },
+    # ============================================================ theme external_contract
+    # contract_prepare -------------------------------------------
+    "external_contract_prepare_exec": {
+        "id": "SVT_EXTERNAL_CONTRACT_001", "order": 4010, "stage": "contract_prepare",
+        "title": "Prepare: image_build_manager --tags prepare (registry and MinIO)",
+        "step": (_IMG, ("prepare", "exec")),
+    },
+    "external_contract_prepare_verify": {
+        "id": "SVT_EXTERNAL_CONTRACT_002", "order": 4011, "stage": "contract_prepare",
+        "title": "Prepare: verification (registry, MinIO, S3 connectivity)",
+        "step": (_IMG, ("prepare", "verify")),
+    },
+    # contract_validate ------------------------------------------
+    "external_contract_validate_verify": {
+        "id": "SVT_EXTERNAL_CONTRACT_003", "order": 4020, "stage": "contract_validate",
+        "title": "Contract verification: schema, semantic, parse, extensibility (17 tests)",
+        "step": (_IMG, ("validate", "verify", "--suite", "contract")),
+    },
+    # contract_build ---------------------------------------------
+    "external_contract_build_exec": {
+        "id": "SVT_EXTERNAL_CONTRACT_004", "order": 4030, "stage": "contract_build",
+        "title": "Contract build: real --tags build with external repo_status.yml",
+        "step": (_IMG, ("validate", "exec", "--suite", "contract")),
     },
 }
 # ------------------------------------------------------ theme catalog_build

@@ -254,6 +254,42 @@ THEMES: Dict[str, Dict] = {
         "state_probe": None,
         "fvt_settings": {},
     },
+    "external_contract": {
+        "title": "External Contract",
+        "description": "Image Build Manager with externally supplied repo_status.yml: "
+                       "prepare infrastructure, contract verification tests, then "
+                       "real --tags build playbook execution",
+        "profile": "external_contract",
+        "cleanup_steps": CLEANUP_STEPS,
+        "nfs_shares": {},
+        "fvt_domains": ("image_build_manager",),
+        "credential_domains": ("image_build_manager",),
+        "creds_suite": "build_stream",
+        "cleanup_requires": {},
+        "cleanup_when_deployed": (),
+        # Three stages in workflow order: infrastructure, then static verification,
+        # then the real build with the externally staged repo_status.yml.
+        "stages": ("contract_prepare", "contract_validate", "contract_build"),
+        "soft_stages": ("contract_validate",),
+        "stage_info": {
+            "contract_prepare": (
+                "Prepare Infrastructure",
+                "image_build_manager --tags prepare: set up container registry "
+                "and MinIO S3 storage for image builds"),
+            "contract_validate": (
+                "Contract Verification",
+                "17 contract verification tests: schema, semantic validation, "
+                "parsing, extensibility, accepted and rejected inputs"),
+            "contract_build": (
+                "Contract Build",
+                "Real image_build_manager --tags build playbook with externally "
+                "staged repo_status.yml: full pipeline execution (validate, "
+                "parse, cert check, URL reachability, image build, S3/registry "
+                "push, build_status.yml)"),
+        },
+        "state_probe": None,
+        "fvt_settings": {},
+    },
 }
 # Sections every theme has (title, description); the theme stages come from
 # THEMES[theme]["stage_info"]. In the report, cleanup and install (run by
