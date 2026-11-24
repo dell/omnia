@@ -72,9 +72,10 @@ svt:
   timeouts_hours:
     # Used for every job that has no entry below.
     default_hours: 6
-    # SSH and OpenBao checks, then the Omnia checkout.
+    # SSH and OpenBao checks, then the Omnia checkout (once per pipeline).
     preflight: 0.75
-    # Cleanup, install and credentials of the OIM, then the readiness checks.
+    # The complete initialization of the OIM, once per pipeline: cleanup, omnia.sh install,
+    # the Omnia environment, credentials, readiness.
     initialization: 4
     prepare_build_stream: 6
     build_deploy: 8
@@ -125,13 +126,16 @@ email:
 # for the same OIM never run together, and different clusters run at the same time.
 # Copy a block and rename it to add a cluster.
 clusters:
-  oim1:
-    # The SVT theme of this cluster (required; a key of THEMES in
-    # ../library/vars/theme_vars.py). It becomes the CI/CD variable <CLUSTER>_SVT_THEME and the
-    # pipeline picks the theme from that variable, so it can be changed in GitLab (Settings >
-    # CI/CD > Variables, or per run in Run pipeline) without --update; this value is what
-    # --update and --set-variables write. Its stages become the cluster's pipeline jobs.
-    theme: "build_stream"
+  clashcp:
+    # The SVT themes of this cluster, in run order (required; keys of THEMES in
+    # ../library/vars/theme_vars.py), comma separated: they run one after another in ONE
+    # pipeline, and a theme runs whether the one before passed or failed. It becomes the
+    # CI/CD variable <CLUSTER>_SVT_THEMES: change it in GitLab (Settings > CI/CD > Variables,
+    # or per run in Run pipeline) to run fewer themes (a subset of this list, in this order;
+    # a new theme or a new order needs --update). preflight, initialization and summary run
+    # once; each theme is its own expandable pipeline (its stages, then the result; it starts
+    # directly with its first stage), and there is ONE report: an overview and a page per theme.
+    themes: "build_stream,catalog_build"
     # theme catalog_build: one job per catalog of ../catalog_build_test_config.yml, resolved
     # when the CI files are rendered; after changing the catalog list run --update --update-inputs.
     # "false": leave this cluster out of the default selection (SVT_CLUSTERS). Its trigger job
@@ -163,8 +167,11 @@ clusters:
       #   keep      use the folder as it is, no git command.
       checkout_mode: "update"
     svt:
-      # "true": the initialization job does a clean reinstall (./setup_env.sh --force:
-      # cleanup including the NFS shares, then install). "false": no cleanup.
+      # "true": the initialization job (once) cleans the OIM completely (the shared cleanup of
+      # user_inputs.yml, incl. the NFS shares), installs Omnia (omnia.sh -s) and brings up the
+      # Omnia environment (./setup_env.sh --install --force). Every theme then runs on that
+      # installation; a theme after the first only starts its own run, no new cleanup.
+      # "false": no cleanup, install only what changed.
       clean_reinstall: "true"
       # Theme stages to leave out, comma separated, e.g. "cadence,automatic_cleanup".
       # Can also be set for one run with the SVT_SKIP_STAGES pipeline variable.
@@ -180,3 +187,21 @@ clusters:
     # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
     # path.
     secret_path: ""
+  multisubnet:
+    themes: "build_stream"
+    enabled: false
+    target:
+      ip: ""
+      user: "root"
+      ssh_skip_host_key: "false"
+    omnia:
+      repo: "https://github.com/dell/omnia.git"
+      branch: "staging"
+      install_path: "/root/omnia"
+      checkout_mode: "update"
+    svt:
+      clean_reinstall: "true"
+      skip_stages: ""
+      user_inputs: "user_inputs.yml"
+    secret_path: ""
+
