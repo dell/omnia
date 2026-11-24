@@ -439,7 +439,6 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
     names = [f"theme_{theme}" for theme in themes]
     jobs = ["preflight", FIRST_STAGE, *names, LAST_STAGE]
     var = f"{prefix(cluster)}_SVT_THEMES"
-    bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in ("preflight", FIRST_STAGE, LAST_STAGE))
     plans = [(theme, plan_variable(catalog_plan(theme))) for theme in themes]
     lines = [
@@ -469,7 +468,7 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
         "# PowerScale CSI files and the readiness checks. Every theme starts at its first stage.",
         f"{FIRST_STAGE}:", f"  stage: {FIRST_STAGE}",
         f"  timeout: {_timeout(config, FIRST_STAGE)[0]}",
-        *(["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"] if bao else []),
+        "  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL",
         "  script:", "    - python3 svt_ci.py initialization", "",
     ]
     for index, theme in enumerate(themes):
