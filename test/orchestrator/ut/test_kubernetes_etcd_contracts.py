@@ -20,9 +20,18 @@ import pytest
 from library.functions import _workload_helpers as workload
 from library.functions import kubernetes_recovery_pxeboot_func as recovery
 from library.functions import kubernetes_runtime_pxeboot_func as runtime
+from library.functions.kubernetes_recovery_pxeboot_func import _post_reboot_boot_scripts
+from library.functions.kubernetes_runtime_pxeboot_func import (
+    _completed_this_boot,
+    _disk_media,
+    _flatten_devices,
+    _mountpoint_matches,
+    _parent_disk,
+    _parse_boot_scripts,
+    _root_disk_name,
+)
 from library.vars.pxeboot_vars import (
     ETCD_SETUP_LOG,
-    ETCD_UPDATE_LOG,
     PXEBOOT_COMMANDS,
 )
 
@@ -32,7 +41,7 @@ BOOT = 1_700_000_000
 def test_boot_script_lines_are_parsed():
     """ORCH_UT_075: Boot-script state lines parse into mtime and DONE flags."""
     # Both ETCD_SETUP_LOG and ETCD_UPDATE_LOG now point to local-disk-prep.log
-    states = runtime._parse_boot_scripts(
+    states = _parse_boot_scripts(
         f"{ETCD_SETUP_LOG}|{BOOT}|1\nnoise\n"
     )
 
@@ -57,7 +66,7 @@ def test_boot_script_lines_are_parsed():
 )
 def test_completed_boot_script_requires_current_done(states, expected):
     """ORCH_UT_076: Only a DONE marker written on this boot counts."""
-    assert runtime._completed_this_boot(states, BOOT) == expected
+    assert _completed_this_boot(states, BOOT) == expected
 
 
 @pytest.mark.parametrize(
@@ -73,12 +82,12 @@ def test_completed_boot_script_requires_current_done(states, expected):
 )
 def test_disk_media_classification(disk, media):
     """ORCH_UT_077: Disk media follows lsblk TRAN and ROTA like the 2.2 suite."""
-    assert runtime._disk_media(disk) == media
+    assert _disk_media(disk) == media
 
 
 def test_partition_resolves_to_parent_and_root_disk():
     """ORCH_UT_078: Partitions resolve to whole disks for root exclusion."""
-    devices = runtime._flatten_devices(
+    devices = _flatten_devices(
         [
             {"name": "sda", "type": "disk", "children": [{"name": "sda2", "pkname": "sda"}]},
             {
@@ -98,9 +107,9 @@ def test_partition_resolves_to_parent_and_root_disk():
     by_name = {device["name"]: device for device in devices}
     selected = by_name["nvme0n1p1"]
 
-    assert runtime._mountpoint_matches(selected, "/var/lib/etcd")
-    assert runtime._parent_disk(selected, by_name)["name"] == "nvme0n1"
-    assert runtime._root_disk_name("/dev/sda2", by_name) == "sda"
+    assert _mountpoint_matches(selected, "/var/lib/etcd")
+    assert _parent_disk(selected, by_name)["name"] == "nvme0n1"
+    assert _root_disk_name("/dev/sda2", by_name) == "sda"
 
 
 @pytest.mark.parametrize(
@@ -118,7 +127,7 @@ def test_post_reboot_detects_disk_setup_rerun(monkeypatch, states, expected):
     """ORCH_UT_079: After reboot, local-disk-prep must finish and must not rerun unnecessarily."""
     monkeypatch.setattr(recovery, "etcd_boot_script_state", lambda _host, _row: (states, BOOT))
 
-    assert recovery._post_reboot_boot_scripts(object(), {"HOSTNAME": "cp1"}) == expected
+    assert _post_reboot_boot_scripts(object(), {"HOSTNAME": "cp1"}) == expected
 
 
 def _media_context(monkeypatch, expected, media_by_host):
@@ -131,9 +140,8 @@ def _media_context(monkeypatch, expected, media_by_host):
         for index, name in enumerate(media_by_host, start=10)
     ]
     monkeypatch.setattr(runtime, "load_test_config", lambda: {"expected_etcd_disk_media": expected})
-    monkeypatch.setattr(
-        runtime, "_context", lambda _host: ({"storage_config": {"local_storage": [{"purpose": "etcd"}]}}, rows, rows[0], {})
-    )
+    context = {"storage_config": {"local_storage": [{"purpose": "etcd"}]}}
+    monkeypatch.setattr(runtime, "_context", lambda _host: (context, rows, rows[0], {}))
     monkeypatch.setattr(runtime, "etcd_declared", lambda _ctx: True)
     monkeypatch.setattr(
         runtime,
@@ -198,7 +206,10 @@ def test_boot_script_command_output_is_parseable(tmp_path):
     """ORCH_UT_084: The remote boot-script probe emits the parsed line format."""
     # local-disk-prep.log is the single log used by the new mechanism
     prep_log = tmp_path / "local-disk-prep.log"
-    prep_log.write_text("2026-01-01_00:00:00 [INFO] START\n2026-01-01_00:00:05 [OK] ===== DONE (reboot) =====\n")
+    prep_log.write_text(
+        "2026-01-01_00:00:00 [INFO] START\n"
+        "2026-01-01_00:00:05 [OK] ===== DONE (reboot) =====\n"
+    )
     command = (
         PXEBOOT_COMMANDS["etcd_boot_scripts"]
         .replace(ETCD_SETUP_LOG, str(prep_log))
@@ -207,7 +218,7 @@ def test_boot_script_command_output_is_parseable(tmp_path):
     output = subprocess.run(
         ["bash", "-c", command], capture_output=True, text=True, check=True, timeout=10
     ).stdout
-    states = runtime._parse_boot_scripts(
+    states = _parse_boot_scripts(
         output.replace(str(prep_log), ETCD_SETUP_LOG)
     )
 
