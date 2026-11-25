@@ -21,7 +21,7 @@ All configuration is read from GitLab CI/CD variables (environment):
     EMAIL_SENDER          - From address (required)
     SMTP_SERVER           - SMTP relay host (required)
     SMTP_PORT             - SMTP relay port (default: 25)
-    TEST_REPORTS_PATH     - Path to test reports directory (default: /opt/omnia/reports)
+    TEST_REPORTS_PATH     - Path to test reports directory (default: /automation)
     PIPELINE_MODE         - Pipeline mode: cleanup/deploy/default (optional)
     DOMAINS               - Comma-separated domain list (optional)
     CLUSTER               - Cluster name, shown in email subject and body (optional)
@@ -57,7 +57,7 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 _SMTP_PW_KEY = "SMTP_" + "PASS" + "WORD"
 SMTP_PASSWORD = os.environ.get(_SMTP_PW_KEY, "")
 SENDER_EMAIL = os.environ.get("EMAIL_SENDER", "")
-TEST_REPORTS_PATH = os.environ.get("TEST_REPORTS_PATH", "/opt/omnia/reports")
+TEST_REPORTS_PATH = os.environ.get("TEST_REPORTS_PATH", "/automation")
 
 trigger_time = os.environ.get("PIPELINE_TRIGGER_TIME", "")
 pipeline_url = os.environ.get("CI_PIPELINE_URL", "")

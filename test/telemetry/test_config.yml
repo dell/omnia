@@ -202,7 +202,7 @@ sfm_ssh_port: 22
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.
 # Can be:
-#   - An absolute path: /opt/omnia/reports
+#   - An absolute path: /automation
 # No spaces allowed in the path.
 report_path: /automation
 

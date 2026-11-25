@@ -61,7 +61,7 @@ oim_server_ip: "10.20.0.100"
 oim_ssh_user: "root"
 clone_path: "/root/omnia"
 dataset: "data_set_01"
-report_path: "/opt/omnia/reports"
+report_path: "/automation"
 report_name: "test_report"
 ```
 

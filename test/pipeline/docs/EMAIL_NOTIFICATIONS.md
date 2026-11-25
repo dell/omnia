@@ -312,7 +312,7 @@ msg["Subject"] = f"[FAILED] Omnia Pipeline - {trigger_time}"
 ```yaml
 artifacts:
   paths:
-    - /opt/omnia/reports/
+    - /automation/
   expire_in: 90 days
   when: always
 ```

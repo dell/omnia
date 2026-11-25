@@ -40,7 +40,7 @@ oim_ssh_user: "root"
 clone_url: "https://github.com/dell/omnia.git"
 clone_path: "/root/omnia"
 dataset: "data_set_01"
-report_path: "/opt/omnia/reports"
+report_path: "/automation"
 report_name: "my_test_report"
 ```
 
@@ -218,7 +218,7 @@ def pytest_sessionstart(session):
     # Create test report
     report = TestReport(
         module_name="build",
-        report_path=config.get("report_path", "/opt/omnia/reports"),
+        report_path=config.get("report_path", "/automation"),
         report_name=config.get("report_name", "test_report"),
         server_ip=config.get("oim_server_ip", "localhost"),
     )
@@ -348,8 +348,8 @@ python3 -m pytest fvt/ -s -m sanity
 │  REPORT SAVED                                                     │
 ├────────────────────────────────────────────────────────────────────┤
 │  Results:       2 passed, 0 failed, 0 skipped                      │
-│  JSON: /opt/omnia/reports/test_report.json                          │
-│  HTML: /opt/omnia/reports/test_report.html                          │
+│  JSON: /automation/test_report.json                          │
+│  HTML: /automation/test_report.html                          │
 └────────────────────────────────────────────────────────────────────┘
 
 ========================================================================================

@@ -2188,23 +2188,23 @@ summary:
           with open(config_path, encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
           if cfg:
-            path = cfg.get("report_path", "/opt/omnia/reports")
+            path = cfg.get("report_path", "/automation")
             name = cfg.get("report_name", default_report_names.get(domain, f"{domain}_test_report"))
             report_paths[domain] = path
             report_names[domain] = name
             print(f"  {domain}: path={path}, name={name}")
           else:
-            report_paths[domain] = "/opt/omnia/reports"
+            report_paths[domain] = "/automation"
             report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
-            print(f"  {domain}: (default) /opt/omnia/reports, name={report_names[domain]}")
+            print(f"  {domain}: (default) /automation, name={report_names[domain]}")
         except FileNotFoundError:
-          report_paths[domain] = "/opt/omnia/reports"
+          report_paths[domain] = "/automation"
           report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
-          print(f"  {domain}: (not found, using default) /opt/omnia/reports, name={report_names[domain]}")
+          print(f"  {domain}: (not found, using default) /automation, name={report_names[domain]}")
         except Exception as e:
-          report_paths[domain] = "/opt/omnia/reports"
+          report_paths[domain] = "/automation"
           report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
-          print(f"  {domain}: (error: {e}, using default) /opt/omnia/reports, name={report_names[domain]}")
+          print(f"  {domain}: (error: {e}, using default) /automation, name={report_names[domain]}")
 
       with open("pipeline_reports/report_paths.json", "w", encoding="utf-8") as f:
         json.dump(report_paths, f)
@@ -2279,7 +2279,7 @@ summary:
           continue
         fi
 
-        REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('$domain', '/opt/omnia/reports'))")
+        REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('$domain', '/automation'))")
         REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/report_names.json')); print(d.get('$domain','${domain}_test_report'))")
         echo "  Domain: $domain, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
 
