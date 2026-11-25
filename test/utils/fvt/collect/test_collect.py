@@ -48,6 +48,7 @@ from library.functions import (
 )
 from library.vars import (
     TEST_CASES as TC,
+    PLAYBOOK_UTILS,
     PLAYBOOK_COLLECT,
     PLAYBOOK_WORKDIR,
     COLLECT_PXE_FILE,
@@ -460,8 +461,22 @@ def test_collect_bundle_contents(host):
         tl.skipped("No log bundle found, skipping content verification")
         pytest.skip("No log bundle found")
 
-    # Expected directories in the bundle (updated to match actual structure)
-    expected_dirs = ["k8s", "slurm"]
+    # Expected directories based on configured functional groups
+    input_path = get_utils_input_path(host)
+    collect_pxe_file = f"{input_path}/collect_pxe.yml"
+    config = {}
+    try:
+        content = host.run(f"cat {collect_pxe_file}").stdout
+        config = yaml.safe_load(content) or {}
+    except Exception:
+        pass
+
+    has_slurm = any(
+        ("slurm" in k or "login" in k)
+        for k, v in config.items()
+        if isinstance(v, list) and len(v) > 0
+    )
+    expected_dirs = ["k8s", "slurm"] if has_slurm else ["k8s"]
 
     result = validate_tar_contents(host, bundle_result["bundle_path"], expected_dirs)
 
@@ -630,8 +645,8 @@ def test_collect_output_not_writable_fails(host):
 
     output_path = get_collect_output_path(host)
 
-    # Setup: Make output directory read-only
-    host.run(f"chmod 000 {output_path}")
+    # Setup: Make output directory immutable (read-only even for root)
+    host.run(f"chattr +i {output_path} 2>/dev/null || chmod 000 {output_path}")
 
     try:
         # Execute: Run collection (should fail)
@@ -644,8 +659,8 @@ def test_collect_output_not_writable_fails(host):
 
         assert not result["success"], "Collection should fail when output directory is not writable"
     finally:
-        # Cleanup: Restore permissions
-        host.run(f"chmod 755 {output_path}")
+        # Cleanup: Restore permissions and remove immutable flag
+        host.run(f"chattr -i {output_path} 2>/dev/null || true; chmod 755 {output_path}")
 
 
 @pytest.mark.functional
@@ -670,8 +685,12 @@ def test_collect_no_nodes_configured_fails(host):
         host.run(f"echo 'slurm_control_node_x86_64: []' >> {collect_pxe_file}")
         host.run(f"echo 'slurm_node_x86_64: []' >> {collect_pxe_file}")
 
-        # Execute: Run collection (should fail)
-        result = run_playbook(playbook=PLAYBOOK_COLLECT, tag="bundle")
+        # Execute: Run collection via utils.yml --tags collect with validation enabled
+        result = run_playbook(
+            playbook=PLAYBOOK_UTILS,
+            tag="collect",
+            extra_vars={"skip_validation": "false"},
+        )
 
         if not result["success"]:
             tl.passed("Collection failed as expected when no nodes are configured")
