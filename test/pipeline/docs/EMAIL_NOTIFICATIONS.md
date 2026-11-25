@@ -1,5 +1,33 @@
 # Email Notifications with Test Report Attachments
 
+## Cluster pipeline summary email
+
+In the cluster pipeline the email is sent by the `summary` job (`pipeline_ci.py summary`,
+`library/functions/email_func.py`), not by `send_email.py`. It always runs, even after a failure.
+It is sent when `EMAIL_RECIPIENTS`, `EMAIL_SENDER` and `SMTP_SERVER` are set; `SMTP_PORT`
+(465 uses SSL, 587 uses STARTTLS), `SMTP_USER` and `SMTP_PASSWORD` are optional.
+
+Layout:
+
+- **Banner:** the cluster and the verdict, `PASSED` (green), `FAILED` (red) or `UNKNOWN`.
+- **Details table:** cluster, mode, domains, repository, branch and commit (links to the web
+  page of the repository), start time and pipeline (link).
+- **Failure box** (only after a failure): the failed jobs, each linked to its log, and the jobs
+  that did not run after the first failure.
+- **Buttons:** open the pipeline, download all artifacts.
+- **Pipeline jobs:** one row per job that ran, in pipeline order, with its status and a link.
+- **Attachments:** the HTML and JSON test reports written on the OIM during this pipeline
+  (`TEST_REPORTS_PATH`, default `/opt/omnia/reports`; a report over 5 MB is compressed). They are
+  also saved in the job artifacts (`pipeline_reports/`).
+- A plain-text version with the same facts.
+
+Subject: `Omnia Pipeline [<cluster>] <mode> - <VERDICT> (<failed jobs>)`.
+
+A mail that cannot be sent is reported in the job log with an error banner; it does not change the
+result of the pipeline.
+
+The rest of this page describes `send_email.py`, which the utils and build stream pipelines use.
+
 ## Overview
 
 The `send_email.py` script sends automated email notifications with pipeline execution summaries and test reports attached. It integrates with GitLab CI/CD to notify stakeholders of pipeline results.
@@ -135,6 +163,14 @@ Please find the detailed test reports attached.
 
 This is an automated email from GitLab CI/CD pipeline.
 ```
+
+## HTML report of the stages
+
+The cluster pipeline summary attaches `pipeline_<id>_report.html`: every stage with its status,
+duration, failure reason and a scrollable log, in a day and a night theme. See
+[CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) (Summary, HTML report and email).
+
+---
 
 ## Test Report Attachments
 

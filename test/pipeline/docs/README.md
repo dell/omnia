@@ -21,6 +21,19 @@ Start here → **[Quick Start Guide](QUICKSTART.md)**
 - Configure JWT authentication for GitLab
 - Troubleshoot OpenBao issues
 
+### 🧭 **How Does the Cluster Pipeline Work?**
+→ **[Cluster Pipeline](CLUSTER_PIPELINE.md)**
+- The flow, stage by stage, and what a failed cleanup does
+- Inputs, domain stages, credentials and test stages
+- NFS share cleanup and its safety rules
+- SSH, secrets, summary and email
+
+### 🧩 **Changing the Pipeline?**
+→ **[Development Guide](DEVELOPMENT.md)**
+- Layout of the sources and what runs where
+- Regenerating the cluster pipeline, adding a domain
+- Unit tests and lint
+
 ### 🎯 **Choosing Deployment Strategy?**
 → **[Pipeline Modes & Domains](PIPELINE_MODES.md)**
 - Understand `default`, `deploy`, and `cleanup` modes
@@ -121,14 +134,11 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 Parent Pipeline (.gitlab-ci.yml)
     ↓
     ├─→ Child Pipeline 1 (.gitlab-ci-cluster.yml) for cluster1
-    │   ├─ initialization
-    │   ├─ setup_environment
-    │   ├─ cleanup_<domains>
-    │   ├─ deploy_<domains>
-    │   ├─ discovery (if ENABLE_DISCOVERY=true)
-    │   ├─ test_<domains>
-    │   ├─ cleanup_discovery
-    │   └─ summary
+    │   ├─ initialization (clone, checks, NFS check)
+    │   ├─ cleanup_<domains> (exec, then verify), cleanup_omnia (Slurm/K8s shares, omnia.sh --cleanup --all)
+    │   ├─ setup_main (omnia.sh -s, then the inputs of all domains), test_main_installation
+    │   ├─ <domains> (omnia.sh --run, tag by tag) and test_<domains>
+    │   └─ summary (table + email)
     │
     ├─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
     │   └─ (same stages as cluster1)
@@ -222,13 +232,10 @@ test/pipeline/
     ├── cluster1/
     │   ├── cluster.env              ← Connection details
     │   └── inputs/
-    │       ├── omnia.env            ← Omnia environment
-    │       ├── repo_manager/        ← Domain configs
-    │       ├── image_build_manager/
-    │       ├── discovery/
-    │       ├── orchestrator/
-    │       ├── telemetry/
-    │       └── test/                ← Test configs
+    │       ├── src/main/omnia.env   ← Omnia environment (and catalog_rhel.json)
+    │       ├── src/<domain>/        ← Domain configs (repo_manager, image_build_manager,
+    │       │                          discovery, orchestrator, telemetry)
+    │       └── test/<domain>/       ← Test configs
     └── cluster2/
         └── ...
 ```

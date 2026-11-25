@@ -29,7 +29,7 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V007`, `V009`–`V011`, `V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V010` | `openchami` |
 | `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V115`, `V117`–`V128`, `V200`–`V206`, `V208`–`V227`, `V300`–`V311`, `V400`–`V429`, `V500`–`V525`, `V600`–`V621`, `V700`–`V716` | see `SUITES` in `library/vars/domain_vars.py` |
-| `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
+| `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V008` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials`, `nfs_shares` |
 
 The detailed tables below are the authoritative inventory. Each test's
 `Order` defines execution sequence independently of its stable public ID, so
@@ -829,6 +829,10 @@ These cases execute the explicitly selected full cleanup and verify each compone
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
 | 50601 | `ORCH_FVT_CLEANUP_V006` | `test_credentials_follow_selected_policy` | `credentials` | `destructive`, `sanity` | Verify credentials are removed or preserved as selected. | All stated checks pass for every applicable target. |
+| 50701 | `ORCH_FVT_CLEANUP_V007` | `test_nfs_slurm_share_emptied` | `nfs_shares` | `destructive`, `sanity` | When `cleanup_slurm` is true: mount the `nfs_slurm` share read-only, empty it (the export stays), check no entry is left. Skipped when `cleanup_slurm` is false. | The share is empty, or the test is skipped. |
+| 50702 | `ORCH_FVT_CLEANUP_V008` | `test_nfs_k8s_share_emptied` | `nfs_shares` | `destructive`, `sanity` | When `cleanup_k8s` is true: mount the `nfs_k8s` share read-only, empty it (the export stays), check no entry is left. Skipped when `cleanup_k8s` is false. | The share is empty, or the test is skipped. |
+
+The `nfs_shares` cases mount the shares on the execution OIM, so they need a local run as root there; a missing `storage_config.yml`, a mount that is not NFS, or a run that is not local and root skips them with the reason.
 
 Cleanup verification follows the configured policy; it does not assume every
 input file, credential, or externally managed data path must always be deleted.

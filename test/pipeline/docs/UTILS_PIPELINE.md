@@ -310,7 +310,7 @@ Each cluster runs independently in parallel.
 
 ## Related Documentation
 
-- [Pipeline_Guide.md](Pipeline_Guide.md) - Complete pipeline guide
+- [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) - How the cluster pipeline works
 - [CONFIGURATION.md](CONFIGURATION.md) - Configuration reference
 - [PIPELINE_MODES.md](PIPELINE_MODES.md) - Main pipeline modes
 - [EMAIL_NOTIFICATIONS.md](EMAIL_NOTIFICATIONS.md) - Email setup

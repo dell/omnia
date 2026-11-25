@@ -92,6 +92,7 @@ from .functions.report_func import (
 
 # --- Runner ---
 from .functions.runner_func import run_playbook
+from .functions.full_playbook_func import run_full_playbook_test
 
 # --- Sync ---
 from .functions.sync_func import clone_repo, sync_files
@@ -169,6 +170,7 @@ __all__ = [
     "record_playbook_failure",
     # Runner
     "run_playbook",
+    "run_full_playbook_test",
     # Sync
     "clone_repo",
     "sync_files",

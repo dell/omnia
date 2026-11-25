@@ -149,7 +149,8 @@ cluster1:
     domains: "default"
 
     # Force environment setup even in deploy/cleanup modes
-    # Normally, setup_environment only runs in "default" mode
+    # Normally, the install (setup_main) only runs in "default" mode; in "deploy" mode setup_main
+    # only copies the inputs
     # Set to "true" if target doesn't have Omnia installed yet
     # Default: "false"
     enable_setup: "false"
@@ -181,15 +182,22 @@ cluster1:
     # Useful for disabling specific domains or stages without modifying config
     # Valid values:
     #   - repo_manager, image_build_manager, orchestrator, discovery, telemetry, build_stream (skip cleanup+deploy+test)
-    #   - setup_environment, setup_main, cleanup_omnia (skip specific stages)
+    #   - setup_main, test_main_installation, cleanup_omnia (skip that stage)
+    #   - nfs_check (skips the NFS check inside initialization), inputs (skips the input copy
+    #     inside setup_main)
     # Example: "repo_manager,telemetry" (skip both domains entirely)
     # Default: "" (skip nothing)
     skip_stages: ""
 
-  # ---- Deploy-Time Ansible Tags ----
-  # Ansible tags to pass to each domain's deployment playbook.
-  # Tags allow running only specific parts of a playbook.
-  # Leave empty to run the entire playbook.
+  # ---- Deploy-Time Tags ----
+  # Cluster pipeline: a comma-separated list of playbook tags, run in order in ONE stage
+  #   (./omnia.sh --run <domain> --tags <tag>, one call per tag). Leave empty to run the default tags:
+  #     repo_manager: precheck,prepare,execute,status
+  #     image_build_manager: validate,prepare,build
+  #     discovery: precheck,validate,execute
+  #     orchestrator: precheck,prepare,provision
+  #     telemetry: precheck,validate,deploy
+  # Build stream and utils pipelines: ansible tags of the domain playbook, as before.
   deploy_tags:
     # Repo Manager (Pulp repository server) deployment tags
     # Examples: "deploy", "cleanup_idrac", "validate"

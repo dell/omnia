@@ -84,13 +84,14 @@ if cluster_ip and target_user and target_pass and omnia_install_path:
     try:
         # Use sshpass to SSH into target and get commit ID
         ssh_cmd = [
-            "sshpass", "-p", target_pass,
+            "sshpass", "-e",
             "ssh", "-o", "StrictHostKeyChecking=no",
             f"{target_user}@{cluster_ip}",
             f"cd {omnia_install_path} && git rev-parse HEAD"
         ]
         result = subprocess.run(
             ssh_cmd,
+            env={**os.environ, "SSHPASS": target_pass},
             capture_output=True,
             text=True,
             timeout=30

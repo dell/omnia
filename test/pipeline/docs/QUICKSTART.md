@@ -53,12 +53,18 @@ python3 setup_gitlab_project.py --create \
     --gitlab-url https://gitlab.example.com \
     --token glpat-xxxx \
     --project-name omnia-pipeline \
-    --config pipeline_config.yml
+    --config pipeline_config.yml \
+    --scan-host-keys
 ```
+
+`--scan-host-keys` stores the OIM host key (`ssh-keyscan`, run from this machine) as the File
+variable `CLUSTER1_SSH_KNOWN_HOSTS`. The jobs refuse to connect to an OIM whose host key is not
+known. Compare the printed fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+on the OIM.
 
 The script will:
 - ✅ Create the GitLab project
-- ✅ Upload pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-cluster.yml`)
+- ✅ Upload pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-cluster.yml`, `pipeline_ci.py`, `library/`)
 - ✅ Upload input file templates
 - ✅ Create CI/CD variables from your config
 
@@ -78,9 +84,9 @@ Go to your GitLab project > **Settings** > **CI/CD** > **Variables** and add:
 
 ## Step 5: Edit Input Files
 
-In your GitLab repository, navigate to `clusters/cluster1/inputs/` and edit:
+In your GitLab repository, navigate to `clusters/cluster1/inputs/src/` and edit:
 
-- **`omnia.env`** — Omnia environment settings
+- **`main/omnia.env`** — Omnia environment settings
 - **`repo_manager/`** — Pulp repository configuration
 - **`orchestrator/`** — Kubernetes configuration
 - **`image_build_manager/`** — Image builder settings
@@ -93,12 +99,17 @@ In your GitLab repository, navigate to `clusters/cluster1/inputs/` and edit:
 
 Go to **CI/CD > Pipelines > Run pipeline** in your GitLab project.
 
+Tip: run it first with `dry_run: "true"`; every job prints what it would do on the OIM and
+changes nothing.
+
 The pipeline will:
 1. Clone Omnia on your target server
-2. Set up the Python virtual environment
-3. Deploy all selected domains
-4. Run validation tests
-5. Send a summary report
+2. Clean up every selected domain, then `omnia.sh --cleanup --all` and the Slurm and K8s NFS shares
+   (if a cleanup fails, nothing is installed)
+3. Create the Omnia virtual environment (`omnia.sh -s`) and test it
+4. Copy the input files of all domains
+5. Deploy all selected domains tag by tag with omnia.sh --run and run their validation tests
+6. Send a summary email
 
 ---
 

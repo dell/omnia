@@ -15,6 +15,8 @@
 """omnia-auto — Messages"""
 
 from .runner_msgs import (
+    FULL_PLAYBOOK_ASSERT_MSGS,
+    FULL_PLAYBOOK_LOG_MSGS,
     RUNNER_LOG_MSGS,
     RUNNER_ASSERT_MSGS,
 )
@@ -25,6 +27,8 @@ from .credential_msgs import (
 )
 
 __all__ = [
+    "FULL_PLAYBOOK_ASSERT_MSGS",
+    "FULL_PLAYBOOK_LOG_MSGS",
     "RUNNER_LOG_MSGS",
     "RUNNER_ASSERT_MSGS",
     "CREDENTIAL_LOG_MSGS",

@@ -4,6 +4,41 @@ Common issues and solutions for the Omnia CI/CD pipeline.
 
 ---
 
+## Initialization Fails: git or python3 Missing on the OIM
+
+**Symptoms:** `checkout (update) of ... failed (exit code 127) - install git and python3 on the OIM`.
+
+**Cause:** the Omnia checkout is made on the OIM, like the SVT does, so the OIM needs `git` and
+`python3`. A freshly installed RHEL without a registered subscription or another enabled package
+repository has no `git` and cannot install it.
+
+**Solutions:** register the OIM or enable a repository (`dnf repolist` must list one), then install
+`git` and `python3`. Omnia itself (`omnia.sh -s`) needs the repository too.
+
+---
+
+## Initialization Fails: Host Key Required
+
+**Symptoms:** `PIPELINE_SSH_KNOWN_HOSTS (a File variable with the OIM host key line) is required`.
+
+**Cause:** the jobs only connect to an OIM whose host key is known.
+
+**Solutions:**
+
+1. Store the key from a machine that can reach the OIM:
+   ```bash
+   python3 setup_gitlab_project.py --update ... --config pipeline_config.yml --scan-host-keys
+   ```
+   This sets the File variable `<CLUSTER>_SSH_KNOWN_HOSTS`. Compare the printed fingerprint with
+   `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the OIM.
+2. Or add the variable by hand: the output of `ssh-keyscan -t ed25519 <OIM>`, type File.
+3. As a last resort set `PIPELINE_SSH_SKIP_HOST_KEY=true`. The host key is then not checked and a
+   warning is printed.
+
+After the OIM was reinstalled its host key changes: run `--scan-host-keys` again.
+
+---
+
 ## Pipeline Fails at Initialization
 
 **Symptoms:** Pipeline fails immediately with SSH connection errors.
@@ -132,7 +167,7 @@ Common issues and solutions for the Omnia CI/CD pipeline.
 
 ## Omnia venv Not Found
 
-**Symptoms:** Pipeline fails with "Python venv not found" or similar errors.
+**Symptoms:** a job fails with `no Omnia venv, run the install stage first`.
 
 **Solutions:**
 
@@ -156,9 +191,51 @@ The Python environment has not been created on the target. Either:
 3. Or manually set up the environment on the target:
    ```bash
    ssh root@<TARGET_IP>
-   cd /root/omnia
-   bash omnia.sh -s
+   cd /root/omnia/src/main
+   ./omnia.sh -s
    ```
+
+---
+
+## A Cleanup Failed and Nothing Was Installed
+
+**Symptoms:** a `cleanup_<domain>` or `cleanup_omnia` job is red, and `setup_main`, `inputs` and the
+domain stages are skipped.
+
+**Cause:** this is intended. Every cleanup runs, and if any failed the pipeline stops without
+installing, so a half-clean OIM is not reinstalled.
+
+**Solutions:**
+
+1. Open the failed job: it names the command (`fvt_<domain> cleanup exec`, `omnia.sh --cleanup
+   --all`, or the NFS clearing) and its output.
+2. Fix the cause on the OIM, then run the pipeline again; the cleanups are safe to repeat.
+3. `cleanup_utils` and `cleanup_discovery` are tolerated: their failure alone does not stop the install.
+
+---
+
+## NFS Check or NFS Cleanup Failed
+
+**Symptoms:** the NFS check in `initialization` fails, or `cleanup_omnia` reports `NFS share ...`;
+the cleanups after a failed `initialization` fail at once with `initialization did not pass, so
+nothing was cleaned`. If the shares cannot be emptied, `cleanup_omnia` does not run
+`omnia.sh --cleanup --all`, so the Omnia venv is kept and the next run can try again.
+
+**Solutions:**
+
+1. `cannot mount`: the server must answer and export the share to the OIM, and `nfs-utils` must
+   be installed on the OIM.
+2. `the export path ... is a system directory`, or `... contains /root/omnia`: the share points
+   at a protected path on the OIM. Fix `mounts` in the `storage_config.yml` of the orchestrator
+   input folder of the OIM (`<OMNIA_DATA_PATH>/orchestrator/input/<project>/`), or in the project
+   input `clusters/<cluster>/inputs/src/orchestrator/storage_config.yml` for the next run.
+3. `entries could not be removed`: the export probably squashes root (it needs `no_root_squash`
+   for the OIM), or a client still writes to it (stop it, for example kubelet on a node).
+4. To not touch the shares, remove `nfs_slurm` and `nfs_k8s` from `mounts` (or from `nfs_shares` in
+   `test/utils/test_config.yml`), or add `nfs_check` to `skip_stages`. The shares are
+   only emptied with `DOMAINS=default`.
+5. `no Omnia venv ... no NFS share to ...`: not an error. There is no Omnia venv yet (first run), so
+   nothing was mounted and nothing was emptied.
 
 ---
 
@@ -168,9 +245,9 @@ The Python environment has not been created on the target. Either:
 
 **Solutions:**
 
-1. Check input files in `clusters/<name>/inputs/<domain>/`:
+1. Check input files in `clusters/<name>/inputs/src/<domain>/`:
    - Go to your GitLab repository
-   - Navigate to `clusters/cluster1/inputs/`
+   - Navigate to `clusters/cluster1/inputs/src/`
    - Verify all required files exist and have correct content
 
 2. Enable verbose logging for detailed Ansible output:
@@ -364,7 +441,9 @@ The Python environment has not been created on the target. Either:
 
 4. Check pipeline logs for email errors:
    - Go to **CI/CD > Pipelines > [Pipeline] > summary**
-   - Look for email-related errors
+   - `email not configured (EMAIL_RECIPIENTS, EMAIL_SENDER, SMTP_SERVER)`: a variable is missing
+   - A banner `ERROR: the summary email was NOT sent` shows the SMTP error. The pipeline result is
+     not changed by it, and the reports are in the job artifacts (`pipeline_reports/`)
 
 ---
 

@@ -251,24 +251,18 @@ The build stream pipeline requires input files for each domain:
 
 ```
 clusters/cluster1/inputs/
-├── omnia.env                           Omnia environment config
-├── repo_manager/                       repo_manager input files
-├── image_build_manager/                image_build_manager input files
-├── orchestrator/                       orchestrator input files
-├── build_stream/                       build_stream input files
+├── src/
+│   ├── main/omnia.env                  Omnia environment config
+│   ├── main/catalog_rhel.json          Catalog (optional)
+│   ├── repo_manager/                   repo_manager input files
+│   ├── image_build_manager/            image_build_manager input files
+│   ├── orchestrator/                   orchestrator input files
+│   └── build_stream/                   build_stream input files
 └── test/
-    ├── repo_manager/
-    │   ├── test_config.yml
-    │   └── test_run_config.yml
-    ├── image_build_manager/
-    │   ├── test_config.yml
-    │   └── test_run_config.yml
-    ├── orchestrator/
-    │   ├── test_config.yml
-    │   └── test_run_config.yml
-    └── build_stream/
-        ├── test_config.yml
-        └── test_run_config.yml
+    ├── repo_manager/                   test_config.yml, test_run_config.yml
+    ├── image_build_manager/            test_config.yml, test_run_config.yml
+    ├── orchestrator/                   test_config.yml, test_run_config.yml
+    └── build_stream/                   test_config.yml, test_run_config.yml
 ```
 
 All input files are collected from the Omnia source tree by `setup_gitlab_project.py --create`.
@@ -306,7 +300,7 @@ For OpenBao setup instructions, see [OpenBao Setup Guide](OPENBAO_SETUP.md).
 
 **Solution:**
 1. Verify OpenBao is reachable and credentials are stored at `<BAO_DATA_PATH>/repo_manager`, `<BAO_DATA_PATH>/image_build_manager`, `<BAO_DATA_PATH>/orchestrator`
-2. Verify input files exist in `clusters/<cluster>/inputs/repo_manager/`, `clusters/<cluster>/inputs/image_build_manager/`, `clusters/<cluster>/inputs/orchestrator/`
+2. Verify input files exist in `clusters/<cluster>/inputs/src/repo_manager/`, `clusters/<cluster>/inputs/src/image_build_manager/`, `clusters/<cluster>/inputs/src/orchestrator/`
 3. Check SSH connectivity to target server
 4. Enable `VERBOSE=true` for detailed Ansible output
 
@@ -325,7 +319,7 @@ For OpenBao setup instructions, see [OpenBao Setup Guide](OPENBAO_SETUP.md).
 **Problem:** `build_stream` stage fails after base infrastructure is ready.
 
 **Solution:**
-1. Verify build_stream input files exist in `clusters/<cluster>/inputs/build_stream/`
+1. Verify build_stream input files exist in `clusters/<cluster>/inputs/src/build_stream/`
 2. Verify build_stream credentials are stored in OpenBao at `<BAO_DATA_PATH>/build_stream`
 3. Check SSH connectivity to target
 4. Enable `VERBOSE=true` for detailed Ansible output

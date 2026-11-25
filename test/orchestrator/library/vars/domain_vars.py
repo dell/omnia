@@ -141,6 +141,7 @@ SUITES: dict[str, list[str]] = {
         "kubernetes",
         "artifacts",
         "credentials",
+        "nfs_shares",
     ],
 }
 

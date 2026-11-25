@@ -301,4 +301,8 @@ TEST_CASES = {
         "id": "IMGBM_NFT_SECURITY_002",
         "title": "NFT: /root/.s3cfg is 0600 root:root",
     },
+    "deploy_full_playbook": {
+        "id": "IMGBM_FVT_FULL_PLAYBOOK_E001",
+        "title": "Deploy image_build_manager (complete playbook, no tags)",
+    },
 }

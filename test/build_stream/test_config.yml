@@ -281,7 +281,7 @@ cleanup:
   # cleanup_credentials: true | false (default: true).
   #   true:  delete the BuildStream credential files and keys.
   #   false: keep them, so the next install runs without prompting.
-  cleanup_credentials: false
+  cleanup_credentials: true
 
 # =============================================================================
 # NON-FUNCTIONAL TESTS  (nft_build_stream: resilience and security)

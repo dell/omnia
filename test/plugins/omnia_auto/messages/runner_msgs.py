@@ -30,6 +30,19 @@ RUNNER_LOG_MSGS: Dict[str, str] = {
     "streaming_output": "Streaming output live...",
 }
 
+FULL_PLAYBOOK_LOG_MSGS: Dict[str, str] = {
+    "starting": "Running the complete {playbook} playbook (no --tags)",
+    "passed": "{playbook} completed in {duration}",
+    "failed": "{playbook} failed (rc={rc}, {duration})",
+}
+
+FULL_PLAYBOOK_ASSERT_MSGS: Dict[str, str] = {
+    "failed": (
+        "{playbook} without --tags failed with rc={rc} after {duration}. "
+        "Review the playbook output and active project inputs."
+    ),
+}
+
 RUNNER_ASSERT_MSGS: Dict[str, str] = {
     "playbook_failed": (
         "Playbook execution failed.\n"

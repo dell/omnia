@@ -112,7 +112,7 @@ from library.functions.validation_func import (  # pylint: disable=wrong-import-
     ConfigValidationError,
     validate_all,
 )
-from library.vars import UT_TEST_CASE_IDS  # pylint: disable=wrong-import-position
+from library.vars import TEST_CASES, UT_TEST_CASE_IDS  # pylint: disable=wrong-import-position
 
 
 # =============================================================================
@@ -302,6 +302,10 @@ def pytest_sessionfinish(session, exitstatus):
     print_summary_table()
 
 
+_DEPLOY_TC_IDS = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()
+                  if key.startswith("deploy_")}
+
+
 def _ut_test_node_key(item):
     """Return the stable registry key for a Repo Manager UT item."""
     normalized_node_id = item.nodeid.replace("\\", "/")
@@ -320,7 +324,7 @@ def _registered_test_case_id(item):
     match = re.match(r"^\s*(RM_(?:UT|FVT|NFT)_[A-Z0-9_]+):", doc)
     if match:
         return match.group(1)
-    return get_last_tc_id()
+    return _DEPLOY_TC_IDS.get(item.name, "") or get_last_tc_id()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

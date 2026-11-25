@@ -91,7 +91,7 @@ cluster1:
 | `pipeline.enable_discovery` | `false` | Enable discovery stage after image_build_manager |
 | `pipeline.test_mode` | `false` | Enable test stages after deployment |
 | `pipeline.dry_run` | `false` | Simulate without making changes |
-| `pipeline.verbose` | `false` | Enable detailed logging (`-vvv`) |
+| `pipeline.verbose` | `false` | Detailed logging: pytest `-v` and ansible `-vvv` (`--ansible-verbosity 3`) in the cluster pipeline |
 | `pipeline.skip_stages` | `""` | Comma-separated stages to skip |
 
 #### Deploy Tags
@@ -156,6 +156,20 @@ After running `setup_gitlab_project.py --create`, the following CI/CD variables 
 | `SMTP_SERVER` | config | SMTP server hostname |
 | `SMTP_PORT` | config | SMTP server port |
 
+### Variables of the cluster pipeline
+
+Project-level variables that are not per cluster:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PIPELINE_SSH_KNOWN_HOSTS` | | Host key file for every cluster (instead of `<CLUSTER>_SSH_KNOWN_HOSTS`) |
+| `PIPELINE_SSH_SKIP_HOST_KEY` | `false` | `true` accepts an unchecked OIM host key (a warning is printed) |
+| `BAO_CA_CERT` | | CA file that verifies the OpenBao TLS certificate |
+| `BAO_TLS_SKIP_VERIFY` | `true` | `false` verifies OpenBao with the system certificates |
+| `TEST_REPORTS_PATH` | `/opt/omnia/reports` | Folder on the OIM with the test reports attached to the email |
+| `SSH_CONNECT_TIMEOUT` | `30` | SSH connect timeout in seconds |
+| `DRY_RUN` | `false` | Per cluster through `<CLUSTER>_DRY_RUN`: print what would run on the OIM |
+
 ### Per-Cluster Variables
 
 For each cluster, these variables are created with the cluster name prefix (e.g., `CLUSTER1_`, `CLUSTER2_`):
@@ -172,11 +186,13 @@ For each cluster, these variables are created with the cluster name prefix (e.g.
 | `<CLUSTER>_TEST_MODE` | config | Enable tests |
 | `<CLUSTER>_DRY_RUN` | config | Dry-run mode |
 | `<CLUSTER>_VERBOSE` | config | Verbose logging |
-| `<CLUSTER>_REPO_MANAGER_TAGS` | config | Ansible tags |
-| `<CLUSTER>_IMAGE_BUILD_MANAGER_TAGS` | config | Ansible tags |
-| `<CLUSTER>_ORCHESTRATOR_TAGS` | config | Ansible tags |
-| `<CLUSTER>_DISCOVERY_TAGS` | config | Ansible tags |
-| `<CLUSTER>_TELEMETRY_TAGS` | config | Ansible tags |
+| `PIPELINE_API_TOKEN` | masked, protected | Project access token (`read_api`, Reporter) used by the summary to read the stage logs for the HTML report |
+| `<CLUSTER>_CHECKOUT_MODE` | config | Omnia checkout on the OIM: `update` (default), `recreate` or `keep` |
+| `<CLUSTER>_REPO_MANAGER_TAGS` | config | Cluster pipeline: playbook tags (comma list, run with `omnia.sh --run`). Other pipelines: ansible tags |
+| `<CLUSTER>_IMAGE_BUILD_MANAGER_TAGS` | config | FVT tags (cluster pipeline) |
+| `<CLUSTER>_ORCHESTRATOR_TAGS` | config | FVT tags (cluster pipeline) |
+| `<CLUSTER>_DISCOVERY_TAGS` | config | FVT tags (cluster pipeline) |
+| `<CLUSTER>_TELEMETRY_TAGS` | config | FVT tags (cluster pipeline) |
 | `<CLUSTER>_BUILD_STREAM_TAGS` | config | Ansible tags |
 | `<CLUSTER>_TEST_MAIN_CMD` | config | Test command for main |
 | `<CLUSTER>_TEST_REPO_MANAGER_CMD` | config | Test command |
@@ -186,6 +202,8 @@ For each cluster, these variables are created with the cluster name prefix (e.g.
 | `<CLUSTER>_TEST_TELEMETRY_CMD` | config | Test command |
 | `<CLUSTER>_TEST_BUILD_STREAM_CMD` | config | Test command |
 | `<CLUSTER>_SKIP_STAGES` | config | Stages to skip |
+| `<CLUSTER>_SSH_KNOWN_HOSTS` | `--scan-host-keys` | File variable with the OIM host key line. Required, unless `PIPELINE_SSH_SKIP_HOST_KEY` is `true` |
+| `<CLUSTER>_TEST_CREDS` | manual | Optional File variable with the test credentials |
 
 ---
 
@@ -234,15 +252,19 @@ The script automatically adds trigger jobs and CI/CD variables for each new clus
 
 ## Advanced Features
 
-### Use Ansible Deploy Tags
+### Choose the Deploy Tags
 
-Run only specific tasks in the domain playbooks:
+In the cluster pipeline a domain runs its playbook tags in order, in one stage
+(`./omnia.sh --run <domain> --tags <tag>`). Give a comma-separated list to run only some of
+them; empty means the default list (see [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md#domain-stages)):
 
 ```yaml
 deploy_tags:
-  repo_manager: "deploy"
-  orchestrator: "validate"
+  repo_manager: "precheck,prepare"
+  orchestrator: "precheck"
 ```
+
+The build stream and utils pipelines still pass these values as ansible tags.
 
 ### Override Test Commands
 
@@ -256,7 +278,7 @@ test_commands:
 
 ### Force Setup in Deploy Mode
 
-Clone Omnia and rebuild venv before deploying. Useful when the target server does not have Omnia installed yet:
+Run the install (`setup_main`: `omnia.sh -s`, which creates the Omnia venv) in `deploy` mode. Omnia is always cloned. Useful when the OIM has no Omnia venv yet:
 
 ```yaml
 pipeline:
@@ -290,6 +312,21 @@ python3 setup_gitlab_project.py --create \
     --config pipeline_config.yml
 ```
 
+### Store the OIM host keys
+
+The jobs need the host key of every OIM. Add `--scan-host-keys` to `--create` or `--update` (with
+`--config`): it runs `ssh-keyscan` from this machine and stores `<CLUSTER>_SSH_KNOWN_HOSTS` as a
+protected File variable.
+
+```bash
+python3 setup_gitlab_project.py --update \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --config pipeline_config.yml \
+    --scan-host-keys
+```
+
 ### Update variables and files after editing config
 
 ```bash
@@ -308,7 +345,7 @@ python3 setup_gitlab_project.py --update-file \
     --token glpat-xxxx \
     --project-name omnia-pipeline \
     --file /path/to/omnia.env \
-    --repo-path clusters/cluster1/inputs/omnia.env
+    --repo-path clusters/cluster1/inputs/src/main/omnia.env
 ```
 
 ### Upload a local directory to the repo

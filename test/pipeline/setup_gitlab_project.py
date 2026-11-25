@@ -56,7 +56,7 @@ Usage:
     --token glpat-xxxx \\
     --project-name omnia-pipeline \\
     --file /path/to/omnia.env \\
-    --repo-path clusters/cluster1/inputs/omnia.env \\
+    --repo-path clusters/cluster1/inputs/src/main/omnia.env \\
     --commit-message "Update omnia.env for cluster1"
 
   # Upload a local directory (recursive) to the repo
@@ -84,6 +84,7 @@ import argparse
 import json
 import os
 import re
+import subprocess  # nosec B404  # ssh-keyscan and ssh-keygen, fixed argument lists
 import sys
 import time
 from pathlib import Path
@@ -377,6 +378,41 @@ def load_pipeline_config(config_path):
     return cluster_names, variables
 
 
+def _scan_host_key(address):
+    """Return the ssh-keyscan lines of an OIM ("" when it does not answer)."""
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,253}", address):
+        return ""
+    try:
+        done = subprocess.run(  # nosec B603 B607  # fixed list, address checked above
+            ["ssh-keyscan", "-T", "10", "-t", "ed25519,ecdsa,rsa", address],
+            capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return "\n".join(line for line in done.stdout.splitlines()
+                     if line.strip() and not line.startswith("#"))
+
+
+def store_host_keys(client, project_id, variables):
+    """--scan-host-keys: store each cluster's OIM host key as <CLUSTER>_SSH_KNOWN_HOSTS (File).
+
+    The pipeline jobs refuse to connect to an OIM whose host key is not known.
+    """
+    print("\nStoring the OIM host keys (ssh-keyscan from this machine)")
+    for key, address in variables.items():
+        if not key.endswith("_TARGET_IP") or not address:
+            continue
+        prefix = key[:-len("_TARGET_IP")]
+        lines = _scan_host_key(str(address))
+        if not lines:
+            print(f"  {prefix}: ssh-keyscan found no host key at {address} (is ssh-keyscan "
+                  "installed and port 22 reachable from here?)")
+            continue
+        state = client.set_variable(project_id, f"{prefix}_SSH_KNOWN_HOSTS", lines,
+                                    var_type="file", protected=True)
+        print(f"  {state} {prefix}_SSH_KNOWN_HOSTS (File, protected)")
+        print("    compare with the OIM: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub")
+
+
 def apply_config_variables(client, project_id, variables):
     """Apply CI/CD variables from the parsed config to a GitLab project.
 
@@ -602,11 +638,11 @@ class GitLabClient:
 # File sourcing - collect files from omnia src/ tree
 # ---------------------------------------------------------------------------
 # Domain input files source mapping:
-#   src/repo_manager/input/        -> clusters/<name>/inputs/repo_manager/
-#   src/image_build_manager/input/  -> clusters/<name>/inputs/image_build_manager/
-#   src/orchestrator/input/         -> clusters/<name>/inputs/orchestrator/
-#   src/main/samples/catalog_rhel.json -> clusters/<name>/catalogs/catalog_rhel.json
-#   src/main/omnia.env              -> clusters/<name>/inputs/omnia.env
+#   src/repo_manager/input/        -> clusters/<name>/inputs/src/repo_manager/
+#   src/image_build_manager/input/  -> clusters/<name>/inputs/src/image_build_manager/
+#   src/orchestrator/input/         -> clusters/<name>/inputs/src/orchestrator/
+#   src/main/samples/catalog_rhel.json -> clusters/<name>/inputs/src/main/catalog_rhel.json
+#   src/main/omnia.env              -> clusters/<name>/inputs/src/main/omnia.env
 
 DOMAIN_INPUT_MAP = {
     "repo_manager": "src/repo_manager/input",
@@ -688,7 +724,7 @@ def collect_input_files(omnia_root, cluster_names):
             if src_dir.is_dir():
                 for f in sorted(src_dir.iterdir()):
                     if f.is_file():
-                        repo_path = f"clusters/{cluster}/inputs/{domain}/{f.name}"
+                        repo_path = f"clusters/{cluster}/inputs/src/{domain}/{f.name}"
                         files.append((str(f), repo_path))
 
         # Catalog files (all files from src/main/samples/)
@@ -696,12 +732,12 @@ def collect_input_files(omnia_root, cluster_names):
         if samples_dir.is_dir():
             for f in sorted(samples_dir.iterdir()):
                 if f.is_file():
-                    files.append((str(f), f"clusters/{cluster}/catalogs/{f.name}"))
+                    files.append((str(f), f"clusters/{cluster}/inputs/src/main/{f.name}"))
 
         # omnia.env template
         omnia_env = omnia_root / "src" / "main" / "omnia.env"
         if omnia_env.exists():
-            files.append((str(omnia_env), f"clusters/{cluster}/inputs/omnia.env"))
+            files.append((str(omnia_env), f"clusters/{cluster}/inputs/src/main/omnia.env"))
 
     return files
 
@@ -764,6 +800,7 @@ def generate_cluster_trigger_job(cluster_name):
     upper_prefix = cluster_name.upper()
     return f"""trigger_cluster_{prefix}:
   stage: trigger
+  resource_group: pipeline-{prefix}
   trigger:
     include:
       - local: .gitlab-ci-cluster.yml
@@ -812,6 +849,7 @@ def generate_cluster_utils_trigger_job(cluster_name):
     upper_prefix = cluster_name.upper()
     return f"""trigger_cluster_{prefix}_utils:
   stage: trigger
+  resource_group: pipeline-{prefix}
   trigger:
     include:
       - local: .gitlab-ci-utils.yml
@@ -845,6 +883,7 @@ def generate_cluster_build_stream_trigger_job(cluster_name):
     upper_prefix = cluster_name.upper()
     return f"""trigger_cluster_{prefix}_build_stream:
   stage: trigger
+  resource_group: pipeline-{prefix}
   trigger:
     include:
       - local: .gitlab-ci-build-stream.yml
@@ -1160,6 +1199,8 @@ def cmd_create(args, client):
     if config_vars:
         # ---- Config-file mode: apply all variables from pipeline_config.yml
         apply_config_variables(client, project_id, config_vars)
+        if getattr(args, "scan_host_keys", False):
+            store_host_keys(client, project_id, config_vars)
 
         # Also set global defaults that aren't in the config file
         global_keys = [
@@ -1269,7 +1310,7 @@ def cmd_create(args, client):
         print(f"     Variables: {', '.join(c.upper() + '_TARGET_PASS' for c in cluster_names)}")
         print(f"  2. Set BAO_SERVER_URL in GitLab CI/CD variables (required for domain credentials)")
         print(f"     Domain credentials are fetched from OpenBao at BAO_DATA_PATH/<domain>")
-    print(f"  {'3' if not config_vars else '1'}. Edit cluster-specific input files in the GitLab repo (clusters/<name>/inputs/)")
+    print(f"  {'3' if not config_vars else '1'}. Edit cluster-specific input files in the GitLab repo (clusters/<name>/inputs/src/ and clusters/<name>/inputs/test/)")
     print(f"  {'4' if not config_vars else '2'}. Trigger pipeline: CI/CD > Pipelines > Run pipeline")
     return True
 
@@ -1371,6 +1412,8 @@ def cmd_update(args, client):
         print(f"\nApplying variables from config: {args.config}")
         apply_config_variables(client, project_id, config_vars)
         print(f"  {len(config_vars)} variables applied")
+        if getattr(args, "scan_host_keys", False):
+            store_host_keys(client, project_id, config_vars)
     elif args.update_vars:
         print("\nUpdating CI/CD variables (defaults)...")
 
@@ -1881,6 +1924,9 @@ def main():
                         help="Path to pipeline_config.yml used to set CI/CD variables")
 
     # Update options
+    parser.add_argument("--scan-host-keys", action="store_true",
+                        help="--create/--update with --config: store each cluster's OIM host key "
+                             "(ssh-keyscan) as <CLUSTER>_SSH_KNOWN_HOSTS, which the jobs require")
     parser.add_argument("--update-vars", action="store_true",
                         help="Also update CI/CD variables when using --update")
 
@@ -1970,7 +2016,7 @@ def main():
         elif args.upload_dir:
             if not args.dir:
                 print("ERROR: --dir is required with --upload-dir")
-                print("  Example: --upload-dir --dir /path/to/local/dir --repo-path clusters/cluster1/inputs/telemetry/")
+                print("  Example: --upload-dir --dir /path/to/local/dir --repo-path clusters/cluster1/inputs/src/telemetry/")
                 sys.exit(1)
             success = cmd_upload_dir(args, client)
         elif args.delete_dir:
