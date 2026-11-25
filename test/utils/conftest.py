@@ -45,6 +45,8 @@ omnia_auto.configure(
 
 # --- Common functions from omnia_auto ---
 from omnia_auto import (
+    build_report_name,
+    report_module_name,
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -288,15 +290,17 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
+    module_name = report_module_name("utils", module_name)
     configured_id = str(config.get("run_id") or "").strip()
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "test_report"))
-    report_name = f"utils_{base_name}"
+    report_name = (build_report_name(base_name=base_name)
+                   if os.environ.get("CI_PIPELINE_ID") else f"utils_{base_name}")
 
     report = TestReport(
         module_name=module_name,
-        report_path=str(config.get("report_path", "/opt/omnia/reports")),
+        report_path=str(config.get("report_path", "/automation")),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         run_id=run_id,

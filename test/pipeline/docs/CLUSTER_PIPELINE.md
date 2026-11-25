@@ -259,7 +259,7 @@ for the OIM.
 The `summary` job always runs. It reads `pipeline_job_status/*.json` (name, status and job link
 of every job, written by the `after_script` of each job), prints the table and exits 1 when a
 job failed. Then it copies the HTML and JSON test reports written during this pipeline from
-`TEST_REPORTS_PATH` (default `/opt/omnia/reports`) on the OIM to `pipeline_reports/`, and sends
+`TEST_REPORTS_PATH` (default `/automation`) on the OIM to `pipeline_reports/`, and sends
 one email when `EMAIL_RECIPIENTS`, `EMAIL_SENDER` and `SMTP_SERVER` are set
 ([EMAIL_NOTIFICATIONS.md](EMAIL_NOTIFICATIONS.md)). A mail that cannot be sent is reported in a
 banner in the log but does not change the result of the pipeline.
@@ -274,9 +274,17 @@ variable `PIPELINE_API_TOKEN` (a project access token with the `read_api` scope,
 job token cannot read logs). Without it, each stage uses the output its own job kept in
 `pipeline_job_logs/` (the output of the helper, without GitLab's own `$ command` lines).
 
-**Test reports of the cleanup.** The Omnia cleanup removes `/opt/omnia/reports`, so each cleanup
-stage copies the reports it wrote to `pipeline_reports/` (prefixed with the job name) before the
-cleanup, and the summary attaches them with the reports of the later stages.
+**One test report for the whole pipeline.** Right after the clone, the `initialization` stage sets
+`run_id` (the pipeline id), `report_name` (`omnia_pipeline_report`) and `report_path`
+(`TEST_REPORTS_PATH`, default `/automation`, created with mode 750) in the `test_config.yml` of
+every module of the clone; every later FVT run sets the same three values again after the cluster's
+test config is copied. All runs therefore write into one report,
+`<report_path>/<pipeline id>_omnia_pipeline_report.html` and `.json`, and its suite breakdown has one
+suite per run: `<domain>_<tag>` for a tag (`telemetry_cleanup`, `utils_cleanup`,
+`build_stream_cleanup`, ...) and `<domain>` for a run without a tag (`telemetry`). The suite that
+ran last is at the top; the layout of the report is unchanged. The folder is outside `/opt/omnia`,
+so the Omnia cleanup does not remove it. The cleanup and cleanup test stages also copy the report
+to `pipeline_reports/` (prefixed with the job name), and the summary attaches it.
 
 ---
 

@@ -93,6 +93,10 @@ TOLERATED_JOBS = ("cleanup_utils", "cleanup_discovery", "test_cleanup_utils",
 COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
 MAX_REPORTS = 50
+REPORTS_DEFAULT = "/automation"
+REPORT_NAME = "omnia_pipeline_report"
+TEST_MODULES = ("main", "repo_manager", "image_build_manager", "discovery", "orchestrator",
+                "telemetry", "utils", "build_stream")
 SAFE_TEST_CMD = re.compile(r"^\./run_validation\.sh [A-Za-z0-9_./ =:,@-]{1,200}$")
 DOMAIN_STEPS = {
     "repo_manager": ("precheck", "prepare", "execute", "status"),
@@ -444,7 +448,7 @@ def checkout() -> int:
         handle.write(commit + "\n")
     with open(Layout(cluster).env_file, "rb") as handle:
         rc, _ = remote(f"cat > {shlex.quote(path)}/src/main/omnia.env", stdin=handle.read())
-    return rc
+    return rc or prepare_reports()
 
 
 def _domain_selected(domain: str) -> bool:
@@ -882,19 +886,62 @@ def credentials(domain: str) -> int:
 SAFE_EXTRA = re.compile(r"^(--marker [a-z_]{1,32})?$")
 
 
-def _run_id_script() -> str:
-    """Bash lines that give the FVT run the pipeline id as its report id (in test_config.yml).
+def _reports_path() -> str:
+    """Return the folder of the pipeline's one test report on the OIM (a safe absolute path)."""
+    path = _env("TEST_REPORTS_PATH", REPORTS_DEFAULT).rstrip("/")
+    if not SAFE_PATH.match(path) or path in PROTECTED_PATHS or ".." in path.split("/"):
+        _fail(f"TEST_REPORTS_PATH '{path}' is not a safe folder of its own (e.g. {REPORTS_DEFAULT})")
+    return path
 
-    Every test module reads ``run_id`` of its test_config.yml, and the report files are prefixed
-    with CI_PIPELINE_ID, so all reports of a pipeline carry its id. Nothing is set outside CI.
+
+def _report_settings_script() -> str:
+    """Bash lines that point test_config.yml at the pipeline's one report.
+
+    Every module gets the pipeline id as ``run_id``, the same ``report_name`` and the same
+    ``report_path``, so all FVT runs of the pipeline (every cleanup, tag and verify) write into one
+    report file ``<report_path>/<pipeline id>_<report_name>.json/.html``; each run is its own suite
+    (``<domain>_<tag>`` or ``<domain>``). Every value is validated, nothing comes from a secret.
+    Nothing is set outside CI.
     """
     pipeline_id = _env("CI_PIPELINE_ID")
     if not re.fullmatch(r"[0-9]{1,12}", pipeline_id):
         return ""
-    return (f"export CI_PIPELINE_ID={pipeline_id}\n"
-            "if grep -q '^run_id:' test_config.yml 2>/dev/null; then "
-            f"sed -i -E 's/^run_id:.*/run_id: \"{pipeline_id}\"/' test_config.yml; "
-            f"else echo 'run_id: \"{pipeline_id}\"' >> test_config.yml; fi\n")
+    values = (("run_id", pipeline_id), ("report_name", REPORT_NAME), ("report_path", _reports_path()))
+    lines = f"export CI_PIPELINE_ID={pipeline_id}\n"
+    for key, value in values:
+        lines += (f"if grep -q '^{key}:' test_config.yml 2>/dev/null; then "
+                  f"sed -i -E 's|^{key}:.*|{key}: \"{value}\"|' test_config.yml; "
+                  f"else echo '{key}: \"{value}\"' >> test_config.yml; fi\n")
+    return lines
+
+
+_run_id_script = _report_settings_script
+
+
+def prepare_reports() -> int:
+    """Right after the clone: every module's test_config.yml reports into the one pipeline report.
+
+    Creates the report folder (mode 750) and sets ``run_id``, ``report_name`` and ``report_path``
+    in ``test/<module>/test_config.yml`` of the clone. The cluster's own test configs are copied
+    later; those runs set the same three values again.
+    """
+    apply_cluster()
+    script = _report_settings_script()
+    if not script:
+        _say("CI_PIPELINE_ID is not set: the test configs keep their report settings")
+        return 0
+    if _dry_run("point every test_config.yml at the pipeline report", script):
+        return 0
+    path = install_path()
+    body = "".join(f"[ -d {shlex.quote(f'{path}/test/{m}')} ] && (cd {shlex.quote(f'{path}/test/{m}')}\n"
+                   f"{script})\n" for m in TEST_MODULES)
+    rc = _run(f"""set -e
+umask 027; mkdir -p {shlex.quote(_reports_path())}; chmod 750 {shlex.quote(_reports_path())}
+{body}true
+""", "set run_id, report_name and report_path in every test_config.yml")
+    if not rc:
+        _say(f"Reports of this pipeline: {_reports_path()}/{_env('CI_PIPELINE_ID')}_{REPORT_NAME}.html")
+    return rc
 
 
 def _stage_test_files(cluster: str, domain: str, bao: bool = False) -> int:
@@ -1148,7 +1195,7 @@ def _fetch_reports(prefix: str = "") -> List[Tuple[str, bytes]]:
     /opt/omnia (and with it the reports). Without a prefix (the summary) the reports kept by
     the earlier jobs are returned too.
     """
-    path = _env("TEST_REPORTS_PATH", "/opt/omnia/reports")
+    path = _reports_path()
     since = _env("CI_PIPELINE_CREATED_AT")
     if _env("DRY_RUN").lower() == "true" or not SAFE_PATH.match(path):
         return []

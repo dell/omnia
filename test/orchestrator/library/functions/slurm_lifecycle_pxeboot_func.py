@@ -78,7 +78,7 @@ def _skip(summary: str, reason: str) -> dict[str, Any]:
 def _backup_dir() -> str:
     """Return the report directory used to store the PXE mapping backup."""
     config = load_test_config()
-    return str(config.get("report_path", "/opt/omnia/reports"))
+    return str(config.get("report_path", "/automation"))
 
 
 def _backup_path() -> str:

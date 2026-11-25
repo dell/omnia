@@ -204,7 +204,7 @@ sfm_ssh_port: 22
 # Can be:
 #   - An absolute path: /opt/omnia/reports
 # No spaces allowed in the path.
-report_path: /opt/omnia/reports
+report_path: /automation
 
 # Base name for report files (without extension).
 # Generates: telemetry_test_report.json, telemetry_test_report.html

@@ -166,7 +166,7 @@ Project-level variables that are not per cluster:
 | `PIPELINE_SSH_SKIP_HOST_KEY` | `false` | `true` accepts an unchecked OIM host key (a warning is printed) |
 | `BAO_CA_CERT` | | CA file that verifies the OpenBao TLS certificate |
 | `BAO_TLS_SKIP_VERIFY` | `true` | `false` verifies OpenBao with the system certificates |
-| `TEST_REPORTS_PATH` | `/opt/omnia/reports` | Folder on the OIM with the test reports attached to the email |
+| `TEST_REPORTS_PATH` | `/automation` | Folder on the OIM with the test reports attached to the email |
 | `SSH_CONNECT_TIMEOUT` | `30` | SSH connect timeout in seconds |
 | `DRY_RUN` | `false` | Per cluster through `<CLUSTER>_DRY_RUN`: print what would run on the OIM |
 

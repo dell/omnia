@@ -433,8 +433,8 @@ FVT runs write structured JSON and HTML reports using `report_path` and
 `report_name` from `test_config.yml`. The default files are:
 
 ```text
-/opt/omnia/reports/orchestrator_test_report.json
-/opt/omnia/reports/orchestrator_test_report.html
+/automation/orchestrator_test_report.json
+/automation/orchestrator_test_report.html
 ```
 
 Console output and report entries use stable IDs defined in

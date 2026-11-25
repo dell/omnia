@@ -131,6 +131,12 @@ def _count_log_issues(logs: str) -> dict:
 
 # ── HTML Report Generator ──────────────────────────────────────────────────
 
+def _newest_first(suites, started: Dict[str, str]) -> List[str]:
+    """Return the suite names, the suite that started last first (then by name)."""
+    return sorted(suites, key=lambda name: (started.get(name, ""), name), reverse=True) \
+        if started else sorted(suites)
+
+
 def generate_html(data: Dict[str, Any]) -> str:
     """Generate enterprise-grade HTML report with suite-based layout,
     dark/light theme, skip classification, and sensitive-data redaction."""
@@ -142,6 +148,7 @@ def generate_html(data: Dict[str, Any]) -> str:
         lambda: {"pass": 0, "fail": 0, "skip": 0, "duration": 0.0}
     )
     playbook_logs_by_suite: Dict[str, Dict] = {}
+    suite_started: Dict[str, str] = {}
     server_info_list: List[str] = []
 
     for server_ip, server_data in servers.items():
@@ -166,6 +173,9 @@ def generate_html(data: Dict[str, Any]) -> str:
 
             for module in modules:
                 suite = module.get("module", "unknown")
+                started = str(module.get("start_time") or "")
+                if started > suite_started.get(suite, ""):
+                    suite_started[suite] = started
 
                 # Capture playbook logs per suite (first occurrence)
                 if module.get("playbook_logs") and suite not in playbook_logs_by_suite:
@@ -225,7 +235,7 @@ def generate_html(data: Dict[str, Any]) -> str:
     # ── 3. Build suite breakdown rows ───────────────────────────────────
     suite_rows_html = ""
     suite_bar_html = ""
-    for suite_name in sorted(suite_stats.keys()):
+    for suite_name in _newest_first(suite_stats, suite_started):
         s = suite_stats[suite_name]
         st = s["pass"] + s["fail"] + s["skip"]
         st_executed = s["pass"] + s["fail"]
@@ -258,7 +268,7 @@ def generate_html(data: Dict[str, Any]) -> str:
 
     detailed_sections_html = ""
     global_idx = 0
-    for suite_name in sorted(tests_by_suite.keys()):
+    for suite_name in _newest_first(tests_by_suite, suite_started):
         suite_tests = tests_by_suite[suite_name]
         s = suite_stats[suite_name]
         suite_status = _STATUS_PASS if s["fail"] == 0 else _STATUS_FAIL

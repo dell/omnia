@@ -17,7 +17,7 @@ Layout:
 - **Buttons:** open the pipeline, download all artifacts.
 - **Pipeline jobs:** one row per job that ran, in pipeline order, with its status and a link.
 - **Attachments:** the HTML and JSON test reports written on the OIM during this pipeline
-  (`TEST_REPORTS_PATH`, default `/opt/omnia/reports`; a report over 5 MB is compressed). They are
+  (`TEST_REPORTS_PATH`, default `/automation`; a report over 5 MB is compressed). They are
   also saved in the job artifacts (`pipeline_reports/`).
 - A plain-text version with the same facts.
 
@@ -57,7 +57,7 @@ The `send_email.py` script sends automated email notifications with pipeline exe
 | `SMTP_PORT` | SMTP relay port | `25` |
 | `SMTP_USER` | SMTP authentication username | (none) |
 | `SMTP_PASSWORD` | SMTP authentication password | (none) |
-| `TEST_REPORTS_PATH` | Directory containing test reports | `/opt/omnia/reports` |
+| `TEST_REPORTS_PATH` | Directory containing test reports | `/automation` |
 | `PIPELINE_TRIGGER_TIME` | Pipeline trigger timestamp | (read from `pipeline_time.env`) |
 | `CI_PIPELINE_URL` | GitLab pipeline URL | (auto-set by GitLab) |
 
@@ -109,11 +109,11 @@ send_notification:
     EMAIL_RECIPIENTS: "team@example.com,manager@example.com"
     EMAIL_SENDER: "pipeline@example.com"
     SMTP_SERVER: "smtp.example.com"
-    TEST_REPORTS_PATH: "/opt/omnia/reports"  # Optional, defaults to this
+    TEST_REPORTS_PATH: "/automation"  # Optional, defaults to this
   artifacts:
     paths:
-      - /opt/omnia/reports/*.html
-      - /opt/omnia/reports/*.json
+      - /automation/*.html
+      - /automation/*.json
     expire_in: 30 days
   only:
     - branches
@@ -198,7 +198,7 @@ To programmatically extract failure details from the JSON report:
 ```python
 import json
 
-with open("/opt/omnia/reports/repo_manager_fvt.json") as f:
+with open("/automation/repo_manager_fvt.json") as f:
     report = json.load(f)
 
 for server_ip, server_data in report["servers"].items():
@@ -242,7 +242,7 @@ for server_ip, server_data in report["servers"].items():
 
 1. **Verify test reports exist**
    ```bash
-   ls -la /opt/omnia/reports/
+   ls -la /automation/
    ```
 
 2. **Check TEST_REPORTS_PATH is set**

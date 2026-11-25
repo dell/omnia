@@ -93,7 +93,7 @@ cleanup_all: false
 #   - A folder name relative to the current working directory: reports
 #   - An absolute path: /var/reports/omnia_main
 # No spaces allowed in the path.
-report_path: /opt/omnia/reports
+report_path: /automation
 
 # Base name for report files (without extension).
 # Generates: omnia_main_test_report.json, omnia_main_test_report.html
