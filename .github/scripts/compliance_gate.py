@@ -49,6 +49,8 @@ ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
 OK_STATES = {"PASS", "SUCCESS", "WARN"}
 ID_CODES = {"build_stream": "BSM", "discovery": "DISCOVERY", "image_build_manager": "IMGBM", "main": "MAIN",
             "orchestrator": "ORCH", "repo_manager": "RM", "telemetry": "TEL", "utils": "UTILS"}
+COMMENT_LIMIT = 60000
+COMMENT_MARKER = "<!-- compliance-gate -->"
 LEGACY_ID = re.compile(r"^(?:TC_[A-Z]{2}_\d{3}|(?:NFT|UT)_\d{3})$")
 
 
@@ -334,8 +336,7 @@ def pipeline_profile():
 
 
 ALL_SCOPES = [("test", d) for d in DOMAINS] + [("src", d) for d in DOMAINS] + [("svt", "svt"), ("pipeline", "pipeline")]
-RUN_ALL_PREFIXES = (".github/compliance/", ".github/scripts/compliance", ".github/workflows/compliance.yml",
-                    "docs/code-style/")
+RUN_ALL_PREFIXES = ("docs/code-style/",)
 
 
 def scopes_for(files):
@@ -392,6 +393,91 @@ def collect(timeout, scopes):
     return results, errors
 
 
+def domain_problems(res, base):
+    """Return (unwaived critical checks, problem labels) for one result."""
+    crit = [c for c in res["checks"] if c["status"] == "FAIL" and c["critical"] and not c["waived"]]
+    problems = []
+    if crit:
+        problems.append("critical")
+    if base is None:
+        problems.append("no baseline")
+    elif res["adjusted"] + TOLERANCE < base:
+        problems.append("regression")
+    return crit, problems
+
+
+def change_summary(files):
+    """Group changed paths into readable areas for the no-domain-change comment."""
+    areas = {}
+    for path in files:
+        parts = path.split("/")
+        if path.startswith(".github/workflows/"):
+            area = "workflows (.github/workflows)"
+        elif parts[0] == ".github":
+            area = ".github (scripts, config, templates)"
+        elif parts[0] == "docs" or path.endswith(".md"):
+            area = "documentation"
+        else:
+            area = parts[0] if len(parts) > 1 else "repository root files"
+        areas[area] = areas.get(area, 0) + 1
+    return [f"{name}: {count} file(s)" for name, count in sorted(areas.items())]
+
+
+def render_no_domain_comment(files):
+    """Render the PR comment used when the PR changes no src, test, SVT or pipeline domain."""
+    lines = [COMMENT_MARKER, "## Compliance Gate", "",
+             "**Result: no domain changes found**", "",
+             "- [x] Nothing to check: this PR does not change any `src/<domain>`, `test/<domain>`, "
+             "SVT (`test/system_test`) or pipeline (`test/pipeline`) path.", ""]
+    summary = change_summary(files)
+    if summary:
+        lines += ["Changed areas:"] + [f"- {item}" for item in summary] + [""]
+    lines.append("The gate checks all domains when a PR changes the shared test plugin or `docs/code-style/**`; "
+                 "run the workflow manually to check everything.")
+    return "\n".join(lines)
+
+
+def render_comment(results, baseline, errors, skipped, reason):
+    """Render the PR comment: one section per checked domain, marked passed or not passed."""
+    ordered = sorted(results, key=lambda r: (r["scope"], r["domain"]))
+    verdicts = {(r["scope"], r["domain"]): domain_problems(r, baseline.get(r["scope"], {}).get(r["domain"])) for r in ordered}
+    failed = [k for k, (_, probs) in verdicts.items() if probs]
+    lines = [COMMENT_MARKER, "## Compliance Gate", "",
+             f"**Result: {len(ordered) - len(failed)} passed, {len(failed)} not passed** "
+             f"({len(ordered)} domain scope(s) checked; unchanged domains are skipped)", ""]
+    if skipped:
+        lines += [f"Not checked ({reason}): " + ", ".join(f"{s}/{d}" for s, d in sorted(skipped)), ""]
+    for res in ordered:
+        key = (res["scope"], res["domain"])
+        crit, problems = verdicts[key]
+        base = baseline.get(res["scope"], {}).get(res["domain"])
+        open_rows = [c for c in res["checks"] if c["status"] == "FAIL" and not c["advisory"] and not c["waived"]]
+        state = "NOT PASSED" if problems else "PASSED"
+        lines += [f"### {res['scope']}/{res['domain']}: {state}", "",
+                  f"- [{' ' if problems else 'x'}] **{state}** score {res['adjusted']:.1f}, baseline "
+                  f"{'-' if base is None else format(base, '.1f')}"
+                  + (f" ({', '.join(problems)})" if problems else "")]
+        for chk in res["checks"]:
+            if chk["status"] != "FAIL":
+                continue
+            if chk["advisory"]:
+                tag, box = "ADVISORY", "x"
+            elif chk["waived"] == "false-positive":
+                tag, box = "WAIVED false positive", "x"
+            elif chk["waived"] == "known-debt":
+                tag, box = "KNOWN DEBT", " "
+            else:
+                tag, box = ("OPEN critical" if chk["critical"] else "OPEN"), " "
+            lines.append(f"- [{box}] {tag}: {chk['category']} / {chk['name']}: {chk['detail'][:160]}")
+        if not any(c["status"] == "FAIL" for c in res["checks"]):
+            lines.append("- [x] No findings")
+        lines.append(f"- Open findings: {len(open_rows)}")
+        lines.append("")
+    if errors:
+        lines += ["### Checker errors", ""] + [f"- {e}" for e in errors]
+    return "\n".join(lines)
+
+
 def report(results, baseline, errors, skipped, reason):
     """Render the markdown report and return (text, failures)."""
     failures = list(errors)
@@ -402,16 +488,9 @@ def report(results, baseline, errors, skipped, reason):
              "|---|---|---:|---:|---:|---|---|---|"]
     for res in ordered:
         base = baseline.get(res["scope"], {}).get(res["domain"])
-        crit = [c for c in res["checks"] if c["status"] == "FAIL" and c["critical"] and not c["waived"]]
+        crit, problems = domain_problems(res, base)
         fp = sum(1 for c in res["checks"] if c["waived"] == "false-positive")
         debt = sum(1 for c in res["checks"] if c["waived"] == "known-debt")
-        problems = []
-        if crit:
-            problems.append("critical")
-        if base is None:
-            problems.append("no baseline")
-        elif res["adjusted"] + TOLERANCE < base:
-            problems.append("regression")
         if problems:
             failures.append(f"{res['scope']}/{res['domain']}: {', '.join(problems)}")
         lines.append(f"| {res['scope']} | {res['domain']} | {res['score']:.1f} | {res['adjusted']:.1f} | "
@@ -443,6 +522,7 @@ def main():
     ap.add_argument("--update-baseline", action="store_true", help="rewrite compliance/baseline.json")
     ap.add_argument("--no-fail", action="store_true", help="report only; always exit 0")
     ap.add_argument("--base", help="git ref; check only domains changed since its merge-base with HEAD")
+    ap.add_argument("--comment-file", type=Path, help="write the per-domain PR comment markdown to this file")
     ap.add_argument("--changed-files", type=Path, help="file with one changed path per line (instead of --base)")
     args = ap.parse_args()
     exceptions = yaml.safe_load((GITHUB / "compliance" / "exceptions.yml").read_text(encoding="utf-8"))["exceptions"]
@@ -477,6 +557,14 @@ def main():
     if files is not None and not scopes:
         text += "\n\nNo src/test/SVT/pipeline domain changed in this PR; nothing to check."
     print(text)
+    if args.comment_file:
+        if files is not None and not scopes:
+            comment = render_no_domain_comment(files)
+        else:
+            comment = render_comment(results, baseline, errors, skipped, reason)
+        if len(comment) > COMMENT_LIMIT:
+            comment = comment[:COMMENT_LIMIT] + "\n\n... truncated; see the job summary for the full report."
+        args.comment_file.write_text(comment + "\n", encoding="utf-8")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as fh:
