@@ -20,9 +20,11 @@ so the BuildStream unit job can run them.
 """
 
 import re
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from .vars.execute_vars import (
+    EXTERNAL_CA_MAX_MODE,
     GITLAB_DEFAULT_BRANCH,
     GITLAB_DEFAULT_PROJECT_NAME,
     GITLAB_DEFAULT_VISIBILITY,
@@ -90,6 +92,34 @@ def is_valid_external_url(value: str) -> bool:
 def is_valid_namespace(value: str) -> bool:
     """Return whether ``value`` is a GitLab group path such as ``infra/omnia-builds``."""
     return bool(_NAMESPACE_RE.match(value or ""))
+
+
+def gitlab_major_version(version: str) -> Optional[int]:
+    """Return the major number of ``17.4.1-ee`` (None when unparsable)."""
+    try:
+        return int(str(version).split(".", maxsplit=1)[0])
+    except ValueError:
+        return None
+
+
+def days_until(expires_at: str, today: Optional[date] = None) -> Optional[int]:
+    """Return the whole days from ``today`` to a ``YYYY-MM-DD`` date (None when unset)."""
+    if not expires_at:
+        return None
+    try:
+        expiry = datetime.strptime(str(expires_at)[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    return (expiry - (today or datetime.now(timezone.utc).date())).days
+
+
+def mode_is_ca_safe(mode: str) -> bool:
+    """Return whether an octal mode is 0644 or stricter with no execute bit."""
+    try:
+        value = int(mode, 8)
+    except ValueError:
+        return False
+    return value & ~EXTERNAL_CA_MAX_MODE == 0 and value & 0o111 == 0
 
 
 def mode_input_probes(mode: str, config: Dict[str, Any], expected_mode: str = "") -> List[Probe]:

@@ -11,7 +11,7 @@ suite: the scenario's entry test is `X0000`, and checks are `X` + suite
 | 10000 | `prepare_base` | `./omnia.sh --prepare-base` | `readiness` |
 | 20000 | `precheck` | `build_stream.yml --tags precheck` | `environment`, `containers`, `credentials` |
 | 30000 | `prepare` | `build_stream.yml --tags prepare` | `build_stream` |
-| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` |
+| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_external`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` |
 | 90000 | `cleanup` | `build_stream.yml --tags cleanup` | `gitlab`, `build_stream` |
 
 A run without a tag follows the default lifecycle `precheck -> prepare ->
@@ -123,7 +123,7 @@ Deploys Postgres, the BuildStream API container and the playbook-watcher, and wr
 
 Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner (`gitlab_mode: hosted`), or configures a customer-managed GitLab through its REST API (`gitlab_mode: external`). All GitLab checks live here.
 
-The scenario reads `gitlab_mode` from the input file first (`test_gitlab_mode_detected`, V104, and the entry test). `gitlab_server` and `gitlab_runner` are hosted-only; they are skipped with the reason when the input file selects external. `gitlab_project` and the pipeline suites run in both modes.
+The scenario reads `gitlab_mode` from the input file first (`test_gitlab_mode_detected`, V104, and the entry test). `gitlab_server` and `gitlab_runner` are hosted-only and `gitlab_external` is external-only; the tests of the other mode are skipped with the reason. `gitlab_project` and the pipeline suites run in both modes.
 
 `execute verify` then runs every pipeline suite in this order (one test case
 per step):
@@ -271,6 +271,14 @@ exactly one row in `image_groups` and that it is the deployed image group.
 | 41117 | BSM_FVT_EXECUTE_V101 | `test_log_query_non_owned_job` | log_query | log_observability, security | Sets the disposable job's `jobs.client_id` to another client, then requests its logs (unfiltered and stage filter), restoring the owner afterwards. | Both return 404 `JOB_NOT_FOUND` "Job not found" with the same body as an unknown job; the restored job returns 200. |
 | 41118 | BSM_FVT_EXECUTE_V102 | `test_log_query_concurrency_limit` | log_query | log_observability, security | Plants a 4 MiB log and sends up to 3 bursts of `4 x log_query_max_concurrent` simultaneous `full=true` queries (bounded by the rate limit). | At least one request returns 503 `LOG_QUERY_BUSY` with `Retry-After >= 1`; the others return 200. |
 | 41119 | BSM_FVT_EXECUTE_V103 | `test_log_query_rate_limit` | log_query | log_observability, security | Waits for an empty rate window, sends `log_query_rate_limit + 1` queries, then one more after `Retry-After`. Skipped while a GitLab pipeline runs (shared client budget). | The first `log_query_rate_limit` return 200; the next returns 429 `RATE_LIMIT_EXCEEDED` "Rate limit exceeded" with `Retry-After` 1..60; the query after it returns 200. |
+| 41201 | BSM_FVT_EXECUTE_V105 | `test_external_credentials` | gitlab_external | external_only, sanity | Decrypts `build_stream_credentials.yml` in memory and checks `gitlab_api_token` (value never reported) and the persisted `gitlab_project_id`. | Token set and project ID numeric. |
+| 41202 | BSM_FVT_EXECUTE_V106 | `test_external_ca_bundle` | gitlab_external | external_only, sanity | When `gitlab_ca_cert_path` is set: reads the file on the OIM, checks PEM certificate, no private key, owner root, mode 0644 or stricter. Empty = system trust store. | All checks pass (or the path is empty). |
+| 41203 | BSM_FVT_EXECUTE_V107 | `test_external_gitlab_api` | gitlab_external | external_only, sanity | Over verified TLS: `GET /version` (17.x-19.x), `/personal_access_tokens/self` (scopes `api`, `write_repository`, expiry >= `gitlab.token_min_days_remaining`), role on the group (administrator or Maintainer/Owner). | Supported version, both scopes, token valid, role sufficient. |
+| 41204 | BSM_FVT_EXECUTE_V108 | `test_external_project` | gitlab_external | external_only, sanity | Reads `<namespace>/<name>`: path, `managed-by:omnia-buildstream` marker, visibility and default branch vs the input, protected default branch, project ID equal to the credential store. | All items match. |
+| 41205 | BSM_FVT_EXECUTE_V109 | `test_external_runner` | gitlab_external | external_only, sanity | Lists online runners of the project and reads the setup journal. | At least one online runner; journal runner entry is `user_provided`. |
+| 41206 | BSM_FVT_EXECUTE_V110 | `test_external_ci_token` | gitlab_external | external_only, sanity | Lists active project access tokens named `omnia-ci`. | Exactly one, scope `api`, Maintainer, expiry within 360 days, ID recorded in the journal. |
+| 41207 | BSM_FVT_EXECUTE_V111 | `test_external_trigger_variables` | gitlab_external | external_only, sanity | Checks the pipeline trigger, the local `.gitlab_trigger_token` file (root, 0600) and the six CI/CD variables (masked and protected flags; `BSM_API_URL`, `BSM_API_CERT` vs `bs_cert.pem`; CA path not injected). | All present with the expected flags and values. |
+| 41208 | BSM_FVT_EXECUTE_V112 | `test_external_journal` | gitlab_external | external_only, sanity | Reads `external_gitlab_journal.json`: private file, schema, URL, project ID, resource types, no token value. | All items pass. |
 
 The `log_query` suite reads the limits (`log_tail_lines_default`, `log_tail_lines_max`,
 `max_log_response_bytes`, `log_query_rate_limit`, `log_query_max_concurrent`,

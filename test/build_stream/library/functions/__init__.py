@@ -76,6 +76,17 @@ from library.functions.gitlab_mode_func import (
     resolve_gitlab_mode,
 )
 
+from library.functions.gitlab_external_func import (
+    check_external_ca_bundle,
+    check_external_ci_token,
+    check_external_credentials,
+    check_external_gitlab_api,
+    check_external_journal,
+    check_external_project,
+    check_external_runner,
+    check_external_trigger_and_variables,
+)
+
 # --- BuildStream health verification ---
 from library.functions.build_stream_func import (
     check_build_stream_enabled,
@@ -343,6 +354,14 @@ __all__ = [
     "reset_gitlab_mode_cache",
     "resolve_gitlab_mode",
     "check_gitlab_mode_inputs",
+    "check_external_ca_bundle",
+    "check_external_ci_token",
+    "check_external_credentials",
+    "check_external_gitlab_api",
+    "check_external_journal",
+    "check_external_project",
+    "check_external_runner",
+    "check_external_trigger_and_variables",
     # BuildStream health
     "check_build_stream_enabled",
     "check_build_stream_health",

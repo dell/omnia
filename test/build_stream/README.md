@@ -177,7 +177,7 @@ cd datasets/generator
 | `prepare_base` | `readiness` | Prerequisite domains ready for BuildStream |
 | `precheck` | `environment`, `containers`, `credentials` | Environment, prerequisite containers and credential stores |
 | `prepare` | `build_stream` | BuildStream service, API, database, venv, TLS, queue |
-| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` | GitLab, then each pipeline as one test case per step, then the pipeline log query API and CI console logs (ER-BSM-003) |
+| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_external`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` | GitLab, then each pipeline as one test case per step, then the pipeline log query API and CI console logs (ER-BSM-003) |
 | `cleanup` | `gitlab`, `build_stream` | Removed and intentionally preserved resources |
 
 Every test case, with its order, ID, markers and check, is listed in
@@ -211,6 +211,7 @@ CA file when set).
 | Suites | `hosted` | `external` |
 |---|---|---|
 | `gitlab_server`, `gitlab_runner` | run exactly as before (SSH to the GitLab host) | skipped with the reason |
+| `gitlab_external` | skipped with the reason | runs (REST API, verified TLS, `gitlab_api_token`) |
 | `gitlab_project` and every pipeline suite | unchanged (SSH-derived root token and GitLab CA) | same checks through `gitlab_external_url`, `gitlab_api_token`, `gitlab_ca_cert_path` (system trust store when empty) and the project `<namespace>/<name>` |
 
 `test_config.yml` `gitlab.expected_mode` (optional) fails the mode check when the

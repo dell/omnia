@@ -14,6 +14,8 @@
 
 """Unit tests of the dependency-free GitLab mode inputs (run in the GitHub unit job)."""
 
+from datetime import date
+
 import pytest
 
 from library import gitlab_inputs as gi
@@ -130,3 +132,23 @@ class TestGitlabBlock:
         gi.validate_gitlab_block(config["gitlab"])
         assert gi.gitlab_settings(config) == {"expected_mode": "external",
                                               "token_min_days_remaining": 0}
+
+
+@pytest.mark.parametrize("version,major", [("17.4.1-ee", 17), ("19.0", 19), ("x", None)])
+def test_major_version(version, major):
+    """The major GitLab version is parsed."""
+    assert gi.gitlab_major_version(version) == major
+
+
+def test_days_until():
+    """Token expiry is counted in whole days."""
+    assert gi.days_until("2026-12-24", date(2026, 11, 24)) == 30
+    assert gi.days_until("", date(2026, 11, 24)) is None
+    assert gi.days_until("garbage") is None
+
+
+@pytest.mark.parametrize("value,safe", [("644", True), ("600", True), ("444", True),
+                                        ("664", False), ("755", False), ("x", False)])
+def test_ca_mode(value, safe):
+    """The CA bundle must be 0644 or stricter without execute bits."""
+    assert gi.mode_is_ca_safe(value) is safe
