@@ -1867,6 +1867,22 @@ CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_CLEANUP_V006",
         "title": "Verify cleanup credential policy",
     },
+    "cleanup_nfs_slurm": {
+        "id": "ORCH_FVT_CLEANUP_V007",
+        "title": "Empty the Slurm NFS share when cleanup_slurm is true",
+    },
+    "cleanup_nfs_k8s": {
+        "id": "ORCH_FVT_CLEANUP_V008",
+        "title": "Empty the Kubernetes NFS share when cleanup_k8s is true",
+    },
+    "cleanup_nfs_slurm_detached": {
+        "id": "ORCH_FVT_CLEANUP_V009",
+        "title": "Verify the Slurm NFS share is unmounted and not in fstab",
+    },
+    "cleanup_nfs_k8s_detached": {
+        "id": "ORCH_FVT_CLEANUP_V010",
+        "title": "Verify the Kubernetes NFS share is unmounted and not in fstab",
+    },
 }
 
 NFT_TEST_CASES: dict[str, dict[str, str]] = {

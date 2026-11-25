@@ -29,7 +29,7 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V007`, `V009`–`V011`, `V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V010` | `openchami` |
 | `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V115`, `V117`–`V128`, `V200`–`V206`, `V208`–`V227`, `V300`–`V311`, `V400`–`V429`, `V500`–`V525`, `V600`–`V621`, `V700`–`V716` | see `SUITES` in `library/vars/domain_vars.py` |
-| `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
+| `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V010` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials`, `nfs_shares` |
 
 The detailed tables below are the authoritative inventory. Each test's
 `Order` defines execution sequence independently of its stable public ID, so
@@ -829,6 +829,12 @@ These cases execute the explicitly selected full cleanup and verify each compone
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
 | 50601 | `ORCH_FVT_CLEANUP_V006` | `test_credentials_follow_selected_policy` | `credentials` | `destructive`, `sanity` | Verify credentials are removed or preserved as selected. | All stated checks pass for every applicable target. |
+| 50701 | `ORCH_FVT_CLEANUP_V009` | `test_nfs_slurm_share_detached` | `nfs_shares` | `destructive`, `sanity` | Check that the `nfs_slurm` mount point of `storage_config.yml` is not mounted and `/etc/fstab` has no entry for it, whatever `cleanup_slurm` says. | Unmounted and no fstab entry. |
+| 50702 | `ORCH_FVT_CLEANUP_V010` | `test_nfs_k8s_share_detached` | `nfs_shares` | `destructive`, `sanity` | Check that the `nfs_k8s` mount point is not mounted and `/etc/fstab` has no entry for it, whatever `cleanup_k8s` says. | Unmounted and no fstab entry. |
+| 50703 | `ORCH_FVT_CLEANUP_V007` | `test_nfs_slurm_share_emptied` | `nfs_shares` | `destructive`, `sanity` | When `cleanup_slurm` is true: check the share is detached, mount it read-only (preflight), then read-write on a private temporary folder that is never added to fstab, empty it completely (the export stays), unmount it, mount it read-only again and count the entries; repeat up to 3 attempts while entries remain; finally check it is still unmounted and not in fstab. Skipped when `cleanup_slurm` is false. | No entry is left, the share is unmounted and has no fstab entry, or the test is skipped. |
+| 50704 | `ORCH_FVT_CLEANUP_V008` | `test_nfs_k8s_share_emptied` | `nfs_shares` | `destructive`, `sanity` | When `cleanup_k8s` is true: the same steps for the `nfs_k8s` share. Skipped when `cleanup_k8s` is false. | No entry is left, the share is unmounted and has no fstab entry, or the test is skipped. |
+
+The `*_detached` cases also run over SSH. The `*_emptied` cases mount the shares on the execution OIM, so they need a local run as root there. A missing or invalid `storage_config.yml` fails the cases with the path and how to fix it; a mount that is not NFS skips them with the reason. A share the OIM cannot mount (server unreachable or not exported to it) fails the emptying case before anything is deleted; an unreachable server can take about two minutes to time out.
 
 Cleanup verification follows the configured policy; it does not assume every
 input file, credential, or externally managed data path must always be deleted.
