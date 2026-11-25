@@ -152,7 +152,7 @@
     mode: "{{ file_perm_rw }}"
 
 - name: Load PXE mapping file for custom hostname support
-  ansible.builtin.read_csv:
+  pxe_mapping_read:
     path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
     key: ADMIN_MAC
   register: _mapping_nodes

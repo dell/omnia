@@ -82,7 +82,7 @@
   when: (network_data.admin_network.dns | default([])) | length > 0
 
 - name: Load PXE mapping file for custom hostname support
-  ansible.builtin.read_csv:
+  pxe_mapping_read:
     path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
     key: ADMIN_MAC
   register: _mapping_nodes

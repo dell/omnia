@@ -182,7 +182,10 @@ def _parse_pxe_mapping_ib_rows(
     ib_rows: list[dict[str, str]] = []
     try:
         with open(pxe_file, "r", encoding="utf-8") as fh:
-            reader = csv.DictReader(fh)
+            reader = csv.DictReader(
+                line for line in fh
+                if line.strip() and not line.lstrip().startswith("#")
+            )
             if reader.fieldnames is None:
                 errors.append("PXE mapping file is empty or has no header")
                 return ib_rows, errors
