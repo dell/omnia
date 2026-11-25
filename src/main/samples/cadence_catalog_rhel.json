@@ -195,7 +195,7 @@
         "description": "Common libraries and utilities shared across services",
         "components": [
           "cffi==1_17_1",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "prettytable==3_14_0",
           "nvcr.io/nvidia/hpc-benchmarks"
         ]
@@ -1513,8 +1513,8 @@
           }
         ]
       },
-      "cryptography==45_0_7": {
-        "name": "cryptography==45.0.7",
+      "cryptography==50_0_2": {
+        "name": "cryptography==50.0.2",
         "packagetype": "pip_module",
         "sources": [
           {
