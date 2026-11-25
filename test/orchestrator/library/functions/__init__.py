@@ -195,6 +195,15 @@ from .cleanup_func import (
     cleanup_extra_vars,
     cleanup_selection_fields,
 )
+from .nfs_cleanup_func import (
+    can_run_locally,
+    check_nfs_share_detached,
+    empty_nfs_share,
+    get_nfs_mount,
+    get_protected_paths,
+    get_storage_config_path,
+    nfs_share_selected,
+)
 from .external_ldap_pxeboot_func import (
     check_external_ldap_backend,
     check_external_ldap_proxy,
@@ -385,6 +394,10 @@ from .slurm_lifecycle_pxeboot_func import (
     check_slurm_node_add,
     check_slurm_node_remove,
 )
+from .kubernetes_lifecycle_pxeboot_func import (
+    check_k8s_node_add,
+    check_k8s_node_remove,
+)
 from .slurm_fabric_pxeboot_func import (
     check_slurm_gpu_inventory,
     check_slurm_infiniband_configuration,
@@ -411,6 +424,8 @@ from .slurm_pxeboot_func import (
     check_slurm_scheduler,
     check_slurm_services,
 )
+from .k8s_reboot_pxeboot_func import check_k8s_ordered_reboot
+from .slurm_reboot_pxeboot_func import check_slurm_ordered_reboot
 from .slurm_recovery_pxeboot_func import check_slurm_cluster_recovery
 from .smd_provision_func import check_smd_groups, check_smd_identity
 from .vast_storage_pxeboot_func import (
@@ -528,6 +543,7 @@ __all__ = [
     "check_cleanup_kubernetes",
     "check_cleanup_openchami",
     "check_cleanup_openldap",
+    "can_run_locally",
     "check_cleanup_slurm",
     "check_coredhcp_config_file",
     "check_coredhcp_multisubnet_running_image",
@@ -618,6 +634,8 @@ __all__ = [
     "check_ipoib_routes",
     "check_ipoib_slurm_comm_path",
     "check_ipoib_slurm_nodeaddr",
+    "check_k8s_node_add",
+    "check_k8s_node_remove",
     "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
     "check_external_ldap_backend",
@@ -715,6 +733,8 @@ __all__ = [
     "check_prepare_postgresql_readiness",
     "check_provision_reports",
     "check_slurm_cluster_recovery",
+    "check_k8s_ordered_reboot",
+    "check_slurm_ordered_reboot",
     "check_slurm_compiler_ldap_authentication",
     "check_slurm_compiler_ldap_invalid_password",
     "check_slurm_compiler_ldap_jobs",
@@ -779,6 +799,12 @@ __all__ = [
     "check_vault_encryption",
     "cleanup_extra_vars",
     "cleanup_selection_fields",
+    "check_nfs_share_detached",
+    "empty_nfs_share",
+    "get_nfs_mount",
+    "get_protected_paths",
+    "get_storage_config_path",
+    "nfs_share_selected",
     "persistent_changed_count",
     "resolve_nft_thresholds",
     "reconcile_external_ldap_proxy",

@@ -21,15 +21,21 @@ SVT_CLUSTER (multi-cluster projects) every variable <PREFIX>_<NAME> of that
 cluster is used as <NAME> and the inputs come from clusters/<name>/svt/::
 
     svt_ci.py preflight          SSH to the OIM, OpenBao reachable, then the checkout below
-    svt_ci.py checkout           clone / update / keep the Omnia checkout, copy svt/ inputs
-    svt_ci.py initialization     ./setup_env.sh --configure, --install --yes [--force]
-                                 (cleanup first), --domain-creds-stdin (OpenBao JSON on
+    svt_ci.py checkout           clone / update / recreate / keep the Omnia checkout, copy the
+                                 svt/ inputs of every theme of the run
+    svt_ci.py initialization     the shared clean start, once, for the first theme:
+                                 ./setup_env.sh --configure, --install --yes [--force] (cleanup
+                                 first, then omnia.sh -s), --domain-creds-stdin (OpenBao JSON on
                                  stdin), ./setup_env.sh --stage-files (PowerScale CSI files,
                                  only when enabled), then ./run_validation.sh svt_<theme>
-                                 initialization
-    svt_ci.py stage <stage>      ./run_validation.sh svt_<theme> <stage> --retry
-    svt_ci.py summary            ./run_validation.sh svt_<theme> summary, the SVT report,
-                                 the email; fails when any job or stage failed
+                                 initialization (readiness)
+    svt_ci.py stage <stage>      ./run_validation.sh svt_<theme> <stage> --retry. The first
+                                 stage job of a theme after the first one starts that theme's
+                                 run first (--configure, --install --yes: no cleanup)
+    svt_ci.py theme-result       the theme's SVT summary and verdict, kept for the summary
+    svt_ci.py summary            every theme's result, ONE report (svt_report/svt_report.html:
+                                 an overview and one page per theme) and one email; fails
+                                 when any job or stage failed
     svt_ci.py after-job          (after_script) record the job status; stop a stage
                                  still running on the OIM when the job ended
 
@@ -43,7 +49,8 @@ SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key; required unless
 SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
 SVT_THEME, SVT_USER_INPUTS (name of the cluster's inputs file in clusters/<name>/svt/,
-default user_inputs.yml), SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
+default user_inputs.yml), SVT_CLEAN_REINSTALL (empty: SVT_INIT_DEFAULT_CLEAN_REINSTALL_<THEME>, the
+default of the first theme of the run, from the cluster pipeline), SVT_POLL_SECONDS, SVT_JOB_ORDER,
 SVT_CATALOG_PLAN (catalog themes), SVT_CREDENTIAL_DOMAINS, SVT_LABEL,
 BAO_SERVER_URL, BAO_AUTH_ROLE,
 BAO_DATA_PATH, BAO_CACERT (optional file variable: verify OpenBao with this CA;
@@ -69,11 +76,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional, Tuple
+
+import svt_report_page
 
 STATE_DIR = "svt_ci"
 STATUS_DIR = "pipeline_job_status"
@@ -84,6 +93,7 @@ MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 SSH_RETRIES = 20
 SAFE_NAME = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 SAFE_PATH = re.compile(r"^/[A-Za-z0-9._/-]+$")
+TABLE_STYLE = "border-collapse:collapse;width:100%"
 SAFE_BRANCH = re.compile(r"^[A-Za-z0-9._/-]{1,200}$")
 
 
@@ -519,8 +529,8 @@ def checkout() -> int:
     with open(os.path.join(STATE_DIR, "commit.txt"), "w", encoding="utf-8") as stream:
         stream.write(commit.decode(errors="replace").strip())
     _check_svt_scripts(shlex.quote(_svt_dir()))
-    theme = _theme()
-    for source, name in ((chosen, USER_INPUTS), (f"{theme}_test_config.yml",) * 2):
+    names = _themes() if _env("SVT_THEME_ORDER") else [_theme()]
+    for source, name in ((chosen, USER_INPUTS), *((f"{t}_test_config.yml",) * 2 for t in names)):
         local = os.path.join(_inputs_dir(), source)
         if not os.path.isfile(local):
             _say(f"{local} not in the project: the checkout's own file is used")
@@ -564,19 +574,32 @@ def _when(text: str) -> Optional[datetime]:
         return None
 
 
-def _record_run() -> None:
-    """Keep the run started by this pipeline (the summary reports only that run).
+def _since() -> str:
+    """Return the time this theme's run must not be older than: the start of the cluster pipeline
+    for the first theme (its run is started by the initialization job), else of this pipeline."""
+    if int(_env("SVT_THEME_INDEX", "0") or 0) == 0 and _env("SVT_CLUSTER_PIPELINE_CREATED_AT"):
+        return _env("SVT_CLUSTER_PIPELINE_CREATED_AT")
+    return _env("CI_PIPELINE_CREATED_AT")
 
-    A run started before this pipeline (configure failed) is not recorded.
+
+def _current_run() -> Dict[str, Any]:
+    """Return the run the OIM is on (reports/current_run.json), {} when there is none."""
+    return _read_json(f"{_svt_dir()}/reports/current_run.json")
+
+
+def _run_since(run: Dict[str, Any], since: str) -> bool:
+    """Return whether ``run`` has an id and started at or after ``since``."""
+    started, created = _when(str(run.get("started_at", ""))), _when(since)
+    return bool(run.get("run_id")) and not (started and created and started < created)
+
+
+def _record_run() -> None:
+    """Keep the run this theme uses (the summary reports only that run).
+
+    A run started before the pipeline began (configure failed) is not recorded.
     """
-    rc, out = remote(f"cat {shlex.quote(_svt_dir() + '/reports/current_run.json')}",
-                     capture=True)
-    try:
-        run = json.loads(out.decode(errors="replace")) if rc == 0 else {}
-    except ValueError:
-        run = {}
-    started, created = _when(str(run.get("started_at", ""))), _when(_env("CI_PIPELINE_CREATED_AT"))
-    if not run.get("run_id") or (started and created and started < created):
+    run = _current_run()
+    if not _run_since(run, _since()):
         _say("no new SVT run was started by ./setup_env.sh --configure")
         return
     os.makedirs(STATE_DIR, exist_ok=True)
@@ -585,14 +608,14 @@ def _record_run() -> None:
     _say(f"SVT run {run['run_id']} (report {run.get('report_path')})")
 
 
-def _check_catalog_plan() -> None:
+def _check_catalog_plan(theme: str) -> None:
     """Catalog themes: the plan --configure wrote on the OIM must be the rendered jobs.
 
-    setup_svt_project.py renders one job per catalog (SVT_CATALOG_PLAN,
-    <stage>=<catalog>); a catalog list edited in the project, or a branch with
+    setup_svt_project.py renders one job per catalog (SVT_CATALOG_PLAN, or
+    SVT_CATALOG_PLAN_<THEME> in the cluster pipeline, <stage>=<catalog>); a catalog list edited in the project, or a branch with
     other bundled catalogs, gives another plan, whose catalogs would have no job.
     """
-    expected = _env("SVT_CATALOG_PLAN")
+    expected = _env(f"SVT_CATALOG_PLAN_{theme.upper()}") or _env("SVT_CATALOG_PLAN")
     if not expected:
         return
     path = _svt_dir() + "/reports/catalog_build_plan.json"
@@ -613,41 +636,178 @@ def _check_catalog_plan() -> None:
     _say(f"catalog plan matches the pipeline jobs ({len(entries)} catalog(s))")
 
 
-def initialization() -> int:
-    """Clean reinstall, credentials, the PowerScale files, then the initialization stage.
+def _readiness_skipped(theme: str) -> bool:
+    """Whether the initialization stage (readiness checks) is left out: the default of ``theme``
+    (the first theme of the run), or SVT_SKIP_STAGES (empty = the default, "none" = every stage
+    runs)."""
+    raw = _env("SVT_SKIP_STAGES")
+    names = [name.strip() for name in
+             (raw or _env(f"SVT_INIT_DEFAULT_SKIP_STAGES_{theme.upper()}")).split(",")]
+    return "initialization" in names
 
-    configure and install (with --force: cleanup first) run detached, so a
-    dropped SSH connection does not stop them; only the short credential step
-    runs attached, because the OpenBao JSON goes on its stdin.
-    """
-    theme = _theme()
-    force = _env("SVT_CLEAN_REINSTALL", "true").lower() == "true"
-    payload = bao_credentials()
-    rc = run_detached("configure", f"./setup_env.sh --theme {theme} --configure")
-    _record_run()
-    if rc == 0:
-        _check_catalog_plan()
-        rc = run_detached("install", f"./setup_env.sh --theme {theme} --install --yes"
-                          + (" --force" if force else ""))
-    if rc == 0 and payload:
+
+def _themes() -> List[str]:
+    """Return the themes of this run in order: SVT_THEME_ORDER (rendered from the config),
+    narrowed by the cluster's variable SVT_THEMES when it is set, without the themes left out
+    with ``theme_<name>`` in SVT_SKIP_STAGES (their trigger job does not run)."""
+    order = [item for item in _env("SVT_THEME_ORDER").split(",") if item]
+    chosen = [item.strip() for item in _env("SVT_THEMES").split(",") if item.strip()]
+    skipped = {item.strip() for item in _env("SVT_SKIP_STAGES").split(",")}
+    themes = [item for item in order
+              if (not chosen or item in chosen) and f"theme_{item}" not in skipped]
+    for theme in themes:
+        if not SAFE_NAME.fullmatch(theme):
+            _fail(f"invalid theme {theme!r}")
+    return themes
+
+
+def _group_dir() -> str:
+    """Return the OIM folder of this cluster pipeline's theme results."""
+    pipeline = _env("SVT_CLUSTER_PIPELINE_ID") or _env("CI_PIPELINE_ID", "local")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", pipeline):
+        _fail("invalid pipeline id")
+    return f"{_svt_dir()}/reports/ci/{pipeline}"
+
+
+def _credentials_and_files(theme: str, payload: bytes) -> int:
+    """Store the OpenBao credentials on the OIM and stage the PowerScale CSI files."""
+    rc = 0
+    if payload:
         _say("on the OIM: ./setup_env.sh --domain-creds-stdin (credentials from OpenBao "
              "on stdin)")
         rc, _ = remote(f"cd {shlex.quote(_svt_dir())} && ./setup_env.sh --theme {theme} "
                        "--domain-creds-stdin", stdin=payload)
-    elif rc == 0:
+    else:
         _say("BAO_SERVER_URL not set: the credential stores already on the OIM are used")
     if rc == 0:
         _say("on the OIM: ./setup_env.sh --stage-files (PowerScale CSI files, only when enabled)")
         rc, _ = remote(f"cd {shlex.quote(_svt_dir())} && ./setup_env.sh --theme {theme} "
                        "--stage-files")
+    return rc
+
+
+def initialization() -> int:
+    """The complete initialization, once for the whole cluster pipeline, with the first theme.
+
+    configure (the first theme's run), then the clean reinstall (``--install --force``: the shared
+    cleanup of user_inputs.yml, then omnia.sh -s and the Omnia environment), the credentials from
+    OpenBao, the PowerScale CSI files and the readiness stage. The first theme then goes straight
+    to its first stage; a later theme starts its own run on this installation without a cleanup.
+    SVT_CLEAN_REINSTALL=false installs only what changed (no cleanup). configure and install run
+    detached, so a dropped SSH connection does not stop them; only the short credential step
+    runs attached, because the OpenBao JSON goes on its stdin.
+    """
+    themes = _themes()
+    if not themes:
+        _fail("no theme selected: clusters.<name>.themes and <CLUSTER>_SVT_THEMES are empty")
+    first = themes[0]
+    reinstall = (_env("SVT_CLEAN_REINSTALL")
+                 or _env(f"SVT_INIT_DEFAULT_CLEAN_REINSTALL_{first.upper()}", "true"))
+    force = reinstall.lower() == "true"
+    _say(f"themes of this run: {', '.join(themes)}; initialization with theme {first}"
+         + ("" if force else " (SVT_CLEAN_REINSTALL=false: no cleanup)"))
+    payload = bao_credentials()
+    rc = run_detached("configure", f"./setup_env.sh --theme {first} --configure")
+    _record_run()
+    if rc == 0:
+        _check_catalog_plan(first)
+        rc = run_detached("install", f"./setup_env.sh --theme {first} --install --yes"
+                          + (" --force" if force else ""))
+    if rc == 0:
+        rc = _credentials_and_files(first, payload)
     if rc != 0:
         _say(f"./setup_env.sh failed (rc={rc}); the summary still reports the run")
         return rc
-    return run_detached("initialization", f"./run_validation.sh svt_{theme} initialization")
+    if _readiness_skipped(first):
+        _say("initialization stage left out (theme default or SVT_SKIP_STAGES); setup is done")
+        return 0
+    return run_detached("initialization", f"./run_validation.sh svt_{first} initialization")
+
+
+def _start_theme_run() -> int:
+    """Make sure this theme's run exists before its first stage; return 0 or a failure code.
+
+    The first theme's run was started by the initialization job (nothing to do but record it).
+    A later theme starts its own run on the installation the initialization made: configure and
+    install without --force (no cleanup, only what the theme's inputs changed). The credential
+    stores and the installation are kept by a new run. It is idempotent: when the OIM is already
+    on a run of this theme newer than this pipeline (an earlier job, or a retry of the first
+    stage), that run is used, so a retry continues the same run.
+    """
+    theme = _theme()
+    run = _current_run()
+    if run.get("theme") == theme and _run_since(run, _since()):
+        _record_run()
+        return 0
+    if int(_env("SVT_THEME_INDEX", "0") or 0) == 0:
+        _fail(f"the SVT run of theme {theme} was not started by the initialization job. HOW "
+              "TO FIX: open the initialization job of the cluster pipeline and run it again")
+    _say(f"theme {theme}: its own run on the installation of the initialization (no cleanup)")
+    rc = run_detached("configure", f"./setup_env.sh --theme {theme} --configure")
+    _record_run()
+    if rc == 0:
+        _check_catalog_plan(theme)
+        rc = run_detached("install", f"./setup_env.sh --theme {theme} --install --yes")
+    if rc == 0:
+        _say("on the OIM: ./setup_env.sh --stage-files (PowerScale CSI files, only when enabled)")
+        rc, _ = remote(f"cd {shlex.quote(_svt_dir())} && ./setup_env.sh --theme {theme} "
+                       "--stage-files")
+    if rc != 0:
+        _say(f"the run of theme {theme} could not be started (rc={rc})")
+    return rc
+
+
+def _read_json(path: str) -> Dict[str, Any]:
+    """Return the JSON file ``path`` of the OIM ({} when it is missing or invalid)."""
+    rc, out = remote(f"cat {shlex.quote(path)}", capture=True)
+    try:
+        data = json.loads(out.decode(errors="replace")) if rc == 0 else {}
+    except ValueError:
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+def theme_result() -> int:
+    """Run the theme's SVT summary on the OIM and keep the theme's verdict for the cluster summary.
+
+    The record (verdict, problems, job statuses, run, links) is written on the OIM in the
+    folder of the cluster pipeline; this job never fails, so the cluster summary decides.
+    """
+    theme = _theme()
+    statuses = _job_statuses()
+    order = [job for job in _env("SVT_JOB_ORDER").split(",") if job and job != "theme_result"]
+    problems = [f"{job} {statuses[job]}" for job in order
+                if statuses.get(job) in ("failed", "canceled")]
+    run: Dict[str, Any] = {}
+    try:
+        with open(os.path.join(STATE_DIR, "run.json"), "r", encoding="utf-8") as stream:
+            run = json.load(stream)
+    except (OSError, ValueError):
+        problems.append("no SVT run was started")
+    report: Dict[str, Any] = {}
+    if run and _env("SVT_TARGET_IP"):
+        rc, _ = remote(f"cd {shlex.quote(_svt_dir())} && ./run_validation.sh svt_{theme} summary")
+        if rc != 0:
+            problems.append(f"SVT summary rc={rc}")
+        report = _read_json(f"{run['report_path']}/{run['report_name']}.json")
+        problems += [f"{section.get('stage')} failed in the SVT report"
+                     for section in report.get("sections") or []
+                     if section.get("status") == "Failed" and section.get("stage")
+                     and not any(item.startswith(f"{section['stage']} ") for item in problems)]
+    record = {"theme": theme, "verdict": "FAILED" if problems else "PASSED", "problems": problems,
+              "statuses": statuses, "order": order, "run": run, "ci_dir": _ci_dir(),
+              "pipeline_url": _env("CI_PIPELINE_URL"), "index": _env("SVT_THEME_INDEX", "0")}
+    group = _group_dir()
+    rc, _ = remote(f"mkdir -p {shlex.quote(group)} && cat > "
+                   f"{shlex.quote(group + '/theme_' + theme + '.json')}",
+                   stdin=json.dumps(record).encode())
+    _say(f"theme {theme}: {record['verdict']}" + (f" ({'; '.join(problems)})" if problems else "")
+         + ("" if rc == 0 else " - the result could not be written on the OIM"))
+    return 0
 
 
 def stage(name: str) -> int:
-    """One theme stage of the SVT.
+    """One theme stage of the SVT (the theme's run is started first when it is not yet).
 
     --retry makes GitLab's Retry button on a failed stage job continue the same run: the
     stage runs again and its new attempt replaces the failed one in the report. On a first
@@ -655,6 +815,9 @@ def stage(name: str) -> int:
     """
     if not SAFE_NAME.fullmatch(name):
         _fail(f"invalid stage {name!r}")
+    rc = _start_theme_run()
+    if rc != 0:
+        return rc
     return run_detached(name, f"./run_validation.sh svt_{_theme()} {name} --retry")
 
 
@@ -739,31 +902,6 @@ def _job_statuses() -> Dict[str, str]:
     return statuses
 
 
-def _fetch_report() -> Dict[str, Any]:
-    """Copy the SVT report of this pipeline's run into svt_report/; return its JSON."""
-    try:
-        with open(os.path.join(STATE_DIR, "run.json"), "r", encoding="utf-8") as stream:
-            run = json.load(stream)
-    except (OSError, ValueError):
-        _say("no SVT run was started by this pipeline: no report")
-        return {}
-    os.makedirs(REPORT_DIR, exist_ok=True)
-    data: Dict[str, Any] = {}
-    for ext in ("html", "json"):
-        source = f"{run['report_path']}/{run['report_name']}.{ext}"
-        rc, content = remote(f"cat {shlex.quote(source)}", capture=True)
-        if rc == 0 and content:
-            with open(os.path.join(REPORT_DIR, f"{run['report_name']}.{ext}"), "wb") as stream:
-                stream.write(content)
-            if ext == "json":
-                data = json.loads(content.decode(errors="replace") or "{}")
-    _fetch_files(f"{run['report_path']}/junit_*.xml", os.path.join(REPORT_DIR, "junit"))
-    _fetch_files(f"{_ci_dir()}/*.log", os.path.join(REPORT_DIR, "logs"))
-    _fetch_files(f"{run['report_path']}/*.log", os.path.join(REPORT_DIR, "logs", "run"))
-    _say(f"SVT report, JUnit files and logs of run {run.get('run_id')} -> {REPORT_DIR}/")
-    return data
-
-
 def _fetch_files(pattern: str, local_dir: str) -> None:
     """Copy the files matching ``pattern`` on the OIM (plain names only) into ``local_dir``."""
     directory, glob_part = pattern.rsplit("/", 1)
@@ -792,44 +930,6 @@ def _section_rows(report: Dict[str, Any], cell: str = "padding:6px") -> str:
                  f"<td style='{cell};color:#dc3545'>{count['Failed']}</td>"
                  f"<td style='{cell};color:#fd7e14'>{count['Skipped']}</td></tr>")
     return rows
-
-
-def _failures(statuses: Dict[str, str], report: Dict[str, Any]
-              ) -> Tuple[List[Tuple[str, str]], List[str], List[str]]:
-    """Return (failed jobs as (job, status), jobs that did not run, one line per failed SVT step).
-
-    A job that did not run has no status file: GitLab skips the jobs after a failed one.
-    """
-    order = [job for job in _env("SVT_JOB_ORDER").split(",") if job and job != "summary"]
-    failed = [(job, statuses[job]) for job in order if statuses.get(job) in ("failed", "canceled")]
-    not_run = [job for job in order if job not in statuses] if failed else []
-    details = []
-    for section in report.get("sections") or []:
-        for item in section.get("items") or []:
-            if item.get("status") == "Failed":
-                error = (item.get("error") or "").strip().splitlines()
-                details.append(f"{section.get('stage') or section.get('name', '')}: "
-                               f"{(item.get('id') or '').strip()} {item.get('name', '')}".rstrip()
-                               + (f" - {error[0][:200]}" if error else ""))
-    return failed, not_run, details
-
-
-def _failure_banner(failed: List[Tuple[str, str]], not_run: List[str], details: List[str],
-                    problems: List[str]) -> None:
-    """Print which stage failed, why, and what did not run, in a block of the job log."""
-    print("=" * 72, flush=True)
-    print("SVT FAILED", flush=True)
-    for job, status in failed:
-        print(f"  failed stage : {job} ({status})", flush=True)
-    for line in details:
-        print(f"    - {line}", flush=True)
-    for problem in problems:
-        if not problem.split(" ", 1)[0] in {job for job, _ in failed}:
-            print(f"  also         : {problem}", flush=True)
-    if not_run:
-        print(f"  did not run  : {', '.join(not_run)} (after the failure)", flush=True)
-    print("  the SVT report and logs are in the job artifacts (svt_report/)", flush=True)
-    print("=" * 72, flush=True)
 
 
 def _status_cell(status: str) -> str:
@@ -879,9 +979,9 @@ def _job_reasons() -> Dict[str, str]:
     return reasons
 
 
-def _job_links() -> Dict[str, str]:
-    """Return {job: its page in GitLab} for this pipeline (best effort: {} when the API call
-    is refused or fails; the email then links the pipeline only)."""
+def _job_details() -> Dict[str, Dict[str, Any]]:
+    """Return {job: {url, status, duration}} of this pipeline (best effort: {} when the API call
+    is refused or fails; the report and the email then link the pipeline only)."""
     api, pipeline = _env("CI_API_V4_URL"), _env("CI_PIPELINE_ID")
     token = os.environ.get("CI_JOB_TOKEN", "")
     if not (api and token and pipeline and _env("CI_PROJECT_ID")):
@@ -893,9 +993,15 @@ def _job_links() -> Dict[str, str]:
             f"{api}/projects/{_env('CI_PROJECT_ID')}/pipelines/{pipeline}/jobs?per_page=100",
             headers={"JOB-TOKEN": token})
         with urllib.request.urlopen(request, context=context, timeout=20) as response:  # nosec B310
-            return {job["name"]: job["web_url"] for job in json.load(response)}
+            return {job["name"]: {"url": job["web_url"], "status": job.get("status", ""),
+                                  "duration": job.get("duration")} for job in json.load(response)}
     except (OSError, ValueError, KeyError, TypeError):
         return {}
+
+
+def _job_links() -> Dict[str, str]:
+    """Return {job: its page in GitLab} for this pipeline ({} when the API is not reachable)."""
+    return {name: item["url"] for name, item in _job_details().items()}
 
 
 def _read_commit() -> str:
@@ -906,108 +1012,179 @@ def _read_commit() -> str:
         return ""
 
 
-def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) -> bool:
-    """Send the summary email; return False only when it was configured and could not be sent."""
+def _fetch_theme_report(theme: str, run: Dict[str, Any]) -> Dict[str, Any]:
+    """Copy the SVT report, the JUnit files and the logs of a theme's run into svt_report/;
+    return the report JSON."""
+    folder = os.path.join(REPORT_DIR, theme)
+    os.makedirs(folder, exist_ok=True)
+    data: Dict[str, Any] = {}
+    for ext in ("html", "json"):
+        source = f"{run['report_path']}/{run['report_name']}.{ext}"
+        rc, content = remote(f"cat {shlex.quote(source)}", capture=True)
+        if rc == 0 and content:
+            with open(os.path.join(folder, f"{run['report_name']}.{ext}"), "wb") as stream:
+                stream.write(content)
+            if ext == "json":
+                data = json.loads(content.decode(errors="replace") or "{}")
+    _fetch_files(f"{run['report_path']}/junit_*.xml", os.path.join(REPORT_DIR, "junit"))
+    if SAFE_PATH.fullmatch(str(run.get("ci_dir", ""))):
+        _fetch_files(f"{run['ci_dir']}/*.log", os.path.join(folder, "logs"))
+    _fetch_files(f"{run['report_path']}/*.log", os.path.join(folder, "logs", "run"))
+    _say(f"theme {theme}: SVT report of run {run.get('run_id')} -> {folder}/")
+    return data
+
+
+def _theme_title(theme: str, report: Dict[str, Any]) -> str:
+    return str((report.get("meta") or {}).get("theme_title") or theme)
+
+
+REPORT_NAME = "svt_report.html"
+
+
+def _report_context(themes: List[str], records: Dict[str, Dict[str, Any]],
+                    reports: Dict[str, Dict[str, Any]], verdict: str,
+                    problems: List[str], statuses: Dict[str, str]) -> Dict[str, Any]:
+    """Return what svt_report_page.build_report needs: the run, its jobs and every theme."""
+    repo, branch, commit = _env("SVT_OMNIA_REPO"), _env("SVT_OMNIA_BRANCH"), _read_commit()
+    _, branch_url, commit_url = _git_links(repo, branch, commit)
+    details, reasons = _job_details(), _job_reasons()
+    common = [{"name": job, "status": statuses.get(job, ""), "reason": reasons.get(job, ""),
+               "url": (details.get(job) or {}).get("url", ""),
+               "duration": (details.get(job) or {}).get("duration")}
+              for job in ("preflight", "initialization", "summary")]
+    entries = []
+    for theme in themes:
+        record, report = records.get(theme) or {}, reports.get(theme) or {}
+        run, meta = record.get("run") or {}, report.get("meta") or {}
+        source = os.path.join(REPORT_DIR, theme, f"{run.get('report_name', '')}.html")
+        page = ""
+        if run and os.path.isfile(source):
+            with open(source, "r", encoding="utf-8", errors="replace") as stream:
+                page = stream.read()
+            os.remove(source)
+        entries.append({"name": theme, "title": _theme_title(theme, report),
+                        "description": meta.get("description", ""),
+                        "verdict": record.get("verdict") or "NOT RUN",
+                        "run_id": run.get("run_id", ""), "problems": record.get("problems") or [],
+                        "pipeline_url": record.get("pipeline_url", ""), "report": report,
+                        "page_html": page})
+    return {"label": _env("SVT_LABEL") or _env("SVT_CLUSTER"), "verdict": verdict,
+            "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            "info": {"repo": _web_base(repo) or repo, "repo_url": _web_base(repo),
+                     "branch": branch, "branch_url": branch_url, "commit": commit,
+                     "commit_url": commit_url, "pipeline_url": _env("CI_PIPELINE_URL")},
+            "common": common, "problems": problems, "reasons": reasons, "themes": entries}
+
+
+def _write_report(context: Dict[str, Any]) -> str:
+    """Write svt_report/svt_report.html, the ONE report (overview and a page per theme)."""
+    os.makedirs(REPORT_DIR, exist_ok=True)
+    path = os.path.join(REPORT_DIR, REPORT_NAME)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(svt_report_page.build_report(context))
+    _say(f"report: {path} ({os.path.getsize(path) // 1024} KB, {len(context['themes']) + 1} "
+         "pages: the overview and one per theme)")
+    return path
+
+
+def _send_cluster_email(verdict: str, statuses: Dict[str, str], themes: List[str],
+                        records: Dict[str, Dict[str, Any]], reports: Dict[str, Dict[str, Any]],
+                        problems: List[str]) -> bool:
+    """Send the one email of the cluster pipeline; False only when it was configured and failed."""
     recipients = [r.strip() for r in _env("EMAIL_RECIPIENTS").split(",") if r.strip()]
     server, sender = _env("SMTP_SERVER"), _env("EMAIL_SENDER")
     if not (recipients and server and sender):
         _say("email not configured (EMAIL_RECIPIENTS, EMAIL_SENDER, SMTP_SERVER): not sent")
         return True
-    meta = report.get("meta") or {}
-    title = meta.get("theme_title") or _theme()
     label = _env("SVT_LABEL")
     message = MIMEMultipart("mixed")
     message["From"], message["To"] = sender, ", ".join(recipients)
-    failed, not_run, details = _failures(statuses, report)
-    stages = f" ({', '.join(job for job, _ in failed)})" if failed else ""
-    message["Subject"] = f"Omnia SVT [{label}] {title} - {verdict}{stages}"
+    names = ", ".join(themes)
+    message["Subject"] = f"Omnia SVT [{label}] {names} - {verdict}"
     commit, branch, repo = _read_commit(), _env("SVT_OMNIA_BRANCH"), _env("SVT_OMNIA_REPO")
     repo_url, branch_url, commit_url = _git_links(repo, branch, commit)
     pipeline_url, job_url = _env("CI_PIPELINE_URL"), _env("CI_JOB_URL")
-    attachments = sorted(glob.glob(os.path.join(REPORT_DIR, "*.html")))
-    has_results = bool(report.get("sections"))
+    attachments = [os.path.join(REPORT_DIR, REPORT_NAME)] if os.path.isfile(
+        os.path.join(REPORT_DIR, REPORT_NAME)) else []
     report_url = f"{job_url}/artifacts/browse/svt_report/" if job_url and attachments else ""
     reasons, links = _job_reasons(), _job_links()
-    ok = verdict == "PASSED"
-    color = "#198754" if ok else "#dc3545"
+    color = "#198754" if verdict == "PASSED" else "#dc3545"
     cell = "padding:6px 10px;border:1px solid #dee2e6;font-size:13px"
     head = f"{cell};background:#f1f3f5;text-align:left"
     esc = html.escape
-    run_id = str(meta.get("run_id", ""))
-    not_started = "not started (the pipeline stopped before the SVT run)"
-    info = [("Run", esc(run_id) if run_id else not_started),
-            ("OIM", esc(label or "-")),
-            ("Theme", esc(f"{title} ({_theme()})")),
+    info = [("OIM", esc(label or "-")), ("Themes", esc(" -> ".join(themes))),
             ("Repository", _anchor(repo_url, _web_base(repo) or repo or "-")),
             ("Branch", _anchor(branch_url, branch or "-")),
             ("Commit", _anchor(commit_url, commit[:12]) if commit else "not checked out"),
             ("Pipeline", _anchor(pipeline_url, pipeline_url or "-"))]
-    info_rows = "".join(f"<tr><td style='{head};width:110px'><b>{name}</b></td>"
-                        f"<td style='{cell}'>{value}</td></tr>" for name, value in info)
+    info_rows = "".join(f"<tr><td style='{head};width:110px'><b>{n}</b></td>"
+                        f"<td style='{cell}'>{v}</td></tr>" for n, v in info)
     why = ""
-    if failed:
-        steps = "".join(f"<li style='margin-bottom:4px'>{esc(line)}</li>" for line in details)
-        failed_rows = "".join(
-            f"<li style='margin-bottom:4px'>{_anchor(links.get(job, ''), job)} ({esc(state)})"
-            + (f"<br><span style='color:#842029'>{esc(reasons[job])}</span>"
-               if reasons.get(job) else "") + "</li>" for job, state in failed)
-        why = (f"<div style='border-left:4px solid #dc3545;background:#fdf1f2;padding:10px 14px;"
-               f"margin:16px 0'><b>Failed:</b><ul style='margin:6px 0 0 18px;padding:0'>"
-               f"{failed_rows}</ul>"
-               + (f"<b>Did not run:</b> {esc(', '.join(not_run))}<br>" if not_run else "")
-               + (f"<b>Failed SVT steps:</b><ul style='margin:6px 0 0 18px;padding:0'>{steps}</ul>"
-                  if steps else "") + "</div>")
+    if problems:
+        items = "".join(
+            f"<li style='margin-bottom:4px'>{esc(item)}"
+            + "".join(f"<br><span style='color:#842029'>{esc(reasons[job])}</span>"
+                      for job in reasons if item.startswith(f"{job} ")) + "</li>"
+            for item in problems)
+        why = ("<div style='border-left:4px solid #dc3545;background:#fdf1f2;padding:10px 14px;"
+               f"margin:16px 0'><b>Problems:</b><ul style='margin:6px 0 0 18px;padding:0'>{items}"
+               "</ul></div>")
+    rows, detail = [], []
+    for index, theme in enumerate(themes):
+        record, report = records.get(theme) or {}, reports.get(theme) or {}
+        state = record.get("verdict") or "NOT RUN"
+        run = (record.get("run") or {}).get("run_id", "-")
+        job_state = {"PASSED": "success", "FAILED": "failed"}.get(state, "")
+        link = _anchor(record.get("pipeline_url", ""), "pipeline")
+        rows.append(f"<tr><td style='{cell}'>{index + 1}. {esc(_theme_title(theme, report))} "
+                    f"({esc(theme)})</td><td style='{cell}'>{_status_cell(job_state)}</td>"
+                    f"<td style='{cell}'>{esc(str(run))}</td><td style='{cell}'>{link}</td></tr>")
+        if report.get("sections"):
+            detail.append(
+                f"<h3 style='margin:18px 0 6px;font-size:15px'>{esc(theme)}: SVT sections</h3>"
+                f"<table cellpadding='0' cellspacing='0' style='{TABLE_STYLE}'>"
+                f"<tr><th style='{head}'>Section</th><th style='{head}'>Status</th>"
+                f"<th style='{head}'>Steps</th><th style='{head}'>Passed</th>"
+                f"<th style='{head}'>Failed</th><th style='{head}'>Skipped</th></tr>"
+                f"{_section_rows(report, cell)}</table>")
     jobs = "".join(f"<tr><td style='{cell}'>{_anchor(links.get(job, ''), job)}</td>"
                    f"<td style='{cell}'>{_status_cell(statuses.get(job, ''))}</td></tr>"
-                   for job in _env("SVT_JOB_ORDER").split(",") if job)
+                   for job in ("preflight", "initialization", "summary"))
     buttons = (_button(pipeline_url, "Open the pipeline") + _button(report_url, "Browse the report")
                + _button(f"{job_url}/artifacts/download" if job_url else "",
                          "Download all artifacts", "#6c757d"))
-    sections = (
-        f"<h3 style='margin:18px 0 6px;font-size:15px'>SVT sections</h3>"
-        f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
-        f"<tr><th style='{head}'>Section</th><th style='{head}'>Status</th>"
-        f"<th style='{head}'>Steps</th><th style='{head}'>Passed</th>"
-        f"<th style='{head}'>Failed</th><th style='{head}'>Skipped</th></tr>"
-        f"{_section_rows(report, cell)}</table>" if has_results else
-        "<p style='margin:18px 0 0'><b>No SVT results:</b> the pipeline stopped before any SVT "
-        "step ran, so there is no SVT report. The reason is in the failed job above.</p>")
-    footer = ("<p style='margin:16px 0 0;font-size:12px;color:#6c757d'>The SVT report is attached "
-              "(open it in a browser); logs and JUnit files are in the job artifacts.</p>"
-              if attachments else
-              "<p style='margin:16px 0 0;font-size:12px;color:#6c757d'>No SVT report is attached: "
-              "none was produced. The job logs are linked above.</p>")
     body = (
         "<html><body style='margin:0;padding:16px;background:#f8f9fa;"
         "font-family:Arial,Helvetica,sans-serif;color:#212529'>"
-        "<table role='presentation' width='680' cellpadding='0' cellspacing='0' "
-        "style='max-width:680px;margin:0 auto;background:#fff;border:1px solid #dee2e6'>"
+        "<table role='presentation' width='700' cellpadding='0' cellspacing='0' "
+        "style='max-width:700px;margin:0 auto;background:#fff;border:1px solid #dee2e6'>"
         f"<tr><td style='background:{color};color:#fff;padding:16px 20px'>"
         f"<div style='font-size:12px;opacity:.85'>Omnia System Verification</div>"
-        f"<div style='font-size:20px;font-weight:bold'>{html.escape(title)}: "
-        f"{html.escape(verdict)}</div></td></tr>"
+        f"<div style='font-size:20px;font-weight:bold'>{esc(label)}: {esc(verdict)}</div></td></tr>"
         "<tr><td style='padding:16px 20px'>"
         f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
         f"{info_rows}</table>{why}<p style='margin:16px 0 8px'>{buttons}</p>"
-        f"<h3 style='margin:18px 0 6px;font-size:15px'>Pipeline jobs</h3>"
-        f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
+        "<h3 style='margin:18px 0 6px;font-size:15px'>Themes (run order)</h3>"
+        "<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
+        f"<tr><th style='{head}'>Theme</th><th style='{head}'>Status</th>"
+        f"<th style='{head}'>Run</th><th style='{head}'>Pipeline</th></tr>{''.join(rows)}</table>"
+        "<h3 style='margin:18px 0 6px;font-size:15px'>Common jobs</h3>"
+        "<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
         f"<tr><th style='{head}'>Job</th><th style='{head}'>Status</th></tr>{jobs}</table>"
-        f"{sections}{footer}</td></tr></table></body></html>")
+        f"{''.join(detail)}<p style='margin:16px 0 0;font-size:12px;color:#6c757d'>"
+        + (f"One report is attached: {REPORT_NAME}. Open it in a browser: an overview first, "
+           "then a page per theme (use Next, Previous or the tabs)." if attachments else
+           "No SVT report is attached: none was produced.")
+        + "</p></td></tr></table></body></html>")
     text = "\n".join([
-        f"Omnia SVT [{label}] {title}: {verdict}", "",
-        f"Run:        {run_id or 'not started'}", f"Repository: {_web_base(repo) or repo or '-'}",
-        f"Branch:     {branch or '-'}  {branch_url}".rstrip(),
-        f"Commit:     {commit[:12] or 'not checked out'}  {commit_url}".rstrip(),
-        f"Pipeline:   {pipeline_url}",
-        *([f"Report:     {report_url}"] if report_url else []), "",
-        *(["Failed: " + ", ".join(f"{job} ({state})" for job, state in failed)]
-          + [f"  {job}: {reasons[job]}" for job, _ in failed if reasons.get(job)]
-          + [f"  - {line}" for line in details]
-          + ([f"Did not run: {', '.join(not_run)}"] if not_run else []) + [""] if failed else []),
-        *([] if has_results else
-          ["No SVT results: the pipeline stopped before any SVT step ran.", ""]),
-        "Pipeline jobs:", *(f"  {job:<24} {statuses.get(job, 'not run')}"
-                            for job in _env("SVT_JOB_ORDER").split(",") if job)])
+        f"Omnia SVT [{label}] {names}: {verdict}", "",
+        f"Repository: {_web_base(repo) or repo or '-'}",
+        f"Branch:     {branch or '-'}", f"Commit:     {commit[:12] or 'not checked out'}",
+        f"Pipeline:   {pipeline_url}", *([f"Report:     {report_url}"] if report_url else []), "",
+        *(["Problems:", *[f"  {item}" for item in problems], ""] if problems else []),
+        "Themes (run order):",
+        *(f"  {i + 1}. {theme:<20} {(records.get(theme) or {}).get('verdict') or 'NOT RUN'}"
+          for i, theme in enumerate(themes))])
     alternative = MIMEMultipart("alternative")
     alternative.attach(MIMEText(text, "plain", "utf-8"))
     alternative.attach(MIMEText(body, "html", "utf-8"))
@@ -1042,30 +1219,31 @@ def _send_email(verdict: str, statuses: Dict[str, str], report: Dict[str, Any]) 
 
 
 def summary() -> int:
-    """Run the SVT summary on the OIM, collect the report, email; fail on any failure."""
+    """The one summary of the cluster pipeline: collect every theme's result and report, write
+    the ONE report (an overview and a page per theme), send one email, fail on any failure."""
     statuses = _job_statuses()
-    order = [job for job in _env("SVT_JOB_ORDER").split(",") if job and job != "summary"]
-    problems = [f"{job} {statuses[job]}" for job in order
+    themes = _themes()
+    problems = [f"{job} {statuses[job]}" for job in ("preflight", "initialization")
                 if statuses.get(job) in ("failed", "canceled")]
-    rc = 1
-    if _env("SVT_TARGET_IP") and os.path.isfile(os.path.join(STATE_DIR, "run.json")):
-        rc, _ = remote(f"cd {shlex.quote(_svt_dir())} && "
-                       f"./run_validation.sh svt_{_theme()} summary")
-    if rc != 0:
-        problems.append(f"SVT summary rc={rc}")
-    report = _fetch_report()
-    failed, not_run, details = _failures(statuses, report)
-    listed = {job for job, _ in failed}
-    for section in report.get("sections") or []:
-        name = section.get("stage") or ""
-        if section.get("status") == "Failed" and name and name not in listed:
-            problems.append(f"{name} failed in the SVT report")
+    records: Dict[str, Dict[str, Any]] = {}
+    reports: Dict[str, Dict[str, Any]] = {}
+    for theme in themes:
+        record = _read_json(f"{_group_dir()}/theme_{theme}.json") if _env("SVT_TARGET_IP") else {}
+        records[theme] = record
+        if not record:
+            problems.append(f"theme {theme} did not run or left no result")
+            continue
+        if record.get("verdict") != "PASSED":
+            detail = "; ".join(record.get("problems") or [])
+            problems.append(f"theme {theme} FAILED" + (f" ({detail})" if detail else ""))
+        if record.get("run"):
+            reports[theme] = _fetch_theme_report(
+                theme, {**record["run"], "ci_dir": record.get("ci_dir", "")})
     verdict = "FAILED" if problems else "PASSED"
     statuses["summary"] = "failed" if problems else "success"
+    _write_report(_report_context(themes, records, reports, verdict, problems, statuses))
     _say(f"overall: {verdict}" + (f" ({'; '.join(problems)})" if problems else ""))
-    if problems:
-        _failure_banner(failed, not_run, details, problems)
-    sent = _send_email(verdict, statuses, report)
+    sent = _send_cluster_email(verdict, statuses, themes, records, reports, problems)
     if not sent and _env("SVT_EMAIL_REQUIRED").lower() == "true":
         _say("SVT_EMAIL_REQUIRED=true: the summary job fails because the email was not sent")
         return 1
@@ -1076,7 +1254,8 @@ def main(argv: List[str]) -> int:
     """Dispatch one job."""
     apply_cluster()
     jobs = {"preflight": preflight, "checkout": checkout, "initialization": initialization,
-            "summary": summary, "after-job": after_job}
+            "theme-result": theme_result, "summary": summary,
+            "after-job": after_job}
     if len(argv) == 2 and argv[0] == "stage":
         return stage(argv[1])
     if len(argv) == 1 and argv[0] in jobs:

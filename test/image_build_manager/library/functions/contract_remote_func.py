@@ -25,6 +25,7 @@ and ``test_creds.yml`` (``external_oim_password``).
 """
 
 import os
+import shlex
 import time
 from typing import Any, Dict, Optional
 
@@ -53,31 +54,35 @@ def external_oim_config(config: Dict[str, Any]) -> Dict[str, Any]:
     block = config.get("external_oim", {})
     if not isinstance(block, dict):
         raise ValueError("external_oim must be a mapping in test_config.yml")
-    
-    # Read from config or environment variables (SVT mode)
-    ip = str(block.get("ip", "")).strip() or os.environ.get("SVT_EXTERNAL_OIM_IP", "").strip()
+
+    def pick(key: str, env: str, default: Any = "") -> str:
+        """Config value, else the SVT environment variable, else the default."""
+        return str(block.get(key) or os.environ.get(env) or default).strip()
+
+    ip = pick("ip", "SVT_EXTERNAL_OIM_IP")
     if not ip:
         raise ValueError(
             "external_oim.ip is required in test_config.yml or SVT_EXTERNAL_OIM_IP env var "
             "for remote repo_manager execution"
         )
-    
+
     return {
         "ip": ip,
-        "ssh_user": str(block.get("ssh_user", "root")).strip() or os.environ.get("SVT_EXTERNAL_OIM_USER", "root"),
-        "ssh_port": int(block.get("ssh_port", 22) or os.environ.get("SVT_EXTERNAL_OIM_SSH_PORT", 22)),
-        "omnia_path": str(block.get("omnia_path", "/root/main/omnia")).strip() or os.environ.get("SVT_EXTERNAL_OMNIA_PATH", "/root/main/omnia"),
+        "ssh_user": pick("ssh_user", "SVT_EXTERNAL_OIM_USER", "root"),
+        "ssh_port": int(pick("ssh_port", "SVT_EXTERNAL_OIM_SSH_PORT", 22)),
+        "omnia_path": pick("omnia_path", "SVT_EXTERNAL_OMNIA_PATH", "/root/main/omnia"),
         "repo_manager_tags": str(
             block.get("repo_manager_tags", "prepare,precheck,download,status")
         ),
-        "project_name": str(block.get("project_name", "project_default")).strip() or os.environ.get("SVT_EXTERNAL_PROJECT_NAME", "project_default"),
+        "project_name": pick("project_name", "SVT_EXTERNAL_PROJECT_NAME", "project_default"),
     }
 
 
 def _connect(oim_cfg: Dict[str, Any], password: str) -> paramiko.SSHClient:
     """Open an SSH connection to the external OIM."""
     client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Lab OIM reached by IP for a test run; its host key is not known beforehand.
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
     client.connect(
         oim_cfg["ip"],
         port=oim_cfg["ssh_port"],
@@ -122,8 +127,8 @@ def run_remote_repo_manager(
     # Build the command: activate venv, then run ansible-playbook
     cmd = (
         f"source /opt/omnia/venv/bin/activate && "
-        f"cd {playbook_dir} && "
-        f"ansible-playbook repo_manager.yml --tags '{tags}'"
+        f"cd {shlex.quote(playbook_dir)} && "
+        f"ansible-playbook repo_manager.yml --tags {shlex.quote(tags)}"
     )
 
     start = time.time()
@@ -142,7 +147,8 @@ def run_remote_repo_manager(
         # Use invoke_shell for venv activation to work
         channel = client.get_transport().open_session()
         channel.settimeout(timeout)
-        channel.exec_command(f"bash -lc '{cmd}'")
+        channel.exec_command(  # nosec B601  # inputs quoted with shlex
+            f"bash -lc {shlex.quote(cmd)}")
 
         output_lines = []
         while True:
@@ -301,6 +307,12 @@ def fetch_repo_status(
         client.close()
 
 
+def _run(client: paramiko.SSHClient, command: str) -> str:
+    """Run a fixed read-only command on the external OIM and return its stdout."""
+    _, stdout, _ = client.exec_command(command)  # nosec B601  # fixed or shlex-quoted
+    return stdout.read().decode().strip()
+
+
 def verify_remote_oim_ready(
     oim_cfg: Dict[str, Any], password: str
 ) -> Dict[str, Any]:
@@ -322,30 +334,17 @@ def verify_remote_oim_ready(
     try:
         checks = {}
 
-        # Hostname
-        _, stdout, _ = client.exec_command("hostname")
-        checks["hostname"] = stdout.read().decode().strip()
-
-        # Omnia env
-        _, stdout, _ = client.exec_command(
-            "grep SYSTEM_ADMIN_NIC_IPV4 /etc/omnia/omnia.env"
-        )
-        env_line = stdout.read().decode().strip()
+        checks["hostname"] = _run(client, "hostname")
+        env_line = _run(client, "grep SYSTEM_ADMIN_NIC_IPV4 /etc/omnia/omnia.env")
         checks["admin_ip"] = env_line.split("=", 1)[-1] if "=" in env_line else ""
-
-        # Playbook exists
         playbook = os.path.join(
             oim_cfg["omnia_path"],
             "src", "repo_manager", "playbooks", "repo_manager.yml",
         )
-        _, stdout, _ = client.exec_command(f"test -f {playbook} && echo ok")
-        checks["playbook_exists"] = stdout.read().decode().strip() == "ok"
-
-        # Venv exists
-        _, stdout, _ = client.exec_command(
-            "test -f /opt/omnia/venv/bin/activate && echo ok"
-        )
-        checks["venv_exists"] = stdout.read().decode().strip() == "ok"
+        checks["playbook_exists"] = _run(
+            client, f"test -f {shlex.quote(playbook)} && echo ok") == "ok"
+        checks["venv_exists"] = _run(
+            client, "test -f /opt/omnia/venv/bin/activate && echo ok") == "ok"
 
         all_ok = checks["playbook_exists"] and checks["venv_exists"]
         details = (

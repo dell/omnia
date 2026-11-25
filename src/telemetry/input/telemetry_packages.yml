@@ -242,7 +242,7 @@ pip_modules:
   idrac:
     kubernetes: "37.0.1"
     pymysql: "1.2.3"
-    cryptography: "45.0.7"
+    cryptography: "50.0.2"
 
   # PowerScale / CSI volume exporter
   # Required for: K8s API interaction, PowerScale API calls, metrics export

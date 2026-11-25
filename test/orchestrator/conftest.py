@@ -179,6 +179,7 @@ _TC_ID_MAP.update(
         ],
         "test_slurm_configless_mode": TEST_CASES["slurm_configless"]["id"],
         "test_slurm_cluster_recovery": TEST_CASES["slurm_recovery"]["id"],
+        "test_slurm_ordered_reboot": TEST_CASES["slurm_ordered_reboot"]["id"],
         "test_slurm_gpu_memory_stress": TEST_CASES["slurm_gpu_memory"]["id"],
         "test_slurm_compiler_node_jobs": TEST_CASES["slurm_compiler_jobs"]["id"],
         "test_openchami_removed": TEST_CASES["cleanup_openchami"]["id"],
@@ -291,6 +292,9 @@ def pytest_configure(config):
         "reprovision": (
             "Provision-rerun idempotency checks; run only when --marker selects reprovision"
         ),
+        "node_remove": "Kubernetes/Slurm node removal lifecycle checks",
+        "node_add": "Kubernetes/Slurm node re-addition lifecycle checks",
+        "token_renew": "Kubernetes bootstrap token renewal checks",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

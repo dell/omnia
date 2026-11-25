@@ -80,14 +80,24 @@ from library.vars.catalog_vars import (  # noqa: E402
     catalog_stages,
 )
 from library.vars.common_vars import INPUTS_FILE  # noqa: E402
-from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title  # noqa: E402
+from library.vars.theme_vars import (  # noqa: E402
+    THEMES,
+    default_clean_reinstall,
+    default_skip_stages,
+    soft_stages,
+    stage_info,
+    theme_title,
+)
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
-PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
+PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"), ("svt_report_page.py", "svt_report_page.py"))
 PLACEHOLDER_INPUTS = ("secret.yaml", "values.yaml")
 POWERSCALE_EXAMPLES = (TEST_ROOT.parent / "src" / "orchestrator" / "examples"
                        / "powerscale_reference_files" / "CSI_driver")
 FIRST_STAGE, LAST_STAGE = "initialization", "summary"
+THEME_RESULT = "theme_result"
+# A theme job without its own timeouts_hours entry takes the entry of this job.
+TIMEOUT_ALIASES = {THEME_RESULT: "summary"}
 OIM_LOGIN_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 # Global keys: config section.key -> CI/CD variable.
@@ -125,7 +135,7 @@ CLUSTER_VARIABLES = {
     ("external_oim", "ssh_port"): "SVT_EXTERNAL_OIM_SSH_PORT",
     ("external_oim", "omnia_path"): "SVT_EXTERNAL_OMNIA_PATH",
     ("external_oim", "project_name"): "SVT_EXTERNAL_PROJECT_NAME",
-    ("", "theme"): "SVT_THEME",
+    ("", "themes"): "SVT_THEMES",
     ("", "secret_path"): "BAO_DATA_PATH",
 }
 
@@ -151,10 +161,13 @@ def openbao_variables() -> Dict[str, str]:
     return values
 
 
-def cluster_theme(config: Dict[str, Any], cluster: str) -> str:
-    """Return the SVT theme of a cluster (``clusters.<name>.theme``)."""
+def cluster_themes(config: Dict[str, Any], cluster: str) -> List[str]:
+    """Return the SVT themes of a cluster in run order (``clusters.<name>.themes``: a comma
+    separated string or a list)."""
     block = (config.get("clusters") or {}).get(cluster) or {}
-    return str(block.get("theme") or "")
+    raw = block.get("themes")
+    items = raw if isinstance(raw, list) else str(raw or "").split(",")
+    return [str(item).strip() for item in items if str(item).strip()]
 
 
 def cluster_enabled(config: Dict[str, Any], cluster: str) -> bool:
@@ -163,14 +176,29 @@ def cluster_enabled(config: Dict[str, Any], cluster: str) -> bool:
     return str(block.get("enabled", True)).strip().lower() not in ("false", "no", "0", "off")
 
 
-def trigger_job(cluster: str, theme: str) -> str:
-    """Return the name of the trigger job of a cluster and theme (the theme only when there are
-    several)."""
-    return f"svt_{cluster}" if len(THEMES) == 1 else f"svt_{cluster}_{theme}"
+def trigger_job(cluster: str) -> str:
+    """Return the name of the trigger job of a cluster (one per cluster, all its themes)."""
+    return f"svt_{cluster}"
+
+
+def cluster_ci_file(cluster: str) -> str:
+    """Return the cluster pipeline file: preflight, initialization, one trigger per theme,
+    summary."""
+    return f".gitlab-ci-svt-cluster-{cluster}.yml"
+
+
+def disabled_stages(theme: str) -> List[str]:
+    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false)."""
+    try:
+        with open(SVT_ROOT / f"{theme}_test_config.yml", "r", encoding="utf-8") as stream:
+            block = (yaml.safe_load(stream) or {}).get("stages") or {}
+    except (OSError, yaml.YAMLError):
+        block = {}
+    return [name for name in THEMES[theme].get("optional_stages") or () if not block.get(name)]
 
 
 def ci_file(theme: str) -> str:
-    """Return the child pipeline file of a theme (the jobs of one cluster)."""
+    """Return the child pipeline file of a theme (its setup, stages and result jobs)."""
     return f".gitlab-ci-svt-{theme}.yml"
 
 
@@ -181,15 +209,19 @@ def load_config(path: Path) -> Dict[str, Any]:
     clusters = config.get("clusters") or {}
     if not isinstance(clusters, dict) or not clusters:
         raise SystemExit("clusters: add at least one cluster block (see the comments)")
-    if "theme" in (config.get("svt") or {}):
-        raise SystemExit("svt.theme is not used any more: the theme is set per cluster. Remove "
-                         "it from the svt block and add 'theme: <theme>' to each cluster block")
-    for name in clusters:
-        theme = cluster_theme(config, name)
-        if theme not in THEMES:
-            problem = f"{theme!r} is not a theme of test/system_test" if theme else "is missing"
-            raise SystemExit(f"clusters.{name}.theme {problem} "
-                             f"(set it to one of: {', '.join(THEMES)})")
+    for name, block in clusters.items():
+        if "theme" in (block or {}):
+            raise SystemExit(f"clusters.{name}.theme is replaced by themes: a comma separated "
+                             "list of themes that run one after another, e.g. "
+                             "themes: \"build_stream,catalog_build\"")
+        themes = cluster_themes(config, name)
+        unknown = [theme for theme in themes if theme not in THEMES]
+        if not themes or unknown or len(set(themes)) != len(themes):
+            problem = (f"{', '.join(unknown)} is not a theme of test/system_test" if unknown
+                       else "repeats a theme" if themes else "is missing")
+            raise SystemExit(f"clusters.{name}.themes {problem} "
+                             f"(a list of: {', '.join(THEMES)})")
+        clusters[name]["themes"] = ",".join(themes)
     bad = [name for name in clusters if not CLUSTER_NAME.fullmatch(str(name))]
     if bad:
         raise SystemExit(f"invalid cluster name(s) {bad}: letters, digits, _ and -")
@@ -263,8 +295,10 @@ def plan_variable(plan: Dict[str, Any]) -> str:
 
 
 def jobs_of(stages: Tuple[str, ...]) -> List[str]:
-    """Return the pipeline jobs in order: preflight (checks and checkout), the SVT stages, summary."""
-    return ["preflight", FIRST_STAGE, *stages, LAST_STAGE]
+    """Return the jobs of a theme pipeline in order: the SVT stages, then theme_result. A theme
+    starts directly with its first stage: the initialization of the cluster pipeline did the
+    cleanup, the installation and the credentials."""
+    return [*stages, THEME_RESULT]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
@@ -274,7 +308,7 @@ def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
     fallback = hours.get("default_hours", 6)
     if job.startswith(CATALOG_STAGE_PREFIX):
         fallback = hours.get("catalog_stage", fallback)
-    value = float(hours.get(job, fallback))
+    value = float(hours.get(job, hours.get(TIMEOUT_ALIASES.get(job, ""), fallback)))
     minutes = max(10, int(round(value * 60)))
     return f"{minutes}m", minutes * 60
 
@@ -290,22 +324,23 @@ def resource_group(cluster: str) -> str:
 
 
 def _select_job(config: Dict[str, Any]) -> List[str]:
-    """Return the ``select_clusters`` job: it prints the clusters of the run with the theme of
-    each (the variable <PREFIX>_SVT_THEME) and fails on a name of SVT_CLUSTERS that is not a
-    cluster of the config (a typo would start nothing), on a selected cluster whose theme is not
-    a known theme, or when nothing is selected. It needs only a shell."""
+    """Return the ``select_clusters`` job: it prints the clusters of the run with their themes
+    (the variable <PREFIX>_SVT_THEMES, or the themes of the config) and fails on a name of
+    SVT_CLUSTERS that is not a cluster of the config, on a theme that is not one of the cluster's
+    rendered themes, or when nothing is selected. It needs only a shell."""
     known = " ".join(config["clusters"])
-    themes = " ".join(THEMES)
-    variables = " ".join(f"{name}:{prefix(name)}_SVT_THEME" for name in config["clusters"])
+    rendered = " ".join(f"{name}={','.join(cluster_themes(config, name))}"
+                        for name in config["clusters"])
+    variables = " ".join(f"{name}:{prefix(name)}_SVT_THEMES" for name in config["clusters"])
     return [
-        "# Fails fast on a wrong SVT_CLUSTERS or <CLUSTER>_SVT_THEME and shows the clusters and",
+        "# Fails fast on a wrong SVT_CLUSTERS or <CLUSTER>_SVT_THEMES and shows the clusters and",
         "# themes of this run.",
         "select_clusters:",
         "  stage: select",
         "  script:",
         "    - |",
         f'      known="{known}"',
-        f'      themes="{themes}"',
+        f'      rendered="{rendered}"',
         f'      themevars="{variables}"',
         '      selected=""; bad=""; badtheme=""',
         '      for name in $(printf "%s" "$SVT_CLUSTERS" | tr "," " "); do',
@@ -323,20 +358,29 @@ def _select_job(config: Dict[str, Any]) -> List[str]:
         '        echo "ERROR: SVT_CLUSTERS selects no cluster [$SVT_CLUSTERS]; known: $known"',
         "        exit 1",
         "      fi",
-        '      echo "SVT clusters of this run:"',
+        '      echo "SVT clusters of this run (themes run in this order):"',
         "      for name in $selected; do",
+        '        allowed=""',
+        '        for item in $rendered; do',
+        '          if [ "${item%%=*}" = "$name" ]; then allowed="${item#*=}"; fi',
+        "        done",
+        '        chosen="$allowed"',
         '        for item in $themevars; do',
         '          if [ "${item%%:*}" != "$name" ]; then continue; fi',
-        '          var="${item#*:}"; theme="$(printenv "$var" || true)"',
-        '          case " $themes " in',
-        '            *" $theme "*) echo "  $name (theme $theme)" ;;',
-        "            *) badtheme=\"$badtheme $var=[$theme]\" ;;",
+        '          var="${item#*:}"; value="$(printenv "$var" || true)"',
+        '          if [ -n "$value" ]; then chosen="$value"; fi',
+        "        done",
+        '        for theme in $(printf "%s" "$chosen" | tr "," " "); do',
+        '          case ",$allowed," in',
+        '            *",$theme,"*) ;;',
+        '            *) badtheme="$badtheme $name:$theme" ;;',
         "          esac",
         "        done",
+        '        echo "  $name: $chosen"',
         "      done",
         '      if [ -n "$badtheme" ]; then',
-        '        echo "ERROR: theme variable of a selected cluster is not a known theme:$badtheme"',
-        '        echo "Known themes: $themes"',
+        '        echo "ERROR: a themes variable names a theme not rendered here:$badtheme"',
+        '        echo "Rendered themes: $rendered (change clusters.<name>.themes, run --update)"',
         "        exit 1",
         "      fi",
         "",
@@ -346,17 +390,14 @@ def _select_job(config: Dict[str, Any]) -> List[str]:
 def render_parent(config: Dict[str, Any]) -> str:
     """Return .gitlab-ci.yml: one trigger job per cluster, each holding its resource group.
 
-    Each cluster's SVT is a child pipeline (.gitlab-ci-svt-<theme>.yml) with SVT_CLUSTER set.
-    There is one trigger job per cluster and theme; the one whose theme equals the cluster's
-    variable <PREFIX>_SVT_THEME runs, so the theme is changed with a variable, not a new file.
-    The clusters run at the same time, and a second pipeline for the same OIM waits until the
-    first one ends. SVT_CLUSTERS (default: every enabled cluster) picks the clusters of a run.
+    Each cluster's SVT is a child pipeline (.gitlab-ci-svt-cluster-<name>.yml: preflight,
+    initialization, one trigger per theme, summary) with SVT_CLUSTER set. The clusters run at
+    the same time, and a second pipeline for the same OIM waits until the first one ends.
+    SVT_CLUSTERS (default: every enabled cluster) picks the clusters of a run.
     """
     lines = [
         HEADER.rstrip("\n"),
-        *[f"# SVT theme {theme}: {theme_title(theme)}. The jobs are in {ci_file(theme)}."
-          for theme in THEMES],
-        "# Clusters: " + ", ".join(f"{name} ({cluster_theme(config, name)})"
+        "# Clusters: " + ", ".join(f"{name} ({', '.join(cluster_themes(config, name))})"
                                    for name in config["clusters"]),
         "workflow:",
         "  rules:",
@@ -369,41 +410,149 @@ def render_parent(config: Dict[str, Any]) -> str:
         *_select_job(config),
     ]
     for cluster in config["clusters"]:
-        for theme in THEMES:
-            lines += [
-                f"{trigger_job(cluster, theme)}:",
-                "  stage: svt",
-                f'  resource_group: "{resource_group(cluster)}"',
-                "  rules:",
-                f"    - if: '$SVT_CLUSTERS =~ /(^|,) *{cluster} *(,|$)/ && "
-                f"${prefix(cluster)}_SVT_THEME == \"{theme}\"'",
-                "  variables:",
-                f'    SVT_CLUSTER: "{cluster}"',
-                f'    SVT_SKIP_STAGES: "${prefix(cluster)}_SVT_SKIP_STAGES"',
-                "  trigger:",
-                "    include:",
-                f"      - local: {ci_file(theme)}",
-                "    strategy: depend",
-                "    forward:",
-                "      yaml_variables: true",
-                "      pipeline_variables: true",
-                "",
-            ]
+        lines += [
+            f"{trigger_job(cluster)}:",
+            "  stage: svt",
+            f'  resource_group: "{resource_group(cluster)}"',
+            "  rules:",
+            f"    - if: '$SVT_CLUSTERS =~ /(^|,) *{cluster} *(,|$)/'",
+            "  variables:",
+            f'    SVT_CLUSTER: "{cluster}"',
+            f'    SVT_SKIP_STAGES: "${prefix(cluster)}_SVT_SKIP_STAGES"',
+            "  trigger:",
+            "    include:",
+            f"      - local: {cluster_ci_file(cluster)}",
+            "    strategy: depend",
+            "    forward:",
+            "      yaml_variables: true",
+            "      pipeline_variables: true",
+            "",
+        ]
     return "\n".join(lines)
 
 
+def _default_block() -> List[str]:
+    return ["default:", "  after_script:", "    - python3 svt_ci.py after-job || true",
+            "  artifacts:", "    when: always", "    paths:", "      - pipeline_job_status/",
+            "      - svt_ci/", ""]
+
+
+def credential_domains(themes: List[str]) -> List[str]:
+    """Return the credential stores the themes need, once each, in theme order (the initialization
+    job writes them all: a later theme starts without reading OpenBao again)."""
+    domains: List[str] = []
+    for theme in themes:
+        for domain in THEMES[theme]["credential_domains"]:
+            if domain not in domains:
+                domains.append(domain)
+    return domains
+
+
+def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
+    """Return (the cluster pipeline text, longest job timeout in seconds).
+
+    preflight and initialization run once, then one trigger job per theme in the order of
+    clusters.<name>.themes (a theme runs whether the one before passed or failed), then the one
+    summary with the combined report and email. Each theme trigger opens as its own pipeline.
+    The initialization is the complete start of the OIM (cleanup, install, the Omnia environment,
+    credentials, readiness); a theme begins directly with its first stage.
+    """
+    themes = cluster_themes(config, cluster)
+    names = [f"theme_{theme}" for theme in themes]
+    jobs = ["preflight", FIRST_STAGE, *names, LAST_STAGE]
+    var = f"{prefix(cluster)}_SVT_THEMES"
+    longest = max(_timeout(config, job)[1] for job in ("preflight", FIRST_STAGE, LAST_STAGE))
+    plans = [(theme, plan_variable(catalog_plan(theme))) for theme in themes]
+    lines = [
+        HEADER.rstrip("\n"),
+        f"# SVT cluster {cluster}: " + " -> ".join(jobs),
+        "workflow:",
+        f'  name: "SVT {cluster}: {" then ".join(themes)}"',
+        "  rules:",
+        "    - if: '$CI_PIPELINE_SOURCE == \"parent_pipeline\"'",
+        "",
+        "variables:",
+        f'  SVT_THEME_ORDER: "{",".join(themes)}"',
+        f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
+        f'  SVT_CREDENTIAL_DOMAINS: "{",".join(credential_domains(themes))}"',
+        # The initialization job runs once with the first theme of the run (the cluster's
+        # <PREFIX>_SVT_THEMES can select a subset): that theme's defaults apply when the cluster's
+        # <PREFIX>_SVT_CLEAN_REINSTALL and <PREFIX>_SVT_SKIP_STAGES are empty.
+        *[f'  SVT_INIT_DEFAULT_CLEAN_REINSTALL_{theme.upper()}: '
+          f'"{str(default_clean_reinstall(theme)).lower()}"' for theme in themes],
+        *[f'  SVT_INIT_DEFAULT_SKIP_STAGES_{theme.upper()}: '
+          f'"{",".join(default_skip_stages(theme))}"'
+          for theme in themes],
+        *[f'  SVT_CATALOG_PLAN_{theme.upper()}: "{plan}"' for theme, plan in plans if plan],
+        '  GIT_DEPTH: "1"',
+        "",
+        "stages:",
+        *[f"  - {job}" for job in jobs],
+        "",
+        *_default_block(),
+        "# SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, svt/ inputs copied",
+        "preflight:", "  stage: preflight", f"  timeout: {_timeout(config, 'preflight')[0]}",
+        "  script:", "    - python3 svt_ci.py preflight", "",
+        "# The complete initialization, once: configure, the clean reinstall (shared cleanup of",
+        "# user_inputs.yml, then omnia.sh -s and the Omnia environment), OpenBao credentials,",
+        "# PowerScale CSI files and the readiness checks. Every theme starts at its first stage.",
+        f"{FIRST_STAGE}:", f"  stage: {FIRST_STAGE}",
+        f"  timeout: {_timeout(config, FIRST_STAGE)[0]}",
+        "  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL",
+        "  script:", "    - python3 svt_ci.py initialization", "",
+    ]
+    for index, theme in enumerate(themes):
+        lines += [
+            f"# Theme {theme}: {theme_title(theme)} (its jobs are in {ci_file(theme)})",
+            f"theme_{theme}:", f"  stage: theme_{theme}",
+            "  # A failed theme does not stop the next one; the summary still fails the pipeline.",
+            "  allow_failure: true",
+            "  rules:",
+            f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *theme_{theme} *(,|$)/'",
+            "      when: never",
+            f"    - if: '${var} == null || ${var} == \"\" || ${var} =~ /(^|,) *{theme} *(,|$)/'",
+            "      when: on_success",
+            "  variables:",
+            f'    SVT_THEME: "{theme}"',
+            f'    SVT_THEME_INDEX: "{index}"',
+            f'    SVT_THEME_NUMBER: "{index + 1}"',
+            f'    SVT_THEME_COUNT: "{len(themes)}"',
+            '    SVT_CLUSTER_PIPELINE_ID: "$CI_PIPELINE_ID"',
+            '    SVT_CLUSTER_PIPELINE_CREATED_AT: "$CI_PIPELINE_CREATED_AT"',
+            "  trigger:", "    include:", f"      - local: {ci_file(theme)}",
+            "    strategy: depend", "    forward:", "      yaml_variables: true",
+            "      pipeline_variables: true", "",
+        ]
+    lines += [
+        "# ONE report (svt_report/svt_report.html: an overview and a page per theme) and one email",
+        f"{LAST_STAGE}:", f"  stage: {LAST_STAGE}", f"  timeout: {_timeout(config, LAST_STAGE)[0]}",
+        "  when: always", "  artifacts:", "    when: always", "    expire_in: 30 days",
+        "    paths:", "      - svt_report/", "      - svt_ci/", "      - pipeline_job_status/",
+        "    reports:", "      junit: svt_report/junit/*.xml",
+        "  script:", "    - python3 svt_ci.py summary", "",
+    ]
+    return "\n".join(lines), longest
+
+
 def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
-    """Return (the child pipeline text of ``theme``, longest job timeout in seconds)."""
+    """Return (the pipeline text of ``theme``, longest job timeout in seconds).
+
+    The jobs of one theme: its stages, then theme_result (the theme's report and verdict). There
+    is no setup job: preflight, initialization (cleanup, install, credentials, readiness) and
+    summary are in the cluster pipeline, once. The first stage job of a theme after the first
+    starts that theme's run (no cleanup) before its stage.
+    """
     plan = catalog_plan(theme)
     stages, soft, info = theme_stages(theme, plan)
     jobs = jobs_of(stages)
-    bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
         HEADER.rstrip("\n"),
-        f"# SVT theme {theme}: {theme_title(theme)} (child of .gitlab-ci.yml, {ci_file(theme)})",
+        f"# SVT theme {theme}: {theme_title(theme)} (child of the cluster pipeline, "
+        f"{ci_file(theme)})",
         "# Jobs: " + " -> ".join(jobs),
         "workflow:",
+        "  name: 'SVT $SVT_CLUSTER, theme $SVT_THEME_NUMBER of $SVT_THEME_COUNT: $SVT_THEME'",
         "  rules:",
         "    - if: '$CI_PIPELINE_SOURCE == \"parent_pipeline\"'",
         "",
@@ -411,48 +560,44 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         f'  SVT_THEME: "{theme}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
+        # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
+        f'  SVT_DEFAULT_CLEAN_REINSTALL: "{str(default_clean_reinstall(theme)).lower()}"',
+        f'  SVT_DEFAULT_SKIP_STAGES: "{",".join(default_skip_stages(theme))}"',
         *([f'  SVT_CATALOG_PLAN: "{plan_variable(plan)}"'] if plan else []),
         '  GIT_DEPTH: "1"',
         "",
         "stages:",
         *[f"  - {job}" for job in jobs],
         "",
-        "default:",
-        "  after_script:",
-        "    - python3 svt_ci.py after-job || true",
-        "  artifacts:",
-        "    when: always",
-        "    paths:",
-        "      - pipeline_job_status/",
-        "      - svt_ci/",
-        "",
+        *_default_block(),
     ]
+    descriptions = {THEME_RESULT: ("Result", "the theme's SVT summary and verdict, kept for "
+                                   "the cluster summary")}
     for job in jobs:
         timeout = _timeout(config, job)[0]
-        title, description = info.get(job) or (stage_info(theme, job) if job != "preflight" else (
-            "Preflight", "SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, "
-                         "svt/ inputs copied"))
+        title, description = descriptions.get(job) or info.get(job) or stage_info(theme, job)
         lines += [f"# {title}: {description}", f"{job}:", f"  stage: {job}",
                   f"  timeout: {timeout}"]
         if job in soft:
-            lines += ["  # A failure here does not stop the stages after it; the summary still fails.",
+            lines += ["  # A failure here does not stop the stages after it; the verdict fails.",
                       "  allow_failure: true"]
-        if job == FIRST_STAGE and bao:
-            lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
         if job in stages:
-            lines += ["  rules:",
-                      f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
-                      "      when: never",
-                      "    - when: on_success",
+            off = job in disabled_stages(theme)
+            lines += ["  rules:"]
+            if off:
+                # Off in <theme>_test_config.yml stages:, whatever SVT_SKIP_STAGES says.
+                lines += ["    - when: never"]
+            else:
+                lines += [f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
+                          "      when: never"]
+            if job in default_skip_stages(theme) and not off:
+                # Left out by default (empty SVT_SKIP_STAGES); "none" or another list runs it.
+                lines += ["    - if: '$SVT_SKIP_STAGES == null || $SVT_SKIP_STAGES == \"\"'",
+                          "      when: never"]
+            lines += ["    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
-        elif job == LAST_STAGE:
-            lines += ["  when: always", "  artifacts:", "    when: always",
-                      "    expire_in: 30 days", "    paths:", "      - svt_report/",
-                      "      - svt_ci/", "      - pipeline_job_status/",
-                      "    reports:", "      junit: svt_report/junit/*.xml",
-                      "  script:", "    - python3 svt_ci.py summary"]
         else:
-            lines += ["  script:", f"    - python3 svt_ci.py {job}"]
+            lines += ["  when: always", "  script:", "    - python3 svt_ci.py theme-result"]
         lines.append("")
     return "\n".join(lines), longest
 
@@ -480,6 +625,8 @@ def _project(client: GitLabClient, config: Dict[str, Any], create: bool) -> Dict
 def _files(config: Dict[str, Any], config_path: Path) -> List[Tuple[str, str]]:
     """Return (repo path, content) of the pipeline files (always committed)."""
     files = [(".gitlab-ci.yml", render_parent(config)),
+             *[(cluster_ci_file(cluster), render_cluster_ci(config, cluster)[0])
+               for cluster in config["clusters"]],
              *[(ci_file(theme), render_ci(config, theme)[0]) for theme in THEMES],
              ("svt_pipeline_config.yml", config_path.read_text(encoding="utf-8"))]
     return files + [(repo, (HERE / local).read_text(encoding="utf-8"))
@@ -626,7 +773,8 @@ def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -
     project = _project(client, config, create=args.create)
     project_id = project["id"]
     branch = str((config.get("gitlab") or {}).get("branch") or "main")
-    longest = max(render_ci(config, theme)[1] for theme in THEMES)
+    longest = max([render_ci(config, theme)[1] for theme in THEMES]
+                  + [render_cluster_ci(config, cluster)[1] for cluster in config["clusters"]])
     _commit(client, project_id, branch, _files(config, config_path))
     _commit(client, project_id, branch, _input_files(config),
             only_missing=not args.update_inputs)
@@ -667,6 +815,8 @@ def validate(args: argparse.Namespace, config: Dict[str, Any]) -> int:
     project = _project(client, config, create=False)
     valid = True
     for name, text in ((".gitlab-ci.yml", render_parent(config)),
+                       *[(cluster_ci_file(cluster), render_cluster_ci(config, cluster)[0])
+                         for cluster in config["clusters"]],
                        *[(ci_file(theme), render_ci(config, theme)[0]) for theme in THEMES]):
         result = client.lint_ci(project["id"], text)
         valid = valid and bool(result.get("valid"))
@@ -706,6 +856,8 @@ def main(argv: List[str]) -> int:
     config = load_config(config_path)
     if args.render:
         print(f"# ===== .gitlab-ci.yml\n{render_parent(config)}")
+        for cluster in config["clusters"]:
+            print(f"\n# ===== {cluster_ci_file(cluster)}\n{render_cluster_ci(config, cluster)[0]}")
         for theme in THEMES:
             print(f"\n# ===== {ci_file(theme)}\n{render_ci(config, theme)[0]}")
         return 0
