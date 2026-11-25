@@ -1,0 +1,64 @@
+---
+# PR Comment
+#
+# Posts the Compliance Gate and Secure Code Review comments for pull requests
+# whose own workflow run has a read-only token (PRs from forks). It runs from
+# the default branch with a write token, never checks out or executes PR code,
+# and treats the artifact as text only: the PR number must be an integer that
+# matches the run's head commit, and the comment is capped in size.
+name: PR Comment
+
+'on':
+  workflow_run:
+    workflows: ["Compliance Gate", "Secure Code Review"]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  post-comment:
+    name: Post PR comment
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Post or update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const {execFileSync} = require('child_process');
+            const run = context.payload.workflow_run;
+            const {owner, repo} = context.repo;
+            const config = {
+              'Compliance Gate': {artifact: 'compliance-gate-comment', marker: '<!-- compliance-gate -->'},
+              'Secure Code Review': {artifact: 'secure-code-review-comment', marker: '<!-- secure-code-review -->'},
+            }[run.name];
+            if (!config) { core.info(`Unsupported workflow ${run.name}`); return; }
+            if (run.head_repository.full_name === run.repository.full_name) {
+              core.info('Same-repository PR: the workflow posted its own comment');
+              return;
+            }
+            const listed = await github.rest.actions.listWorkflowRunArtifacts({owner, repo, run_id: run.id});
+            const artifact = listed.data.artifacts.find(a => a.name === config.artifact);
+            if (!artifact) { core.info('No comment artifact for this run'); return; }
+            const zip = await github.rest.actions.downloadArtifact(
+              {owner, repo, artifact_id: artifact.id, archive_format: 'zip'});
+            fs.writeFileSync('comment.zip', Buffer.from(zip.data));
+            execFileSync('unzip', ['-o', 'comment.zip', '-d', 'comment-out']);
+            const prText = fs.readFileSync('comment-out/pr-number', 'utf8').trim();
+            if (!/^[0-9]+$/.test(prText)) { core.setFailed('Invalid PR number in artifact'); return; }
+            const issue_number = Number(prText);
+            const pr = await github.rest.pulls.get({owner, repo, pull_number: issue_number});
+            if (pr.data.head.sha !== run.head_sha) { core.info('Stale run: PR head moved on'); return; }
+            let body = fs.readFileSync('comment-out/comment.md', 'utf8').slice(0, 60000);
+            if (!body.includes(config.marker)) body = `${config.marker}\n${body}`;
+            const comments = await github.paginate(github.rest.issues.listComments,
+              {owner, repo, issue_number, per_page: 100});
+            const existing = comments.find(c => c.body && c.body.includes(config.marker));
+            if (existing) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: existing.id, body});
+            } else {
+              await github.rest.issues.createComment({owner, repo, issue_number, body});
+            }
