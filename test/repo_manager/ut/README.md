@@ -491,6 +491,18 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_332 | `test_counters_survive_after_the_filter` | Package counters stay integers after the filter. |
 | RM_UT_333 | `test_secrets_are_still_masked` | Tokens, URLs and longer numeric values stay masked. |
 
+### wget argument contract (`test_wget_argument_contract.py`) -- 5 tests
+
+#### WgetArgumentContractTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_334 | `test_every_wget_argv_ends_options_before_url` | Every wget argv in Repo Manager places a single `--` immediately before the URL. |
+| RM_UT_335 | `test_artifact_url_rejects_option_like_values` | Values wget would parse as options fail artifact URL validation. |
+| RM_UT_336 | `test_direct_rpm_wget_calls_end_options_before_url` | The direct RPM probe and transfer both terminate wget options. |
+| RM_UT_337 | `test_tarball_spider_keeps_user_agent_before_end_of_options` | The tarball probe keeps `--user-agent` as an option and the URL positional. |
+| RM_UT_338 | `test_iso_spider_ends_options_before_url` | The remote ISO probe terminates wget options before the URL. |
+
 ## Registry summary
 
 | Suite | Count | Coverage |
@@ -525,4 +537,5 @@ explicitly excluded from aggregate FVT execution.
 | `test_shared_artifact_state.py` | 16 | Integrity-verified reuse, ownership, atomic persistence and Git resolution |
 | `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
 | `test_vault_in_memory_read.py` | 16 | In-memory vault decryption, error redaction and subprocess safety |
-| **Total** | **335** | |
+| `test_wget_argument_contract.py` | 5 | wget end-of-options marker and option-like URL rejection (CWE-88) |
+| **Total** | **340** | |

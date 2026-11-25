@@ -621,7 +621,7 @@ def process_file(repository_name, _output_file, relative_path,
         else:
             logger.info("File does not exist. Downloading file...")
             validate_cli_path(file_path, "file path")
-            download_command = ["wget", "-c", "-O", file_path, url]
+            download_command = ["wget", "-c", "-O", file_path, "--", url]
             if not execute_command(download_command, logger):
                 logger.error(f"Failed to download the file: {url}")
                 return "Failed"
@@ -820,7 +820,7 @@ def process_manifest(file, status_file_path, content_base_dir, repo_name, logger
             )
         else:
             subprocess.run(
-                ['wget', '-q', '--spider', '--tries=1', url], check=True
+                ['wget', '-q', '--spider', '--tries=1', '--', url], check=True
             )
             status = handle_post_request(
                 repository_name, relative_path, base_path, url,
@@ -1190,7 +1190,7 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
                 )
                 subprocess.run([
                     'wget', '-q', '--spider', '--tries=1',
-                    '--user-agent', agent, url,
+                    '--user-agent', agent, '--', url,
                 ], check=True)
                 status = handle_post_request(
                     repository_name, relative_path, base_path, url,
@@ -1316,7 +1316,8 @@ def process_iso(package, status_file_path,
                 )
             else:
                 subprocess.run(
-                    ['wget', '-q', '--spider', '--tries=1', url], check=True
+                    ['wget', '-q', '--spider', '--tries=1', '--', url],
+                    check=True,
                 )
                 status = handle_post_request(
                     repository_name, output_file, base_path, url,
