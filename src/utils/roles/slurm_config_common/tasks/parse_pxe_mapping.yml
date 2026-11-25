@@ -65,7 +65,7 @@
 # --- CSV format ----------------------------------------------------------
 
 - name: Read CSV PXE mapping file
-  ansible.builtin.read_csv:
+  pxe_mapping_read:
     path: "{{ pxe_mapping_path_effective }}"
   register: _pxe_mapping_csv
   when: pxe_mapping_format == 'csv'

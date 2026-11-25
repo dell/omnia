@@ -43,7 +43,7 @@
 - name: Find and Replace
   ansible.builtin.lineinfile:
     path: "{{ temp_pxe_file_path }}"
-    regexp: '\s*#'
+    regexp: '^\s*#'
     state: absent
 
 - name: Normalize Kubernetes primary control-plane membership

@@ -55,7 +55,7 @@
   when: hostvars['localhost']['read_mapping_file'] is not defined
   block:
     - name: Re-read mapping file if not available
-      community.general.read_csv:
+      pxe_mapping_read:
         path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
         key: ADMIN_MAC
       register: _mapping_file_result

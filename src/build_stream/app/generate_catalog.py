@@ -146,7 +146,10 @@ def load_pxe_functional_groups(pxe_file) -> list[str]:
     functional_groups = set()
 
     with open(pxe_file, 'r', encoding='utf-8') as csv_file:
-        reader = csv.DictReader(csv_file)
+        reader = csv.DictReader(
+            line for line in csv_file
+            if line.strip() and not line.lstrip().startswith('#')
+        )
         for row in reader:
             group_name = row.get('FUNCTIONAL_GROUP_NAME', '').strip()
             if group_name:

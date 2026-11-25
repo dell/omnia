@@ -50,7 +50,7 @@
     - name: Read inventory CSV by column name
       block:
         - name: Read inventory CSV by column name
-          community.general.read_csv:
+          pxe_mapping_read:
             path: "{{ pxeboot_inventory_source }}"
           register: _pxeboot_csv
           no_log: true

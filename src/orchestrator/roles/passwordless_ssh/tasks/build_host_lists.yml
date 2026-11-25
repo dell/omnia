@@ -22,7 +22,7 @@
 - name: Read PXE mapping file (FUNCTIONAL_GROUP_NAME, HOSTNAME, ...)
   block:
     - name: Read PXE mapping file (FUNCTIONAL_GROUP_NAME, HOSTNAME, ...)
-      community.general.read_csv:
+      pxe_mapping_read:
         path: "{{ pxe_mapping_file_path }}"
         key: ADMIN_MAC
       register: pxe_mapping_dict

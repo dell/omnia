@@ -51,7 +51,10 @@ publish software repositories; those are upstream contracts.
 Orchestrator deliberately does not:
 
 - infer a new hardware identity from CSV row position on later runs;
-- delete an SMD Hardware Inventory identity merely because a row is absent;
+- infer a node's removal from anything other than the current PXE mapping: a
+  row that is deleted or commented out with `#` is removed from the desired
+  node set, and its SMD records (including the Hardware Inventory identity)
+  are deleted by the orphan cleanup in the next `provision` or `execute` run;
 - claim metadata is active on a running node before a verified new boot;
 - continuously monitor Kubernetes, Slurm, CSI, or application health.
 
@@ -544,8 +547,16 @@ the lifecycle finishes.
 - Boot configurations are compared before writing. Changed configurations are
   replaced by name, duplicates are removed, and non-target configurations are
   pruned only when they claim a MAC managed by the current category.
-- Removing a PXE mapping row does not free its XNAME or delete its Hardware
-  Inventory record.
+- Removing a PXE mapping row, or commenting it out with a leading `#`, removes
+  the node from the desired set. Blank and `#` lines are ignored by every
+  reader, so a node commented out before its first provisioning is never
+  registered. For a node already in SMD, the next `provision` or `execute`
+  run executes `cleanup_orphan_smd_entries`, which deletes its group
+  memberships, EthernetInterfaces, Node and NodeBMC components, component and
+  Redfish endpoints, and Hardware Inventory record. The XNAME is freed and
+  uncommenting the row later allocates a new XNAME. Metadata InstanceInfo and
+  Boot Service configurations are not removed by this cleanup, and a node that
+  is already running is not powered off.
 - Cleanup is destructive and opt-in; credentials are included by default
   unless `cleanup_credentials=false` is supplied.
 
