@@ -26,9 +26,8 @@ For every cluster, in this order:
 
 1. **Initialization** (one stage): checks the CI/CD variables and the OIM host key, clones Omnia on
    the OIM and takes the pipeline helpers (`pipeline_ci.py`, `library/`) from that clone, checks
-   the input folders and SSH, records the commit, copies `omnia.env`, checks that the Slurm and
-   Kubernetes NFS shares can be mounted and copies the cluster's inputs to the OIM, all before any
-   cleanup, so the cleanups and their tests use the project's files and not those of an earlier run.
+   the input folders and SSH, records the commit, copies `omnia.env` and, before any cleanup,
+   checks that the Slurm and Kubernetes NFS shares can be mounted.
 2. **Cleanup**: one stage per domain runs the cleanup playbook (`./omnia.sh --run <domain> --tags
    <cleanup tag>`, with the flags of the cluster's `test_config.yml`). Every cleanup runs, even
    after one failed. Right after each one a `test_cleanup_<domain>` stage checks its result

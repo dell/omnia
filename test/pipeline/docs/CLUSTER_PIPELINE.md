@@ -53,7 +53,7 @@ exactly (`telemetry_x` does not match `telemetry`):
 | a stage name: `cleanup_<domain>`, `test_cleanup_<domain>`, `test_<domain>`, `cleanup_omnia`, `setup_main`, `test_main_installation`, `summary` | that stage only |
 | `cleanup` / `test_cleanup` / `deploy` / `test` | all the `cleanup_<domain>` / all the `test_cleanup_<domain>` / all the domain deploy stages / `test_main_installation` and all the `test_<domain>` |
 | `nfs_check` | the NFS check inside `initialization` |
-| `inputs` | the input copy inside `initialization` and `setup_main` |
+| `inputs` | the input copy inside `setup_main` |
 
 Skipping a cleanup but not its test (or the other way round) is allowed; a test stage whose cleanup
 did not pass fails with that reason.
@@ -107,7 +107,7 @@ exist before the clone. All of them need the cluster variables
 
 | Command | What it does |
 |---|---|
-| `initialize` | The whole initialization stage: `init`, `checkout` (with the report settings), in `default` and `cleanup` mode with `DOMAINS=default` `nfs-check`, and `inputs`. Leaves the `initialization` marker only when all of them passed |
+| `initialize` | The whole initialization stage: `init`, `checkout` and, in `default` and `cleanup` mode with `DOMAINS=default`, `nfs-check`. Leaves the `initialization` marker only when all of them passed |
 | `init` | Checks `CLUSTER`, the cluster variables, `OMNIA_REPO` and `OMNIA_BRANCH`, `OMNIA_INSTALL_PATH`, the host key policy, `clusters/<cluster>/inputs/src/main/omnia.env` and the SSH connection (retried) |
 | `checkout` | Records the commit of the clone (`actual_commit_sha.txt`) and copies `omnia.env` into it |
 | `nfs-check` | Every Slurm and K8s share of the OIM's `storage_config.yml` mounts read-only (nothing is deleted) |
@@ -148,16 +148,11 @@ then copied from that checkout into `ci_tools/` for the later jobs.
 
 ## Inputs
 
-The inputs are copied twice. `initialization` copies them first, before any cleanup, so the
-cleanups and their tests read the same files as the project (the `storage_config.yml` with its NFS
-shares, `omnia_config.yml`, ...) and not those left on the OIM by an earlier run; no Omnia venv is
-needed for that. The `setup_main` stage copies them again after `omnia.sh -s` (in `default` and
-`deploy` mode), because the Omnia cleanup removes them and `omnia.sh -s` stages the default
-inputs. `SKIP_STAGES=inputs` skips both copies; the utils pipeline copies only the utils inputs, in
-`setup_utils`. For every deploy domain (repo_manager, image_build_manager, discovery, orchestrator,
+The inputs are copied by the `setup_main` stage after `omnia.sh -s` (in `default` and `deploy` mode),
+which has created the domain folders and their default inputs. For every deploy domain (repo_manager, image_build_manager, discovery, orchestrator,
 telemetry) that has a folder `clusters/<cluster>/inputs/src/<domain>/` in the
 project, its content is copied to `<OMNIA_DATA_PATH>/<domain>/input/<OMNIA_PROJECT_NAME>/` on the
-OIM (both read from the `omnia.env` of the clone, or from the Omnia venv when it exists). The catalog `clusters/<cluster>/inputs/src/main/catalog_rhel.json`
+OIM (both resolved from the Omnia venv). The catalog `clusters/<cluster>/inputs/src/main/catalog_rhel.json`
 is copied to `<data>/catalog/` when present. The stage fails if no domain folder exists or a copy
 fails. The project layout is `clusters/<cluster>/inputs/src/<domain>/`, `inputs/src/main/` (omnia.env and
 catalog) and `inputs/test/<domain>/`; a project with the older `inputs/<domain>/` layout is still read
@@ -347,7 +342,7 @@ to `pipeline_reports/` (prefixed with the job name), and the summary attaches it
 | Cleanup by playbook tags | The cleanup playbook with `omnia.sh --run`, then `fvt_<domain> cleanup verify` in its own stage |
 | Cleanup failure stopped the pipeline immediately | All cleanups run, then it stops without installing |
 | NFS shares kept their data | Slurm and K8s shares emptied by `test_cleanup_orchestrator` (`nfs_shares` suite) |
-| Inputs copied inside each domain job | Copied in `initialization` (before the cleanups) and in `setup_main` |
+| Inputs copied inside each domain job | Copied once, in the `setup_main` stage |
 | `<DOMAIN>_TAGS` were ansible tags | Playbook tags run one by one with `omnia.sh --run` |
 | A separate test venv per domain | The test requirements go into the Omnia venv |
 | No concurrency limit | One pipeline per cluster |
