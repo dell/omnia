@@ -41,8 +41,9 @@ command. Its first stages are those of the cluster pipeline:
 
 ```
  1. initialization             Clone Omnia on the OIM, checks, commit, omnia.env, NFS check, report settings
- 2. cleanup_<domain>           the cleanup playbook of every domain (omnia.sh --run <domain> --tags <cleanup tag>)
- 3. test_cleanup_<domain>      fvt_<domain> cleanup verify of every domain (the orchestrator one empties the NFS shares)
+ 2. cleanup_<domain>           the cleanup playbook of a domain (omnia.sh --run <domain> --tags <cleanup tag>)
+ 3. test_cleanup_<domain>      fvt_<domain> cleanup verify of that domain, right after its cleanup (the orchestrator one
+                               empties the NFS shares); steps 2 and 3 repeat for every domain
  4. cleanup_omnia              omnia.sh --cleanup --all (only when every cleanup and cleanup test passed)
  5. setup_main                 omnia.sh -s, then the inputs of every domain
  6. test_main_installation     fvt_main verify

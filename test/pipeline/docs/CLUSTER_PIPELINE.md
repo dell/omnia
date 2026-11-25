@@ -17,11 +17,12 @@ For the settings see [CONFIGURATION.md](CONFIGURATION.md), for the modes
                        the variables, the host key, the inputs and SSH; the commit and omnia.env;
                        (DOMAINS=default) every NFS share mounts read-only
  cleanup_<domain>      omnia.sh --run <domain> --tags <cleanup tag> with the flags of the cluster's
-                       test_config.yml (repo_manager: cleanup_pulp, the others: cleanup), in the
-                       order build_stream, utils, telemetry, orchestrator, discovery,
-                       image_build_manager, repo_manager (none is tolerated)
- test_cleanup_<domain> fvt_<domain> cleanup verify in the Omnia venv, same order, after ALL the
-                       cleanups; the orchestrator one empties the Slurm and K8s NFS shares
+                       test_config.yml (repo_manager: cleanup_pulp, the others: cleanup)
+ test_cleanup_<domain> fvt_<domain> cleanup verify in the Omnia venv, right after its cleanup; the
+                       orchestrator one empties the Slurm and K8s NFS shares
+                       (one cleanup, one test, per domain, in the order build_stream, utils,
+                       telemetry, orchestrator, discovery, image_build_manager, repo_manager;
+                       none is tolerated)
  cleanup_omnia         ONE stage: omnia.sh --cleanup --all (test/main)
  setup_main            ONE stage: omnia.sh -s, then the inputs of every domain and the catalog
  test_main_installation  fvt_main verify

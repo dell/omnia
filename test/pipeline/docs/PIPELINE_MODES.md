@@ -234,29 +234,36 @@ The pipeline runs these stages in order. Which stages actually execute depends o
  ─────────────────────────────────────────────────────────────────
  1. initialization                    Y          Y     Y
  2. cleanup_build_stream              Y                Y
- 3. cleanup_utils                     Y                Y
- 4. cleanup_telemetry                 Y                Y
- 5. cleanup_orchestrator              Y                Y
- 6. cleanup_discovery                 Y                Y
- 7. cleanup_image_build_manager       Y                Y
- 8. cleanup_repo_manager              Y                Y
- 9. cleanup_omnia                     Y                Y  (DOMAINS=default)
-10. setup_main                        Y       (inputs) (opt)
-11. test_main_installation          (test)     (test)
-12. repo_manager                      Y          Y
-13. test_repo_manager               (test)     (test)
-14. image_build_manager               Y          Y
-15. test_image_build_manager        (test)     (test)
-16. discovery                       (disc)     (disc)
-17. test_discovery               (disc+test)  (disc+test)
-18. orchestrator                      Y          Y
-19. test_orchestrator               (test)     (test)
-20. telemetry                         Y          Y
-21. test_telemetry                  (test)     (test)
-22. summary                           Y          Y     Y
+ 3. test_cleanup_build_stream         Y                Y
+ 4. cleanup_utils                     Y                Y
+ 5. test_cleanup_utils                Y                Y
+ 6. cleanup_telemetry                 Y                Y
+ 7. test_cleanup_telemetry            Y                Y
+ 8. cleanup_orchestrator              Y                Y
+ 9. test_cleanup_orchestrator         Y                Y
+10. cleanup_discovery                 Y                Y
+11. test_cleanup_discovery            Y                Y
+12. cleanup_image_build_manager       Y                Y
+13. test_cleanup_image_build_manager  Y                Y
+14. cleanup_repo_manager              Y                Y
+15. test_cleanup_repo_manager         Y                Y
+16. cleanup_omnia                     Y                Y  (DOMAINS=default)
+17. setup_main                        Y       (inputs) (opt)
+18. test_main_installation          (test)     (test)
+19. repo_manager                      Y          Y
+20. test_repo_manager               (test)     (test)
+21. image_build_manager               Y          Y
+22. test_image_build_manager        (test)     (test)
+23. discovery                       (disc)     (disc)
+24. test_discovery               (disc+test)  (disc+test)
+25. orchestrator                      Y          Y
+26. test_orchestrator               (test)     (test)
+27. telemetry                         Y          Y
+28. test_telemetry                  (test)     (test)
+29. summary                           Y          Y     Y
 ```
 
-A failed cleanup or cleanup test does not stop the other ones, but `cleanup_omnia`, the install and every later stage are skipped and `summary` runs and fails the pipeline. The cleanup tests (`test_cleanup_<domain>`, one per cleanup stage, run after all the cleanups, same order and same domain selection) are not numbered in the table above.
+A failed cleanup or cleanup test does not stop the other ones, but `cleanup_omnia`, the install and every later stage are skipped and `summary` runs and fails the pipeline. Each `test_cleanup_<domain>` runs right after its `cleanup_<domain>` and has the same domain selection.
 See [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) for how each stage works.
 
 Legend:

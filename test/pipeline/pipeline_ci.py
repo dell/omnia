@@ -566,7 +566,7 @@ def cleanup(domain: str) -> int:
 def cleanup_verify(domain: str) -> int:
     """fvt_<domain> cleanup verify: what the cleanup must have left, in the Omnia venv.
 
-    Runs after the cleanup stages and before the Omnia cleanup, which removes the Omnia venv. It
+    Runs right after the cleanup of the domain and before the Omnia cleanup, which removes the Omnia venv. It
     needs the Omnia venv and the test requirements (``_fvt`` activates and installs them). The
     orchestrator verification also empties the NFS shares (its ``nfs_shares`` suite).
     """

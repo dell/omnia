@@ -30,7 +30,7 @@ For every cluster, in this order:
    checks that the Slurm and Kubernetes NFS shares can be mounted.
 2. **Cleanup**: one stage per domain runs the cleanup playbook (`./omnia.sh --run <domain> --tags
    <cleanup tag>`, with the flags of the cluster's `test_config.yml`). Every cleanup runs, even
-   after one failed. Then one `test_cleanup_<domain>` stage per domain checks the result
+   after one failed. Right after each one a `test_cleanup_<domain>` stage checks its result
    (`fvt_<domain> cleanup verify`, in the Omnia venv). The orchestrator one also empties the Slurm
    and Kubernetes NFS shares (its `nfs_shares` suite, selected by `cleanup_slurm` and
    `cleanup_k8s`); then the `cleanup_omnia` stage runs `omnia.sh --cleanup --all`. If any cleanup or
@@ -47,7 +47,7 @@ For every cluster, in this order:
    reports.
 
 ```
-initialization > cleanup_<domain> ... > test_cleanup_<domain> ... > cleanup_omnia > setup_main
+initialization > (cleanup_<domain> > test_cleanup_<domain>) per domain > cleanup_omnia > setup_main
    > test_main_installation
    > <domain> > test_<domain> ... > summary
 ```

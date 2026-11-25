@@ -26,7 +26,7 @@ Failure rules:
 * initialization fails -> every other stage is skipped (the cleanup jobs need it and run on
   success, the later jobs wait for the earlier stages) and only ``summary`` runs.
 * A cleanup or its verification fails -> the cleanup jobs (``cleanup_<domain>``, the cleanup
-  playbook, and ``test_cleanup_<domain>``, its verification, run after all of them) are
+  playbook, and ``test_cleanup_<domain>``, its verification, right after it) are
   ``allow_failure`` and each needs only initialization and the earlier jobs, so every cleanup,
   every verification and ``cleanup_omnia`` still run (``cleanup_omnia`` only when the
   orchestrator ones passed).  ``setup_main`` and every domain stage then call
@@ -92,8 +92,8 @@ INTRO = """
 # Flow of the default mode:
 #   initialization: clone Omnia on the OIM, take the helpers from it, checks, commit and
 #                   omnia.env, NFS check (one stage)
-#   cleanup_<domain> ...: omnia.sh --run <domain> --tags <cleanup tag>, one stage per domain
-#   test_cleanup_<domain> ...: fvt_<domain> cleanup verify, one stage per domain (the orchestrator
+#   cleanup_<domain>, then test_cleanup_<domain>, one pair per domain:
+#                   omnia.sh --run <domain> --tags <cleanup tag>, then fvt_<domain> cleanup verify (the orchestrator
 #                   one empties the Slurm/K8s NFS shares)
 #   cleanup_omnia: omnia.sh --cleanup --all (test/main)
 #   setup_main: omnia.sh -s, then the inputs of every domain (one stage)
@@ -440,13 +440,10 @@ def _cleanup_jobs() -> List[List[str]]:
                          needs=["initialization"], optional=list(previous),
                          allow_failure=True, skip=(domain, name, "cleanup")))
         previous.append(name)
-    cleanups = list(previous)
-    for domain in CLEANUP_ORDER:
         name = f"test_cleanup_{domain}"
         jobs.append(_job(name, name, [f"cleanup-verify {domain}"],
                          [f"{CLEANUP_MODE} && {_domain_condition(domain)}"],
-                         needs=["initialization"], optional=cleanups
-                         + [n for n in previous if n.startswith("test_cleanup_")],
+                         needs=["initialization"], optional=list(previous),
                          allow_failure=True, skip=(domain, name, "test_cleanup")))
         previous.append(name)
     jobs.append(_job("cleanup_omnia", "cleanup_omnia", ["cleanup-omnia"],
@@ -520,9 +517,9 @@ def _stages(kind: str) -> List[str]:
     if kind == "utils":
         return ["initialization", "setup_utils", "install_os", "log_collection_cluster",
                 "log_collection_oim", "test_utils", "summary"]
-    cleanup = ["initialization", *(f"cleanup_{d}" for d in CLEANUP_ORDER),
-               *(f"test_cleanup_{d}" for d in CLEANUP_ORDER), "cleanup_omnia", "setup_main",
-               "test_main_installation"]
+    cleanup = ["initialization",
+               *(s for d in CLEANUP_ORDER for s in (f"cleanup_{d}", f"test_cleanup_{d}")),
+               "cleanup_omnia", "setup_main", "test_main_installation"]
     if kind == "build_stream":
         return [*cleanup, "prepare_base", *(f"test_{d}" for d in BASE_DOMAINS), "build_stream",
                 "test_build_stream", "summary"]
