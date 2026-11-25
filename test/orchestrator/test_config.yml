@@ -215,23 +215,36 @@ external_ldap_bind_username: ""
 # Default: true
 cleanup_credentials: true
 #
-# Decide whether Slurm shared data is deleted. Supported values:
-#   true  - delete the configured Slurm shared directories, then unmount the
-#           Slurm storage and remove its fstab entries; the nfs_shares suite
-#           then empties the nfs_slurm NFS share of storage_config.yml
-#   false - preserve shared data, but still unmount the Slurm storage and
-#           remove its fstab entries; the nfs_slurm test is skipped
+# Decide what happens to the Slurm shared data. Supported values:
+#   true  - the cleanup deletes the Slurm shared directories, unmounts the Slurm
+#           storage and removes its fstab entries. The nfs_shares suite then
+#           verifies that nfs_slurm is unmounted and not in fstab, mounts it
+#           again temporarily (never added to fstab), deletes everything left in
+#           it, unmounts it and verifies that it is empty (up to 3 attempts).
+#   false - the Slurm shared data is kept. The cleanup still unmounts the Slurm
+#           storage and removes its fstab entries; the nfs_shares suite only
+#           verifies that nfs_slurm is unmounted and not in fstab, and mounts or
+#           deletes nothing.
 # Default: true
 cleanup_slurm: true
 #
-# Decide whether Kubernetes shared data is deleted. Supported values:
-#   true  - delete every entry under the configured Kubernetes shared mount,
-#           then unmount the storage and remove its fstab entries; the
-#           nfs_shares suite then empties the nfs_k8s NFS share
-#   false - preserve shared data, but still unmount the Kubernetes storage and
-#           remove its fstab entries; the nfs_k8s test is skipped
+# Decide what happens to the Kubernetes shared data. Supported values:
+#   true  - the cleanup deletes every entry under the configured Kubernetes
+#           shared mount, unmounts the storage and removes its fstab entries.
+#           The nfs_shares suite then verifies that nfs_k8s is unmounted and not
+#           in fstab, mounts it again temporarily (never added to fstab),
+#           deletes everything left in it, unmounts it and verifies that it is
+#           empty (up to 3 attempts).
+#   false - the Kubernetes shared data is kept. The cleanup still unmounts the
+#           storage and removes its fstab entries; the nfs_shares suite only
+#           verifies that nfs_k8s is unmounted and not in fstab, and mounts or
+#           deletes nothing.
 # Default: true
 cleanup_k8s: true
+#
+# The nfs_shares suite mounts the shares on the execution OIM, so emptying a
+# share needs a local run as root there (oim_server_ip empty). The unmount and
+# fstab verification also works over SSH.
 #
 # DRY_RUN and SKIP_APPROVAL are supported by the product as environment
 # controls, not as Ansible extra variables. They are therefore deliberately

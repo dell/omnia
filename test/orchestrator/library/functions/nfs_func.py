@@ -15,14 +15,19 @@
 
 """Empty the NFS shares of storage_config.yml before a clean reinstall.
 
-Stale data in the Slurm and Kubernetes shares survives a reinstall, so the ``nfs_shares``
-suite of the orchestrator cleanup FVT empties them (``cleanup_slurm`` and ``cleanup_k8s`` of
-test_config.yml select the shares):
+The orchestrator cleanup detaches a share (unmount and remove its fstab entry) but does not
+empty the export, and stale data in the Slurm and Kubernetes shares survives a reinstall. The
+``nfs_shares`` suite of the orchestrator cleanup FVT therefore checks the detachment and
+empties the shares (``cleanup_slurm`` and ``cleanup_k8s`` of test_config.yml select them):
 
-1. the share is first mounted read-only and unmounted again (preflight): a share that
-   cannot be reached fails the cleanup before anything is deleted;
-2. then it is mounted read-write on a private temporary folder, emptied completely (the
-   export itself stays) and unmounted.
+1. the suite first checks that the share is unmounted and has no fstab entry; the share is
+   emptied only when it is (``nfs_cleanup_func``);
+2. the share is mounted read-only and unmounted again (preflight): a share that cannot be
+   reached fails the cleanup before anything is deleted;
+3. it is mounted read-write on a private temporary folder, emptied completely (the export
+   itself stays) and unmounted again; the mount is never added to fstab;
+4. it is mounted read-only once more and must hold no entry; otherwise steps 3 and 4 are
+   repeated, up to ``CLEANUP_ATTEMPTS`` times.
 
 Safety (the lessons of the product's own security fixes):
 
@@ -57,8 +62,7 @@ import yaml
 from ..messages.nfs_msgs import NFS_MSGS
 
 from ..vars.nfs_vars import (
-    EMPTY_PASSES,
-    EMPTY_PAUSE_SECONDS,
+    CLEANUP_ATTEMPTS,
     NFSD_CLIENTS_DIR,
     COMMAND_ENV,
     DENIED_EXPORTS,
@@ -70,6 +74,7 @@ from ..vars.nfs_vars import (
     MOUNT_OPTIONS,
     MOUNT_ROOT,
     MOUNT_TIMEOUT,
+    RETRY_PAUSE_SECONDS,
     UNMOUNT_TIMEOUT,
 )
 Emit = Callable[[str], None]
@@ -80,8 +85,11 @@ class NfsError(RuntimeError):
     """A share cannot be emptied; the message says why and how to fix it."""
 
 
-def configured_sources(path: str, emit: Emit) -> Dict[str, str]:
-    """Return {mount name: source} of the ``mounts`` of storage_config.yml ({} if none)."""
+def configured_mounts(path: str, emit: Emit) -> Dict[str, Dict[str, str]]:
+    """Return {mount name: {"source", "mount_point"}} of the ``mounts`` of storage_config.yml.
+
+    ``mount_point`` is "" when the entry has none. The result is {} when there are no mounts.
+    """
     try:
         with open(path, "r", encoding="utf-8") as stream:
             data = yaml.safe_load(stream) or {}
@@ -91,7 +99,9 @@ def configured_sources(path: str, emit: Emit) -> Dict[str, str]:
     except yaml.YAMLError as exc:
         raise NfsError(f"{path} is not valid YAML: {exc}") from exc
     mounts = data.get("mounts") if isinstance(data, dict) else None
-    return {str(item["name"]): item["source"] for item in (mounts or [])
+    return {str(item["name"]): {"source": item["source"],
+                                "mount_point": str(item.get("mount_point") or "")}
+            for item in (mounts or [])
             if isinstance(item, dict) and isinstance(item.get("name"), str)
             and isinstance(item.get("source"), str)}
 
@@ -322,45 +332,53 @@ def connected_clients() -> List[str]:
     return found
 
 
-def _empty_passes(mountpoint: str, name: str, emit: Emit) -> Dict[str, Any]:
-    """Empty ``mountpoint``; empty it again (a client may recreate entries) up to EMPTY_PASSES
-    times. Return the totals and the errors of the last pass."""
-    totals = {"files": 0, "dirs": 0, "bytes": 0}
-    for number in range(1, EMPTY_PASSES + 1):
-        stats = empty_directory(mountpoint)
-        for key in totals:
-            totals[key] += stats[key]
-        if not stats["errors"] or number == EMPTY_PASSES:
-            break
-        emit(NFS_MSGS["retry"].format(name=name, count=stats["errors"], number=number,
-                                      total=EMPTY_PASSES, pause=EMPTY_PAUSE_SECONDS))
-        time.sleep(EMPTY_PAUSE_SECONDS)
-    return {**stats, **totals}
+def _failure_hint(first_error: str, clients: List[str]) -> str:
+    """Return the hint for the first error: a squashed root, or a client still writing."""
+    if "ermission" in first_error or "not permitted" in first_error:
+        return NFS_MSGS["squash_hint"]
+    return NFS_MSGS["clients_hint"].format(clients=", ".join(clients)) if clients else ""
 
 
 def wipe_share(name: str, flag: str, source: str, emit: Emit,
                protected: List[str]) -> Dict[str, Any]:
-    """Empty the share completely and unmount it; return the counts.
+    """Empty the share completely, unmount it and check that it is empty; return the counts.
+
+    Each attempt mounts the share read-write, empties it, unmounts it and mounts it read-only
+    to count what is left. The attempt is repeated (``CLEANUP_ATTEMPTS`` in all) while
+    entries remain, because a client may recreate them.
 
     Raises:
-        NfsError: The share cannot be mounted, or entries could not be removed (the share
-            is unmounted in every case).
+        NfsError: The share cannot be mounted, or entries are left after the last attempt
+            (the share is unmounted in every case).
     """
     started = time.monotonic()
     clients = connected_clients()
     if clients:
         emit(NFS_MSGS["clients"].format(clients=", ".join(clients)))
-    with mounted((name, flag, source), False, emit, protected) as mountpoint:
-        stats = _empty_passes(mountpoint, name, emit)
-    emit(NFS_MSGS["removed"].format(name=name, files=stats["files"], dirs=stats["dirs"],
-                                    size=_size(stats["bytes"]), source=source))
-    if stats["other_mounts"]:
-        emit(NFS_MSGS["skipped_mounts"].format(name=name, count=stats["other_mounts"]))
-    if stats["errors"]:
-        first = stats["messages"][0] if stats["messages"] else "unknown error"
-        hint = NFS_MSGS["squash_hint"] if "ermission" in first or "not permitted" in first else ""
-        if not hint and clients:
-            hint = NFS_MSGS["clients_hint"].format(clients=", ".join(clients))
+    totals = {"files": 0, "dirs": 0, "bytes": 0}
+    other_mounts = left = attempt = 0
+    first = ""
+    for attempt in range(1, CLEANUP_ATTEMPTS + 1):
+        with mounted((name, flag, source), False, emit, protected) as mountpoint:
+            stats = empty_directory(mountpoint)
+        for key in totals:
+            totals[key] += stats[key]
+        other_mounts = max(other_mounts, stats["other_mounts"])
+        first = stats["messages"][0] if stats["messages"] else first
+        left = check_share(name, flag, source, emit, protected)
+        if not left:
+            break
+        if attempt < CLEANUP_ATTEMPTS:
+            emit(NFS_MSGS["retry"].format(name=name, count=left, number=attempt,
+                                          total=CLEANUP_ATTEMPTS, pause=RETRY_PAUSE_SECONDS))
+            time.sleep(RETRY_PAUSE_SECONDS)
+    emit(NFS_MSGS["removed"].format(name=name, files=totals["files"], dirs=totals["dirs"],
+                                    size=_size(totals["bytes"]), source=source))
+    if other_mounts:
+        emit(NFS_MSGS["skipped_mounts"].format(name=name, count=other_mounts))
+    if left:
         raise NfsError(NFS_MSGS["empty_failed"].format(
-            name=name, count=stats["errors"], source=source, first=first, hint=hint))
-    return {**stats, "seconds": time.monotonic() - started}
+            name=name, count=left, source=source, attempts=CLEANUP_ATTEMPTS,
+            first=first or "entries are still present", hint=_failure_hint(first, clients)))
+    return {**totals, "other_mounts": other_mounts, "attempts": attempt, "left": 0,
+            "seconds": time.monotonic() - started}

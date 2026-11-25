@@ -385,8 +385,8 @@ Review these `test_config.yml` settings first:
 | Setting | `true` | `false` |
 |---|---|---|
 | `cleanup_credentials` | Remove Orchestrator credential artifacts | Preserve them |
-| `cleanup_slurm` | Delete Slurm shared data, then detach storage; the `nfs_slurm` NFS share is emptied (`nfs_shares` suite) | Preserve data, but detach storage; the NFS share test is skipped |
-| `cleanup_k8s` | Delete Kubernetes shared data, then detach storage; the `nfs_k8s` NFS share is emptied (`nfs_shares` suite) | Preserve data, but detach storage; the NFS share test is skipped |
+| `cleanup_slurm` | Delete Slurm shared data, then detach storage; the `nfs_shares` suite verifies `nfs_slurm` is unmounted and not in fstab, then empties it through a temporary mount and verifies it is empty | Keep the data; storage is still detached and the suite only verifies the unmount and fstab removal |
+| `cleanup_k8s` | Delete Kubernetes shared data, then detach storage; the `nfs_shares` suite verifies `nfs_k8s` is unmounted and not in fstab, then empties it through a temporary mount and verifies it is empty | Keep the data; storage is still detached and the suite only verifies the unmount and fstab removal |
 | `cleanup_benchmark_tools` | Remove HPC benchmark staged artifacts after verification | Retain artifacts for inspection |
 
 All default to `true`. Cleanup removes deployment state and is not a harmless
