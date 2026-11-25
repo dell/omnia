@@ -138,13 +138,13 @@ Parent Pipeline (.gitlab-ci.yml, generated)
         ├─→ Cluster pipeline (.gitlab-ci-cluster.yml) per cluster
         │   ├─ initialization (clone, checks, NFS check, report settings)
         │   ├─ cleanup_<domains> (playbook), test_cleanup_<domains> (verify, NFS shares),
-        │   │  cleanup_omnia (omnia.sh --cleanup --all)
+        │   │  cleanup_omnia (omnia.sh --cleanup --all), test_cleanup_omnia (verify)
         │   ├─ setup_main (omnia.sh -s, then the inputs of all domains), test_main_installation
         │   ├─ <domains> (omnia.sh --run, tag by tag) and test_<domains>
         │   └─ summary (table, test report, email)
         │
         ├─→ Build Stream Pipeline (.gitlab-ci-build-stream.yml) [global.build_stream_enable]
-        │   ├─ initialization, cleanup_<domains>, test_cleanup_<domains>, cleanup_omnia
+        │   ├─ initialization, cleanup_<domains>, test_cleanup_<domains>, cleanup_omnia, test_cleanup_omnia
         │   ├─ setup_main, test_main_installation
         │   ├─ prepare_base (repo_manager + image_build_manager + orchestrator, omnia.sh --prepare-base)
         │   ├─ test_repo_manager, test_image_build_manager, test_orchestrator

@@ -45,6 +45,7 @@ command. Its first stages are those of the cluster pipeline:
  3. test_cleanup_<domain>      fvt_<domain> cleanup verify of that domain, right after its cleanup (the orchestrator one
                                empties the NFS shares); steps 2 and 3 repeat for every domain
  4. cleanup_omnia              omnia.sh --cleanup --all (only when every cleanup and cleanup test passed)
+ 4b. test_cleanup_omnia        fvt_main cleanup verify, what the Omnia reset must have left
  5. setup_main                 omnia.sh -s, then the inputs of every domain
  6. test_main_installation     fvt_main verify
  7. prepare_base               credentials of repo_manager, image_build_manager, orchestrator, then omnia.sh --prepare-base
@@ -59,7 +60,7 @@ command. Its first stages are those of the cluster pipeline:
 | Stage | Runs when |
 |-------|-----------|
 | `cleanup_*`, `test_cleanup_*` | `PIPELINE_MODE` is `cleanup` or `default` and the domain matches `DOMAINS` |
-| `cleanup_omnia` | the same, and `DOMAINS == "default"` |
+| `cleanup_omnia`, `test_cleanup_omnia` | the same, and `DOMAINS == "default"` |
 | `setup_main` | `PIPELINE_MODE == "default"` or `ENABLE_SETUP == "true"` (the inputs also in `deploy`) |
 | `test_main_installation` | `PIPELINE_MODE` is `deploy` or `default` and `TEST_MODE == "true"` |
 | `prepare_base` | `PIPELINE_MODE` is `deploy` or `default` |

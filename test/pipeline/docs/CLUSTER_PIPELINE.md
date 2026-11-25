@@ -23,7 +23,8 @@ For the settings see [CONFIGURATION.md](CONFIGURATION.md), for the modes
                        (one cleanup, one test, per domain, in the order build_stream, utils,
                        telemetry, orchestrator, discovery, image_build_manager, repo_manager;
                        none is tolerated)
- cleanup_omnia         ONE stage: omnia.sh --cleanup --all (test/main)
+ cleanup_omnia         ONE stage: omnia.sh --cleanup --all (fvt_main cleanup exec, test/main venv)
+ test_cleanup_omnia    ONE stage: fvt_main cleanup verify, what the Omnia reset must have left
  setup_main            ONE stage: omnia.sh -s, then the inputs of every domain and the catalog
  test_main_installation  fvt_main verify
  <domain>              omnia.sh --run, tag by tag: repo_manager, image_build_manager, discovery,
@@ -38,6 +39,7 @@ For the settings see [CONFIGURATION.md](CONFIGURATION.md), for the modes
 | cleanup_\<domain\> | yes | | yes | the domain is selected |
 | test_cleanup_\<domain\> | yes | | yes | the domain is selected |
 | cleanup_omnia | yes | | yes | `DOMAINS=default` |
+| test_cleanup_omnia | yes | | yes | `DOMAINS=default` |
 | setup_main | yes | inputs only | with `ENABLE_SETUP=true` (install only) | install in `default` or with `ENABLE_SETUP=true`; inputs in `default` and `deploy` |
 | test_main_installation | yes | yes | | `TEST_MODE=true` |
 | \<domain\> | yes | yes | | the domain is selected (discovery: `ENABLE_DISCOVERY=true`) |
@@ -50,7 +52,7 @@ exactly (`telemetry_x` does not match `telemetry`):
 | Word | Skips |
 |---|---|
 | a domain: `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `telemetry`, `utils`, `build_stream` | every stage of that domain: its cleanup, cleanup test, deploy and test |
-| a stage name: `cleanup_<domain>`, `test_cleanup_<domain>`, `test_<domain>`, `cleanup_omnia`, `setup_main`, `test_main_installation`, `summary` | that stage only |
+| a stage name: `cleanup_<domain>`, `test_cleanup_<domain>`, `test_<domain>`, `cleanup_omnia`, `test_cleanup_omnia`, `setup_main`, `test_main_installation`, `summary` | that stage only |
 | `cleanup` / `test_cleanup` / `deploy` / `test` | all the `cleanup_<domain>` / all the `test_cleanup_<domain>` / all the domain deploy stages / `test_main_installation` and all the `test_<domain>` |
 | `nfs_check` | the NFS check inside `initialization` |
 | `inputs` | the input copy inside `setup_main` |
@@ -113,6 +115,7 @@ exist before the clone. All of them need the cluster variables
 | `nfs-check` | Every Slurm and K8s share of the OIM's `storage_config.yml` mounts read-only (nothing is deleted) |
 | `cleanup <domain>` | Checks the marker, then `./omnia.sh --run <domain> --tags <tag>` in the Omnia venv with `-e` flags read from `clusters/<cluster>/inputs/test/<domain>/test_config.yml` (orchestrator: `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`; build_stream: `postgres_backup`, `cleanup_credentials`; telemetry: `delete_sinks_volume`, `cleanup_credentials`, `cleanup_logs`; repo_manager and image_build_manager: `cleanup_credentials=false` only). No test runs |
 | `cleanup-verify <domain>` | Checks the marker of the cleanup, copies the cluster's test config, sets `run_id` to the pipeline id, then `fvt_<domain> cleanup verify` in the Omnia venv (utils: `--marker cleanup`). The orchestrator one empties the NFS shares (see below). Copies the reports it wrote before the Omnia cleanup removes them |
+| `cleanup-omnia-verify` | Checks the marker of `cleanup_omnia`, then `fvt_main cleanup verify` from the `test/main` venv |
 | `cleanup-omnia` | Checks the marker, then runs `omnia.sh --cleanup --all --skip-approval`. When any cleanup or cleanup test failed (the NFS shares may not be empty) it is not run and the Omnia venv stays |
 | `setup-main` | `install` (in `default` mode or with `ENABLE_SETUP=true`), then `inputs` (in `default` and `deploy` mode) |
 | `install` | `omnia.sh -s`, then checks that the venv activates |
@@ -317,8 +320,9 @@ suite per run: `<domain>_<tag>` for a tag (`telemetry_cleanup`, `utils_cleanup`,
 ran last is at the top; the layout of the report is unchanged. The folder is outside `/opt/omnia`,
 so the Omnia cleanup does not remove it. `initialization` deletes reports of earlier pipelines
 older than `REPORTS_KEEP_DAYS` (default 30) from it. A retried job replaces the earlier result of
-the same test in the report instead of adding it again. The cleanup and cleanup test stages also copy the report
-to `pipeline_reports/` (prefixed with the job name), and the summary attaches it.
+the same test in the report instead of adding it again. Only the summary copies it, once. The mail gets exactly two
+attachments: that test report (HTML) and the HTML report of the stages; the JSON and the full
+stage report are job artifacts.
 
 ---
 

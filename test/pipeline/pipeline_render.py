@@ -449,6 +449,10 @@ def _cleanup_jobs() -> List[List[str]]:
     jobs.append(_job("cleanup_omnia", "cleanup_omnia", ["cleanup-omnia"],
                      [f'{CLEANUP_MODE} && $DOMAINS == "default"'],
                      needs=["initialization"], optional=list(previous), allow_failure=True))
+    jobs.append(_job("test_cleanup_omnia", "test_cleanup_omnia", ["cleanup-omnia-verify"],
+                     [f'{CLEANUP_MODE} && $DOMAINS == "default"'],
+                     needs=["initialization"], optional=[*previous, "cleanup_omnia"],
+                     allow_failure=True, skip=("test_cleanup_omnia", "test_cleanup")))
     jobs.append(_job("setup_main", "setup_main", ["setup-main"],
                      ['$ENABLE_SETUP == "true"', DEPLOY_MODE]))
     jobs.append(_job("test_main_installation", "test_main_installation", ["verify main"],
@@ -519,7 +523,7 @@ def _stages(kind: str) -> List[str]:
                 "log_collection_oim", "test_utils", "summary"]
     cleanup = ["initialization",
                *(s for d in CLEANUP_ORDER for s in (f"cleanup_{d}", f"test_cleanup_{d}")),
-               "cleanup_omnia", "setup_main", "test_main_installation"]
+               "cleanup_omnia", "test_cleanup_omnia", "setup_main", "test_main_installation"]
     if kind == "build_stream":
         return [*cleanup, "prepare_base", *(f"test_{d}" for d in BASE_DOMAINS), "build_stream",
                 "test_build_stream", "summary"]

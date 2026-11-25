@@ -67,6 +67,7 @@ stages:
   - cleanup_repo_manager
   - test_cleanup_repo_manager
   - cleanup_omnia
+  - test_cleanup_omnia
   - setup_main
   - test_main_installation
   - prepare_base
@@ -777,6 +778,66 @@ cleanup_omnia:
   script:
     - python3 ci_tools/pipeline_ci.py cleanup-omnia
 
+test_cleanup_omnia:
+  stage: test_cleanup_omnia
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: test_cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: test_cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_omnia
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(test_cleanup_omnia|test_cleanup)([ ,]|$)/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && $DOMAINS == "default"'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-omnia-verify
+
 setup_main:
   stage: setup_main
   timeout: 3h
@@ -903,8 +964,8 @@ summary:
     PIPELINE_JOB_ORDER: "initialization,cleanup_build_stream,test_cleanup_build_stream,cleanup_utils,test_cleanup_utils,cleanup\
       _telemetry,test_cleanup_telemetry,cleanup_orchestrator,test_cleanup_orchestrator,cleanup_discovery,tes\
       t_cleanup_discovery,cleanup_image_build_manager,test_cleanup_image_build_manager,cleanup_repo_manager,\
-      test_cleanup_repo_manager,cleanup_omnia,setup_main,test_main_installation,prepare_base,test_repo_manag\
-      er,test_image_build_manager,test_orchestrator,build_stream,test_build_stream"
+      test_cleanup_repo_manager,cleanup_omnia,test_cleanup_omnia,setup_main,test_main_installation,prepare_b\
+      ase,test_repo_manager,test_image_build_manager,test_orchestrator,build_stream,test_build_stream"
   needs:
     - job: initialization
       artifacts: true
@@ -952,6 +1013,9 @@ summary:
       artifacts: true
       optional: true
     - job: cleanup_omnia
+      artifacts: true
+      optional: true
+    - job: test_cleanup_omnia
       artifacts: true
       optional: true
     - job: setup_main

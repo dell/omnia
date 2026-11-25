@@ -32,8 +32,9 @@ over SSH:
                           fvt_<domain> cleanup verify in the Omnia venv: what the cleanup must have
                           left (orchestrator: its nfs_shares suite empties the NFS shares selected
                           by cleanup_slurm and cleanup_k8s)
-    cleanup-omnia         one stage: omnia.sh --cleanup --all --skip-approval (not run when the
-                          orchestrator cleanup or its verification failed)
+    cleanup-omnia         one stage: omnia.sh --cleanup --all (fvt_main cleanup exec); not run when
+                          a cleanup or a cleanup test failed
+    cleanup-omnia-verify  fvt_main cleanup verify: what the Omnia reset must have left
     setup-main            one stage: omnia.sh -s, then copy clusters/<cluster>/inputs/<domain>/ of
                           every deploy domain to <data>/<domain>/input/<project>/ and the catalog
     install               omnia.sh -s only (recreates the Omnia venv, runs every domain-init)
@@ -95,7 +96,6 @@ MAX_REASON = 600
 TOLERATED_JOBS: Tuple[str, ...] = ()
 COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
-MAX_REPORTS = 50
 REPORTS_DEFAULT = "/automation"
 REPORTS_KEEP_DAYS = 30
 REPORT_NAME = "omnia_pipeline_report"
@@ -581,7 +581,6 @@ def cleanup_verify(domain: str) -> int:
     rc = _stage_test_files(cluster, domain)
     if not rc:
         rc = _fvt(domain, "cleanup", "verify", extra, missing)
-    _fetch_reports(f"{_env('CI_JOB_NAME')}__")
     return rc
 
 
@@ -651,25 +650,14 @@ def nfs_preflight() -> int:
     return _run(NFS_CHECK.replace("@PORT@", str(NFS_PORT)) + calls + "exit $rc\n", "the NFS check")
 
 
-def cleanup_omnia() -> int:
-    """Reset Omnia (omnia.sh --cleanup --all) from the test/main venv.
+def _main_cleanup(command: str) -> int:
+    """Run ``fvt_main cleanup <command>`` (exec or verify) of test/main with cleanup_all true.
 
-    The Slurm and K8s NFS shares are emptied before, by the ``nfs_shares`` suite of the
-    orchestrator cleanup (cleanup_orchestrator; ``cleanup_slurm`` and ``cleanup_k8s`` of its
-    test_config.yml select the shares). When that cleanup failed, the shares may still hold
-    data, so the Omnia cleanup is not run and the Omnia venv is kept for the next try. test/main
-    uses its own venv, because the cleanup removes the Omnia venv. The reports of the cleanup
-    are kept before the Omnia data folder is removed.
+    test/main uses its own venv (``./setup_env.sh --venv``), because the Omnia cleanup removes the
+    Omnia venv and ``fvt_main cleanup`` refuses to run from it.
     """
     cluster = apply_cluster()
-    require_ready()
     path = install_path()
-    blocked = failed_cleanups()
-    if blocked and _env("DRY_RUN").lower() != "true":
-        _say(f"ERROR: {', '.join(blocked)} failed, so the Omnia cleanup was not run and the Omnia "
-             "venv is kept for the next try (the orchestrator ones empty the NFS shares)")
-        _record_error(f"{', '.join(blocked)} failed, so the Omnia cleanup was not run")
-        return 1
     rc = _stage_test_files(cluster, "main")
     if rc:
         return rc
@@ -679,8 +667,36 @@ grep -q '^cleanup_all:' test_config.yml && sed -i -E 's/^cleanup_all:.*/cleanup_
 chmod +x setup_env.sh run_validation.sh
 ./setup_env.sh --venv
 source .venv/bin/activate
-{_run_id_script()}./run_validation.sh fvt_main cleanup test {_verbosity()}
-""", "fvt_main cleanup test (omnia.sh --cleanup --all)")
+{_run_id_script()}./run_validation.sh fvt_main cleanup {command} {_verbosity()}
+""", f"fvt_main cleanup {command} (omnia.sh --cleanup --all)")
+
+
+def cleanup_omnia() -> int:
+    """Reset Omnia (omnia.sh --cleanup --all): ``fvt_main cleanup exec`` from the test/main venv.
+
+    It runs only when every cleanup and every cleanup test before it passed (the orchestrator ones
+    empty the Slurm and K8s NFS shares); otherwise the Omnia venv is kept for the next try. A
+    passed reset leaves the marker the next stage, ``cleanup_omnia_verify``, needs.
+    """
+    apply_cluster()
+    require_ready()
+    blocked = failed_cleanups()
+    if blocked and _env("DRY_RUN").lower() != "true":
+        _say(f"ERROR: {', '.join(blocked)} failed, so the Omnia cleanup was not run and the Omnia "
+             "venv is kept for the next try (the orchestrator ones empty the NFS shares)")
+        _record_error(f"{', '.join(blocked)} failed, so the Omnia cleanup was not run")
+        return 1
+    return _mark("cleanup_omnia", _main_cleanup("exec"))
+
+
+def cleanup_omnia_verify() -> int:
+    """Check the Omnia reset: ``fvt_main cleanup verify`` from the test/main venv."""
+    apply_cluster()
+    require_ready()
+    if not os.path.isfile(f"{STATUS_DIR}/cleanup_omnia.ok") and _env("DRY_RUN").lower() != "true":
+        _fail("cleanup_omnia did not pass, so its result is not verified. HOW TO FIX: read the log "
+              "of cleanup_omnia, fix the cause and run the pipeline again")
+    return _main_cleanup("verify")
 
 
 def install() -> int:
@@ -1281,40 +1297,40 @@ def _reasons() -> Dict[str, str]:
     return found
 
 
-def _fetch_reports(prefix: str = "") -> List[Tuple[str, bytes]]:
-    """Copy the test reports written during this pipeline from the OIM to pipeline_reports/.
+def _fetch_reports() -> List[Tuple[str, bytes]]:
+    """Copy the pipeline's one test report (HTML and JSON) from the OIM to pipeline_reports/.
 
-    A cleanup stage keeps its copy of the reports under its own prefix. Without a prefix (the
-    summary) the reports kept by the earlier jobs are returned too.
+    Every test run of the pipeline writes into ``<report folder>/<pipeline id>_<report name>``;
+    that is the only report fetched, once, by the summary.
     """
     path = _reports_path()
-    since = _env("CI_PIPELINE_CREATED_AT")
-    if _env("DRY_RUN").lower() == "true" or not SAFE_PATH.match(path):
+    pipeline_id = _env("CI_PIPELINE_ID")
+    if (_env("DRY_RUN").lower() == "true" or not SAFE_PATH.match(path)
+            or not re.fullmatch(r"[0-9]{1,12}", pipeline_id)):
         return []
-    newer = f"-newermt {shlex.quote(since)}" if re.fullmatch(r"[0-9T:.+Z -]{10,40}", since) else ""
-    rc, listing = remote(f"find {shlex.quote(path)} -maxdepth 3 -type f \\( -name '*.html' -o "
-                         f"-name '*.json' \\) {newer} 2>/dev/null | sort | head -{MAX_REPORTS}",
-                         capture=True)
     reports: List[Tuple[str, bytes]] = []
     os.makedirs(REPORT_DIR, exist_ok=True)
-    for remote_path in listing.split() if rc == 0 else []:
-        if not SAFE_PATH.match(remote_path):
-            continue
-        rc, content = remote(f"cat {shlex.quote(remote_path)}", capture=True)
-        if rc == 0:
-            name = prefix + os.path.basename(remote_path)
+    for extension in ("html", "json"):
+        name = f"{pipeline_id}_{REPORT_NAME}.{extension}"
+        rc, content = remote(f"cat {shlex.quote(f'{path}/{name}')}", capture=True)
+        if rc == 0 and content.strip():
             with open(os.path.join(REPORT_DIR, name), "w", encoding="utf-8") as handle:
                 handle.write(content)
             reports.append((name, content.encode()))
-    _say(f"{len(reports)} test report(s) fetched from the OIM")
-    if not prefix:
-        have = {name for name, _ in reports}
-        for name in sorted(os.listdir(REPORT_DIR)):
-            if name not in have and os.path.isfile(os.path.join(REPORT_DIR, name)):
-                with open(os.path.join(REPORT_DIR, name), "rb") as handle:
-                    reports.append((name, handle.read()))
-        _say(f"{len(reports)} test report(s) in all, with those kept by the earlier jobs")
+    _say(f"{len(reports)} test report file(s) fetched from the OIM ({path}/{pipeline_id}_{REPORT_NAME}.*)")
     return reports
+
+
+def _mail_attachments(reports: List[Tuple[str, bytes]],
+                      stages_report: Optional[Tuple[str, bytes, bytes]]) -> List[Tuple[str, bytes]]:
+    """Return the two files of the mail: the test report (HTML) and the report of the stages.
+
+    The JSON of the test report and the full stage report stay in the job artifacts.
+    """
+    files = [item for item in reports if item[0].endswith(".html")]
+    if stages_report:
+        files.append((stages_report[0], stages_report[2]))
+    return files
 
 
 def _send_summary_email(jobs: List[Tuple[str, str, str]], reports: List[Tuple[str, bytes]]) -> bool:
@@ -1370,9 +1386,7 @@ def summary() -> int:
     attachments = _fetch_reports() if on_oim else []
     built = _build_html_report(details or [
         {"id": None, "name": n, "status": st, "url": url} for n, st, url in jobs])
-    if built:
-        attachments.append((built[0], built[2]))
-    _send_summary_email(jobs, attachments)
+    _send_summary_email(jobs, _mail_attachments(attachments, built))
     blocking = [n for n in failed if n not in TOLERATED_JOBS]
     if blocking:
         _say(f"The pipeline fails because of: {', '.join(blocking)}")
@@ -1383,7 +1397,8 @@ def main(argv: List[str]) -> int:
     one = {"cleanup": cleanup, "cleanup-verify": cleanup_verify, "credentials": credentials,
            "deploy": deploy, "verify": verify_domain}
     none = {"initialize": initialize, "init": init, "checkout": checkout,
-            "nfs-check": nfs_preflight, "cleanup-omnia": cleanup_omnia, "setup-main": setup_main,
+            "nfs-check": nfs_preflight, "cleanup-omnia": cleanup_omnia,
+            "cleanup-omnia-verify": cleanup_omnia_verify, "setup-main": setup_main,
             "install": install, "inputs": inputs, "summary": summary,
             "setup-utils": setup_utils, "prepare-base": prepare_base}
     if not argv or argv[0] in ("-h", "--help"):

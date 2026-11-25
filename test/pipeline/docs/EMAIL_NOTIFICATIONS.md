@@ -16,9 +16,9 @@ Layout:
   that did not run after the first failure.
 - **Buttons:** open the pipeline, download all artifacts.
 - **Pipeline jobs:** one row per job that ran, in pipeline order, with its status and a link.
-- **Attachments:** the HTML and JSON test reports written on the OIM during this pipeline
-  (`TEST_REPORTS_PATH`, default `/automation`; a report over 5 MB is compressed) and the HTML
-  report of the stages with their logs. The copy of the stage report in the mail keeps at most
+- **Attachments:** exactly two files: the pipeline's one test report (HTML, written on the OIM in
+  `TEST_REPORTS_PATH`, default `/automation`; a report over 5 MB is compressed) and the HTML
+  report of the stages with their logs. The JSON of the test report is in the job artifacts. The copy of the stage report in the mail keeps at most
   40,000 characters of each log (the artifact `pipeline_report/` has up to 200,000, and a longer
   log keeps its start and end with a link to the job). The attachments of one mail together stay
   below 20 MB: when they would not, the largest are left out, named in the mail, and stay in the

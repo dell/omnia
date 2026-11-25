@@ -33,7 +33,7 @@ For every cluster, in this order:
    after one failed. Right after each one a `test_cleanup_<domain>` stage checks its result
    (`fvt_<domain> cleanup verify`, in the Omnia venv). The orchestrator one also empties the Slurm
    and Kubernetes NFS shares (its `nfs_shares` suite, selected by `cleanup_slurm` and
-   `cleanup_k8s`); then the `cleanup_omnia` stage runs `omnia.sh --cleanup --all`. If any cleanup or
+   `cleanup_k8s`); then the `cleanup_omnia` stage runs `omnia.sh --cleanup --all` and `test_cleanup_omnia` checks it. If any cleanup or
    cleanup test failed, nothing is installed and the pipeline ends red. If initialization fails, every other stage is skipped and only the summary runs.
 3. **Install** (`setup_main`, one stage): `omnia.sh -s` creates the Omnia venv and runs every
    `domain-init`, then the inputs of every domain (`clusters/<cluster>/inputs/src/<domain>/`) and the
@@ -47,7 +47,7 @@ For every cluster, in this order:
    reports.
 
 ```
-initialization > (cleanup_<domain> > test_cleanup_<domain>) per domain > cleanup_omnia > setup_main
+initialization > (cleanup_<domain> > test_cleanup_<domain>) per domain > cleanup_omnia > test_cleanup_omnia > setup_main
    > test_main_installation
    > <domain> > test_<domain> ... > summary
 ```
