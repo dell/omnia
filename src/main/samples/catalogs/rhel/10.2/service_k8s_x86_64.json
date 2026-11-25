@@ -149,7 +149,7 @@
         "description": "Common libraries and utilities shared across services",
         "components": [
           "cffi==1_17_1",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "prettytable==3_14_0"
         ]
       },
@@ -182,7 +182,7 @@
           "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "omsdk==1_2_518",
           "cffi==1_17_1",
           "prometheus_client==0_26_0",
@@ -240,7 +240,7 @@
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "omsdk==1_2_518",
           "cffi==1_17_1",
           "prometheus_client==0_26_0",
@@ -2148,8 +2148,8 @@
           }
         ]
       },
-      "cryptography==45_0_7": {
-        "name": "cryptography==45.0.7",
+      "cryptography==50_0_2": {
+        "name": "cryptography==50.0.2",
         "packagetype": "pip_module",
         "sources": [
           {

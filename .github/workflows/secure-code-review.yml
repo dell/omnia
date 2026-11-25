@@ -70,3 +70,20 @@ jobs:
             } else {
               await github.rest.issues.createComment({owner, repo, issue_number, body});
             }
+
+      - name: Stage PR comment for the PR Comment workflow
+        if: always() && hashFiles('secure-code-review.md') != ''
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p comment-artifact
+          cp secure-code-review.md comment-artifact/comment.md
+          echo "$PR_NUMBER" > comment-artifact/pr-number
+
+      - name: Upload PR comment
+        if: always() && hashFiles('comment-artifact/comment.md') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-code-review-comment
+          path: comment-artifact
+          retention-days: 1
