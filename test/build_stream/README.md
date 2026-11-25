@@ -177,7 +177,7 @@ cd datasets/generator
 | `prepare_base` | `readiness` | Prerequisite domains ready for BuildStream |
 | `precheck` | `environment`, `containers`, `credentials` | Environment, prerequisite containers and credential stores |
 | `prepare` | `build_stream` | BuildStream service, API, database, venv, TLS, queue |
-| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` | GitLab, then each pipeline as one test case per step, then the pipeline log query API and CI console logs (ER-BSM-003) |
+| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_external`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` | GitLab, then each pipeline as one test case per step, then the pipeline log query API and CI console logs (ER-BSM-003) |
 | `cleanup` | `gitlab`, `build_stream` | Removed and intentionally preserved resources |
 
 Every test case, with its order, ID, markers and check, is listed in
@@ -200,6 +200,28 @@ Every test case, with its order, ID, markers and check, is listed in
   the verify phase through the same `reports/state/` directory (0600, no
   secrets).
 
+## GitLab mode: hosted and external
+
+The `execute` tag follows `gitlab_mode` in the `build_stream_config.yml` input
+file on the OIM; no test selects it. `test_gitlab_mode_detected` and the entry
+test read it first and validate the inputs that mode needs (hosted: IPv4
+`gitlab_host`; external: HTTPS `gitlab_external_url`, `gitlab_project_namespace`,
+CA file when set).
+
+| Suites | `hosted` | `external` |
+|---|---|---|
+| `gitlab_server`, `gitlab_runner` | run exactly as before (SSH to the GitLab host) | skipped with the reason |
+| `gitlab_external` | skipped with the reason | runs (REST API, verified TLS, `gitlab_api_token`) |
+| `gitlab_project` and every pipeline suite | unchanged (SSH-derived root token and GitLab CA) | same checks through `gitlab_external_url`, `gitlab_api_token`, `gitlab_ca_cert_path` (system trust store when empty) and the project `<namespace>/<name>` |
+
+`test_config.yml` `gitlab.expected_mode` (optional) fails the mode check when the
+input file selects the other mode; `gitlab.token_min_days_remaining` sets the
+minimum token validity. `cleanup/gitlab` is hosted-only (skipped in external
+mode); `prepare` accepts an empty `gitlab_host` in `build_stream_status.yml` in
+external mode. Generate matching inputs with
+`datasets/generator/generate_dataset.py create <name> --profile hosted|external`
+(`defaults` = hosted).
+
 ## Options and markers
 
 | Option | Effect |
@@ -219,6 +241,7 @@ Every test case, with its order, ID, markers and check, is listed in
 | `cadence` | Cadence pipeline and the cadence disable / re-enable tests |
 | `cleanup_pipeline` | `PIPELINE_TYPE=cleanup` pipeline: `pipeline_cleanup` |
 | `automatic_cleanup` | Automated cleanup pass on an image the suite builds: `auto_cleanup` |
+| `hosted_only`, `external_only` | Checks of one `gitlab_mode`; the execute tag reads `gitlab_mode` from the input file and skips (with the reason) the tests of the other mode |
 | `log_observability` | Pipeline log query API, write-time redaction and CI console logs: `log_query` (fixture-log cases also carry `security` and need `nft_allow_security_mutation: true`) |
 | `nft`, `resilience`, `security`, `disruptive` | NFT selection; `disruptive` also needs its `nft_allow_*` key |
 

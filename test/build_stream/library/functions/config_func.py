@@ -19,6 +19,7 @@ from typing import Any, Dict, Iterable
 
 from ..vars.execute_vars import (
     DEFAULT_POLL_INTERVAL,
+    GITLAB_MODES,
     IMAGE_GROUP_ID_RE,
     UUID_RE,
 )
@@ -32,6 +33,8 @@ _PIPELINE_KEYS = {
     "auto_cleanup_image_group_id", "deploy_image_group_id",
     *(f"{name}_job_id" for name in PIPELINES),
 }
+_GITLAB_KEYS = {"expected_mode", "token_min_days_remaining"}
+DEFAULT_TOKEN_MIN_DAYS_REMAINING = 30
 # FVT cleanup scenario flags (build_stream.yml --tags cleanup -e <flag>=<value>).
 CLEANUP_FLAGS = {"postgres_backup": False, "cleanup_credentials": True}
 # Defaults when test_config.yml omits a setting.
@@ -131,6 +134,20 @@ def _validate_pipeline(pipeline: Any) -> None:
             )
 
 
+def _validate_gitlab(gitlab: Any) -> None:
+    """Validate the gitlab block (expected_mode, token_min_days_remaining)."""
+    gitlab = _mapping(gitlab, "gitlab")
+    _no_unknown(gitlab, _GITLAB_KEYS, "gitlab")
+    mode = _text(gitlab.get("expected_mode"))
+    if mode and mode not in GITLAB_MODES:
+        raise ConfigValidationError(
+            f"gitlab.expected_mode must be empty or one of {', '.join(GITLAB_MODES)}: {mode!r}"
+        )
+    days = gitlab.get("token_min_days_remaining", DEFAULT_TOKEN_MIN_DAYS_REMAINING)
+    if isinstance(days, bool) or not isinstance(days, int) or days < 0:
+        raise ConfigValidationError("gitlab.token_min_days_remaining must be an integer >= 0")
+
+
 def _validate_cleanup(cleanup: Any) -> None:
     """Validate the FVT cleanup block (postgres_backup, cleanup_credentials)."""
     cleanup = _mapping(cleanup, "cleanup")
@@ -161,6 +178,7 @@ def validate_test_config(config: Dict[str, Any]) -> None:
             raise ConfigValidationError(f"{flag} must be true or false (without quotes)")
     _validate_installation(config.get("installation"))
     _validate_pipeline(config.get("pipeline"))
+    _validate_gitlab(config.get("gitlab"))
     _validate_cleanup(config.get("cleanup"))
 
 
@@ -196,6 +214,24 @@ def installation_settings(config: Dict[str, Any]) -> Dict[str, Any]:
     for name in PIPELINES:
         settings[name] = {"job_id": _text(pipeline.get(f"{name}_job_id"))}
     return settings
+
+
+def gitlab_settings(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the gitlab block with defaults applied.
+
+    Returns:
+        Dict with keys: expected_mode ("" = take the mode from the input file;
+        ``hosted`` or ``external`` fails the run when the input file selects the
+        other mode) and token_min_days_remaining (external mode: the personal
+        access token must be valid for at least this many days; 0 = only an
+        expired token fails).
+    """
+    gitlab = config.get("gitlab") or {}
+    return {
+        "expected_mode": _text(gitlab.get("expected_mode")),
+        "token_min_days_remaining": gitlab.get("token_min_days_remaining",
+                                               DEFAULT_TOKEN_MIN_DAYS_REMAINING),
+    }
 
 
 def cleanup_settings(config: Dict[str, Any]) -> Dict[str, bool]:

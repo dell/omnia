@@ -11,7 +11,7 @@ suite: the scenario's entry test is `X0000`, and checks are `X` + suite
 | 10000 | `prepare_base` | `./omnia.sh --prepare-base` | `readiness` |
 | 20000 | `precheck` | `build_stream.yml --tags precheck` | `environment`, `containers`, `credentials` |
 | 30000 | `prepare` | `build_stream.yml --tags prepare` | `build_stream` |
-| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` |
+| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_external`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` |
 | 90000 | `cleanup` | `build_stream.yml --tags cleanup` | `gitlab`, `build_stream` |
 
 A run without a tag follows the default lifecycle `precheck -> prepare ->
@@ -121,7 +121,9 @@ Deploys Postgres, the BuildStream API container and the playbook-watcher, and wr
 
 ## Execute — `build_stream.yml --tags execute` (order 40000)
 
-Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner. All GitLab checks live here.
+Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner (`gitlab_mode: hosted`), or configures a customer-managed GitLab through its REST API (`gitlab_mode: external`). All GitLab checks live here.
+
+The scenario reads `gitlab_mode` from the input file first (`test_gitlab_mode_detected`, V104, and the entry test). `gitlab_server` and `gitlab_runner` are hosted-only and `gitlab_external` is external-only; the tests of the other mode are skipped with the reason. `gitlab_project` and the pipeline suites run in both modes.
 
 `execute verify` then runs every pipeline suite in this order (one test case
 per step):
@@ -165,6 +167,7 @@ exactly one row in `image_groups` and that it is the deployed image group.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
+| 39999 | BSM_FVT_EXECUTE_V104 | `test_gitlab_mode_detected` | root | sanity | Reads `gitlab_mode` from `build_stream_config.yml` and validates its inputs (hosted: IPv4 `gitlab_host`; external: HTTPS URL, namespace, CA path); optional `gitlab.expected_mode`. | Mode is `hosted` or `external` and its inputs are valid. |
 | 40000 | BSM_FVT_EXECUTE_E001 | `test_deploy_execute` | root | deploy, sanity | Runs `ansible-playbook build_stream.yml --tags execute` with a `3600` second timeout and logs the command, return code and duration. | The playbook run finishes with return code `0` within `3600` seconds. |
 | 40101 | BSM_FVT_EXECUTE_V001 | `test_gitlab_packages_installed` | gitlab_server | sanity | Runs `rpm -q gitlab-ce` on the GitLab host from `gitlab_host` in `build_stream_config.yml`, over SSH from the OIM with the key build_stream.yml installs (`/root/.ssh/omnia_gitlab`, strict host key checking). | SSH succeeds and the `rpm -q` output contains `gitlab-ce`. |
 | 40102 | BSM_FVT_EXECUTE_V002 | `test_gitlab_server_reachable` | gitlab_server | sanity | Reads `gitlab_host` from `build_stream_config.yml` and runs `echo REACHABLE` on that host over SSH from the OIM. | `gitlab_host` is set, the SSH command exits `0`, and stdout contains `REACHABLE`. |
@@ -178,6 +181,14 @@ exactly one row in `image_groups` and that it is the deployed image group.
 | 40202 | BSM_FVT_EXECUTE_V010 | `test_gitlab_runner_quadlet_exists` | gitlab_runner | sanity | Runs `test -f /etc/containers/systemd/gitlab-runner.container` on the GitLab host over SSH. | The SSH command succeeds and reports that `/etc/containers/systemd/gitlab-runner.container` exists. |
 | 40203 | BSM_FVT_EXECUTE_V011 | `test_gitlab_runner_services_status` | gitlab_runner | sanity | Runs `systemctl is-active` on the GitLab host over SSH for `gitlab-runner.service` and `gitlab-runsvdir.service`. | Both `gitlab-runner.service` and `gitlab-runsvdir.service` return `active`. |
 | 40204 | BSM_FVT_EXECUTE_V012 | `test_gitlab_runner_running` | gitlab_runner | sanity | Calls the same check as `test_gitlab_runner_container`: runs `podman ps` on the GitLab host and looks for the `gitlab-runner` container. | The `gitlab-runner` container appears in `podman ps`, which lists running containers only. |
+| 41201 | BSM_FVT_EXECUTE_V105 | `test_external_credentials` | gitlab_external | external_only, sanity | Decrypts `build_stream_credentials.yml` in memory and checks `gitlab_api_token` (value never reported) and the persisted `gitlab_project_id`. | Token set and project ID numeric. |
+| 41202 | BSM_FVT_EXECUTE_V106 | `test_external_ca_bundle` | gitlab_external | external_only, sanity | When `gitlab_ca_cert_path` is set: reads the file on the OIM, checks PEM certificate, no private key, owner root, mode 0644 or stricter. Empty = system trust store. | All checks pass (or the path is empty). |
+| 41203 | BSM_FVT_EXECUTE_V107 | `test_external_gitlab_api` | gitlab_external | external_only, sanity | Over verified TLS: `GET /version` (17.x-19.x), `/personal_access_tokens/self` (scopes `api`, `write_repository`, expiry >= `gitlab.token_min_days_remaining`), role on the group (administrator or Maintainer/Owner). | Supported version, both scopes, token valid, role sufficient. |
+| 41204 | BSM_FVT_EXECUTE_V108 | `test_external_project` | gitlab_external | external_only, sanity | Reads `<namespace>/<name>`: path, `managed-by:omnia-buildstream` marker, visibility and default branch vs the input, protected default branch, project ID equal to the credential store. | All items match. |
+| 41205 | BSM_FVT_EXECUTE_V109 | `test_external_runner` | gitlab_external | external_only, sanity | Lists online runners of the project and reads the setup journal. | At least one online runner; journal runner entry is `user_provided`. |
+| 41206 | BSM_FVT_EXECUTE_V110 | `test_external_ci_token` | gitlab_external | external_only, sanity | Lists active project access tokens named `omnia-ci`. | Exactly one, scope `api`, Maintainer, expiry within 360 days, ID recorded in the journal. |
+| 41207 | BSM_FVT_EXECUTE_V111 | `test_external_trigger_variables` | gitlab_external | external_only, sanity | Checks the pipeline trigger, the local `.gitlab_trigger_token` file (root, 0600) and the six CI/CD variables (masked and protected flags; `BSM_API_URL`, `BSM_API_CERT` vs `bs_cert.pem`; CA path not injected). | All present with the expected flags and values. |
+| 41208 | BSM_FVT_EXECUTE_V112 | `test_external_journal` | gitlab_external | external_only, sanity | Reads `external_gitlab_journal.json`: private file, schema, URL, project ID, resource types, no token value. | All items pass. |
 | 40301 | BSM_FVT_EXECUTE_V013 | `test_gitlab_project_exists` | gitlab_project | sanity | Uses the root token in `/root/.gitlab_root_token` to call GitLab API `GET /api/v4/projects/root%2F<gitlab_project_name>` (default `omnia-catalog`). | The API returns a project JSON object with a non-empty `id`. |
 | 40302 | BSM_FVT_EXECUTE_V014 | `test_gitlab_project_visibility` | gitlab_project | sanity | Compares the `visibility` field from GitLab API `GET /api/v4/projects/root%2F<project>` with `project_visibility` in `build_stream_config.yml` (default `private`). | `project_visibility` is `private`, `internal` or `public`, and it equals the project `visibility` value from the API. |
 | 40303 | BSM_FVT_EXECUTE_V015 | `test_gitlab_default_branch` | gitlab_project | sanity | Compares the `default_branch` field from GitLab API `GET /api/v4/projects/root%2F<project>` with `default_branch` in `build_stream_config.yml` (default `main`). | The project `default_branch` value from the API equals the configured branch. |
