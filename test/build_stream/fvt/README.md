@@ -11,7 +11,7 @@ suite: the scenario's entry test is `X0000`, and checks are `X` + suite
 | 10000 | `prepare_base` | `./omnia.sh --prepare-base` | `readiness` |
 | 20000 | `precheck` | `build_stream.yml --tags precheck` | `environment`, `containers`, `credentials` |
 | 30000 | `prepare` | `build_stream.yml --tags prepare` | `build_stream` |
-| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` |
+| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_external`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup`, `log_query` |
 | 90000 | `cleanup` | `build_stream.yml --tags cleanup` | `gitlab`, `build_stream` |
 
 A run without a tag follows the default lifecycle `precheck -> prepare ->
@@ -124,6 +124,8 @@ Deploys Postgres, the BuildStream API container and the playbook-watcher, and wr
 Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner (`gitlab_mode: hosted`), or configures a customer-managed GitLab through its REST API (`gitlab_mode: external`). All GitLab checks live here.
 
 The scenario reads `gitlab_mode` from the input file first (`test_gitlab_mode_detected`, V104, and the entry test). `gitlab_server` and `gitlab_runner` are hosted-only; they are skipped with the reason when the input file selects external. `gitlab_project` and the pipeline suites run in both modes.
+
+The external-only `gitlab_external` suite (`external_only` marker, V105-V112) verifies a customer-managed GitLab (`gitlab_mode: external`) through the GitLab REST API over verified TLS; it is skipped with the reason when the input file selects hosted.
 
 `execute verify` then runs every pipeline suite in this order (one test case
 per step):

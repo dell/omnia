@@ -88,6 +88,7 @@ SUITES: Dict[str, List[str]] = {
     "execute": [
         "gitlab_server",
         "gitlab_runner",
+        "gitlab_external",
         "gitlab_project",
         "build_automatic",
         "build_manual",

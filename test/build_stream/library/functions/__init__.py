@@ -157,6 +157,18 @@ from library.functions.precheck_func import (
     check_precheck_domain_files,
 )
 
+# --- Execute: external GitLab verification ---
+from library.functions.gitlab_external_func import (
+    check_external_ca_bundle,
+    check_external_ci_token,
+    check_external_credentials,
+    check_external_gitlab_api,
+    check_external_journal,
+    check_external_project,
+    check_external_runner,
+    check_external_trigger_and_variables,
+)
+
 # --- Prepare (build_stream.yml --tags prepare) ---
 from library.functions.prepare_func import (
     check_prepare_containers,
@@ -404,6 +416,14 @@ __all__ = [
     "check_prepare_containers",
     "check_prepare_services",
     "check_prepare_status_file",
+    "check_external_ca_bundle",
+    "check_external_ci_token",
+    "check_external_credentials",
+    "check_external_gitlab_api",
+    "check_external_journal",
+    "check_external_project",
+    "check_external_runner",
+    "check_external_trigger_and_variables",
     # Execute: build/deploy (automatic + manual), cadence, image cleanup
     "failure_fields",
     "installation_settings",
