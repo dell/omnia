@@ -1,0 +1,36 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# k8s_reboot_test_config.yml - settings of the SVT theme k8s_reboot
+# =============================================================================
+# Read by ./setup_env.sh (--theme k8s_reboot) and by
+# ./run_validation.sh svt_k8s_reboot. The cluster values (IPs, names,
+# versions) are in user_inputs.yml; credentials are never written here
+# (./setup_env.sh --set-domain-creds).
+#
+# This theme performs an ordered Kubernetes cluster reboot (power-off worker
+# nodes, then control-plane; power-on control-plane first, then workers),
+# followed by verification of Kubernetes cluster health, storage (NFS and
+# PowerScale), and telemetry.  It reuses existing orchestrator and telemetry
+# FVT test suites; no new test logic is needed.
+# =============================================================================
+
+# =============================================================================
+# REPORT  (one folder and one SVT report per run)
+# =============================================================================
+report:
+  report_path: ""
+  report_name: ""
+  run_id: ""
