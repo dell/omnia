@@ -118,7 +118,7 @@ EXTERNAL_TRIGGER_TOKEN_FILE = ".gitlab_trigger_token"
 EXTERNAL_JOURNAL_FILE = "external_gitlab_journal.json"
 EXTERNAL_JOURNAL_SCHEMA_VERSION = 1
 EXTERNAL_JOURNAL_RESOURCE_TYPES = (
-    "project", "runner", "access_token", "trigger", "variable", "file",
+    "project", "runner", "access_token", "trigger", "variable",
 )
 EXTERNAL_SUPPORTED_MAJOR_VERSIONS = (17, 18, 19)
 EXTERNAL_REQUIRED_SCOPES = ("api", "write_repository")
