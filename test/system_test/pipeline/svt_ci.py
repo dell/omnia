@@ -49,7 +49,8 @@ SVT_SSH_KNOWN_HOSTS (file variable; checks the OIM host key; required unless
 SVT_SSH_SKIP_HOST_KEY=true),
 SVT_OMNIA_REPO, SVT_OMNIA_BRANCH, SVT_OMNIA_INSTALL_PATH, SVT_CHECKOUT_MODE,
 SVT_THEME, SVT_USER_INPUTS (name of the cluster's inputs file in clusters/<name>/svt/,
-default user_inputs.yml), SVT_CLEAN_REINSTALL, SVT_POLL_SECONDS, SVT_JOB_ORDER,
+default user_inputs.yml), SVT_CLEAN_REINSTALL (empty: SVT_DEFAULT_CLEAN_REINSTALL, the
+theme's default from the child pipeline), SVT_POLL_SECONDS, SVT_JOB_ORDER,
 SVT_CATALOG_PLAN (catalog themes), SVT_CREDENTIAL_DOMAINS, SVT_LABEL,
 BAO_SERVER_URL, BAO_AUTH_ROLE,
 BAO_DATA_PATH, BAO_CACERT (optional file variable: verify OpenBao with this CA;
@@ -635,6 +636,14 @@ def _check_catalog_plan(theme: str) -> None:
     _say(f"catalog plan matches the pipeline jobs ({len(entries)} catalog(s))")
 
 
+def _readiness_skipped() -> bool:
+    """Whether the initialization stage (readiness checks) is left out: the theme's default,
+    or SVT_SKIP_STAGES (empty = the default, "none" = every stage runs)."""
+    raw = _env("SVT_SKIP_STAGES")
+    names = [name.strip() for name in (raw or _env("SVT_DEFAULT_SKIP_STAGES")).split(",")]
+    return "initialization" in names
+
+
 def _themes() -> List[str]:
     """Return the themes of this run in order: SVT_THEME_ORDER (rendered from the config),
     narrowed by the cluster's variable SVT_THEMES when it is set."""
@@ -702,6 +711,9 @@ def initialization() -> int:
     if rc != 0:
         _say(f"./setup_env.sh failed (rc={rc}); the summary still reports the run")
         return rc
+    if _readiness_skipped():
+        _say("initialization stage left out (theme default or SVT_SKIP_STAGES); setup is done")
+        return 0
     return run_detached("initialization", f"./run_validation.sh svt_{first} initialization")
 
 
