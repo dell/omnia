@@ -29,7 +29,8 @@ from typing import Any, Dict, List, Mapping, Sequence
 
 from .email_func import verdict_of
 from ..vars.report_vars import (
-    CSS, JS, LOG_HEAD_CHARS, MAX_LOG_CHARS, STATUS_LABELS, THEME_KEY, UNKNOWN_LABEL,
+    CSS, JS, LOG_HEAD_CHARS, MAX_LOG_CHARS, REDACT_PATTERNS, STATUS_LABELS, THEME_KEY,
+    UNKNOWN_LABEL,
 )
 
 Job = Dict[str, Any]
@@ -67,10 +68,18 @@ def _line_class(line: str) -> str:
     return "s" if line.startswith(("$ ", "=====", "TASK [", "PLAY [")) else ""
 
 
+def redact_log(text: str) -> str:
+    """Hide secrets that a job log may hold: key=value pairs of password-like names, bearer and
+    GitLab tokens, and private key blocks. The page is a job artifact and is mailed."""
+    for pattern, replacement in REDACT_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
 def render_log(text: str) -> str:
     """Return the escaped log with the error, warning and ok lines marked."""
     rows: List[str] = []
-    for line in trim_log(clean_log(text)).split("\n"):
+    for line in redact_log(trim_log(clean_log(text))).split("\n"):
         cls = _line_class(line)
         escaped = html.escape(line)
         rows.append(f'<span class="{cls}">{escaped}</span>' if cls else escaped)

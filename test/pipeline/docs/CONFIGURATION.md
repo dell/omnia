@@ -92,7 +92,7 @@ cluster1:
 | `pipeline.test_mode` | `false` | Enable test stages after deployment |
 | `pipeline.dry_run` | `false` | Simulate without making changes |
 | `pipeline.verbose` | `false` | Detailed logging: pytest `-v` and ansible `-vvv` (`--ansible-verbosity 3`) in the cluster pipeline |
-| `pipeline.skip_stages` | `""` | Comma-separated stages to skip |
+| `pipeline.skip_stages` | `""` | Words to skip, comma or space separated, each matched exactly: a domain, a stage name, or `cleanup`, `test_cleanup`, `deploy`, `test`, `nfs_check`, `inputs` (table in [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md)) |
 
 #### Deploy Tags
 

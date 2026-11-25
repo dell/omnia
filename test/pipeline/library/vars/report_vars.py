@@ -15,6 +15,8 @@
 
 """Constants of the pipeline HTML report (library/functions/report_func.py)."""
 
+import re
+
 # A job log longer than this keeps its head and its tail.
 MAX_LOG_CHARS = 200000
 LOG_HEAD_CHARS = 20000
@@ -31,6 +33,17 @@ STATUS_LABELS = {
     "pending": ("PENDING", "run"),
 }
 UNKNOWN_LABEL = ("NOT RUN", "skip")
+
+# Secrets hidden in the job logs of the report: (compiled pattern, replacement).
+REDACT_PATTERNS = (
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
+     "***REDACTED PRIVATE KEY***"),
+    (re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}"), r"\1 ***REDACTED***"),
+    (re.compile(r"\b(glpat|ghp|gho|ghs|github_pat)[-_][A-Za-z0-9_-]{10,}"), "***REDACTED TOKEN***"),
+    (re.compile(
+        r"(?i)([\w-]*(?:password|passwd|secret|_key|token|credential|private_key)[\w-]*"
+        r"\s*[:=]\s*)[\"']?(?!\*\*\*)(\S+?)(?=[\"',}\]\s]|$)"), r"\1***REDACTED***"),
+)
 
 # Name of the theme choice kept by the browser.
 THEME_KEY = "omnia-pipeline-report-theme"

@@ -320,10 +320,15 @@ def _domain_condition(domain: str) -> str:
 def _job(name: str, stage: str, script: Sequence[str], conditions: Sequence[str],
          when: str = "on_success", needs: Optional[Sequence[str]] = None,
          optional: Sequence[str] = (), allow_failure: Optional[bool] = None,
-         skip: Optional[str] = None, id_tokens: bool = False,
+         skip: Sequence[str] = (), id_tokens: bool = False,
          artifacts: Sequence[str] = (), variables: Optional[dict] = None,
          python_blocks: Sequence[str] = ()) -> List[str]:
-    """Return the YAML lines of one job. `skip` is the SKIP_STAGES word (default: the name)."""
+    """Return the YAML lines of one job.
+
+    ``skip`` lists the SKIP_STAGES words that skip it (default: the job name). SKIP_STAGES is a
+    comma or space separated list and a word must match exactly, so ``telemetry`` skips the
+    domain's jobs while ``test_cleanup_telemetry`` skips only that one.
+    """
     lines = [f"{name}:", f"  stage: {stage}", "  timeout: 3h"]
     if allow_failure is not None:
         lines.append(f"  allow_failure: {str(allow_failure).lower()}")
@@ -336,7 +341,8 @@ def _job(name: str, stage: str, script: Sequence[str], conditions: Sequence[str]
         lines += [f"    - job: {n}\n      artifacts: true" for n in (needs or ())]
         lines += [f"    - job: {n}\n      artifacts: true\n      optional: true" for n in optional]
     lines.append("  rules:")
-    lines += [f"    - if: {_q(f'$SKIP_STAGES =~ /{skip or name}/')}", "      when: never"]
+    words = "|".join(skip or (name,))
+    lines += [f"    - if: {_q(f'$SKIP_STAGES =~ /(^|[ ,])({words})([ ,]|$)/')}", "      when: never"]
     lines += [_scalar("    - if: ", c, "        ") + f"\n      when: {when}" for c in conditions]
     if artifacts:
         lines += ["  artifacts:", "    when: always", "    expire_in: 1 week", "    paths:"]
@@ -379,7 +385,7 @@ def render() -> str:
         jobs.append(_job(name, name, [f"cleanup {domain}"],
                          [f"{CLEANUP_MODE} && {_domain_condition(domain)}"],
                          needs=["initialization"], optional=list(previous),
-                         allow_failure=True, skip=domain))
+                         allow_failure=True, skip=(domain, name, "cleanup")))
         previous.append(name)
     cleanups = list(previous)
     for domain in CLEANUP_ORDER:
@@ -388,7 +394,7 @@ def render() -> str:
                          [f"{CLEANUP_MODE} && {_domain_condition(domain)}"],
                          needs=["initialization"], optional=cleanups
                          + [n for n in previous if n.startswith("test_cleanup_")],
-                         allow_failure=True, skip=domain))
+                         allow_failure=True, skip=(domain, name, "test_cleanup")))
         previous.append(name)
     jobs.append(_job("cleanup_omnia", "cleanup_omnia", ["cleanup-omnia"],
                      [f'{CLEANUP_MODE} && $DOMAINS == "default"'],
@@ -396,16 +402,17 @@ def render() -> str:
     jobs.append(_job("setup_main", "setup_main", ["setup-main"],
                      ['$ENABLE_SETUP == "true"', DEPLOY_MODE]))
     jobs.append(_job("test_main_installation", "test_main_installation", ["verify main"],
-                     [f'{DEPLOY_MODE} && $TEST_MODE == "true"']))
+                     [f'{DEPLOY_MODE} && $TEST_MODE == "true"'],
+                     skip=("test_main_installation", "test")))
     for domain in DEPLOY_ORDER:
         extra = '$ENABLE_DISCOVERY == "true" && ' if domain == "discovery" else ""
         jobs.append(_job(domain, domain, [f"deploy {domain}"],
                          [f"{extra}{DEPLOY_MODE} && {_domain_condition(domain)}"],
-                         id_tokens=True))
+                         skip=(domain, "deploy"), id_tokens=True))
         jobs.append(_job(f"test_{domain}", f"test_{domain}", [f"verify {domain}"],
                          [f'{extra}{DEPLOY_MODE} && $TEST_MODE == "true" && '
                           f"{_domain_condition(domain)}"], allow_failure=True,
-                         skip=domain, id_tokens=True))
+                         skip=(domain, f"test_{domain}", "test"), id_tokens=True))
     summary = _job("summary", "summary", ["summary"], [ANY_MODE], when="always",
                    python_blocks=[SUMMARY_FALLBACK],
                    optional=[name for name in stages if name != "summary"],

@@ -108,10 +108,19 @@
 #
 # Skip specific stages:
 #   SKIP_STAGES=""                    -> Nothing skipped (default)
-#   SKIP_STAGES="telemetry"           -> Skip telemetry cleanup, deploy, and test
+#   SKIP_STAGES="telemetry"           -> Skip every telemetry stage (cleanup, cleanup test,
+#                                        deploy and test)
 #   SKIP_STAGES="repo_manager,telemetry" -> Skip multiple domains
-#   Valid values: repo_manager, image_build_manager, discovery, orchestrator, telemetry,
-#                 setup_environment, setup_main, test (skips all test_* stages)
+#   SKIP_STAGES="test_cleanup_telemetry" -> Skip only that stage (a word matches exactly)
+#   Words (comma or space separated, exact match):
+#     <domain>          repo_manager, image_build_manager, discovery, orchestrator, telemetry,
+#                       utils, build_stream: every stage of the domain
+#     <stage name>      cleanup_<domain>, test_cleanup_<domain>, test_<domain>, cleanup_omnia,
+#                       setup_main, test_main_installation: that stage only
+#     groups            cleanup (all cleanup_<domain>), test_cleanup (all test_cleanup_<domain>),
+#                       deploy (all domain deploy stages), test (test_main_installation and all
+#                       test_<domain>)
+#     steps             nfs_check (inside initialization), inputs (inside setup_main)
 #
 # Per-stage FVT tags run in exec mode, comma separated (global, applied to all clusters):
 #   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS, DISCOVERY_TAGS, TELEMETRY_TAGS

@@ -402,8 +402,8 @@ def _mark(name: str, rc: int) -> int:
 
 
 def _skipped(word: str) -> bool:
-    """Return whether SKIP_STAGES names this word (substring, like the pipeline rules)."""
-    return word in _env("SKIP_STAGES")
+    """Return whether SKIP_STAGES (comma or space separated words) names exactly this word."""
+    return word in re.split(r"[ ,]+", _env("SKIP_STAGES"))
 
 
 def require_ready() -> None:

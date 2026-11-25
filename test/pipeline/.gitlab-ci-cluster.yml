@@ -114,7 +114,7 @@ initialization:
   timeout: 3h
   allow_failure: false
   rules:
-    - if: '$SKIP_STAGES =~ /initialization/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(initialization)([ ,]|$)/'
       when: never
     - if: '$PIPELINE_MODE == "default" || $PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "deploy"'
       when: on_success
@@ -241,7 +241,7 @@ cleanup_build_stream:
     - job: initialization
       artifacts: true
   rules:
-    - if: '$SKIP_STAGES =~ /build_stream/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(build_stream|cleanup_build_stream|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /build_stream/)'
@@ -260,7 +260,7 @@ cleanup_utils:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /utils/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(utils|cleanup_utils|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /utils/)'
@@ -282,7 +282,7 @@ cleanup_telemetry:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /telemetry/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(telemetry|cleanup_telemetry|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /telemetry/)'
@@ -307,7 +307,7 @@ cleanup_orchestrator:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /orchestrator/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(orchestrator|cleanup_orchestrator|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /orchestrator/)'
@@ -335,7 +335,7 @@ cleanup_discovery:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /discovery/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(discovery|cleanup_discovery|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /discovery/)'
@@ -366,7 +366,7 @@ cleanup_image_build_manager:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /image_build_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(image_build_manager|cleanup_image_build_manager|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /image_build_manager/)'
@@ -400,7 +400,7 @@ cleanup_repo_manager:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /repo_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(repo_manager|cleanup_repo_manager|cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /repo_manager/)'
@@ -437,7 +437,7 @@ test_cleanup_build_stream:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /build_stream/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(build_stream|test_cleanup_build_stream|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /build_stream/)'
@@ -477,7 +477,7 @@ test_cleanup_utils:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /utils/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(utils|test_cleanup_utils|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /utils/)'
@@ -520,7 +520,7 @@ test_cleanup_telemetry:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /telemetry/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(telemetry|test_cleanup_telemetry|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /telemetry/)'
@@ -566,7 +566,7 @@ test_cleanup_orchestrator:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /orchestrator/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(orchestrator|test_cleanup_orchestrator|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /orchestrator/)'
@@ -615,7 +615,7 @@ test_cleanup_discovery:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /discovery/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(discovery|test_cleanup_discovery|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /discovery/)'
@@ -667,7 +667,7 @@ test_cleanup_image_build_manager:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /image_build_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(image_build_manager|test_cleanup_image_build_manager|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /image_build_manager/)'
@@ -722,7 +722,7 @@ test_cleanup_repo_manager:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /repo_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(repo_manager|test_cleanup_repo_manager|test_cleanup)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /repo_manager/)'
@@ -780,7 +780,7 @@ cleanup_omnia:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /cleanup_omnia/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(cleanup_omnia)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && $DOMAINS == "default"'
       when: on_success
@@ -791,7 +791,7 @@ setup_main:
   stage: setup_main
   timeout: 3h
   rules:
-    - if: '$SKIP_STAGES =~ /setup_main/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(setup_main)([ ,]|$)/'
       when: never
     - if: '$ENABLE_SETUP == "true"'
       when: on_success
@@ -804,7 +804,7 @@ test_main_installation:
   stage: test_main_installation
   timeout: 3h
   rules:
-    - if: '$SKIP_STAGES =~ /test_main_installation/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(test_main_installation|test)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true"'
       when: on_success
@@ -818,7 +818,7 @@ repo_manager:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /repo_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(repo_manager|deploy)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /repo_manager/)'
@@ -834,7 +834,7 @@ test_repo_manager:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /repo_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(repo_manager|test_repo_manager|test)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS ==
         "default" || $DOMAINS =~ /repo_manager/)'
@@ -849,7 +849,7 @@ image_build_manager:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /image_build_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(image_build_manager|deploy)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /image_build_manager/)'
@@ -865,7 +865,7 @@ test_image_build_manager:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /image_build_manager/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(image_build_manager|test_image_build_manager|test)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS ==
         "default" || $DOMAINS =~ /image_build_manager/)'
@@ -880,7 +880,7 @@ discovery:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /discovery/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(discovery|deploy)([ ,]|$)/'
       when: never
     - if: '$ENABLE_DISCOVERY == "true" && ($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") &&
         ($DOMAINS == "default" || $DOMAINS =~ /discovery/)'
@@ -896,7 +896,7 @@ test_discovery:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /discovery/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(discovery|test_discovery|test)([ ,]|$)/'
       when: never
     - if: '$ENABLE_DISCOVERY == "true" && ($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") &&
         $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /discovery/)'
@@ -911,7 +911,7 @@ orchestrator:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /orchestrator/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(orchestrator|deploy)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /orchestrator/)'
@@ -927,7 +927,7 @@ test_orchestrator:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /orchestrator/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(orchestrator|test_orchestrator|test)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS ==
         "default" || $DOMAINS =~ /orchestrator/)'
@@ -942,7 +942,7 @@ telemetry:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /telemetry/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(telemetry|deploy)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
         =~ /telemetry/)'
@@ -958,7 +958,7 @@ test_telemetry:
     VAULT_ID_TOKEN:
       aud: $BAO_SERVER_URL
   rules:
-    - if: '$SKIP_STAGES =~ /telemetry/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(telemetry|test_telemetry|test)([ ,]|$)/'
       when: never
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS ==
         "default" || $DOMAINS =~ /telemetry/)'
@@ -1063,7 +1063,7 @@ summary:
       artifacts: true
       optional: true
   rules:
-    - if: '$SKIP_STAGES =~ /summary/'
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(summary)([ ,]|$)/'
       when: never
     - if: '$PIPELINE_MODE == "default" || $PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "deploy"'
       when: always

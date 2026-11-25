@@ -43,9 +43,19 @@ For the settings see [CONFIGURATION.md](CONFIGURATION.md), for the modes
 | test_\<domain\> | yes | yes | | `TEST_MODE=true` |
 | summary | yes | yes | yes | always runs |
 
-Any stage can be skipped with `SKIP_STAGES` (see [CONFIGURATION.md](CONFIGURATION.md)).
-`nfs_check` skips the NFS check inside `initialization`, and `inputs` skips the input copy inside
-`setup_main`.
+Any stage can be skipped with `SKIP_STAGES`, a comma or space separated list of words, each matched
+exactly (`telemetry_x` does not match `telemetry`):
+
+| Word | Skips |
+|---|---|
+| a domain: `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `telemetry`, `utils`, `build_stream` | every stage of that domain: its cleanup, cleanup test, deploy and test |
+| a stage name: `cleanup_<domain>`, `test_cleanup_<domain>`, `test_<domain>`, `cleanup_omnia`, `setup_main`, `test_main_installation`, `summary` | that stage only |
+| `cleanup` / `test_cleanup` / `deploy` / `test` | all the `cleanup_<domain>` / all the `test_cleanup_<domain>` / all the domain deploy stages / `test_main_installation` and all the `test_<domain>` |
+| `nfs_check` | the NFS check inside `initialization` |
+| `inputs` | the input copy inside `setup_main` |
+
+Skipping a cleanup but not its test (or the other way round) is allowed; a test stage whose cleanup
+did not pass fails with that reason.
 
 **What stops what:**
 - A failed `initialization` skips every other stage: only `summary` runs.
