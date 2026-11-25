@@ -194,6 +194,50 @@
                 }
             },
             "additionalProperties": false
+        },
+        "redaction": {
+            "type": "object",
+            "description": "Operator additions to the redaction of secrets in execution logs",
+            "properties": {
+                "additional_secret_key_names": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,39}$"
+                    },
+                    "description": "Extra key names whose values are redacted in key = value lines"
+                },
+                "additional_secret_patterns": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,40}$",
+                                "description": "Unique rule id; must not reuse a baseline or built-in id"
+                            },
+                            "pattern": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "description": "Regular expression whose matches are redacted"
+                            },
+                            "description": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "description": "Human-readable description of the secret"
+                            }
+                        },
+                        "required": ["id", "pattern"],
+                        "additionalProperties": false
+                    },
+                    "description": "Extra Tier 1 patterns, always replaced with ***REDACTED***"
+                }
+            },
+            "additionalProperties": false
         }
     },
     "allOf": [

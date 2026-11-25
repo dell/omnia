@@ -263,3 +263,39 @@ log_query_max_concurrent: 5
 # Accepted values: integer between 1 and log_tail_lines_max
 # Default: 50
 log_ci_preview_lines: 50
+
+# ==========================================================================
+# REDACTION POLICY (ER-BSM-003 FR-3.3)
+# ==========================================================================
+# Adds secret key names and secret patterns to the redaction of execution
+# logs. The built-in rules always apply: GitLab tokens, JWTs, Bearer values,
+# passwords in URLs, the key = value rule for the standard key names, and the
+# IPv4, IPv6 and e-mail identifiers. Entries here add to them and cannot
+# remove or weaken them.
+#
+# additional_secret_key_names: up to 50 names. A name is redacted in
+#   "name = value" and "name: value" lines, ignoring case. Each name starts
+#   with a letter and has at most 40 letters, digits, "_", "." or "-".
+#   Duplicate names are ignored.
+# additional_secret_patterns: up to 50 entries with "id", "pattern" and an
+#   optional "description" (200 characters at most). Each match is replaced
+#   with ***REDACTED***.
+#     id: lowercase, starts with a letter, 2 to 41 characters of a-z, 0-9 and
+#         "-". It must not reuse the id of a built-in or baseline rule.
+#     pattern: 256 characters at most, and it must compile. It must not contain
+#         unbounded quantifiers (*, +, {n,}), group references (\1, (?P=name)),
+#         or a quantified group that contains a quantifier.
+#
+# Configuration validation rejects unsafe entries and names the rule id. At
+# start, an invalid entry is skipped and the built-in rules still apply.
+# After a change, restart the BuildStream API service and playbook-watcher.service.
+#
+# Example (uncomment to use):
+#   additional_secret_key_names: ["vault_pass"]
+#   additional_secret_patterns:
+#     - id: acme-token
+#       description: ACME API token
+#       pattern: "acme-[A-Za-z0-9]{16}"
+redaction:
+  additional_secret_key_names: []
+  additional_secret_patterns: []
