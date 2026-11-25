@@ -20,6 +20,8 @@ field is also explained by the comments in the file itself.
 | `pipeline.deploy_image_group_id` | deploy-only runs | Image group the deploy suites deploy when no build suite ran in the same run. Empty: the deploy trigger test fails with "image name is not present"; not in `build_stream_db`: "requested image not found". Ignored when a build suite ran: its image group is deployed, and a failed build skips every deploy test |
 | `pipeline.cleanup_image_group_id` | no | Image group the `pipeline_cleanup` suite deletes; empty = the newest image group in status BUILT, PASSED or FAILED |
 | `pipeline.poll_interval` | no (default 30) | Seconds between pipeline and DB polls |
+| `gitlab.expected_mode` | no (default `""`) | Empty = the execute tag takes `gitlab_mode` from the `build_stream_config.yml` input file on the OIM. `hosted` or `external` also fails the mode check when the input file selects the other mode |
+| `gitlab.token_min_days_remaining` | no (default `30`) | External mode: the `gitlab_api_token` personal access token must stay valid for at least this many days; `0` = only an expired token fails |
 | `debug_mode` | no (default `true`) | `true` streams pipeline stage, cadence sync and cleanup playbook logs live; `false` prints `tail -f <log>` and status lines |
 | `cleanup.postgres_backup` | no (default `false`) | Passed to `--tags cleanup`; `false` deletes the Postgres data and volumes, `true` keeps them |
 | `cleanup.cleanup_credentials` | no (default `true`) | Passed to `--tags cleanup`; `true` deletes the BuildStream credentials, `false` keeps them |

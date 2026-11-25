@@ -14,6 +14,8 @@
 
 """
 Execute GitLab Runner — gitlab-runner container, quadlet and services.
+
+Hosted mode only (gitlab_mode: hosted): skipped when the input file selects external.
 """
 
 import pytest
@@ -27,6 +29,8 @@ from library.functions import (
 )
 from library.vars import TEST_CASES as TC
 from library.messages import TEST_ASSERT_MSGS as ASSERT
+
+pytestmark = pytest.mark.hosted_only
 
 
 @pytest.mark.sanity

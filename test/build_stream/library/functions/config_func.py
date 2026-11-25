@@ -17,6 +17,7 @@
 import posixpath
 from typing import Any, Dict, Iterable
 
+from ..gitlab_inputs import validate_gitlab_block
 from ..vars.execute_vars import (
     DEFAULT_POLL_INTERVAL,
     IMAGE_GROUP_ID_RE,
@@ -131,6 +132,14 @@ def _validate_pipeline(pipeline: Any) -> None:
             )
 
 
+def _validate_gitlab(gitlab: Any) -> None:
+    """Validate the gitlab block (expected_mode, token_min_days_remaining)."""
+    try:
+        validate_gitlab_block(gitlab)
+    except ValueError as exc:
+        raise ConfigValidationError(str(exc)) from exc
+
+
 def _validate_cleanup(cleanup: Any) -> None:
     """Validate the FVT cleanup block (postgres_backup, cleanup_credentials)."""
     cleanup = _mapping(cleanup, "cleanup")
@@ -161,6 +170,7 @@ def validate_test_config(config: Dict[str, Any]) -> None:
             raise ConfigValidationError(f"{flag} must be true or false (without quotes)")
     _validate_installation(config.get("installation"))
     _validate_pipeline(config.get("pipeline"))
+    _validate_gitlab(config.get("gitlab"))
     _validate_cleanup(config.get("cleanup"))
 
 

@@ -26,7 +26,8 @@ Legacy creation syntax remains accepted:
 
 | Profile | Purpose |
 |---------|---------|
-| `defaults` | Source-aligned configuration with BuildStream enabled |
+| `defaults` | Source-aligned configuration with BuildStream enabled and `gitlab_mode: hosted` |
+| `external` | BuildStream enabled against a customer-managed GitLab (`gitlab_mode: external`; set `gitlab_external_url`, `gitlab_ca_cert_path` with `--set`) |
 | `disabled` | BuildStream disabled, for skip-path validation |
 
 Profiles use the same document-patch shape as the Image Build Manager

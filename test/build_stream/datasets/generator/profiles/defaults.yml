@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-description: Source-aligned BuildStream configuration with the domain enabled.
+description: Source-aligned BuildStream configuration with the domain enabled and a hosted GitLab.
 patches:
   build_stream_config:
     enable_build_stream: true
+    gitlab_mode: hosted
