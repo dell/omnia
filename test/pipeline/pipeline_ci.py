@@ -474,11 +474,13 @@ def _domain_selected(domain: str) -> bool:
 
 
 def initialize() -> int:
-    """The whole initialization stage: checks, commit and omnia.env, the NFS check.
+    """The whole initialization stage: checks, commit and omnia.env, the NFS check, the inputs.
 
     The marker the cleanup jobs need is left only when every step passed. The NFS check runs
     when the orchestrator is selected (its shares are mounted and, in cleanup and default
-    mode, emptied later) unless SKIP_STAGES names nfs_check.
+    mode, emptied later) unless SKIP_STAGES names nfs_check. The inputs of the cluster are copied
+    to the OIM before any cleanup (unless SKIP_STAGES names inputs, or in the utils pipeline), so
+    the cleanups and their tests read the same files as the project, not those of an earlier run.
     """
     for step in (init, checkout):
         rc = step()
@@ -487,6 +489,10 @@ def initialize() -> int:
     if (_env("PIPELINE_KIND") != "utils" and _domain_selected("orchestrator")
             and not _skipped("nfs_check")):
         rc = nfs_preflight()
+        if rc:
+            return rc
+    if _env("PIPELINE_KIND") != "utils" and not _skipped("inputs"):
+        rc = inputs()
         if rc:
             return rc
     return _mark("initialization", 0)
@@ -698,12 +704,22 @@ ansible --version | head -1
 
 
 def _resolve_layout() -> Tuple[str, str]:
-    """Return (OMNIA_DATA_PATH, OMNIA_PROJECT_NAME) of the OIM, with the Omnia venv active."""
-    missing = "echo 'ERROR: no Omnia venv, run the install stage first' >&2; exit 1"
+    """Return (OMNIA_DATA_PATH, OMNIA_PROJECT_NAME) of the OIM.
+
+    They are read from the omnia.env of the clone, which the initialization stage copied there, so
+    this works before the Omnia venv exists (the inputs are copied before the cleanups). When the
+    Omnia venv exists its values win, like everywhere else.
+    """
+    env_file = shlex.quote(f"{install_path()}/src/main/omnia.env")
     rc, out = remote(f"""set -e
-{_activate(missing)}
-echo "$OMNIA_DATA_PATH"
-echo "${{OMNIA_PROJECT_NAME:-project_default}}"
+value() {{ grep "^$1=" {env_file} 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\\042\\047 '; }}
+DATA=$(value OMNIA_DATA_PATH); DATA="${{DATA:-/opt/omnia}}"; DATA="${{DATA%/}}"
+PROJECT=$(value OMNIA_PROJECT_NAME); PROJECT="${{PROJECT:-project_default}}"
+if [ -f "$DATA/activate-omnia.sh" ]; then
+  source "$DATA/activate-omnia.sh"
+  DATA="${{OMNIA_DATA_PATH:-$DATA}}"; PROJECT="${{OMNIA_PROJECT_NAME:-$PROJECT}}"
+fi
+echo "${{DATA%/}}"; echo "$PROJECT"
 """, capture=True)
     lines = [x.strip().rstrip("/") for x in out.splitlines() if x.strip()]
     if rc or len(lines) < 2:
