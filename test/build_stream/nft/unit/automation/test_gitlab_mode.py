@@ -20,6 +20,9 @@ from unittest.mock import patch
 
 import pytest
 
+pytest.importorskip("omnia_auto", reason="FVT toolchain (omnia_auto plugin) is not installed")
+
+# pylint: disable=wrong-import-position
 from library.functions import gitlab_external_func as ext
 from library.functions import gitlab_mode_func as mode
 from library.functions.config_func import (
