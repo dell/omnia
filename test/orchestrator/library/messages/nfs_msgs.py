@@ -63,6 +63,9 @@ NFS_MSGS = {
     "flag_off": "{flag} is false in test_config.yml: the data of the {name} share is kept "
                 "and nothing is deleted",
     "no_share": "{name} is not an NFS mount of {path}: nothing to empty",
+    "config_missing": "storage_config.yml not found at {path}, so the {name} share cannot be "
+                      "checked. HOW TO FIX: run ./omnia.sh --init orchestrator (or restore the "
+                      "file) and rerun the cleanup scenario",
     "emptied": "emptied {name} ({source}): removed {files} files, {dirs} directories; no "
                "entry left after {attempts} attempt(s)",
     "detached": "{name}: {mount_point} is unmounted and has no fstab entry",

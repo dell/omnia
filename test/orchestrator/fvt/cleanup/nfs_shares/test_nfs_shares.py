@@ -28,7 +28,9 @@ mounts of ``storage_config.yml``:
    unmounted and out of fstab.
 
 Emptying mounts the share on the execution OIM, so it needs a local run as root there. A
-missing ``storage_config.yml`` or a share that is not an NFS mount skips both tests.
+missing or invalid ``storage_config.yml`` fails the tests; a share that is not an NFS mount
+skips them. A share the OIM cannot mount (server unreachable, not exported to it) fails the
+emptying test before anything is deleted.
 """
 
 import pytest
@@ -54,9 +56,16 @@ def _skip(test_log, reason):
 
 
 def _configured_share(host, test_log, name):
-    """Return the NFS mount ``name`` of storage_config.yml, or skip when it has none."""
+    """Return the NFS mount ``name`` of storage_config.yml.
+
+    Fails when the file is missing or invalid; skips when it has no NFS mount of that name.
+    """
     storage_config = get_storage_config_path(host)
     found = get_nfs_mount(storage_config, name)
+    if found["missing"]:
+        message = NFS_MSGS["config_missing"].format(name=name, path=storage_config)
+        test_log.failed(message)
+        pytest.fail(message)
     if not found["success"]:
         test_log.failed(found["error"])
         pytest.fail(found["error"])
