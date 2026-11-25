@@ -36,7 +36,7 @@ FVT runner call (`test/<domain>/_run.py fvt_<domain> ...`), defined as data in
 ```bash
 cd test/system_test
 ${EDITOR:-vi} user_inputs.yml                # cluster values (MANDATORY ones marked)
-${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipeline cancel, cleanup flags
+${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipeline cancel (cleanup flags: user_inputs.yml cleanup block)
 
 ./setup_env.sh                       # configure (new run), install, prompt the missing credentials
 ./setup_env.sh --status              # the run, the steps and the readiness checks, in a box
@@ -116,8 +116,10 @@ Two kinds of SVT test:
 
 - **RUN**: `./omnia.sh --prepare-base` or `./omnia.sh -r <domain> [--tags <tag>]`, as a
   customer runs it (allowed commands: `OMNIA_RUN_TAGS` in `library/vars/theme_vars.py`).
-- **VERIFY**: one FVT step, selected by suite and marker like build_stream (for example
-  `--suite sources --marker idrac+sanity`). The step passes when its exit status is 0.
+- **VERIFY**: one FVT step, selected by tag, suite and marker like build_stream. Each runs
+  every FVT check of its part, as `fvt_telemetry verify` does (for example `deploy verify
+  --suite sources --marker idrac`: every iDRAC check). The step passes when its exit status
+  is 0.
 
 | Stage | Type | ID | Step | FVT test cases |
 |---|---|---|---|---|
@@ -125,16 +127,19 @@ Two kinds of SVT test:
 | `repo_sync` | hard, **skipped by default** | `005`-`006` | `./omnia.sh -r repo_manager --tags execute`; `execute verify` | |
 | `image_build` | hard, **skipped by default** | `007`-`008` | `./omnia.sh -r image_build_manager --tags build`; `build verify` | |
 | `cluster_deploy` | hard, **skipped by default** | `009`-`013` | `./omnia.sh -r orchestrator --tags provision`, `--tags pxeboot`; provision, Kubernetes and Slurm cluster checks | |
-| `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014`-`017` | `./omnia.sh -r telemetry --tags cleanup_ldms`, `cleanup_idrac` | `TEL_FVT_CLEANUP_V007`, `V006` |
-| `observability_precheck` | hard | `018`-`021` | `./omnia.sh -r telemetry --tags precheck`, `--tags validate` | `TEL_FVT_PRECHECK_V001`-`V003`, `TEL_FVT_VALIDATE_V001` |
-| `observability_deploy` | hard | `022`-`023` | `./omnia.sh -r telemetry` | `TEL_FVT_DEPLOY_V001`-`V008`, `V110` |
-| `observability_idrac` | soft | `024`-`025` | readiness, then data flow | `V010`, `V011`, `V012`, `V016`, `V017`, `V112`, `V113`; `V013`, `V014`, `V015`, `V018` |
-| `observability_ldms` | soft | `026`-`027` | readiness, then data flow | `V020`, `V021`, `V022`, `V026`; `V023`-`V025`, `V027`, `V028`, `V029` |
+| `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false` (all telemetry sources and sinks; credentials kept) | none (the RUN step only) |
+| `observability_precheck` | hard | `018`-`021` | `./omnia.sh -r telemetry --tags precheck`, `--tags validate`; `precheck verify`, `validate verify` | every precheck check (`TEL_FVT_PRECHECK_V001`-`V004`), `TEL_FVT_VALIDATE_V001` |
+| `observability_deploy` | hard | `022` | `./omnia.sh -r telemetry` (validate, precheck, deploy) | none (the RUN step only) |
+| `observability_idrac` | soft | `024` | `deploy verify --suite sources --marker idrac` | every iDRAC check (`V010`-`V019`, `V112`, `V113`) |
+| `observability_ldms` | soft | `026` | `deploy verify --suite sources --marker ldms` | every LDMS check (`V020`-`V026`, `V028`, `V029`) |
 
-IDs are `SVT_OBSERVABILITY_<NNN>`; FVT IDs `V0xx`/`V1xx` are `TEL_FVT_DEPLOY_V0xx`.
+IDs are `SVT_OBSERVABILITY_<NNN>` (`015`-`017`, `023`, `025` and `027` are retired); FVT IDs `V0xx`/`V1xx` are
+`TEL_FVT_DEPLOY_V0xx`. `V008` (all telemetry pods) and `V110` (install mode) are not in
+these selections; they still run in `fvt_telemetry deploy verify`.
 
 **Defaults** (theme data): `./run_validation.sh svt_observability all` leaves out
-`prepare_base`, `repo_sync`, `image_build` and `cluster_deploy` (recorded as skipped;
+`initialization`, `prepare_base`, `repo_sync`, `image_build` and `cluster_deploy`, and
+`observability_cleanup` while it is off in the config (recorded as skipped;
 `--skip-stages none` runs them, a single stage runs with `./run_validation.sh
 svt_observability <stage>`), and `./setup_env.sh` cleans nothing without `--force`. In the
 pipeline, an empty `skip_stages` and `clean_reinstall` of the cluster block give the same
@@ -204,7 +209,7 @@ test/system_test/
 ├── docs/                        SETUP.md, TEST_CONFIG.md, RUNNER.md, OPENBAO.md, PIPELINE.md,
 │                                PIPELINE_CONFIG.md
 ├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
-├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
+├── build_stream_test_config.yml the theme's settings: FVT overrides, report (cleanup flags are in user_inputs.yml)
 ├── observability_test_config.yml the observability theme's settings
 ├── user_inputs.yml              the cluster values
 ├── (secret.yaml, values.yaml)   PowerScale CSI, optional: seeded from src/orchestrator/examples/ into

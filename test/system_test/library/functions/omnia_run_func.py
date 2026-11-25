@@ -22,28 +22,39 @@ a shell and with an empty stdin (a prompt fails instead of waiting), and its out
 into the stage log. The result has the shape of fvt_func.run_fvt_step (no FVT results).
 """
 
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 from .process_func import stream_command
-from ..vars.common_vars import OMNIA_RUN_ARG, OMNIA_SH, OMNIA_SH_DIR, OMNIA_TAGS_ARG
-from ..vars.theme_vars import OMNIA_PREPARE_BASE, OMNIA_RUN_TAGS, THEMES
+from ..vars.common_vars import (
+    OMNIA_EXTRA_ARG, OMNIA_RUN_ARG, OMNIA_SH, OMNIA_SH_DIR, OMNIA_TAGS_ARG,
+)
+from ..vars.theme_vars import OMNIA_PREPARE_BASE, OMNIA_RUN_TAGS, OMNIA_RUN_VARS, THEMES
 
 
 def check_run_args(theme: str, arguments: Sequence[str]) -> Tuple[str, ...]:
-    """Return ``arguments`` when ``theme`` may run them with omnia.sh, else raise ValueError."""
+    """Return ``arguments`` when ``theme`` may run them with omnia.sh, else raise ValueError.
+
+    Trailing ``-e <key=value>`` pairs are extra variables, allowed only when they are listed
+    for the domain in theme_vars.OMNIA_RUN_VARS (exact text, so no value is free text).
+    """
     args = tuple(str(arg) for arg in arguments)
-    if args == OMNIA_PREPARE_BASE:
+    extra: List[str] = []
+    while len(args) >= 2 and args[-2] == OMNIA_EXTRA_ARG:
+        extra.insert(0, args[-1])
+        args = args[:-2]
+    if args == OMNIA_PREPARE_BASE and not extra:
         return args
     domains = THEMES[theme].get("run_domains") or ()
     if len(args) >= 2 and args[0] == OMNIA_RUN_ARG and args[1] in domains:
-        if len(args) == 2:
-            return args
-        if (len(args) == 4 and args[2] == OMNIA_TAGS_ARG
-                and args[3] in OMNIA_RUN_TAGS.get(args[1], ())):
-            return args
-    raise ValueError(f"omnia.sh {' '.join(args)!r} is not a RUN step of theme {theme!r} "
+        allowed_vars = OMNIA_RUN_VARS.get(args[1], ())
+        flags_ok = len(args) == 2 or (len(args) == 4 and args[2] == OMNIA_TAGS_ARG
+                                      and args[3] in OMNIA_RUN_TAGS.get(args[1], ()))
+        if flags_ok and all(value in allowed_vars for value in extra):
+            return (*args, *(part for value in extra for part in (OMNIA_EXTRA_ARG, value)))
+    raise ValueError(f"omnia.sh {' '.join(arguments)!r} is not a RUN step of theme {theme!r} "
                      f"(allowed: {' '.join(OMNIA_PREPARE_BASE)}, or {OMNIA_RUN_ARG} <domain of "
-                     f"{list(domains)}> [{OMNIA_TAGS_ARG} <tag of theme_vars.OMNIA_RUN_TAGS>])")
+                     f"{list(domains)}> [{OMNIA_TAGS_ARG} <tag of theme_vars.OMNIA_RUN_TAGS>] "
+                     f"[{OMNIA_EXTRA_ARG} <value of theme_vars.OMNIA_RUN_VARS>])")
 
 
 def describe_run(arguments: Sequence[str]) -> str:
@@ -57,9 +68,12 @@ def run_info(arguments: Sequence[str]) -> Dict[str, Any]:
     if args == OMNIA_PREPARE_BASE:
         return {"suite": "src/main/omnia.sh", "domain": "main", "tag": "prepare-base",
                 "action": "run", "options": ""}
-    tag = args[3] if len(args) == 4 else "default flow"
-    return {"suite": "src/main/omnia.sh", "domain": args[1], "tag": tag, "action": "run",
-            "options": ""}
+    base, extra = args, ()
+    if len(args) >= 2 and args[-2] == OMNIA_EXTRA_ARG:
+        base, extra = args[:-2], args[-2:]
+    tag = base[3] if len(base) == 4 else "default flow"
+    return {"suite": "src/main/omnia.sh", "domain": base[1], "tag": tag, "action": "run",
+            "options": " ".join(extra)}
 
 
 def run_omnia_step(theme: str, arguments: Sequence[str]) -> Dict[str, Any]:

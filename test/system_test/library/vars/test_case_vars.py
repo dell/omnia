@@ -15,7 +15,8 @@
 """SVT test registry: stable IDs, titles, order, stage and the step of each test.
 
 ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
-(001-003 were the former whole-case tests). Order: theme base +
+(001-003 were the former whole-case tests; SVT_OBSERVABILITY_025 and 027 were the
+iDRAC and LDMS data-flow halves, now part of 024 and 026). Order: theme base +
 position (build_stream 1000, observability 2000). Each test has one of:
 
 * ``step``: ``(domain, runner arguments)`` of ``test/<domain>/_run.py fvt_<domain>``:
@@ -188,27 +189,12 @@ TEST_CASES = {
                                   "--marker", "sanity")),
     },
     # -------------------------------------------------- stage observability_cleanup
-    # The iDRAC and LDMS telemetry of an earlier deployment; soft (a cluster without
-    # telemetry yet may fail it, the deploy still follows).
-    "observability_cleanup_ldms_run": {
+    # The telemetry of an earlier deployment (all sources and sinks); soft, and off by
+    # default (stages: in observability_test_config.yml). Credentials are kept.
+    "observability_cleanup_run": {
         "id": "SVT_OBSERVABILITY_014", "order": 2050, "stage": "observability_cleanup",
-        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup_ldms",
-        "run": ("-r", _TEL, "--tags", "cleanup_ldms"),
-    },
-    "observability_cleanup_ldms_verify": {
-        "id": "SVT_OBSERVABILITY_015", "order": 2051, "stage": "observability_cleanup",
-        "title": "Cleanup: LDMS pods removed",
-        "step": (_TEL, ("cleanup_ldms", "verify")),
-    },
-    "observability_cleanup_idrac_run": {
-        "id": "SVT_OBSERVABILITY_016", "order": 2052, "stage": "observability_cleanup",
-        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup_idrac",
-        "run": ("-r", _TEL, "--tags", "cleanup_idrac"),
-    },
-    "observability_cleanup_idrac_verify": {
-        "id": "SVT_OBSERVABILITY_017", "order": 2053, "stage": "observability_cleanup",
-        "title": "Cleanup: iDRAC pods removed",
-        "step": (_TEL, ("cleanup_idrac", "verify")),
+        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false",
+        "run": ("-r", _TEL, "--tags", "cleanup", "-e", "cleanup_credentials=false"),
     },
     # ------------------------------------------------- stage observability_precheck
     "observability_precheck_run": {
@@ -219,7 +205,7 @@ TEST_CASES = {
     "observability_precheck_verify": {
         "id": "SVT_OBSERVABILITY_019", "order": 2061, "stage": "observability_precheck",
         "title": "Precheck: omnia.env, Kubernetes nodes Ready, kube_vip reachable",
-        "step": (_TEL, ("precheck", "verify", "--marker", "sanity")),
+        "step": (_TEL, ("precheck", "verify")),
     },
     "observability_validate_run": {
         "id": "SVT_OBSERVABILITY_020", "order": 2062, "stage": "observability_precheck",
@@ -237,32 +223,21 @@ TEST_CASES = {
         "title": "Deploy: ./omnia.sh -r telemetry (enabled sources and sinks)",
         "run": ("-r", _TEL),
     },
-    "observability_stack_verify": {
-        "id": "SVT_OBSERVABILITY_023", "order": 2071, "stage": "observability_deploy",
-        "title": "Deploy: Kafka, VictoriaMetrics, VictoriaLogs, telemetry pods, install mode",
-        "step": (_TEL, ("deploy", "verify", "--marker", "sanity")),
-    },
     # ---------------------------------------------------- stage observability_idrac
-    "observability_idrac_readiness_verify": {
+    # Every iDRAC check of the FVT (pods, containers, service, MySQL, receiver, Kafka,
+    # VictoriaMetrics, install-mode deployment), as fvt_telemetry verify runs them.
+    "observability_idrac_verify": {
         "id": "SVT_OBSERVABILITY_024", "order": 2080, "stage": "observability_idrac",
-        "title": "iDRAC readiness: pods, StatefulSet, containers, VictoriaPump, service",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac+sanity")),
-    },
-    "observability_idrac_data_verify": {
-        "id": "SVT_OBSERVABILITY_025", "order": 2081, "stage": "observability_idrac",
-        "title": "iDRAC data flow: MySQL, receiver, Kafka, VictoriaMetrics",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac+functional")),
+        "title": "iDRAC: pods, containers, MySQL, receiver, Kafka, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac")),
     },
     # ----------------------------------------------------- stage observability_ldms
-    "observability_ldms_readiness_verify": {
+    # Every LDMS check of the FVT (aggregator, store, bridge, samplers, Kafka,
+    # VictoriaMetrics).
+    "observability_ldms_verify": {
         "id": "SVT_OBSERVABILITY_026", "order": 2090, "stage": "observability_ldms",
-        "title": "LDMS readiness: aggregator, store, Vector-LDMS bridge, Kafka topic",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+sanity")),
-    },
-    "observability_ldms_data_verify": {
-        "id": "SVT_OBSERVABILITY_027", "order": 2091, "stage": "observability_ldms",
-        "title": "LDMS data flow: samplers, Kafka, VictoriaMetrics",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+functional")),
+        "title": "LDMS: aggregator, store, bridge, samplers, Kafka, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms")),
     },
     # ============================================================ theme cluster_lifecycle
     # When use_discovery_mapping=true in the theme's test_config, the

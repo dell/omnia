@@ -275,8 +275,9 @@ def plan_variable(plan: Dict[str, Any]) -> str:
 
 
 def jobs_of(stages: Tuple[str, ...]) -> List[str]:
-    """Return the pipeline jobs in order: preflight (checks and checkout), the SVT stages, summary."""
-    return ["preflight", FIRST_STAGE, *stages, LAST_STAGE]
+    """Return the pipeline jobs in order: preflight (checks and checkout), the SVT stages,
+    theme_result (the theme's verdict, always runs), summary."""
+    return ["preflight", FIRST_STAGE, *stages, "theme_result", LAST_STAGE]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
@@ -421,6 +422,7 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         "",
         "variables:",
         f'  SVT_THEME: "{theme}"',
+        f'  SVT_THEME_ORDER: "{theme}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
         # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
@@ -469,6 +471,8 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
                           "      when: never"]
             lines += ["    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
+        elif job == "theme_result":
+            lines += ["  when: always", "  script:", "    - python3 svt_ci.py theme-result"]
         elif job == LAST_STAGE:
             lines += ["  when: always", "  artifacts:", "    when: always",
                       "    expire_in: 30 days", "    paths:", "      - svt_report/",

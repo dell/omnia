@@ -96,7 +96,12 @@ OMNIA_RUN_TAGS: Dict[str, Tuple[str, ...]] = {
     "repo_manager": ("execute",),
     "image_build_manager": ("build",),
     "orchestrator": ("provision", "pxeboot"),
-    "telemetry": ("precheck", "validate", "cleanup_idrac", "cleanup_ldms"),
+    "telemetry": ("precheck", "validate", "cleanup"),
+}
+# Extra variables a RUN step may pass with -e (exact "key=value" text, per domain).
+# telemetry cleanup keeps the stored credentials, so the next deploy reuses them.
+OMNIA_RUN_VARS: Dict[str, Tuple[str, ...]] = {
+    "telemetry": ("cleanup_credentials=false",),
 }
 OMNIA_PREPARE_BASE = ("--prepare-base",)
 
@@ -259,7 +264,7 @@ THEMES: Dict[str, Dict] = {
             "observability_cleanup": (
                 "Observability Cleanup",
                 "The iDRAC and LDMS telemetry of an earlier deployment removed "
-                "(omnia.sh -r telemetry --tags cleanup_ldms, cleanup_idrac)"),
+                "(omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false)"),
             "observability_precheck": (
                 "Observability Precheck",
                 "omnia.sh -r telemetry --tags precheck and validate: the cluster is healthy "
@@ -375,6 +380,9 @@ THEMES: Dict[str, Dict] = {
 # THEMES[theme]["stage_info"]. In the report, cleanup and install (run by
 # ./setup_env.sh) are shown inside the Initialization stage.
 COMMON_STAGE_INFO: Dict[str, Tuple[str, str]] = {
+    "theme_result": (
+        "Theme Result",
+        "The theme's SVT summary and verdict, kept for the cluster summary"),
     "initialization": (
         "Initialization",
         "Clean reinstall of this OIM (./setup_env.sh: cleanup, install), then the "

@@ -94,6 +94,7 @@ svt:
     # own entry.
     catalog_stage: 3
     # Report and email.
+    theme_result: 1
     summary: 1
 
 # -----------------------------------------------------------------------------

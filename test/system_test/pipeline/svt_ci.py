@@ -529,7 +529,7 @@ def checkout() -> int:
     with open(os.path.join(STATE_DIR, "commit.txt"), "w", encoding="utf-8") as stream:
         stream.write(commit.decode(errors="replace").strip())
     _check_svt_scripts(shlex.quote(_svt_dir()))
-    names = _themes() if _env("SVT_THEME_ORDER") else [_theme()]
+    names = _themes()
     for source, name in ((chosen, USER_INPUTS), *((f"{t}_test_config.yml",) * 2 for t in names)):
         local = os.path.join(_inputs_dir(), source)
         if not os.path.isfile(local):
@@ -612,8 +612,9 @@ def _check_catalog_plan(theme: str) -> None:
     """Catalog themes: the plan --configure wrote on the OIM must be the rendered jobs.
 
     setup_svt_project.py renders one job per catalog (SVT_CATALOG_PLAN, or
-    SVT_CATALOG_PLAN_<THEME> in the cluster pipeline, <stage>=<catalog>); a catalog list edited in the project, or a branch with
-    other bundled catalogs, gives another plan, whose catalogs would have no job.
+    SVT_CATALOG_PLAN_<THEME> in the cluster pipeline, <stage>=<catalog>); a catalog list
+    edited in the project, or a branch with other bundled catalogs, gives another plan,
+    whose catalogs would have no job.
     """
     expected = _env(f"SVT_CATALOG_PLAN_{theme.upper()}") or _env("SVT_CATALOG_PLAN")
     if not expected:
@@ -647,7 +648,7 @@ def _readiness_skipped() -> bool:
 def _themes() -> List[str]:
     """Return the themes of this run in order: SVT_THEME_ORDER (rendered from the config),
     narrowed by the cluster's variable SVT_THEMES when it is set."""
-    order = [item for item in _env("SVT_THEME_ORDER").split(",") if item]
+    order = [item for item in _env("SVT_THEME_ORDER").split(",") if item] or [_theme()]
     chosen = [item.strip() for item in _env("SVT_THEMES").split(",") if item.strip()]
     themes = [item for item in order if not chosen or item in chosen]
     for theme in themes:

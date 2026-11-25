@@ -137,6 +137,7 @@ RESULTS_FILE_ENV = "OMNIA_RESULTS_FILE"
 # RUN steps: ./omnia.sh -r <domain> [--tags <tag>] (theme_vars.OMNIA_RUN_TAGS).
 OMNIA_RUN_ARG = "-r"
 OMNIA_TAGS_ARG = "--tags"
+OMNIA_EXTRA_ARG = "-e"
 
 # ------------------------- environment the stage driver and the SVT runner honour
 RUN_ID_ENV = "SVT_RUN_ID"

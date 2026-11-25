@@ -107,6 +107,8 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="the file"))
     if "cleanup" in data:
         raise ConfigError(CONFIG_MSGS["cleanup_moved"].format(theme_path=path, path=INPUTS_FILE))
+    if "use_discovery_mapping" in data:
+        _require_bool(data["use_discovery_mapping"], "use_discovery_mapping", path)
     unknown_keys = sorted(set(data) - {*CONFIG_KEYS, theme})
     if unknown_keys:
         raise ConfigError(CONFIG_MSGS["unknown_key"].format(
@@ -145,8 +147,6 @@ def _cleanup_source(data: Dict[str, Any], path: str):
     The cleanup is shared by every theme and lives only in the ``cleanup`` block of
     user_inputs.yml. A theme file with a ``cleanup`` block of its own is refused.
     """
-    if "cleanup" in data:
-        raise ConfigError(CONFIG_MSGS["cleanup_moved"].format(theme_path=path, path=INPUTS_FILE))
     block = _read_inputs_block("cleanup") or {}
     if not isinstance(block, dict):
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=INPUTS_FILE, where="cleanup"))

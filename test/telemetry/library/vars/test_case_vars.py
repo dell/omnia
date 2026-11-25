@@ -234,10 +234,6 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V026",
         "title": "Verify LDMS Kafka topic exists",
     },
-    "ldms_earliest_data": {
-        "id": "TEL_FVT_DEPLOY_V027",
-        "title": "Verify earliest LDMS data in Kafka topic",
-    },
     "ldms_kafka_data": {
         "id": "TEL_FVT_DEPLOY_V028",
         "title": "Verify latest LDMS data in Kafka topic",

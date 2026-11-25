@@ -33,7 +33,6 @@ Test cases:
     TEL_FVT_DEPLOY_V024: Verify LDMS sampler service running on Slurm nodes
     TEL_FVT_DEPLOY_V025: Verify LDMS sampler plugins configured on Slurm nodes
     TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists
-    TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic
     TEL_FVT_DEPLOY_V028: Verify latest LDMS data in Kafka topic
     TEL_FVT_DEPLOY_V029: Verify LDMS metrics in VictoriaMetrics
 """
@@ -48,7 +47,6 @@ from library.vars.common_vars import (
     VECTOR_LDMS_APP_NAME,
     LDMS_KAFKA_TOPIC,
     LDMS_KAFKA_LATEST_TIMEOUT_SECONDS,
-    LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS,
 )
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
@@ -559,85 +557,6 @@ def _build_ldms_host_lines(host_result):
         lines.append(f"        \u2717 {mp}: MISSING")
 
     return lines
-
-
-# =========================================================================
-# TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic
-# =========================================================================
-
-@pytest.mark.source
-@pytest.mark.functional
-@pytest.mark.ldms
-@pytest.mark.order(57)
-def test_ldms_earliest_data(host):
-    """TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic.
-
-    Uses 'earliest' offset (--from-beginning) to get the oldest data from
-    the beginning of the topic. Shows when each hostname first started
-    sending data to Kafka.
-    """
-    from library.functions.ldms_func import verify_ldms_earliest_data_in_kafka
-
-    _skip_if_ldms_disabled(host)
-    # Skip if LDMS does not target Kafka sink
-    if not is_sink_enabled_for_source(host, "ldms", "kafka"):
-        pytest.skip("LDMS source does not target Kafka sink")
-    
-    tc = TC["ldms_earliest_data"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Verifying earliest LDMS data in Kafka topic")
-    result = verify_ldms_earliest_data_in_kafka(
-        host,
-        timeout_seconds=LDMS_KAFKA_EARLIEST_TIMEOUT_SECONDS,
-    )
-
-    if result.get("skipped"):
-        tl.skipped(result.get("reason", "LDMS earliest data verification skipped"))
-        pytest.skip(result.get("reason", "LDMS earliest data verification skipped"))
-
-    # Build details output (omnia-containers 2.2 format)
-    expected_count = result.get("expected_instance_count", 0)
-    found_count = result.get("found_instance_count", 0)
-    details_lines = _build_ldms_summary_lines(result)
-    details_lines.extend([
-        f"Total records read: {result.get('total_records_read', 0)}",
-        f"Expected instances (hostname\u00d7plugin): {expected_count}",
-        f"Found instances: {found_count}/{expected_count}",
-        f"Found hostnames: {result.get('found_hostnames', [])}",
-        f"Missing hostnames: {result.get('missing_hostnames', [])}",
-        f"Missing instances: {result.get('missing_instances', [])}",
-    ])
-
-    # Show error message if present (e.g. consumer creation failure)
-    error_msg = result.get("error", "")
-    if error_msg:
-        details_lines.extend(["", f"Error: {error_msg}"])
-
-    details_lines.extend([
-        "",
-        "Earliest data per hostname (by functional group):",
-    ])
-
-    # Group by functional_group
-    for func_group, hosts in result.get("results_by_group", {}).items():
-        details_lines.append(f"  [{func_group}]")
-        for hr in hosts:
-            details_lines.extend(_build_ldms_host_lines(hr))
-
-    details = "\n".join(details_lines)
-
-    if result["success"]:
-        tl.passed(
-            f"LDMS earliest data verified for all {expected_count} instances",
-            details,
-        )
-    else:
-        tl.failed("LDMS earliest data is incomplete", details)
-
-    assert result["success"], result.get(
-        "error", "LDMS earliest data verification failed"
-    )
 
 
 # =========================================================================

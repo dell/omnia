@@ -132,7 +132,7 @@ All tests in this section carry `source` and `ldms`.
 | TEL_FVT_DEPLOY_V024 | Verify LDMS sampler service running on Slurm nodes | functional |
 | TEL_FVT_DEPLOY_V025 | Verify LDMS sampler plugins configured | functional |
 | TEL_FVT_DEPLOY_V026 | Verify LDMS Kafka topic exists | sanity + functional |
-| TEL_FVT_DEPLOY_V027 | Verify earliest LDMS data in Kafka | functional |
+| TEL_FVT_DEPLOY_V027 | Retired (was: earliest LDMS data in Kafka): V028 checks fresh Kafka data and V029 the VictoriaMetrics data for every host and plugin. The ID is not reused | &mdash; |
 | TEL_FVT_DEPLOY_V028 | Verify latest LDMS data in Kafka | functional |
 | TEL_FVT_DEPLOY_V029 | Verify fresh LDMS metrics in VictoriaMetrics for every LDMS host and sampler plugin (Vector-LDMS path; skipped when the bridge or the VictoriaMetrics sink is disabled) | functional |
 

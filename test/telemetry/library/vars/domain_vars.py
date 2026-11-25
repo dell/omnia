@@ -98,8 +98,9 @@ SUITES: Dict[str, List[str]] = {
 # Tags that require playbook execution during "all" runs.
 ALL_EXEC_TAGS: List[str] = ["precheck", "validate", "deploy"]
 
-# Default marker for exec phase.
-ALL_EXEC_MARKER: str = "sanity"
+# Default marker for exec phase. Empty, as in the other domains: an untagged
+# verify (or test) runs every verification test of ALL_EXEC_TAGS, not only sanity.
+ALL_EXEC_MARKER: str = ""
 
 # Markers excluded from broad verification runs.
 ALL_VERIFY_EXCLUDE_MARKERS: List[str] = []
