@@ -92,8 +92,7 @@ from .functions.report_func import (
 )
 
 # --- Runner ---
-from .functions.runner_func import run_playbook
-from .functions.full_playbook_func import run_full_playbook_test
+from .functions.runner_func import run_playbook, run_full_playbook_test
 
 # --- Sync ---
 from .functions.sync_func import clone_repo, sync_files
