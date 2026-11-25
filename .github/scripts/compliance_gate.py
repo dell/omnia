@@ -323,7 +323,8 @@ def pipeline_profile():
     """Structural profile for test/pipeline."""
     base = ROOT / "test" / "pipeline"
     issues = []
-    required = ["README.md", "pipeline_config.yml", "send_email.py", "setup_gitlab_project.py", "docs/README.md"]
+    required = ["README.md", "pipeline_config.yml", "pipeline_ci.py", "pipeline_render.py",
+                "pipeline_triggers.py", "setup_gitlab_project.py", "docs/README.md"]
     check_files(base, required, issues)
     py_hygiene(base, issues)
     cfg = base / "pipeline_config.yml"
