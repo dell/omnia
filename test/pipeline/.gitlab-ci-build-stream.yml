@@ -135,7 +135,8 @@ initialization:
       prefix = cluster.upper().replace("-", "_")
       ip, user, password = (os.environ.get(prefix + "_TARGET_" + n, "") for n in ("IP", "USER", "PASS"))
       if not (ip and user and password):
-          fail(prefix + "_TARGET_IP, _TARGET_USER and _TARGET_PASS must be set as CI/CD variables")
+          fail(prefix + "_TARGET_IP, _TARGET_USER (pipeline_config.yml or CI/CD variables) and _TARGET_PASS "
+               "(a protected CI/CD variable: run on a protected branch) must be set")
       repo, branch = os.environ.get("OMNIA_REPO", ""), os.environ.get("OMNIA_BRANCH", "")
       path = os.environ.get("OMNIA_INSTALL_PATH", "/root/omnia").rstrip("/")
       if not re.fullmatch(r"(https?://|git@)[A-Za-z0-9._:/@~+-]+", repo):

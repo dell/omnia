@@ -1344,7 +1344,13 @@ def _send_summary_email(jobs: List[Tuple[str, str, str]], reports: List[Tuple[st
 
 def summary() -> int:
     """Print the status of every job, send the summary email, fail when a job failed."""
-    apply_cluster()
+    try:
+        apply_cluster()
+        on_oim = True
+    except SystemExit:
+        on_oim = False
+        _say("WARNING: the cluster variables are missing, so the test reports cannot be fetched "
+             "from the OIM; the job table and the mail are still produced")
     details = _api_job_details()
     local = {name: (name, status, url) for name, status, url in _statuses()}
     api = {j["name"]: (j["name"], j["status"], j["url"] or local.get(j["name"], ("", "", ""))[2])
@@ -1356,7 +1362,7 @@ def summary() -> int:
         _say(f"  {name:<{width}}  {status}")
     failed = [n for n, st, _ in jobs if st == "failed"]
     _say(f"{len(jobs)} jobs, {len(failed)} failed" + (f": {', '.join(failed)}" if failed else ""))
-    attachments = _fetch_reports()
+    attachments = _fetch_reports() if on_oim else []
     html_report = _build_html_report(details or [
         {"id": None, "name": n, "status": st, "url": url} for n, st, url in jobs])
     if html_report:
