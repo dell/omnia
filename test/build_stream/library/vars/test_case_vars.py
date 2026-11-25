@@ -776,5 +776,9 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_EXECUTE_V103",
         "title": "TC-FVT-017: Log query above log_query_rate_limit returns 429 with Retry-After",
     },
+    "log_query_operator_redaction": {
+        "id": "BSM_FVT_EXECUTE_V104",
+        "title": "TC-FVT-029: Operator redaction additions are redacted in responses",
+    },
 
 }

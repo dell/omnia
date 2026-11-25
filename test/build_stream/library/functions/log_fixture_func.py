@@ -35,7 +35,7 @@ import time
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from omnia_auto import load_test_config, log
+from omnia_auto import load_test_config, log, read_remote_yaml
 
 from . import db_func, gitlab_api_func
 from .execute_probe_func import data_path, run_cmd
@@ -45,6 +45,7 @@ from .log_query_func import (
     log_request, logs_path, new_result, reserve, retry_after)
 from ..messages.execute_msgs import STEP_MSGS
 from ..vars.execute_vars import (
+    BSM_CONFIG_FILE,
     BSM_JOB_LOG_ROOT,
     CLIENT_ID_RE,
     LOG_API_ERRORS,
@@ -59,6 +60,11 @@ from ..vars.execute_vars import (
     LOG_FOREIGN_CLIENT_ID,
     LOG_FVT_CLIENT_NAME,
     LOG_HTTP_TIMEOUT,
+    LOG_OPERATOR_EXPECTED,
+    LOG_OPERATOR_FIXTURE,
+    LOG_OPERATOR_KEY,
+    LOG_OPERATOR_PATTERN,
+    LOG_OPERATOR_SECRETS,
     LOG_PLAIN_FIXTURE,
     LOG_PLAYBOOK_STAGES,
     LOG_RATE_MARGIN,
@@ -371,6 +377,72 @@ def verify_log_response_redaction(host: Any, settings: Dict[str, Any],
         _remove(host, planted["path"])
         _reset(host, job, [stage])
     return finish(result)
+
+
+def operator_additions_configured(host: Any, api: Dict[str, Any]) -> Dict[str, Any]:
+    """Return {success, configured, error}: whether the TC-FVT-029 key name and pattern are set."""
+    try:
+        config = read_remote_yaml(host, f"{api['context']['input_dir']}/{BSM_CONFIG_FILE}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        return {"success": False, "configured": False, "error": str(exc)}
+    section = config.get("redaction") if isinstance(config, dict) else None
+    section = section if isinstance(section, dict) else {}
+    keys = section.get("additional_secret_key_names") or []
+    patterns = [item.get("pattern") for item in section.get("additional_secret_patterns") or []
+                if isinstance(item, dict)]
+    return {"success": True, "configured": LOG_OPERATOR_KEY in keys
+            and LOG_OPERATOR_PATTERN in patterns, "error": ""}
+
+
+def verify_log_operator_redaction(host: Any, settings: Dict[str, Any],
+                                  emit: Emit) -> Dict[str, Any]:
+    """TC-FVT-029: operator additions and baseline secrets are redacted in responses."""
+    del settings
+    api, job, result = _start(host, emit)
+    if job is None:
+        return result
+    additions = operator_additions_configured(host, api)
+    if not add_check(result, additions["success"], "Operator redaction additions",
+                     "configured" if additions["configured"] else "not configured",
+                     f"cannot read build_stream_config.yml: {additions['error']}"):
+        return finish(result)
+    if not additions["configured"]:
+        return blocked_result(STEP_MSGS["log_operator_unset"])
+    stage = "build-image"
+    fixture = LOG_OPERATOR_FIXTURE.encode("utf-8")
+    planted = plant(host, job, stage, "fvt_operator.log", fixture)
+    try:
+        if not _planted(result, planted):
+            return finish(result)
+        contents = [
+            _check_operator(result, label, _entry(log_request(
+                api, "GET", logs_path(job["job_id"]), params=params), stage))
+            for label, params in (("full=true", {"stage": stage, "full": "true"}),
+                                  ("default tail", {"stage": stage}))]
+        add_check(result, len(set(contents)) == 1, "Operator redaction is idempotent",
+                  "same content for both reads")
+        read = run_cmd(host, "log_read_b64", path=planted["path"])
+        on_disk = base64.b64decode(read.stdout.strip()) if read.rc == 0 else b""
+        add_check(result, on_disk == fixture, "File on disk unchanged",
+                  f"{len(on_disk)} of {len(fixture)} bytes identical"
+                  if on_disk == fixture else "content differs")
+    finally:
+        _remove(host, planted["path"])
+        _reset(host, job, [stage])
+    return finish(result)
+
+
+def _check_operator(result: Dict[str, Any], label: str, entry: Dict[str, Any]) -> str:
+    """Check one read of the operator fixture; return its content."""
+    content = entry.get("log_content") or ""
+    returned = sum(1 for value in LOG_OPERATOR_SECRETS if value in content)
+    kept = [text for text in LOG_OPERATOR_EXPECTED if text not in content]
+    add_check(result, bool(content) and not returned,
+              f"{label}: operator and baseline secrets redacted",
+              "none returned" if not returned else f"{returned} value(s) returned")
+    add_check(result, not kept, f"{label}: markers and context kept",
+              "all present" if not kept else f"missing: {', '.join(kept)}")
+    return content
 
 
 def _check_redacted(result: Dict[str, Any], label: str, lines: int,

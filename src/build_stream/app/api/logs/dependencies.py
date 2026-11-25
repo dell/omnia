@@ -36,6 +36,7 @@ from api.logs.limiter import (
 )
 from common.config import LogQueryConfig, load_config, load_log_query_inputs
 from core.logs.redaction import RedactionService
+from core.logs.redaction_policy import load_policy
 from infra.logs.filesystem_adapter import FileSystemLogAdapter
 from orchestrator.cleanup.retention_config import build_stream_config_path
 from orchestrator.logs.use_cases import (
@@ -82,8 +83,20 @@ def get_log_file_service() -> FileSystemLogAdapter:
 
 @lru_cache(maxsize=1)
 def get_redaction_service() -> RedactionService:
-    """Provide the shared redaction service."""
-    return RedactionService()
+    """Provide the shared redaction service built from the redaction policy.
+
+    Raises:
+        RedactionPolicyError: The baseline policy is missing or invalid.
+    """
+    try:
+        config_path = build_stream_config_path()
+    except ValueError:
+        log_secure_info("error", "Invalid OMNIA_PROJECT_NAME; redaction additions ignored")
+        config_path = None
+    policy = load_policy(config_path)
+    for message in policy.operator_errors:
+        log_secure_info("error", message)
+    return RedactionService(policy.secret_rules, policy.identifier_rules)
 
 
 @lru_cache(maxsize=1)
