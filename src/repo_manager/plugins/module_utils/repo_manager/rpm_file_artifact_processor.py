@@ -50,7 +50,7 @@ def _ensure_local_rpm(url, rpm_path, logger):
         return True
 
     subprocess.run(
-        ['wget', '-q', '--spider', '--tries=1', url], check=True
+        ['wget', '-q', '--spider', '--tries=1', '--', url], check=True
     )
     descriptor, temporary_path = tempfile.mkstemp(
         prefix=f".{os.path.basename(rpm_path)}.",
@@ -59,7 +59,8 @@ def _ensure_local_rpm(url, rpm_path, logger):
     )
     os.close(descriptor)
     try:
-        if not execute_command(["wget", "-O", temporary_path, url], logger):
+        if not execute_command(
+                ["wget", "-O", temporary_path, "--", url], logger):
             logger.error("Failed to download direct RPM package")
             return False
         if (

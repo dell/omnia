@@ -80,7 +80,14 @@ from library.vars.catalog_vars import (  # noqa: E402
     catalog_stages,
 )
 from library.vars.common_vars import INPUTS_FILE  # noqa: E402
-from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title  # noqa: E402
+from library.vars.theme_vars import (  # noqa: E402
+    THEMES,
+    default_clean_reinstall,
+    default_skip_stages,
+    soft_stages,
+    stage_info,
+    theme_title,
+)
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
 PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
@@ -162,6 +169,16 @@ def trigger_job(cluster: str, theme: str) -> str:
     """Return the name of the trigger job of a cluster and theme (the theme only when there are
     several)."""
     return f"svt_{cluster}" if len(THEMES) == 1 else f"svt_{cluster}_{theme}"
+
+
+def disabled_stages(theme: str) -> List[str]:
+    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false)."""
+    try:
+        with open(SVT_ROOT / f"{theme}_test_config.yml", "r", encoding="utf-8") as stream:
+            block = (yaml.safe_load(stream) or {}).get("stages") or {}
+    except (OSError, yaml.YAMLError):
+        block = {}
+    return [name for name in THEMES[theme].get("optional_stages") or () if not block.get(name)]
 
 
 def ci_file(theme: str) -> str:
@@ -406,6 +423,9 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         f'  SVT_THEME: "{theme}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
+        # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
+        f'  SVT_DEFAULT_CLEAN_REINSTALL: "{str(default_clean_reinstall(theme)).lower()}"',
+        f'  SVT_DEFAULT_SKIP_STAGES: "{",".join(default_skip_stages(theme))}"',
         *([f'  SVT_CATALOG_PLAN: "{plan_variable(plan)}"'] if plan else []),
         '  GIT_DEPTH: "1"',
         "",
@@ -434,11 +454,20 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
                       "  allow_failure: true"]
         if job == FIRST_STAGE and bao:
             lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
-        if job in stages:
-            lines += ["  rules:",
-                      f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
-                      "      when: never",
-                      "    - when: on_success",
+        if job in THEMES[theme]["stages"]:
+            off = job in disabled_stages(theme)
+            lines += ["  rules:"]
+            if off:
+                # Off in <theme>_test_config.yml stages:, whatever SVT_SKIP_STAGES says.
+                lines += ["    - when: never"]
+            else:
+                lines += [f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
+                          "      when: never"]
+            if job in default_skip_stages(theme) and not off:
+                # Left out by default (empty SVT_SKIP_STAGES); "none" or another list runs it.
+                lines += ["    - if: '$SVT_SKIP_STAGES == null || $SVT_SKIP_STAGES == \"\"'",
+                          "      when: never"]
+            lines += ["    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
         elif job == LAST_STAGE:
             lines += ["  when: always", "  artifacts:", "    when: always",
