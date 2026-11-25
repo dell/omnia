@@ -39,6 +39,8 @@ from library.functions import (
     load_test_config,
     run_playbook,
     validate_bundle_log_files,
+    validate_bundle_worker_pod_logs,
+    validate_bundle_local_storage_status_files,
     validate_collect_pxe_file,
     validate_metadata_file,
     validate_tar_contents,
@@ -521,6 +523,58 @@ def test_collect_bundle_log_files_content(host):
     total_found = len(result["collected_files"]) + len(result["empty_files"])
     tl.passed(
         f"Log file verification completed: {total_found} files found, {len(result['missing_files'])} missing")
+
+
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.nft
+@pytest.mark.order(37)
+def test_collect_bundle_worker_pod_logs(host):
+    """TC-NFT-005 L1: Verify log bundle contains worker pod log directories."""
+    tc = TC["collect_bundle_kafka_pod_logs"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_collect_output_path(host)
+    bundle_result = find_log_bundle(host, output_path)
+
+    if not bundle_result["success"]:
+        tl.skipped("No log bundle found, skipping worker pod logs verification")
+        pytest.skip("No log bundle found")
+
+    result = validate_bundle_worker_pod_logs(host, bundle_result["bundle_path"])
+    if not result["success"]:
+        tl.failed(f"Failed to check worker pod logs in bundle: {result['error']}")
+        pytest.fail(f"Failed to check worker pod logs: {result['error']}")
+
+    pod_count = len(result["found_pod_logs"])
+    container_count = len(result["found_container_logs"])
+    tl.info(f"Found {pod_count} pod logs and {container_count} container logs")
+    tl.passed("TC-NFT-005 L1 verification completed")
+
+
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.nft
+@pytest.mark.order(38)
+def test_collect_bundle_local_storage_status_files(host):
+    """TC-NFT-005 L3: Verify log bundle contains per-node local storage status files."""
+    tc = TC["collect_bundle_per_node_status"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_collect_output_path(host)
+    bundle_result = find_log_bundle(host, output_path)
+
+    if not bundle_result["success"]:
+        tl.skipped("No log bundle found, skipping local storage status verification")
+        pytest.skip("No log bundle found")
+
+    result = validate_bundle_local_storage_status_files(host, bundle_result["bundle_path"])
+    if not result["success"]:
+        tl.failed(f"Failed to check local storage status in bundle: {result['error']}")
+        pytest.fail(f"Failed to check local storage status: {result['error']}")
+
+    tl.info(f"Found {len(result['status_files'])} local storage status files in bundle")
+    tl.passed("TC-NFT-005 L3 verification completed")
 
 
 # =============================================================================

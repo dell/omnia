@@ -47,6 +47,8 @@ from .utils_func import (
     validate_metadata_file,
     validate_tar_contents,
     validate_bundle_log_files,
+    validate_bundle_worker_pod_logs,
+    validate_bundle_local_storage_status_files,
     get_hostname,
     check_admin_ip_assigned,
     validate_install_os_config,

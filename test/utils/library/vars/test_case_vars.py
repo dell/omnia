@@ -163,6 +163,14 @@ TEST_CASES = {
         "id": "UTILS_FVT_COLLECT_V012",
         "title": "Verify log bundle contains log files with content",
     },
+    "collect_bundle_kafka_pod_logs": {
+        "id": "UTILS_NFT_COLLECT_TC_NFT_005_L1",
+        "title": "TC-NFT-005 (L1): Verify worker bundle contains Kafka and TopoLVM pod logs",
+    },
+    "collect_bundle_per_node_status": {
+        "id": "UTILS_NFT_COLLECT_TC_NFT_005_L3",
+        "title": "TC-NFT-005 (L3): Verify bundle contains per-node status file",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # NEGATIVE TEST CASES - COLLECT

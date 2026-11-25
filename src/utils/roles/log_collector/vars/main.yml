@@ -20,6 +20,7 @@ project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default
 
 # Input file paths
 collect_pxe_file: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_name }}/collect_pxe.yml"
+storage_config_file: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}/storage_config.yml"
 
 # Output paths
 log_root: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}/collect"
@@ -63,6 +64,7 @@ k8s_master_log_dirs:
 k8s_master_log_files:
   - /var/log/cloud-init.log
   - /var/log/cloud-init-output.log
+  - /var/log/local-disk-prep.log
   - /var/log/dnf.log
   - /var/log/dnf.rpm.log
   - /var/log/dnf.librepo.log
@@ -71,9 +73,14 @@ k8s_master_log_files:
   - /var/log/spooler
 
 # K8s worker log paths
+k8s_worker_log_dirs:
+  - /var/log/pods/
+  - /var/log/containers/
+
 k8s_worker_log_files:
   - /var/log/cloud-init.log
   - /var/log/cloud-init-output.log
+  - /var/log/local-disk-prep.log
   - /var/log/spooler
   - /var/log/messages
   - /var/log/cron
