@@ -1,15 +1,23 @@
 # Omnia System Verification (SVT)
 
 `test/system_test` is the integration test of Omnia on one OIM. You choose a
-**theme**: `build_stream` (the default) or `observability` (iDRAC and LDMS
-telemetry, see [below](#theme-observability)); its settings are
-`<theme>_test_config.yml` (`build_stream_test_config.yml`). You fill the
-cluster values in `user_inputs.yml`. Then two commands do everything:
+**theme** (`build_stream`, the default; `catalog_build`; `cluster_lifecycle`; `observability`:
+iDRAC and LDMS telemetry, see [below](#theme-observability)): its settings are
+`<theme>_test_config.yml` (`build_stream_test_config.yml`). The cleanup (the same for every theme)
+and OpenBao are blocks of `user_inputs.yml`, where you also fill the cluster values. Then two
+commands do everything:
 
 ```bash
 ./setup_env.sh                            # configure (new run) -> install -> credentials
 ./run_validation.sh svt_build_stream all  # initialization -> the theme's stages -> summary
 ```
+
+**Several themes in one GitLab pipeline:** list them per cluster, for example
+`themes: "build_stream,catalog_build"` in `pipeline/svt_pipeline_config.yml`. They run one after
+another (the next theme runs whether the previous passed or failed) in one pipeline with a single
+`preflight`, `initialization` and `summary`; each theme opens as its own nested pipeline, and the
+report has an index and a page per theme with Previous / Next links. See
+[docs/PIPELINE.md](docs/PIPELINE.md) for the diagram.
 
 - **`./setup_env.sh`** ([docs/SETUP.md](docs/SETUP.md)): starts a run, loads your values into the Omnia inputs
   and the FVT suites' settings, installs Omnia (`omnia.sh -s`) and the test
@@ -35,8 +43,8 @@ FVT runner call (`test/<domain>/_run.py fvt_<domain> ...`), defined as data in
 
 ```bash
 cd test/system_test
-${EDITOR:-vi} user_inputs.yml                # cluster values (MANDATORY ones marked)
-${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipeline cancel, cleanup flags
+${EDITOR:-vi} user_inputs.yml                # cluster values (MANDATORY ones marked), the cleanup and OpenBao blocks (shared by every theme)
+${EDITOR:-vi} build_stream_test_config.yml   # catalog, cadence catalog, pipeline cancel
 
 ./setup_env.sh                       # configure (new run), install, prompt the missing credentials
 ./setup_env.sh --status              # the run, the steps and the readiness checks, in a box
@@ -149,7 +157,7 @@ For every catalog, one at a time: `./omnia.sh --select-catalog <catalog>`, then 
 repo_manager and image_build_manager FVT steps (no orchestrator deploy, no PXE boot).
 User guide: [`docs/CATALOG_BUILD.md`](docs/CATALOG_BUILD.md). Settings:
 [`catalog_build_test_config.yml`](catalog_build_test_config.yml); design:
-[`catalog_build_design.md`](catalog_build_design.md).
+[`docs/CATALOG_BUILD_DESIGN.md`](docs/CATALOG_BUILD_DESIGN.md).
 
 ```bash
 ./setup_env.sh --theme catalog_build            # configure (freezes the catalog plan) -> install -> creds
@@ -179,7 +187,7 @@ not stop the next one; the summary still fails. After a failed `exec` the orphan
 `ansible-playbook <domain>.yml` workers (and a running `dnf download`) are stopped, so
 a playbook killed at the FVT timeout cannot overlap the next test.
 
-From GitLab (`svt.theme: "catalog_build"` in `pipeline/svt_pipeline_config.yml`) every
+From GitLab (`catalog_build` in `clusters.<name>.themes` of `pipeline/svt_pipeline_config.yml`) every
 catalog is its own pipeline job, `catalog_01` ...; see
 [docs/PIPELINE_CONFIG.md](docs/PIPELINE_CONFIG.md#theme-catalog_build-one-job-per-catalog).
 How the theme compares with build_stream: [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md).
@@ -189,7 +197,7 @@ How the theme compares with build_stream: [docs/CATALOG_BUILD.md](docs/CATALOG_B
 | Doc | Contents |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, PowerScale files, status), `user_inputs.yml` (PowerVault, PowerScale CSI), the dataset generator |
-| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, discovery, NFS shares ...), the report |
+| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml` (catalogs, the report) and the shared `cleanup` block of `user_inputs.yml` (flags per suite: telemetry, discovery, NFS shares ...) |
 | [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md) | **User guide of the `catalog_build` theme**: prerequisites, the two files to edit, step by step, every setting, reading the report, failures, the GitLab pipeline (one job per catalog), how it compares with build_stream, troubleshooting |
 | [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |
@@ -204,9 +212,9 @@ test/system_test/
 ├── docs/                        SETUP.md, TEST_CONFIG.md, RUNNER.md, OPENBAO.md, PIPELINE.md,
 │                                PIPELINE_CONFIG.md
 ├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
-├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
+├── build_stream_test_config.yml the theme's settings: FVT overrides, report
 ├── observability_test_config.yml the observability theme's settings
-├── user_inputs.yml              the cluster values
+├── user_inputs.yml              the cluster values, the cleanup and the OpenBao block (shared by every theme)
 ├── (secret.yaml, values.yaml)   PowerScale CSI, optional: seeded from src/orchestrator/examples/ into
 │                                the cluster's folder of the GitLab project and edited there (or by
 │                                hand in this folder)
