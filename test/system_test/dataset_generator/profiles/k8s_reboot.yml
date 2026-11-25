@@ -1,0 +1,65 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ==============================================================================
+# Profile: k8s_reboot
+# ==============================================================================
+# Minimal profile for the k8s_reboot SVT theme: only orchestrator inputs
+# (network_spec, orchestrator_config, storage_config, omnia_config,
+# pxe_mapping_file) and omnia.env.  No repo_manager, image_build_manager,
+# or build_stream targets.
+# ==============================================================================
+name: k8s_reboot
+description: >-
+  Inputs of the k8s_reboot system test: omnia.env and orchestrator only.
+
+targets:
+  - section: main.omnia_env
+    file: src/main/omnia.env
+    format: env
+    out: main/omnia.env
+  - section: orchestrator.network_spec
+    file: src/orchestrator/input/network_spec.yml
+    format: yaml
+    out: orchestrator/input/network_spec.yml
+  - section: orchestrator.orchestrator_config
+    file: src/orchestrator/input/orchestrator_config.yml
+    format: yaml
+    out: orchestrator/input/orchestrator_config.yml
+  - section: orchestrator.storage_config
+    file: src/orchestrator/input/storage_config.yml
+    format: yaml
+    out: orchestrator/input/storage_config.yml
+    switch: mount
+  - section: orchestrator.omnia_config
+    file: src/orchestrator/input/omnia_config.yml
+    format: yaml
+    out: orchestrator/input/omnia_config.yml
+  - section: orchestrator.pxe_mapping_file
+    file: src/orchestrator/input/pxe_mapping_file.csv
+    format: csv
+    out: orchestrator/input/pxe_mapping_file.csv
+
+input_dirs:
+  - src/orchestrator/input
+
+mandatory:
+  - main.omnia_env.SYSTEM_ADMIN_NIC_IPV4
+  - main.omnia_env.SYSTEM_HOSTNAME
+  - main.omnia_env.SYSTEM_DOMAIN_NAME
+  - orchestrator.network_spec.Networks[admin_network].oim_nic_name
+  - orchestrator.network_spec.Networks[admin_network].subnet
+  - orchestrator.network_spec.Networks[admin_network].netmask_bits
+  - orchestrator.network_spec.Networks[admin_network].primary_oim_admin_ip
+  - orchestrator.network_spec.Networks[admin_network].dynamic_range
