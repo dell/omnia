@@ -100,6 +100,7 @@ from omnia_auto import (  # pylint: disable=wrong-import-position
     get_test_output,
     get_last_tc_id,
     build_report_name,
+    report_module_name,
     log,
     add_session_result,
     print_summary_table,
@@ -195,7 +196,7 @@ def pytest_sessionstart(session):
 def test_report():
     """Create a session-wide test report."""
     config = load_test_config()
-    report_path = config.get("report_path", "/opt/omnia/reports")
+    report_path = config.get("report_path", "/automation")
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
@@ -207,7 +208,7 @@ def test_report():
         base_name=base_name,
     )
     report = TestReport(
-        module_name="repo_manager",
+        module_name=report_module_name("repo_manager"),
         report_path=report_path,
         report_name=report_name,
         server_ip=oim_ip,

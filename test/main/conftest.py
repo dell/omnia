@@ -54,6 +54,7 @@ from omnia_auto import (  # noqa: E402
     get_last_tc_id,
     encrypt_test_credentials,
     build_report_name,
+    report_module_name,
     log,
     add_session_result,
     print_summary_table,
@@ -225,6 +226,7 @@ def pytest_sessionstart(session):
         else "main_fvt"
     )
 
+    module_name = report_module_name("main", module_name)
     configured_id = str(config.get("run_id") or "").strip()
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id
@@ -235,7 +237,7 @@ def pytest_sessionstart(session):
     report = TestReport(
         module_name=module_name,
         report_path=str(
-            config.get("report_path", "/opt/omnia/reports")
+            config.get("report_path", "/automation")
         ),
         report_name=report_name,
         server_ip=str(
