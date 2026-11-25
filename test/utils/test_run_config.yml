@@ -85,4 +85,3 @@ scenarios:
     marker: "sanity"
     dataset: ""
     sync_input: false
-
