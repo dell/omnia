@@ -71,6 +71,11 @@ TEST_LOG_MSGS: Dict[str, str] = {
         "{entry_id} failure above, then re-run ./run_validation.sh "
         "fvt_build_stream {category}"
     ),
+    "gitlab_mode_skip": (
+        "gitlab_mode is '{mode}' in the build_stream input file, but this test verifies "
+        "{required} mode only ({reason}). Nothing to fix: the check does not apply to "
+        "this deployment."
+    ),
     "prepare_base_ok": "./omnia.sh --prepare-base completed in {duration:.1f}s",
     "prepare_base_failed": (
         "./omnia.sh --prepare-base failed (rc={rc}) in {duration:.1f}s"

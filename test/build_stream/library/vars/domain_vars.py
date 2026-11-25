@@ -73,6 +73,8 @@ MARKERS: List[str] = [
     "security",
     "disruptive",
     "log_observability",
+    "hosted_only",
+    "external_only",
 ]
 
 # =====================================================================

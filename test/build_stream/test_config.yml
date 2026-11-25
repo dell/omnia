@@ -254,6 +254,30 @@ pipeline:
   poll_interval: 30
 
 # =============================================================================
+# GITLAB MODE  (fvt/execute: gitlab_server, gitlab_runner, gitlab_external, ...)
+# =============================================================================
+# The execute tag reads gitlab_mode from the build_stream input file on the OIM
+# (<OMNIA_DATA_PATH>/build_stream/input/<project>/build_stream_config.yml) and
+# runs the matching checks:
+#   hosted    Omnia installed GitLab CE and a runner on gitlab_host (SSH):
+#             suites gitlab_server and gitlab_runner run exactly as before and
+#             the external-only suite gitlab_external is skipped.
+#   external  customer-managed GitLab reached through its REST API with the
+#             gitlab_api_token personal access token: gitlab_server and
+#             gitlab_runner are skipped, gitlab_external runs, and gitlab_project
+#             and every pipeline suite use the external URL, token and CA.
+# Skipped tests print the reason; nothing here selects a mode.
+gitlab:
+  # expected_mode: "" | hosted | external (default: "").
+  #   ""        take the mode from the input file.
+  #   hosted | external   additionally fail the mode check when the input file
+  #             selects the other mode (guards a CI run against a wrong input).
+  expected_mode: ""
+  # token_min_days_remaining: integer >= 0 (default: 30). External mode only.
+  #   The personal access token must stay valid for at least this many days
+  #   (the product warns below 30). 0 = only an expired token fails.
+  token_min_days_remaining: 30
+# =============================================================================
 # EXECUTION
 # =============================================================================
 # true (default):  every pipeline stage playbook log (create-local-repository,

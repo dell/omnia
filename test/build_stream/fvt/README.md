@@ -121,7 +121,9 @@ Deploys Postgres, the BuildStream API container and the playbook-watcher, and wr
 
 ## Execute — `build_stream.yml --tags execute` (order 40000)
 
-Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner. All GitLab checks live here.
+Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner (`gitlab_mode: hosted`), or configures a customer-managed GitLab through its REST API (`gitlab_mode: external`). All GitLab checks live here.
+
+The scenario reads `gitlab_mode` from the input file first (`test_gitlab_mode_detected`, V104, and the entry test). `gitlab_server` and `gitlab_runner` are hosted-only; they are skipped with the reason when the input file selects external. `gitlab_project` and the pipeline suites run in both modes.
 
 `execute verify` then runs every pipeline suite in this order (one test case
 per step):
@@ -165,6 +167,7 @@ exactly one row in `image_groups` and that it is the deployed image group.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
+| 39999 | BSM_FVT_EXECUTE_V104 | `test_gitlab_mode_detected` | root | sanity | Reads `gitlab_mode` from `build_stream_config.yml` and validates its inputs (hosted: IPv4 `gitlab_host`; external: HTTPS URL, namespace, CA path); optional `gitlab.expected_mode`. | Mode is `hosted` or `external` and its inputs are valid. |
 | 40000 | BSM_FVT_EXECUTE_E001 | `test_deploy_execute` | root | deploy, sanity | Runs `ansible-playbook build_stream.yml --tags execute` with a `3600` second timeout and logs the command, return code and duration. | The playbook run finishes with return code `0` within `3600` seconds. |
 | 40101 | BSM_FVT_EXECUTE_V001 | `test_gitlab_packages_installed` | gitlab_server | sanity | Runs `rpm -q gitlab-ce` on the GitLab host from `gitlab_host` in `build_stream_config.yml`, over SSH from the OIM with the key build_stream.yml installs (`/root/.ssh/omnia_gitlab`, strict host key checking). | SSH succeeds and the `rpm -q` output contains `gitlab-ce`. |
 | 40102 | BSM_FVT_EXECUTE_V002 | `test_gitlab_server_reachable` | gitlab_server | sanity | Reads `gitlab_host` from `build_stream_config.yml` and runs `echo REACHABLE` on that host over SSH from the OIM. | `gitlab_host` is set, the SSH command exits `0`, and stdout contains `REACHABLE`. |

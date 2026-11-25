@@ -25,6 +25,8 @@ from typing import Any, Dict, List
 
 from omnia_auto import read_remote_yaml
 
+from library.functions.gitlab_mode_func import GITLAB_MODE_EXTERNAL, resolve_gitlab_mode
+
 from library.functions.probe_func import (
     Probe,
     container_running,
@@ -76,10 +78,18 @@ def check_prepare_status_file(host: Any) -> Dict[str, Any]:
     except (OSError, RuntimeError, ValueError) as exc:
         return summarize_probes("status_file", [(BUILD_STREAM_STATUS_FILE, str(exc), False)])
     probes: List[Probe] = [(f"File {path}", "present", True)]
+    # gitlab_host is empty by design when gitlab_mode is external (the GitLab
+    # is the customer's); hosted mode keeps every key mandatory.
+    external = resolve_gitlab_mode(host)["mode"] == GITLAB_MODE_EXTERNAL
     for key in BUILD_STREAM_STATUS_KEYS:
         value = str(status.get(key, "") or "")
         if key == "overall_status":
             probes.append((key, value or "MISSING", value == BUILD_STREAM_STATUS_PREPARED))
+        elif key == "gitlab_host" and external:
+            probes.append((key, value or "empty (external GitLab)", True))
         else:
             probes.append((key, value or "MISSING", bool(value)))
+    if external:
+        mode = str(status.get("gitlab_mode", "") or "")
+        probes.append(("gitlab_mode", mode or "MISSING", mode == GITLAB_MODE_EXTERNAL))
     return summarize_probes("status_file", probes)

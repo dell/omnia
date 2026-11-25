@@ -27,6 +27,11 @@ from typing import Any, Dict
 
 from omnia_auto import Symbols
 
+from library.functions.gitlab_mode_func import (
+    GITLAB_MODE_EXTERNAL,
+    external_connection,
+    resolve_gitlab_mode,
+)
 from library.functions.gitlab_ssh_func import (
     get_gitlab_config,
     get_gitlab_root_token,
@@ -46,6 +51,28 @@ from .http_func import http_json
 _PROJECT_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
+def _external_connection(host) -> Dict[str, Any]:
+    """Return the external GitLab connection, or {} when the mode is hosted.
+
+    In external mode the project lives in ``gitlab_project_namespace`` and is
+    reached with the ``gitlab_api_token`` personal access token over the REST
+    API; hosted mode keeps the SSH-derived root token and ``root/<project>``.
+    """
+    resolved = resolve_gitlab_mode(host)
+    if not resolved["success"] or resolved["mode"] != GITLAB_MODE_EXTERNAL:
+        return {}
+    return external_connection(host)
+
+
+def _expected_project_setting(host, hosted_key: str, external_key: str,
+                              default: str) -> str:
+    """Return the configured visibility or branch for the active GitLab mode."""
+    connection = _external_connection(host)
+    if connection.get("success"):
+        return connection["settings"][external_key]
+    return get_gitlab_config(host).get(hosted_key, default)
+
+
 def _get_gitlab_project(host) -> Dict[str, Any]:
     """Return the GitLab project from the REST API (cached per session).
 
@@ -60,7 +87,11 @@ def _get_gitlab_project(host) -> Dict[str, Any]:
     """
     gitlab_config = get_gitlab_config(host)
     project_name = gitlab_config.get("gitlab_project_name", "omnia-catalog")
-    cache_key = f"{gitlab_config.get('gitlab_host', '')}/{project_name}"
+    external = _external_connection(host)
+    if external:
+        project_name = external.get("settings", {}).get("project_path", project_name)
+    cache_key = (f"external/{project_name}" if external
+                 else f"{gitlab_config.get('gitlab_host', '')}/{project_name}")
     if cache_key in _PROJECT_CACHE:
         return _PROJECT_CACHE[cache_key]
     result = {"success": False, "project": {}, "project_name": project_name, "error": ""}
@@ -92,6 +123,9 @@ def check_gitlab_project_exists(host) -> Dict[str, Any]:
     """
     gitlab_config = get_gitlab_config(host)
     project_name = gitlab_config.get("gitlab_project_name", "omnia-catalog")
+    external = _external_connection(host)
+    if external.get("success"):
+        project_name = external["settings"]["project_path"]
 
     result = {
         "success": False,
@@ -122,8 +156,7 @@ def check_gitlab_project_visibility(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, expected, actual, details, error.
     """
-    gitlab_config = get_gitlab_config(host)
-    expected = gitlab_config.get("project_visibility", "private")
+    expected = _expected_project_setting(host, "project_visibility", "visibility", "private")
 
     result = {
         "success": False,
@@ -161,8 +194,7 @@ def check_gitlab_default_branch(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, expected, actual, details, error.
     """
-    gitlab_config = get_gitlab_config(host)
-    expected = gitlab_config.get("default_branch", "main")
+    expected = _expected_project_setting(host, "default_branch", "branch", "main")
 
     result = {
         "success": False,
@@ -190,6 +222,18 @@ def check_gitlab_default_branch(host) -> Dict[str, Any]:
 
 def _api_context(host, gitlab_config: Dict[str, str]) -> Dict[str, Any]:
     """Return the GitLab API base URL, auth header, verified TLS, project and branch."""
+    external = _external_connection(host)
+    if external:
+        if not external["success"]:
+            return {"error": external["error"]}
+        return {
+            "api_url": external["api"],
+            "headers": external["headers"],
+            "tls": external["tls"],
+            "project_id": external["project_ref"],
+            "branch": external["settings"]["branch"],
+            "error": "",
+        }
     token_result = get_gitlab_root_token(host)
     if not token_result["success"]:
         return {"error": f"Failed to get GitLab token: {token_result['error']}"}

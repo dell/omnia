@@ -397,6 +397,11 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_EXECUTE_E001",
         "title": "Deploy build_stream.yml --tags execute",
     },
+    # --- Execute: GitLab mode (hosted / external) ---
+    "gitlab_mode_detected": {
+        "id": "BSM_FVT_EXECUTE_V104",
+        "title": "Verify gitlab_mode and its inputs in the build_stream input file",
+    },
     # --- Execute: build/deploy (automatic + manual), cadence, image cleanup ---
     "build_trigger_pipeline": {
         "id": "BSM_FVT_EXECUTE_V026",

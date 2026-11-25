@@ -262,12 +262,22 @@ def _prepare(args: argparse.Namespace) -> dict[str, Any]:
             "set_values": args.set_values, "legacy_values": args.var}
 
 
+def _review_fields(document: dict[str, Any]) -> tuple[str, ...]:
+    """Return the fields an operator must set for the selected gitlab_mode."""
+    if document.get("gitlab_mode") == "external":
+        return ("build_stream_host_ip", "gitlab_external_url", "gitlab_project_namespace")
+    return ("build_stream_host_ip", "gitlab_host")
+
+
 def _guidance(document: dict[str, Any]) -> list[str]:
-    notes = [
-        "REVIEW BEFORE USE: build_stream_host_ip must identify the execution OIM.",
-        "REVIEW BEFORE USE: gitlab_host must identify the reachable GitLab server.",
-        "Credentials are configured separately and are never generated or synchronized.",
-    ]
+    notes = ["REVIEW BEFORE USE: build_stream_host_ip must identify the execution OIM."]
+    if document.get("gitlab_mode") == "external":
+        notes.append("REVIEW BEFORE USE: gitlab_external_url and gitlab_project_namespace must "
+                     "identify the customer-managed GitLab and its group; set "
+                     "gitlab_ca_cert_path when its certificate is not publicly trusted.")
+    else:
+        notes.append("REVIEW BEFORE USE: gitlab_host must identify the reachable GitLab server.")
+    notes.append("Credentials are configured separately and are never generated or synchronized.")
     if not document.get("enable_build_stream", False):
         notes.insert(0, "BuildStream is disabled; domain tasks must be skipped.")
     return notes
@@ -288,7 +298,7 @@ def _render(plan: dict[str, Any], staging: Path) -> list[str]:
     except TemplateError as exc:
         raise GeneratorError(f"Template rendering failed: {exc}") from exc
     if plan["document"].get("enable_build_stream", False):
-        for field in ("build_stream_host_ip", "gitlab_host"):
+        for field in _review_fields(plan["document"]):
             if not plan["document"].get(field):
                 content = re.sub(rf"^({field}:.*)$", r"\1  # REPLACE WITH REAL VALUE",
                                  content, flags=re.MULTILINE)
