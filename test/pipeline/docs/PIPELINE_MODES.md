@@ -256,7 +256,7 @@ The pipeline runs these stages in order. Which stages actually execute depends o
 22. summary                           Y          Y     Y
 ```
 
-A failed cleanup or cleanup test does not stop the other ones, but nothing after `cleanup_omnia` runs. The cleanup tests (`test_cleanup_<domain>`, one per cleanup stage, run after all the cleanups, same order and same domain selection) are not numbered in the table above.
+A failed cleanup or cleanup test does not stop the other ones, but `cleanup_omnia`, the install and every later stage are skipped and `summary` runs and fails the pipeline. The cleanup tests (`test_cleanup_<domain>`, one per cleanup stage, run after all the cleanups, same order and same domain selection) are not numbered in the table above.
 See [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) for how each stage works.
 
 Legend:

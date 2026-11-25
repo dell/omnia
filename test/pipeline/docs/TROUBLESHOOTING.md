@@ -210,7 +210,8 @@ installing, so a half-clean OIM is not reinstalled.
 1. Open the failed job: it names the command (`omnia.sh --run <domain> --tags <cleanup tag>`,
    `fvt_<domain> cleanup verify`, `omnia.sh --cleanup --all`, or the NFS clearing) and its output.
 2. Fix the cause on the OIM, then run the pipeline again; the cleanups are safe to repeat.
-3. `cleanup_utils` and `cleanup_discovery` are tolerated: their failure alone does not stop the install.
+3. Nothing is tolerated: a failed `utils` or `discovery` cleanup or cleanup test stops the install too.
+4. To run again, start a new pipeline; the cleanups are safe to repeat. A retry of one job in the same pipeline uses the same report id.
 
 ---
 

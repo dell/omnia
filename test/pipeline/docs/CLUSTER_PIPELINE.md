@@ -19,7 +19,7 @@ For the settings see [CONFIGURATION.md](CONFIGURATION.md), for the modes
  cleanup_<domain>      omnia.sh --run <domain> --tags <cleanup tag> with the flags of the cluster's
                        test_config.yml (repo_manager: cleanup_pulp, the others: cleanup), in the
                        order build_stream, utils, telemetry, orchestrator, discovery,
-                       image_build_manager, repo_manager (utils and discovery tolerated)
+                       image_build_manager, repo_manager (none is tolerated)
  test_cleanup_<domain> fvt_<domain> cleanup verify in the Omnia venv, same order, after ALL the
                        cleanups; the orchestrator one empties the Slurm and K8s NFS shares
  cleanup_omnia         ONE stage: omnia.sh --cleanup --all (test/main)
@@ -59,9 +59,15 @@ did not pass fails with that reason.
 
 **What stops what:**
 - A failed `initialization` skips every other stage: only `summary` runs.
-- A failed domain exec stops the pipeline: its verify stage and the later domains are skipped.
-- A failed verify (`test_<domain>`) does not stop the next domain.
-- A failed cleanup does not stop the other cleanups, but nothing is installed after it (below).
+- A failed domain deploy (`<domain>`) stops the pipeline at once: its test and the later domains are
+  skipped, and `summary` runs.
+- A failed test (`test_main_installation`, `test_<domain>`) does not stop anything: the next domains
+  still deploy and test.
+- A failed cleanup or cleanup test does not stop the other cleanups and cleanup tests, but then
+  `cleanup_omnia`, the install (`setup_main`) and every later stage are skipped and `summary` runs
+  (below). Nothing is tolerated: a failed `utils` or `discovery` cleanup stops the install too.
+- `summary` always runs, sends the report, and fails the pipeline when any job failed (a failed
+  test too), so the pipeline is red when all stages ran but a test failed.
 
 ---
 
@@ -75,10 +81,10 @@ failed nothing is installed or deployed.
   another one failed, and a failed `initialization` skips all of them.
 - The first job that would change anything after the cleanups, `setup_main` (and every domain
   exec after it), first calls `require_cleanups_ok`: it fails, with a red pipeline, when a cleanup or
-  a cleanup test failed. That skips every later stage. `cleanup_utils`, `cleanup_discovery` and
-  their tests are tolerated: their failure alone does not stop the install.
-- `summary` always runs and fails the pipeline when `initialization`, a cleanup, a cleanup test,
-  `setup_main` or a domain exec failed (a failed domain verify does not).
+  a cleanup test failed (`utils` and `discovery` included). That skips every later stage.
+- `cleanup_omnia` (the destructive `omnia.sh --cleanup --all`) is run only when every cleanup and
+  every cleanup test passed.
+- `summary` always runs and fails the pipeline when any job failed.
 - The cleanup jobs also check the `pipeline_job_status/initialization.ok` marker, which the
   initialization job leaves only when every step passed (the clone, the checks, the NFS check).
 - A cleanup stage runs only the playbook; no test runs in it. Its test stage runs afterwards. A
@@ -106,7 +112,7 @@ exist before the clone. All of them need the cluster variables
 | `nfs-check` | Every Slurm and K8s share of the OIM's `storage_config.yml` mounts read-only (nothing is deleted) |
 | `cleanup <domain>` | Checks the marker, then `./omnia.sh --run <domain> --tags <tag>` in the Omnia venv with `-e` flags read from `clusters/<cluster>/inputs/test/<domain>/test_config.yml` (orchestrator: `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`; build_stream: `postgres_backup`, `cleanup_credentials`; telemetry: `delete_sinks_volume`, `cleanup_credentials`, `cleanup_logs`; repo_manager and image_build_manager: `cleanup_credentials=false` only). No test runs |
 | `cleanup-verify <domain>` | Checks the marker of the cleanup, copies the cluster's test config, sets `run_id` to the pipeline id, then `fvt_<domain> cleanup verify` in the Omnia venv (utils: `--marker cleanup`). The orchestrator one empties the NFS shares (see below). Copies the reports it wrote before the Omnia cleanup removes them |
-| `cleanup-omnia` | Checks the marker, then runs `omnia.sh --cleanup --all --skip-approval`. When `cleanup_orchestrator` failed (the NFS shares may not be empty) it is not run and the Omnia venv stays |
+| `cleanup-omnia` | Checks the marker, then runs `omnia.sh --cleanup --all --skip-approval`. When any cleanup or cleanup test failed (the NFS shares may not be empty) it is not run and the Omnia venv stays |
 | `setup-main` | `install` (in `default` mode or with `ENABLE_SETUP=true`), then `inputs` (in `default` and `deploy` mode) |
 | `install` | `omnia.sh -s`, then checks that the venv activates |
 | `inputs` | Copies the inputs (below); refuses an input folder that holds a symbolic link |

@@ -44,9 +44,11 @@ over SSH:
     stage <domain> <tag>  fvt_<domain> <tag> exec
     verify <domain|main>  test config and credentials, then TEST_<DOMAIN>_CMD (default
                           ./run_validation.sh fvt_<domain> verify)
-    summary               status of every job and the email; fails the pipeline when initialization,
-                          a cleanup or its verification, setup_main or a domain exec failed (a
-                          failed domain verify or a tolerated cleanup, utils and discovery, does not)
+    summary               status of every job and the email; fails the pipeline when any job failed
+                          (a failed test included)
+    prepare-base          the credentials of repo_manager, image_build_manager and orchestrator, then
+                          omnia.sh --prepare-base (build stream pipeline)
+    setup-utils           omnia.sh -s, then the inputs of the utils domain (utils pipeline)
 
 Every FVT run of the pipeline gets the pipeline id as its report id (run_id of test_config.yml and
 CI_PIPELINE_ID), so the reports of all domains and phases carry the same id.
@@ -90,8 +92,7 @@ PROTECTED_PATHS = ("/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/lib6
 STATUS_DIR = "pipeline_job_status"
 ERROR_DIR = f"{STATUS_DIR}/errors"
 MAX_REASON = 600
-TOLERATED_JOBS = ("cleanup_utils", "cleanup_discovery", "test_cleanup_utils",
-                  "test_cleanup_discovery")
+TOLERATED_JOBS: Tuple[str, ...] = ()
 COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
 MAX_REPORTS = 50
@@ -106,6 +107,8 @@ DOMAIN_STEPS = {
     "discovery": ("precheck", "validate", "execute"),
     "orchestrator": ("precheck", "prepare", "provision"),
     "telemetry": ("precheck", "validate", "deploy"),
+    "build_stream": ("",),
+    "utils": ("collect", "backup_oim_logs"),
 }
 CREDENTIAL_FILES = {
     "repo_manager": "repo_manager_config_credentials.yml",
@@ -113,6 +116,8 @@ CREDENTIAL_FILES = {
     "discovery": "discovery_credentials.yml",
     "orchestrator": "orchestrator_credentials.yml",
     "telemetry": "telemetry_credentials.yml",
+    "build_stream": "build_stream_credentials.yml",
+    "utils": "install_os_credentials.yml",
 }
 OPTIONAL_CREDENTIALS = ("discovery",)
 CLEANUP_TAGS = {
@@ -478,7 +483,8 @@ def initialize() -> int:
         rc = step()
         if rc:
             return rc
-    if _domain_selected("orchestrator") and not _skipped("nfs_check"):
+    if (_env("PIPELINE_KIND") != "utils" and _domain_selected("orchestrator")
+            and not _skipped("nfs_check")):
         rc = nfs_preflight()
         if rc:
             return rc
@@ -657,11 +663,11 @@ def cleanup_omnia() -> int:
     cluster = apply_cluster()
     require_ready()
     path = install_path()
-    blocked = [n for n in failed_cleanups() if n.endswith("orchestrator")]
+    blocked = failed_cleanups()
     if blocked and _env("DRY_RUN").lower() != "true":
-        _say(f"ERROR: {', '.join(blocked)} failed (the orchestrator cleanup and its verification "
-             "empty the NFS shares), so the Omnia cleanup was not run and the Omnia venv is kept "
-             "for the next try")
+        _say(f"ERROR: {', '.join(blocked)} failed, so the Omnia cleanup was not run and the Omnia "
+             "venv is kept for the next try (the orchestrator ones empty the NFS shares)")
+        _record_error(f"{', '.join(blocked)} failed, so the Omnia cleanup was not run")
         return 1
     rc = _stage_test_files(cluster, "main")
     if rc:
@@ -757,13 +763,15 @@ def _resolved_copy(folder: str, values: Dict[str, str]) -> Tuple[str, int]:
     return copy, len(hits)
 
 
-def inputs() -> int:
+def inputs(only: Sequence[str] = ()) -> int:
+    """Copy the input folder of every domain (of the domains in ``only`` when given) and the catalog."""
     cluster = apply_cluster()
     if _dry_run("copy the input folder of every domain and the catalog to the OIM"):
         return 0
     data, project = _resolve_layout()
     layout = Layout(cluster)
-    folders = [d for d in DOMAIN_STEPS if os.path.isdir(layout.domain_dir(d))]
+    folders = [d for d in DOMAIN_STEPS if (not only or d in only)
+               and os.path.isdir(layout.domain_dir(d))]
     if not folders:
         _fail(f"no domain input folder in the project. HOW TO FIX: add "
               f"{layout.domain_dir('<domain>')}/")
@@ -822,6 +830,13 @@ def setup_main() -> int:
     if mode in ("default", "deploy") and not _skipped("inputs"):
         return inputs()
     return 0
+
+
+def setup_utils() -> int:
+    """Stage setup_utils of the utils pipeline: omnia.sh -s, then the inputs of the utils domain."""
+    apply_cluster()
+    rc = install()
+    return rc or inputs(("utils",))
 
 
 _NO_VENV = "echo 'ERROR: no Omnia venv, run the install stage first' >&2; exit 1"
@@ -1057,11 +1072,12 @@ def _omnia_run(domain: str, tag: str, extra_vars: Sequence[str] = (), missing: s
         if not SAFE_EXTRA_VAR.match(item):
             _fail(f"'{item}' is not a key=true|false extra variable")
     extras = "".join(f" -e {shlex.quote(item)}" for item in extra_vars)
+    tags = f" --tags {_tag(tag)}" if tag else ""
     return _run(f"""set -e
 {_activate(missing or _NO_VENV)}
 cd {shlex.quote(path)}/src/main && chmod +x omnia.sh
-./omnia.sh --run {domain} --tags {_tag(tag)}{extras}
-""", f"omnia.sh --run {domain} --tags {tag}{extras}")
+./omnia.sh --run {domain}{tags}{extras}
+""", f"omnia.sh --run {domain}{tags}{extras}")
 
 
 def deploy(domain: str) -> int:
@@ -1075,16 +1091,35 @@ def deploy(domain: str) -> int:
     require_cleanups_ok()
     if domain not in DOMAIN_STEPS:
         _fail(f"{domain} has no deploy steps. Valid: {', '.join(DOMAIN_STEPS)}")
-    rc = credentials(domain)
-    if rc:
-        return rc
     tags = [t.strip() for t in _env(f"{domain.upper()}_TAGS").split(",") if t.strip()]
-    for tag in tags or DOMAIN_STEPS[domain]:
-        _say(f"===== {domain}: {tag} (omnia.sh --run {domain} --tags {tag}) =====")
+    steps = tags or list(DOMAIN_STEPS[domain])
+    if domain != "utils" or "install_os" in steps:
+        rc = credentials(domain)
+        if rc:
+            return rc
+    for tag in steps:
+        _say(f"===== {domain}: {tag or 'the complete playbook'} "
+             f"(omnia.sh --run {domain}{f' --tags {tag}' if tag else ''}) =====")
         rc = _omnia_run(domain, tag)
         if rc:
             return rc
     return 0
+
+
+def prepare_base() -> int:
+    """Stage prepare_base of the build stream pipeline: the credentials of the base domains, then
+    ``./omnia.sh --prepare-base`` (repo_manager, image_build_manager and orchestrator)."""
+    apply_cluster()
+    require_cleanups_ok()
+    for domain in ("repo_manager", "image_build_manager", "orchestrator"):
+        rc = credentials(domain)
+        if rc:
+            return rc
+    return _run(f"""set -e
+{_activate(_NO_VENV)}
+cd {shlex.quote(install_path())}/src/main && chmod +x omnia.sh
+./omnia.sh --prepare-base
+""", "omnia.sh --prepare-base")
 
 
 def _test_command(domain: str) -> str:
@@ -1321,8 +1356,7 @@ def summary() -> int:
     if html_report:
         attachments.append(html_report)
     _send_summary_email(jobs, attachments)
-    blocking = [n for n in failed if (not n.startswith("test_") or n.startswith("test_cleanup_"))
-                and n not in TOLERATED_JOBS]
+    blocking = [n for n in failed if n not in TOLERATED_JOBS]
     if blocking:
         _say(f"The pipeline fails because of: {', '.join(blocking)}")
     return 1 if blocking else 0
@@ -1333,7 +1367,8 @@ def main(argv: List[str]) -> int:
            "deploy": deploy, "verify": verify_domain}
     none = {"initialize": initialize, "init": init, "checkout": checkout,
             "nfs-check": nfs_preflight, "cleanup-omnia": cleanup_omnia, "setup-main": setup_main,
-            "install": install, "inputs": inputs, "summary": summary}
+            "install": install, "inputs": inputs, "summary": summary,
+            "setup-utils": setup_utils, "prepare-base": prepare_base}
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 0

@@ -13,7 +13,7 @@ How the pipeline sources fit together, how to change them and how they are teste
 | `pipeline_ci.py` | The command of every cluster job | the GitLab runner, taken from the Omnia clone |
 | `library/functions/email_func.py`, `library/vars/email_vars.py` | The summary email | the GitLab runner, taken from the clone |
 | `setup_gitlab_project.py` | Creates the project, uploads files, sets variables, `--scan-host-keys` | your machine |
-| `send_email.py` | Email of the utils and build stream pipelines | the GitLab runner |
+| `send_email.py` | Legacy email script of the old utils and build stream pipelines; the generated pipelines use `library/` | not used |
 
 Only the YAML files, `send_email.py` and `pipeline_config.yml` are uploaded to the GitLab project
 (`collect_pipeline_files()` in `setup_gitlab_project.py`). The helpers are not: the `initialization`
@@ -33,7 +33,6 @@ Everything about the shape of the cluster pipeline is in `pipeline_render.py`:
 | Table | Meaning |
 |---|---|
 | `CLEANUP_ORDER` | The order of the cleanup stages |
-| `TOLERATED_CLEANUPS` | Cleanups whose failure does not stop the install |
 | `DEPLOY_ORDER` | The domains with a deploy and a test stage, in order |
 | `VARIABLES`, `RETRY_WHEN`, rule strings | Defaults, retry policy, `PIPELINE_MODE` and `DOMAINS` conditions |
 

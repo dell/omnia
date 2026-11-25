@@ -49,6 +49,7 @@ workflow:
 variables:
   SSH_CONNECT_TIMEOUT: '30'
   PIPELINE_VERSION: '4.0'
+  PIPELINE_KIND: 'cluster'
   SKIP_STAGES: ''
   TEST_MAIN_CMD: './run_validation.sh fvt_main verify'
   TEST_REPO_MANAGER_CMD: './run_validation.sh fvt_repo_manager verify'
@@ -803,6 +804,7 @@ setup_main:
 test_main_installation:
   stage: test_main_installation
   timeout: 3h
+  allow_failure: true
   rules:
     - if: '$SKIP_STAGES =~ /(^|[ ,])(test_main_installation|test)([ ,]|$)/'
       when: never
