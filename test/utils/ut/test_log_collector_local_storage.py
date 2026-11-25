@@ -32,10 +32,36 @@ import yaml
 
 import pytest
 
+from library.functions import TestLogger
 from library.functions.utils_func import (
     validate_bundle_worker_pod_logs,
     validate_bundle_local_storage_status_files,
 )
+from library.vars import TEST_CASES as TC
+
+_TEST_TC_KEYS = {
+    "test_k8s_worker_log_dirs_configured": "ut_collect_worker_log_dirs",
+    "test_local_disk_prep_log_files_configured": "ut_collect_local_disk_prep_log",
+    "test_storage_config_file_configured": "ut_collect_storage_config_file",
+    "test_k8s_logs_collects_worker_log_dirs": "ut_collect_worker_tasks",
+    "test_bundle_tasks_collect_nfs_status_files": "ut_collect_nfs_status_tasks",
+    "test_validate_bundle_worker_pod_logs_detects_pod_logs": (
+        "ut_validate_worker_pod_logs"
+    ),
+    "test_validate_bundle_local_storage_status_files_detects_status": (
+        "ut_validate_local_storage_status"
+    ),
+}
+
+
+@pytest.fixture(autouse=True)
+def _register_tc_id(request):
+    """Record TC ID for each unit test in the test runner report."""
+    key = _TEST_TC_KEYS.get(request.node.name)
+    if key and key in TC:
+        tc = TC[key]
+        TestLogger(tc["title"], tc["id"])
+    yield
 
 
 @pytest.fixture
