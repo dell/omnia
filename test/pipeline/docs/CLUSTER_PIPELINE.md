@@ -140,7 +140,22 @@ is copied to `<data>/catalog/` when present. The stage fails if no domain folder
 fails. The project layout is `clusters/<cluster>/inputs/src/<domain>/`, `inputs/src/main/` (omnia.env and
 catalog) and `inputs/test/<domain>/`; a project with the older `inputs/<domain>/` layout is still read
 (`inputs/src/` wins).
-`pxe_mapping_file.csv` is given mode 640, which the orchestrator validation requires.
+`pxe_mapping_file.csv` is given mode 640, which the orchestrator validation requires, and
+`secret.yaml` mode 600.
+
+**Paths that follow the OIM.** Omnia needs absolute paths that exist for the files an input names
+(for example `csi_powerscale_driver_secret_file_path`, `csi_powerscale_driver_values_file_path`,
+`pxe_mapping_file_path`, `additional_cloud_init_config_file`, `repo_manager_output_path`,
+`csm_observability_values_file_path`). Write them with `$OMNIA_DATA_PATH` and
+`$OMNIA_PROJECT_NAME` (or `${OMNIA_DATA_PATH}` / `${OMNIA_PROJECT_NAME}`), for example
+`"${OMNIA_DATA_PATH}/orchestrator/input/${OMNIA_PROJECT_NAME}/secret.yaml"`. While it copies a
+domain folder the stage replaces these placeholders in the `.yml` / `.yaml` files with the values of
+the OIM (`OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` of its `omnia.env`), so Omnia sees plain
+absolute paths and a changed data path or project name needs no edit of the inputs. The files
+`secret.yaml` and `values.yaml` are copied as they are and never rewritten, and only these two
+names are replaced. The copy is made in a private temporary folder (mode 700) that is removed
+afterwards. `secret.yaml` and `values.yaml` of the project folder are pushed on every run, so a
+changed secret or values file reaches the OIM with the next pipeline.
 
 ---
 

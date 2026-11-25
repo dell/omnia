@@ -64,10 +64,12 @@ import json
 import os
 import re
 import shlex
+import shutil
 import smtplib
 import ssl
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -131,6 +133,9 @@ LOG_DIR = "pipeline_job_logs"
 HTML_REPORT_DIR = "pipeline_report"
 MAX_LOG_BYTES = 3000000
 SENSITIVE_INPUTS = ("pxe_mapping_file.csv",)
+PRIVATE_INPUTS = ("secret.yaml",)
+UNRESOLVED_INPUTS = ("secret.yaml", "values.yaml")
+PLACEHOLDER_RE = re.compile(r"\$(?:\{(OMNIA_DATA_PATH|OMNIA_PROJECT_NAME)\}|(OMNIA_DATA_PATH|OMNIA_PROJECT_NAME)\b)")
 NFS_PORT = 2049
 PIP_INSTALL = """pip install -q -r requirements.txt
 pip install -q --force-reinstall --no-deps ../plugins/dist/omnia_auto-*.whl"""
@@ -647,7 +652,7 @@ def cleanup_omnia() -> int:
     test_config.yml select the shares). When that cleanup failed, the shares may still hold
     data, so the Omnia cleanup is not run and the Omnia venv is kept for the next try. test/main
     uses its own venv, because the cleanup removes the Omnia venv. The reports of the cleanup
-    are kept before /opt/omnia is removed.
+    are kept before the Omnia data folder is removed.
     """
     cluster = apply_cluster()
     require_ready()
@@ -721,6 +726,37 @@ def _refuse_symlinks(folder: str) -> None:
                       "file in the project input folder")
 
 
+def _resolved_copy(folder: str, values: Dict[str, str]) -> Tuple[str, int]:
+    """Return (folder to push, files rewritten): placeholders of the input YAML files resolved.
+
+    ``$OMNIA_DATA_PATH``, ``${OMNIA_DATA_PATH}``, ``$OMNIA_PROJECT_NAME`` and
+    ``${OMNIA_PROJECT_NAME}`` in the ``.yml`` / ``.yaml`` files are replaced with the values of the
+    OIM, so a path such as the PowerScale ``csi_powerscale_driver_secret_file_path`` follows the
+    data path and project of the OIM (Omnia itself needs an absolute path that exists). The
+    secret and values files are never rewritten. When nothing needs resolving the folder itself is
+    returned; otherwise a private copy (mode 700) that the caller removes.
+    """
+    hits: List[str] = []
+    for base, _, files in os.walk(folder):
+        for name in files:
+            if name.endswith((".yml", ".yaml")) and name not in UNRESOLVED_INPUTS:
+                path = os.path.join(base, name)
+                with open(path, encoding="utf-8", errors="surrogateescape") as handle:
+                    if PLACEHOLDER_RE.search(handle.read()):
+                        hits.append(path)
+    if not hits:
+        return folder, 0
+    copy = os.path.join(tempfile.mkdtemp(prefix="pipeline-inputs-"), "inputs")
+    shutil.copytree(folder, copy, symlinks=False)
+    for path in hits:
+        target = os.path.join(copy, os.path.relpath(path, folder))
+        with open(path, encoding="utf-8", errors="surrogateescape") as handle:
+            text = PLACEHOLDER_RE.sub(lambda m: values[m.group(1) or m.group(2)], handle.read())
+        with open(target, "w", encoding="utf-8", errors="surrogateescape") as handle:
+            handle.write(text)
+    return copy, len(hits)
+
+
 def inputs() -> int:
     cluster = apply_cluster()
     if _dry_run("copy the input folder of every domain and the catalog to the OIM"):
@@ -737,11 +773,22 @@ def inputs() -> int:
     for domain in folders:
         destination = f"{data}/{domain}/input/{project}"
         _say(f"Copy {layout.domain_dir(domain)}/ -> {destination}/")
-        if _push_folder(layout.domain_dir(domain), destination):
+        source, resolved = _resolved_copy(layout.domain_dir(domain), {
+            "OMNIA_DATA_PATH": data, "OMNIA_PROJECT_NAME": project})
+        if resolved:
+            _say(f"Resolved $OMNIA_DATA_PATH and $OMNIA_PROJECT_NAME in {resolved} file(s) of {domain}")
+        try:
+            pushed = _push_folder(source, destination)
+        finally:
+            if source != layout.domain_dir(domain):
+                shutil.rmtree(os.path.dirname(source), ignore_errors=True)
+        if pushed:
             failed.append(domain)
             continue
         protect = " ".join(shlex.quote(f"{destination}/{name}") for name in SENSITIVE_INPUTS)
-        remote(f"for f in {protect}; do [ -f \"$f\" ] && chmod 640 \"$f\"; done; true")
+        private = " ".join(shlex.quote(f"{destination}/{name}") for name in PRIVATE_INPUTS)
+        remote(f"for f in {protect}; do [ -f \"$f\" ] && chmod 640 \"$f\"; done; "
+               f"for f in {private}; do [ -f \"$f\" ] && chmod 600 \"$f\"; done; true")
     catalog = layout.catalog
     if os.path.isfile(catalog):
         with open(catalog, "rb") as handle:
@@ -1191,9 +1238,8 @@ def _reasons() -> Dict[str, str]:
 def _fetch_reports(prefix: str = "") -> List[Tuple[str, bytes]]:
     """Copy the test reports written during this pipeline from the OIM to pipeline_reports/.
 
-    A cleanup stage keeps its reports under its own prefix, because the Omnia cleanup removes
-    /opt/omnia (and with it the reports). Without a prefix (the summary) the reports kept by
-    the earlier jobs are returned too.
+    A cleanup stage keeps its copy of the reports under its own prefix. Without a prefix (the
+    summary) the reports kept by the earlier jobs are returned too.
     """
     path = _reports_path()
     since = _env("CI_PIPELINE_CREATED_AT")
