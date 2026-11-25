@@ -30,6 +30,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import etcd_declared
 from ._workload_helpers import kubernetes_context as _context
 from ._workload_helpers import optional_skip as _skip
 
@@ -489,8 +490,8 @@ def check_kubernetes_local_etcd(host) -> Dict[str, Any]:
         _runtime, rows, _control, config = _context(host)
         if not rows:
             return _skip(summary, "No Kubernetes nodes are mapped")
-        if not bool(config.get("etcd_on_local_disk", False)):
-            return _skip(summary, "etcd_on_local_disk is disabled")
+        if not etcd_declared(_runtime):
+            return _skip(summary, "No etcd local_storage entry declared")
         control_rows = [
             row for row in rows if "control_plane" in row["EXPECTED_FUNCTIONAL_GROUP"]
         ]

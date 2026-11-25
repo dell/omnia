@@ -37,6 +37,7 @@ from ._pxeboot_helpers import (
     wait_for_cloud_init,
     wait_for_remote_command,
 )
+from ._workload_helpers import etcd_declared
 from ._workload_helpers import kubernetes_context as _context
 from ._workload_helpers import optional_skip as _skip
 from .kubernetes_etcd_pxeboot_func import check_kubernetes_etcd_health
@@ -228,7 +229,7 @@ def check_kubernetes_control_plane_recovery(host) -> Dict[str, Any]:
         final_vip_ok = len(final_owners) == 1
         etcd = _wait_for_etcd_health(host) if ready_ok else {"success": False}
         local_etcd = check_kubernetes_local_etcd_integrity(host)
-        local_etcd_required = bool(config.get("etcd_on_local_disk", False))
+        local_etcd_required = etcd_declared(context)
         local_etcd_ok = (
             local_etcd["success"] if local_etcd_required else True
         )
@@ -296,8 +297,8 @@ def check_kubernetes_local_etcd_recovery(host) -> Dict[str, Any]:
                 "Select the reboot marker to authorize a node reboot",
             )
         _context_data, rows, control, config = _context(host)
-        if not rows or not bool(config.get("etcd_on_local_disk", False)):
-            return _skip(summary, "etcd_on_local_disk is disabled")
+        if not rows or not etcd_declared(_context_data):
+            return _skip(summary, "No etcd local_storage entry declared")
         control_rows = [
             row for row in rows if "control_plane" in row["EXPECTED_FUNCTIONAL_GROUP"]
         ]

@@ -562,12 +562,12 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
     },
     # ── Kafka local disk — ER-ORCH-011 Story 3 ──────────────────────
     "kafka_node_label": {
-        "id": "ORCH_FVT_PXEBOOT_V601",
+        "id": "ORCH_FVT_PXEBOOT_V630",
         "title": "Verify Kafka node label follows disk status and disable-marker state",
         "component": "Kafka node label",
     },
     "kafka_disk_status_file": {
-        "id": "ORCH_FVT_PXEBOOT_V602",
+        "id": "ORCH_FVT_PXEBOOT_V631",
         "title": "Verify per-node Kafka disk status file exists and reports valid result",
         "component": "Kafka disk status file",
     },
