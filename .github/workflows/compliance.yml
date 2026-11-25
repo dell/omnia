@@ -1,0 +1,51 @@
+---
+name: Compliance Gate
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release_*'
+      - 'issue-*'
+      - 'pub/**'
+      - 'feature/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compliance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  compliance:
+    name: Source, Test, SVT and Pipeline Compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: "!startsWith(github.event.pull_request.title, 'sync')"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install checker dependencies
+        run: python -m pip install --upgrade pip pyyaml
+
+      - name: Run compliance gate (changed domains only on a PR, all on manual run)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-compliance-check') }}
+        run: |
+          ARGS=""
+          if [ -n "$BASE_REF" ]; then
+            git fetch origin "$BASE_REF"
+            ARGS="--base origin/$BASE_REF"
+          fi
+          if [ "$SKIP_LABEL" = "true" ]; then
+            echo "Label 'skip-compliance-check' present: reporting only."
+            ARGS="$ARGS --no-fail"
+          fi
+          python3 .github/scripts/compliance_gate.py $ARGS
