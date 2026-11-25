@@ -27,7 +27,8 @@ from typing import Any, Dict, List, Tuple
 from .config_func import theme_config_path
 from .fvt_func import domain_dir
 from .omnia_func import credential_path, missing_credentials, omnia_env, setup_problems
-from ..messages.svt_msgs import SETUP_MSGS
+from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS
+from ..vars.catalog_vars import CATALOG_PLAN_FILE, load_plan
 from ..vars.common_vars import (
     DEFAULT_THEME,
     FVT_REQUIREMENTS,
@@ -36,6 +37,7 @@ from ..vars.common_vars import (
     OMNIA_AUTO_WHEEL,
     OMNIA_VENV_KEY,
     REQUIREMENTS_MARKER,
+    RUN_STATE,
     SETUP_RECORD,
     SETUP_REPORT_DIR,
 )
@@ -114,6 +116,18 @@ def _install_outdated(installed: Dict[str, Any], configured: Dict[str, Any]) -> 
     return installed.get("inputs_sha256") != configured.get("inputs_sha256")
 
 
+def catalog_plan_problem(path: str = CATALOG_PLAN_FILE, run_file: str = RUN_STATE) -> str:
+    """Return why the catalog plan does not belong to the current run ("" when it does)."""
+    run_id = read_json(run_file).get("run_id", "")
+    plan = load_plan(path)
+    if not plan:
+        return CATALOG_MSGS["plan_missing"].format(run_id=run_id, path=path)
+    if plan.get("run_id") != run_id:
+        return CATALOG_MSGS["plan_other_run"].format(path=path, plan_run=plan.get("run_id"),
+                                                     run_id=run_id)
+    return ""
+
+
 def readiness_checks(theme: str) -> List[Check]:
     """Return (label, ok, how to fix) for everything ./run_validation.sh needs."""
     record = load_setup_record()
@@ -135,6 +149,9 @@ def readiness_checks(theme: str) -> List[Check]:
     else:
         detail = ""
     checks.append(("Installed after the last configure", not detail, detail))
+    if THEMES[theme].get("catalog_plan"):
+        detail = catalog_plan_problem()
+        checks.append(("Catalog plan of this run (configure)", not detail, detail))
     if setup:
         checks.append(("Test requirements in the Omnia venv", False, SETUP_MSGS["install_first"]))
         checks.append(("Domain credentials", False, SETUP_MSGS["creds_after_install"]))

@@ -50,6 +50,7 @@ from ..vars.common_vars import (
     FVT_REPORT_NAME,
     MAX_OUTPUT_CHARS,
     REPO_ROOT,
+    RUN_MANIFEST,
 )
 from ..vars.theme_vars import THEMES, theme_title
 
@@ -307,13 +308,28 @@ def repo_meta() -> Dict[str, str]:
             "commit_full": git("rev-parse", "HEAD")}
 
 
+def _skipped_stages(run: Dict[str, Any]) -> List[str]:
+    """Return the stages the run manifest records as skipped (left out of 'all')."""
+    path = os.path.join(str(run.get("report_path") or ""), RUN_MANIFEST)
+    stages = load_json(path).get("stages") if run.get("report_path") else {}
+    return [name for name, outcome in (stages or {}).items()
+            if isinstance(outcome, dict) and outcome.get("status") == "skipped"]
+
+
 def run_meta(theme: str, run: Dict[str, Any]) -> Dict[str, Any]:
-    """Return the run details shown on top of the report (``run``: run_func.load_run())."""
+    """Return the run details shown on top of the report (``run``: run_func.load_run()).
+
+    The planned stages leave out those the run skipped (a theme's default_skip_stages).
+    """
     failed = run.get("failed") or {}
     previous = run.get("previous") or {}
+    skipped = _skipped_stages(run)
     return {"theme": theme, "theme_title": theme_title(theme),
             "description": THEMES[theme]["description"],
-            "stages": [FIRST_STAGE, *THEMES[theme]["stages"]],
+            "stages": [FIRST_STAGE, *(stage for stage in THEMES[theme]["stages"]
+                                      if stage not in skipped)],
+            "skipped_stages": skipped,
+            "scenario_stages": list(THEMES[theme].get("scenario_stages") or []),
             "run_id": run.get("run_id", ""), "started_at": run.get("started_at", ""),
             "state": f"Failed at {failed['step']}" if failed.get("step") else "Open",
             "previous_run": (f"{previous['run_id']} ({previous.get('state', '')})"

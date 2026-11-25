@@ -292,6 +292,9 @@ def pytest_configure(config):
             "Provision-rerun idempotency checks; run only when --marker selects reprovision"
         ),
         "local_storage": "Kafka and etcd local disk post-boot checks (ER-ORCH-011)",
+        "node_remove": "Kubernetes/Slurm node removal lifecycle checks",
+        "node_add": "Kubernetes/Slurm node re-addition lifecycle checks",
+        "token_renew": "Kubernetes bootstrap token renewal checks",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

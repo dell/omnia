@@ -59,6 +59,7 @@ from .utils_func import (
 )
 
 from .host_func import (
+    resolve_target_source_root,
     sync_project_to_remote,
     sync_utils_input,
     sync_install_os_credentials,
@@ -173,6 +174,7 @@ def run_playbook(playbook=None, tag=None, **kwargs):
 
 
 __all__ = [
+    "resolve_target_source_root",
     # omnia_auto exports
     "TestLogger",
     "Colors",

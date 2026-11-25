@@ -134,6 +134,9 @@ FVT_BOOTSTRAP_PYTHON = os.path.join(".venv", "bin", "python")
 # omnia_auto exports the results of every FVT pytest session to this JSON file
 # (print_summary_table); each SVT step gets its own, so its results are exact.
 RESULTS_FILE_ENV = "OMNIA_RESULTS_FILE"
+# RUN steps: ./omnia.sh -r <domain> [--tags <tag>] (theme_vars.OMNIA_RUN_TAGS).
+OMNIA_RUN_ARG = "-r"
+OMNIA_TAGS_ARG = "--tags"
 
 # ------------------------- environment the stage driver and the SVT runner honour
 RUN_ID_ENV = "SVT_RUN_ID"
@@ -177,7 +180,7 @@ FAILURE_TAIL_LINES = 150
 
 # ---- moved from the function modules (one place for every constant)
 # Top-level keys of <theme>_test_config.yml besides the theme block.
-CONFIG_KEYS = ("cleanup", "report")
+CONFIG_KEYS = ("report", "stages", "use_discovery_mapping")
 
 NFS_CLEANUP_KEY = "nfs"
 

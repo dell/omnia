@@ -1,0 +1,37 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# cluster_lifecycle_test_config.yml - settings of the SVT theme cluster_lifecycle
+# =============================================================================
+# Read by ./setup_env.sh (--theme cluster_lifecycle) and by
+# ./run_validation.sh svt_cluster_lifecycle. The cluster values (IPs, names,
+# versions) are in user_inputs.yml; credentials are never written here
+# (./setup_env.sh --set-domain-creds).
+# ./setup_env.sh --configure writes the cleanup flags into the FVT suites'
+# test/<suite>/test_config.yml, so these values override the suites' own ones.
+# A change here needs ./setup_env.sh --configure (a new run).
+# =============================================================================
+
+# =============================================================================
+# CLEANUP  moved to user_inputs.yml (block cleanup): one cleanup shared by every theme.
+# =============================================================================
+
+# =============================================================================
+# REPORT  (one folder and one SVT report per run)
+# =============================================================================
+report:
+  report_path: ""
+  report_name: ""
+  run_id: ""

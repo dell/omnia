@@ -108,7 +108,7 @@ from ..vars.common_vars import (
     STAGED_FILE_MODE,
     VIRTUAL_ENV_KEY,
 )
-from ..vars.theme_vars import THEMES
+from ..vars.theme_vars import THEMES, creds_suite_of
 
 Emit = Callable[[str], None]
 
@@ -263,7 +263,7 @@ def _catalog_selection() -> str:
     return "" if node is None else str(node).strip()
 
 
-def _bundled_catalogs() -> Tuple[Dict[str, str], str]:
+def bundled_catalogs() -> Tuple[Dict[str, str], str]:
     """Return ({number: name} of ./omnia.sh --list-catalogs, error)."""
     try:
         listed = subprocess.run(  # nosec B603  # fixed argument list, no shell
@@ -283,7 +283,7 @@ def resolve_catalog(selection: str) -> Tuple[str, str]:
     The name is what --select-catalog gets, so the choice does not depend on
     the order of the list at install time.
     """
-    catalogs, error = _bundled_catalogs()
+    catalogs, error = bundled_catalogs()
     if error:
         return "", error
     wanted = selection
@@ -316,7 +316,7 @@ def _configure_catalog(emit: Emit, rows: List[Dict[str, Any]]) -> Tuple[str, str
     return name, ""
 
 
-def _select_catalog(name: str, emit: Emit, rows: List[Dict[str, Any]]) -> str:
+def select_catalog(name: str, emit: Emit, rows: List[Dict[str, Any]]) -> str:
     """Run ./omnia.sh --select-catalog ``name`` (replaces the active catalog); return an error."""
     emit(SETUP_MSGS["catalog_select"].format(name=name))
     result = tee_command(["bash", OMNIA_SH, OMNIA_SELECT_CATALOG_ARG, name], cwd=OMNIA_SH_DIR,
@@ -445,7 +445,7 @@ def install(config: Dict[str, Any], emit: Emit, force: bool = False,
         return _failed(SETUP_MSGS["setup_incomplete"] + _problems(problems), rows=rows)
     catalog = record["configure"].get("catalog", "")
     if catalog:
-        error = _select_catalog(catalog, emit, rows)
+        error = select_catalog(catalog, emit, rows)
         if error:
             return _failed(error, rows=rows)
     venv = omnia_venv_path()
@@ -492,12 +492,80 @@ def _creds_report(theme: str, emit: Emit) -> List[str]:
 
 
 def _run_creds_suite(theme: str, arguments: List[str], venv: str, emit: Emit,
-                     payload: Optional[bytes] = None) -> Dict[str, Any]:
-    """Run test/<creds_suite>/setup_env.sh in the activated Omnia venv (prompts not logged)."""
-    suite = THEMES[theme]["creds_suite"]
+                     payload: Optional[bytes] = None, suite: str = "") -> Dict[str, Any]:
+    """Run test/<suite>/setup_env.sh (default: the theme's creds_suite) in the activated Omnia
+    venv (prompts not logged)."""
+    suite = suite or THEMES[theme]["creds_suite"]
     emit(SETUP_MSGS["creds_run"].format(suite=suite, command=" ".join(arguments)))
     return interactive_command(["bash", FVT_SETUP, *arguments], cwd=domain_dir(suite),
                                env=venv_env(venv), input_bytes=payload)
+
+
+def _split_suites(theme: str) -> bool:
+    """Return whether some store of ``theme`` is written by another suite than creds_suite."""
+    return bool(THEMES[theme].get("creds_suites"))
+
+
+def _suite_args(theme: str, flag: str, domain: str) -> Tuple[str, List[str]]:
+    """Return (suite, arguments) of a prompt flag for one store.
+
+    The creds_suite writes several stores and takes ``--domain``; a suite of creds_suites
+    owns one store and has no ``--domain`` option.
+    """
+    suite = creds_suite_of(theme, domain)
+    own = suite != THEMES[theme]["creds_suite"]
+    return suite, [flag] if own else [flag, "--domain", domain]
+
+
+def _write_payload(theme: str, venv: str, emit: Emit, data: Any,
+                   domains: List[str]) -> Dict[str, Any]:
+    """Give each suite the stores of ``domains`` it writes, from JSON keyed by domain.
+
+    The creds_suite gets ``{domain: fields}`` of its domains; a suite of creds_suites gets the
+    flat ``fields`` of its one domain. The values stay in memory (stdin of the suite).
+    """
+    if not isinstance(data, dict) or not all(isinstance(value, dict) for value in data.values()):
+        return _failed(SETUP_MSGS["creds_stdin_invalid"])
+    default = THEMES[theme]["creds_suite"]
+    groups: Dict[str, List[str]] = {}
+    for domain in domains:
+        groups.setdefault(creds_suite_of(theme, domain), []).append(domain)
+    for suite, owned in groups.items():
+        body: Any = ({domain: data[domain] for domain in owned if domain in data}
+                     if suite == default else data.get(owned[0]))
+        if not body:
+            continue
+        result = _run_creds_suite(theme, [CREDS_STDIN_FLAG], venv, emit,
+                                  payload=json.dumps(body).encode("utf-8"), suite=suite)
+        if not result["success"]:
+            return _failed(SETUP_MSGS["creds_failed"].format(rc=result["rc"]),
+                           domains=_creds_report(theme, emit))
+    return _passed()
+
+
+def _read_stdin_payload() -> Tuple[bytes, str]:
+    """Return (the JSON read once from stdin, error)."""
+    payload = b"" if sys.stdin.isatty() else sys.stdin.buffer.read(MAX_CREDS_STDIN_BYTES + 1)
+    if len(payload) > MAX_CREDS_STDIN_BYTES:
+        return b"", SETUP_MSGS["creds_stdin_too_large"].format(limit=MAX_CREDS_STDIN_BYTES)
+    return payload, ""
+
+
+def _write_stdin(theme: str, venv: str, emit: Emit, payload: bytes,
+                 domains: List[str]) -> Dict[str, Any]:
+    """Write the stores from the stdin JSON: split per suite when the theme has creds_suites,
+    else the payload goes unchanged to the creds_suite."""
+    if _split_suites(theme):
+        try:
+            data = json.loads(payload.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return _failed(SETUP_MSGS["creds_stdin_invalid"])
+        return _write_payload(theme, venv, emit, data, domains)
+    result = _run_creds_suite(theme, [CREDS_STDIN_FLAG], venv, emit, payload=payload)
+    if not result["success"]:
+        return _failed(SETUP_MSGS["creds_failed"].format(rc=result["rc"]),
+                       domains=_creds_report(theme, emit))
+    return _passed()
 
 
 def _creds_next(theme: str, emit: Emit) -> None:
@@ -524,6 +592,8 @@ def _creds_openbao(config: Dict[str, Any], venv: str, domains: List[str],
         found = openbao_func.read_domains(settings, domains, openbao_func.token(), emit)
     except openbao_func.OpenBaoError as exc:
         return _failed(SETUP_MSGS["creds_openbao_failed"].format(error=exc))
+    if _split_suites(theme):
+        return _write_payload(theme, venv, emit, found, domains)
     result = _run_creds_suite(theme, [CREDS_STDIN_FLAG], venv, emit,
                               payload=json.dumps(found).encode("utf-8"))
     if not result["success"]:
@@ -548,6 +618,12 @@ def creds(config: Dict[str, Any], flag: str, domain: Optional[str], emit: Emit) 
             return written
         _creds_next(theme, emit)
         return _passed(domains=_creds_report(theme, emit))
+    if _split_suites(theme):
+        written = _creds_split(theme, venv, flag, [domain] if domain else list(domains), emit)
+        if written["status"] == "failed":
+            return written
+        _creds_next(theme, emit)
+        return _passed(domains=_creds_report(theme, emit))
     result = _run_creds_suite(theme, [flag, *(["--domain", domain] if domain else [])], venv, emit)
     stored = _creds_report(theme, emit)
     if not result["success"]:
@@ -556,10 +632,30 @@ def creds(config: Dict[str, Any], flag: str, domain: Optional[str], emit: Emit) 
     return _passed(domains=stored)
 
 
+def _creds_split(theme: str, venv: str, flag: str, domains: List[str],
+                 emit: Emit) -> Dict[str, Any]:
+    """A theme with creds_suites: --domain-creds-stdin split per suite, a prompt flag per store."""
+    if flag == CREDS_STDIN_FLAG:
+        payload, error = _read_stdin_payload()
+        if error:
+            return _failed(error)
+        if not payload.strip():
+            return _failed(SETUP_MSGS["creds_need_stdin"].format(domains=", ".join(domains)))
+        return _write_stdin(theme, venv, emit, payload, domains)
+    for domain in domains:
+        suite, arguments = _suite_args(theme, flag, domain)
+        result = _run_creds_suite(theme, arguments, venv, emit, suite=suite)
+        if not result["success"]:
+            return _failed(SETUP_MSGS["creds_failed"].format(rc=result["rc"]),
+                           domains=_creds_report(theme, emit))
+    return _passed()
+
+
 def _creds_prompts(theme: str, venv: str, missing: List[str], emit: Emit) -> Dict[str, Any]:
     """Prompt each missing store on the terminal."""
     for domain in missing:
-        result = _run_creds_suite(theme, ["--set-domain-creds", "--domain", domain], venv, emit)
+        suite, arguments = _suite_args(theme, "--set-domain-creds", domain)
+        result = _run_creds_suite(theme, arguments, venv, emit, suite=suite)
         if not result["success"]:
             return _failed(SETUP_MSGS["creds_failed"].format(rc=result["rc"]),
                            domains=_creds_report(theme, emit))
@@ -568,16 +664,12 @@ def _creds_prompts(theme: str, venv: str, missing: List[str], emit: Emit) -> Dic
 
 def _creds_stdin(theme: str, venv: str, missing: List[str], emit: Emit) -> Dict[str, Any]:
     """Unattended: give the JSON on stdin (read once, kept in memory) to --domain-creds-stdin."""
-    payload = b"" if sys.stdin.isatty() else sys.stdin.buffer.read(MAX_CREDS_STDIN_BYTES + 1)
+    payload, error = _read_stdin_payload()
+    if error:
+        return _failed(error)
     if not payload.strip():
         return _failed(SETUP_MSGS["creds_need_stdin"].format(domains=", ".join(missing)))
-    if len(payload) > MAX_CREDS_STDIN_BYTES:
-        return _failed(SETUP_MSGS["creds_stdin_too_large"].format(limit=MAX_CREDS_STDIN_BYTES))
-    result = _run_creds_suite(theme, [CREDS_STDIN_FLAG], venv, emit, payload=payload)
-    if not result["success"]:
-        return _failed(SETUP_MSGS["creds_failed"].format(rc=result["rc"]),
-                       domains=_creds_report(theme, emit))
-    return _passed()
+    return _write_stdin(theme, venv, emit, payload, missing)
 
 
 def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool,

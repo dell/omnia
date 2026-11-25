@@ -20,7 +20,8 @@ cleanup/install and the credentials). Then::
     ./run_validation.sh --help
     ./run_validation.sh svt_<theme> list
     ./run_validation.sh svt_<theme> <stage> [--retry] [--quiet]
-    ./run_validation.sh svt_<theme> all [--start-stage <stage> | --retry] [--quiet]
+    ./run_validation.sh svt_<theme> all [--start-stage <stage> | --retry]
+                                        [--skip-stages <a,b>|none] [--quiet]
 
 Stages, in order: initialization (checks the setup), the theme's stages, then
 summary. build_stream:
@@ -32,9 +33,15 @@ summary. build_stream:
 - cadence: a new build, one cadence cycle and the cadence pipeline.
 - automatic_cleanup: the automatic cleanup of the cadence image.
 
+observability: prepare_base, repo_sync, image_build, cluster_deploy (the cluster;
+left out of 'all' by default: the theme runs on a deployed cluster), then
+observability_cleanup, observability_precheck, observability_deploy,
+observability_idrac and observability_ldms.
+
 Each stage is a set of SVT tests (svt/<theme>/); each test runs one FVT step
-of test/<domain> and its screen output and FVT results go into the SVT
-report. Every stage belongs to the run started by ./setup_env.sh
+of test/<domain> (or one ./omnia.sh command, a RUN step) and its screen output
+and FVT results go into the SVT report. 'all' leaves out the theme's
+default_skip_stages (recorded as skipped) unless --skip-stages says otherwise. Every stage belongs to the run started by ./setup_env.sh
 --configure. A stage is refused (exit 2) when no run was started, the run is
 of another theme, or a step of the run failed; summary still runs on a failed
 run. A failed stage marks the run failed: the next stage needs a new run
@@ -68,7 +75,7 @@ from library.functions.lock_func import LockError, StepLock
 from library.functions.omnia_func import venv_problem
 from library.functions.process_func import Tee, format_duration
 from library.messages.svt_msgs import LOCK_MSGS, RUN_MSGS, STAGE_MSGS
-from library.vars.theme_vars import soft_stages
+from library.vars.theme_vars import default_skip_stages, soft_stages
 from library.vars.common_vars import (
     FIRST_STAGE,
     LAST_STAGE,
@@ -129,7 +136,36 @@ def _parser(theme: str) -> argparse.ArgumentParser:
                              "With 'all': resume at the first stage that did not pass")
     parser.add_argument("--quiet", action="store_true",
                         help="write the output to the stage log only (CI)")
+    default = ",".join(default_skip_stages(theme)) or "none"
+    parser.add_argument("--skip-stages", metavar="STAGES",
+                        help="with 'all': theme stages to leave out, comma separated; "
+                             f"'none' runs every stage (default: {default})")
     return parser
+
+
+def _requested_skips(args: argparse.Namespace, theme: str) -> List[str]:
+    """Return the theme stages 'all' leaves out: --skip-stages, else the theme's default."""
+    if args.stage != "all":
+        return []
+    if args.skip_stages is None:
+        return list(default_skip_stages(theme))
+    names = [name.strip() for name in args.skip_stages.split(",") if name.strip()]
+    if names in ([], ["none"]):
+        return []
+    unknown = [name for name in names if name not in THEME_STAGES[theme]]
+    if unknown:
+        raise ValueError(RUN_MSGS["skip_unknown"].format(
+            names=", ".join(unknown), stages=", ".join(THEME_STAGES[theme])))
+    return names
+
+
+def _skipped(args: argparse.Namespace, theme: str, disabled: List[str]) -> List[str]:
+    """Return the stages 'all' leaves out: the requested ones, plus the optional stages that
+    the theme config leaves off (they stay off whatever --skip-stages says)."""
+    if args.stage != "all":
+        return []
+    requested = _requested_skips(args, theme)
+    return requested + [stage for stage in disabled if stage not in requested]
 
 
 def _selected(args: argparse.Namespace, theme: str) -> List[str]:
@@ -202,8 +238,12 @@ def _call(stage: str, ctx: Dict[str, Any], emit) -> Dict[str, Any]:
     return stage_func.run_tests(run_id, theme, stage, emit)
 
 
-def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any]) -> bool:
-    """Run one stage with its log, progress and status files; return success."""
+def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any],
+              skip_reason: str = "") -> bool:
+    """Run one stage with its log, progress and status files; return success.
+
+    With ``skip_reason`` the stage is recorded as skipped (left out of 'all') and not run.
+    """
     directory = stage_func.run_dir(ctx["run_id"])
     label = stage
     status_path = os.path.join(directory, STAGE_STATUS.format(stage=label))
@@ -221,11 +261,14 @@ def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any]) -> bool
             emit(STAGE_MSGS["start"].format(stage=label, run_id=ctx["run_id"],
                                             theme=ctx["theme"]))
             try:
-                if stage != LAST_STAGE:
-                    config = load_svt_config(ctx["theme"])
-                    reapply_run_settings(config, run_func.active_run(config, allow_failed=True),
-                                         emit)
-                outcome = _call(stage, ctx, emit)
+                if skip_reason:
+                    outcome = {"status": "skipped", "error": skip_reason}
+                else:
+                    if stage != LAST_STAGE:
+                        config = load_svt_config(ctx["theme"])
+                        reapply_run_settings(config,
+                                             run_func.active_run(config, allow_failed=True), emit)
+                    outcome = _call(stage, ctx, emit)
             except (OSError, ValueError, KeyError) as exc:
                 outcome = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
             except KeyboardInterrupt:
@@ -285,6 +328,8 @@ def _locked_stages(args: argparse.Namespace, theme: str) -> int:
               != LAST_STAGE else RUN_MSGS["retry_done"].format(
                   run_id=run_func.load_run().get("run_id", "")), flush=True)
     try:
+        disabled = [name for name, on in load_svt_config(theme)["stages"].items() if not on]
+        skipped = _skipped(args, theme, disabled)
         ctx = {"run_id": _resolve(args, theme), "theme": theme}
     except ValueError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -292,8 +337,17 @@ def _locked_stages(args: argparse.Namespace, theme: str) -> int:
         return 2
     if args.stage != "all":
         return 0 if run_stage(args.stage, args, ctx) else 1
+    if skipped:
+        print(RUN_MSGS["skip_stages"].format(stages=", ".join(skipped), theme=theme), flush=True)
     ok = True
+    recorded = stage_func.load_manifest(ctx["run_id"]).get("stages", {})
     for stage in _selected(args, theme)[:-1]:
+        if stage in skipped:
+            # A stage this run already ran on its own keeps its outcome.
+            if (recorded.get(stage) or {}).get("status") in (None, "skipped"):
+                run_stage(stage, args, ctx,
+                          skip_reason=RUN_MSGS["skip_reason"].format(theme=theme))
+            continue
         if not run_stage(stage, args, ctx):
             ok = False
             if stage not in soft_stages(theme):
