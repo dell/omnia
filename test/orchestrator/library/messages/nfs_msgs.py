@@ -47,12 +47,12 @@ NFS_MSGS = {
                     "test_config.yml",
     "mount_mismatch": "NFS share {name}: {mountpoint} is not the NFS mount of {source} after "
                       "mounting (found {found}); nothing was deleted",
-    "empty_failed": "NFS share {name}: {count} entries could not be removed from {source}: "
-                    "{first}{hint}",
+    "empty_failed": "NFS share {name}: {count} entries are still in {source} after {attempts} "
+                    "attempts: {first}{hint}",
     "squash_hint": ". The export probably squashes root: it needs no_root_squash for this OIM",
     "unmount_failed": "NFS share {name}: {mountpoint} is still mounted ({reason}). HOW TO FIX: "
                       "umount -l {mountpoint}; then remove the folder",
-    "retry": "  {name}: {count} entries changed or could not be removed (pass {number} of "
+    "retry": "  {name}: {count} entries are still in the share (attempt {number} of "
              "{total}); emptying it again in {pause}s",
     "clients": "WARNING: {clients} are connected to this NFS server; what they still write "
                "to the share is deleted again, and can make the cleanup fail",
@@ -60,9 +60,24 @@ NFS_MSGS = {
                     "the share (on a Kubernetes node, kubelet), then run the scenario again",
     "need_local_root": "the NFS shares are mounted by the execution OIM: run this test "
                        "locally as root on it (oim_server_ip empty or the OIM itself)",
-    "flag_off": "{flag} is false in test_config.yml: the {name} share is kept",
+    "flag_off": "{flag} is false in test_config.yml: the data of the {name} share is kept "
+                "and nothing is deleted",
     "no_share": "{name} is not an NFS mount of {path}: nothing to empty",
-    "emptied": "emptied {name} ({source}): removed {files} files, {dirs} directories",
+    "config_missing": "storage_config.yml not found at {path}, so the {name} share cannot be "
+                      "checked. HOW TO FIX: run ./omnia.sh --init orchestrator (or restore the "
+                      "file) and rerun the cleanup scenario",
+    "emptied": "emptied {name} ({source}): removed {files} files, {dirs} directories; no "
+               "entry left after {attempts} attempt(s)",
+    "detached": "{name}: {mount_point} is unmounted and has no fstab entry",
+    "still_mounted": "{mount_point} is still mounted",
+    "still_in_fstab": "/etc/fstab still has an entry for {mount_point}",
+    "source_mounted": "{source} is still mounted at {targets}",
+    "source_in_fstab": "/etc/fstab still has an entry for {source}",
+    "not_detached": "NFS share {name} is still attached ({problems}). HOW TO FIX: run the "
+                    "orchestrator cleanup (--tags cleanup) so that it unmounts the share and "
+                    "removes its fstab entry; nothing was deleted",
+    "attached_after": "NFS share {name} is attached after it was emptied ({problems}); the "
+                      "cleanup must leave it unmounted and out of fstab",
     "all_empty": "{name} has no entry left",
     "left": "{name} still has {count} entries after the cleanup",
     "too_deep": "directory tree deeper than {depth} levels",

@@ -51,17 +51,18 @@ MAX_ERRORS = 20
 # Folder (when present) under which the private mount point is created.
 MOUNT_ROOT = "/run"
 
-# A live client (kubelet of a node) can recreate entries while the share is emptied: the
-# share is emptied again, up to this many passes, with this pause (seconds) between them.
-EMPTY_PASSES = 6
+# After the share is emptied it is mounted again and checked; a live client (kubelet of a
+# node) can recreate entries meanwhile. The empty-and-check cycle is tried at most this many
+# times, with this pause (seconds) between two attempts.
+CLEANUP_ATTEMPTS = 3
 
-EMPTY_PAUSE_SECONDS = 3
+RETRY_PAUSE_SECONDS = 3
 
 # Where the NFS server lists its connected clients (when the share is served by this OIM).
 NFSD_CLIENTS_DIR = "/proc/fs/nfsd/clients"
 
 # Mount of the orchestrator storage_config.yml -> the test_config.yml flag that selects it:
-# true empties the share, false skips its test.
+# true checks the share is detached and then empties it; false only checks it is detached.
 NFS_SHARE_FLAGS = {"nfs_slurm": "cleanup_slurm", "nfs_k8s": "cleanup_k8s"}
 
 # storage_config.yml of the orchestrator input folder on the execution OIM.

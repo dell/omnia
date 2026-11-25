@@ -197,8 +197,9 @@ from .cleanup_func import (
 )
 from .nfs_cleanup_func import (
     can_run_locally,
+    check_nfs_share_detached,
     empty_nfs_share,
-    get_nfs_source,
+    get_nfs_mount,
     get_protected_paths,
     get_storage_config_path,
     nfs_share_selected,
@@ -798,8 +799,9 @@ __all__ = [
     "check_vault_encryption",
     "cleanup_extra_vars",
     "cleanup_selection_fields",
+    "check_nfs_share_detached",
     "empty_nfs_share",
-    "get_nfs_source",
+    "get_nfs_mount",
     "get_protected_paths",
     "get_storage_config_path",
     "nfs_share_selected",
