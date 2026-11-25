@@ -206,6 +206,53 @@ THEMES: Dict[str, Dict] = {
             "debug_mode": ("build_stream", "", "debug_mode", "bool"),
         },
     },
+    "slurm_reboot": {
+        "title": "Slurm Ordered Reboot Verification",
+        "description": "Ordered Slurm cluster shutdown and power-on, then Slurm "
+                       "services, LDAP jobs, GPU jobs, MPI jobs, and IPoIB verification",
+        "profile": "slurm_reboot",
+        "cleanup_steps": (),
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
+        "fvt_domains": ("orchestrator",),
+        "credential_domains": ("orchestrator",),
+        "creds_suite": "orchestrator",
+        "stages": (
+            "reboot_cluster",
+            "verify_slurm_services",
+            "verify_slurm_jobs",
+            "verify_gpu_jobs",
+            "verify_mpi_ipoib",
+        ),
+        "soft_stages": (
+            "verify_slurm_jobs",
+            "verify_gpu_jobs",
+            "verify_mpi_ipoib",
+        ),
+        "stage_info": {
+            "reboot_cluster": (
+                "Ordered Cluster Reboot",
+                "Graceful shutdown (compute -> login/compiler -> controller), then "
+                "Redfish power-on (controller -> login/compiler -> compute) with "
+                "per-group cloud-init verification"),
+            "verify_slurm_services": (
+                "Slurm Services Verification",
+                "Slurm membership, scheduler, services, cross-node SSH, configless "
+                "mode, and configuration consistency on all node roles"),
+            "verify_slurm_jobs": (
+                "LDAP Job Verification",
+                "LDAP-owned Slurm jobs submitted from controller, login, and "
+                "login-compiler nodes with PAM access checks"),
+            "verify_gpu_jobs": (
+                "GPU Job Verification",
+                "GPU inventory, GPU job allocation, and bounded GPU memory stress "
+                "workload through Slurm"),
+            "verify_mpi_ipoib": (
+                "MPI and IPoIB Verification",
+                "OpenMPI installation and job, InfiniBand configuration and "
+                "connectivity, IPoIB peer mesh and Slurm NodeAddr"),
+        },
+        "fvt_settings": {},
+    },
     "observability": {
         "title": "Observability End-to-End (iDRAC, LDMS)",
         "description": "Telemetry of a deployed cluster: the iDRAC and LDMS sources deployed "

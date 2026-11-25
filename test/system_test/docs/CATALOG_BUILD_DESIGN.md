@@ -115,7 +115,7 @@ New files: `library/vars/catalog_vars.py`, `library/functions/catalog_settings.p
 | `cleanup_between` | `none` | `none` / `images` / `repos` / `full` after every catalog |
 | `steps` | 8 steps | `[domain, tag]` FVT steps of every catalog |
 
-`cleanup` and `report` blocks: as in `build_stream_test_config.yml`.
+`report` block: see [TEST_CONFIG.md](TEST_CONFIG.md). The cleanup is the shared `cleanup` block of `user_inputs.yml`.
 
 ## 7. GitLab pipeline
 

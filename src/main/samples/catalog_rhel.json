@@ -185,7 +185,7 @@
         "description": "Common libraries and utilities shared across services",
         "components": [
           "cffi==1_17_1",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "prettytable==3_14_0"
         ]
       },
@@ -321,7 +321,7 @@
           "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "omsdk==1_2_518",
           "cffi==1_17_1",
           "prometheus_client==0_26_0",
@@ -378,7 +378,7 @@
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-          "cryptography==45_0_7",
+          "cryptography==50_0_2",
           "omsdk==1_2_518",
           "cffi==1_17_1",
           "prometheus_client==0_26_0",
@@ -1237,14 +1237,6 @@
               "10.2"
             ],
             "url": "https://github.com/dell/karavi-observability.git"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/dell/karavi-observability.git"
           }
         ],
         "version": "v1.16.0"
@@ -1746,14 +1738,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/dell/helm-charts.git"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.2"
@@ -3244,15 +3228,6 @@
               "10.2",
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "url": "https://github.com/dell/helm-charts.git",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
           }
         ]
       },
@@ -3530,14 +3505,6 @@
               "10.2"
             ],
             "url": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml"
           }
         ]
       },
@@ -3718,14 +3685,6 @@
             "version": [
               "10.2"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "reponame": "cri-o-v1-35",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
           }
         ]
       },
@@ -3751,8 +3710,8 @@
           }
         ]
       },
-      "cryptography==45_0_7": {
-        "name": "cryptography==45.0.7",
+      "cryptography==50_0_2": {
+        "name": "cryptography==50.0.2",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -4481,14 +4440,6 @@
             "version": [
               "10.2"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "reponame": "kubernetes-v1-35",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
           }
         ]
       },
@@ -4585,14 +4536,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://get.helm.sh/helm-v3.20.1-linux-amd64.tar.gz"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.2"
