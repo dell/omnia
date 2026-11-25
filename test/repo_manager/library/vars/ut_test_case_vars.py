@@ -710,6 +710,18 @@ UT_TEST_CASE_IDS = {
             333: "test_secrets_are_still_masked",
         },
     ),
+    # ── wget end-of-options hardening (CWE-88) ────────────────────────────
+    **_class_cases(
+        "test_wget_argument_contract.py",
+        "WgetArgumentContractTests",
+        {
+            334: "test_every_wget_argv_ends_options_before_url",
+            335: "test_artifact_url_rejects_option_like_values",
+            336: "test_direct_rpm_wget_calls_end_options_before_url",
+            337: "test_tarball_spider_keeps_user_agent_before_end_of_options",
+            338: "test_iso_spider_ends_options_before_url",
+        },
+    ),
 }
 
 

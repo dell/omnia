@@ -385,6 +385,10 @@ from .slurm_lifecycle_pxeboot_func import (
     check_slurm_node_add,
     check_slurm_node_remove,
 )
+from .kubernetes_lifecycle_pxeboot_func import (
+    check_k8s_node_add,
+    check_k8s_node_remove,
+)
 from .slurm_fabric_pxeboot_func import (
     check_slurm_gpu_inventory,
     check_slurm_infiniband_configuration,
@@ -619,6 +623,8 @@ __all__ = [
     "check_ipoib_routes",
     "check_ipoib_slurm_comm_path",
     "check_ipoib_slurm_nodeaddr",
+    "check_k8s_node_add",
+    "check_k8s_node_remove",
     "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
     "check_external_ldap_backend",

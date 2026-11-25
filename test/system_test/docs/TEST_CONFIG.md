@@ -1,17 +1,18 @@
 # `build_stream_test_config.yml`: every setting
 
 `build_stream_test_config.yml` holds the settings of the SVT **theme** `build_stream`: which
-catalogs the stages use, what the cleanup removes, and where the report goes. (The cluster
-values are in `user_inputs.yml`, see [SETUP.md](SETUP.md); passwords are in neither file.)
-Its name is `<theme>_test_config.yml`, so another theme has its own file. The file has four
-blocks: `build_stream`, `cleanup`, `report`, and inside `cleanup` the SVT-only `nfs` block.
+catalogs the stages use and where the report goes. (The cluster values and the **cleanup** are
+in `user_inputs.yml`, see [SETUP.md](SETUP.md); passwords are in neither file.)
+Its name is `<theme>_test_config.yml`, so another theme has its own file. The file has two
+blocks: `build_stream` and `report`. The cleanup is one block for every theme, at the bottom of
+`user_inputs.yml` (section `cleanup` below).
 
 ## How it is used
 
 - `./setup_env.sh --configure` (the first step of `./setup_env.sh`) reads it, checks it, and
   writes parts of it into the FVT suites' `test/<suite>/test_config.yml`, so they override the
   suites' own values: the `build_stream` block into `test/build_stream`, each `cleanup.<suite>`
-  block into that suite, and the report settings into every suite.
+  block of `user_inputs.yml` into that suite, and the report settings into every suite.
 - Only a value that differs is rewritten, and the comments and layout of the suite's file stay
   as they were. This edits the tracked `test/<suite>/test_config.yml` files of the checkout.
 - **A change needs a new run.** The file's checksum is kept with the run: after you edit it,
@@ -34,7 +35,12 @@ Written into `test/build_stream/test_config.yml`.
 | `allow_pipeline_cancel` | `true` | `true`: GitLab pipelines still running or pending before a commit or a trigger are cancelled and the test continues. `false`: nothing is cancelled; the test fails and lists them | `pipeline.allow_pipeline_cancel` |
 | `debug_mode` | `false` | `true`: the stage, cadence and cleanup playbook logs are streamed live into the test output. `false`: only progress lines and a status line per poll. The FVT suite itself defaults to `true`, so `--configure` sets it to `false` unless you change it here | `debug_mode` (top level) |
 
-## `cleanup`
+## `cleanup` (block of `user_inputs.yml`, shared by every theme)
+
+The cleanup is set once, in the `cleanup` block at the bottom of `user_inputs.yml`, and every
+theme (`build_stream`, `catalog_build`, `cluster_lifecycle`) uses it. A theme file with its own
+`cleanup` block is refused. The `nfs` flags apply to the themes that deploy the Slurm and
+Kubernetes shares (the others ignore them).
 
 `./setup_env.sh --cleanup` (and `--force`, which the pipeline's initialization job runs) removes
 the previous installation, in this order, each with that suite's own cleanup FVT:

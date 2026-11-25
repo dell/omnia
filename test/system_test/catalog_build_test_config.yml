@@ -82,38 +82,8 @@ catalog_build:
     - [image_build_manager, build]
 
 # =============================================================================
-# CLEANUP  (./setup_env.sh --theme catalog_build --cleanup, or --force;
-#           destructive, asks 'yes' unless --yes)
+# CLEANUP  moved to user_inputs.yml (block cleanup): one cleanup shared by every theme.
 # =============================================================================
-# The same steps as the build_stream theme, so an earlier BuildStream, telemetry
-# or orchestrator deployment cannot block omnia.sh --cleanup --all: build_stream
-# (when installed), telemetry (when deployed), orchestrator, image_build_manager,
-# repo_manager, main. See build_stream_test_config.yml for every flag.
-cleanup:
-  build_stream:
-    enabled: true
-    postgres_backup: false
-    cleanup_credentials: true
-  telemetry:
-    enabled: true
-    delete_sinks_volume: true
-    cleanup_credentials: true
-    cleanup_logs: true
-  orchestrator:
-    enabled: true
-    cleanup_credentials: true
-    cleanup_slurm: true
-    cleanup_k8s: true
-    cleanup_benchmark_tools: true
-  image_build_manager:
-    enabled: true
-    cleanup_credentials: true
-  repo_manager:
-    enabled: true
-    cleanup_credentials: true
-  main:
-    enabled: true
-    cleanup_all: true
 
 # =============================================================================
 # REPORT  (one folder and one SVT report per run)
