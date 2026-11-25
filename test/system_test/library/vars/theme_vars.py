@@ -18,8 +18,9 @@ A theme is data only. Its settings file is ``<theme>_test_config.yml`` next to
 the SVT runner. Its stages run in order with ``./run_validation.sh svt_<theme>
 <stage>``; each stage is a set of SVT tests (svt/<theme>/), and each SVT test
 runs one FVT step ``test/<domain>/_run.py fvt_<domain> <arguments>`` (the
-playbook with ``exec``, its verification tests with ``verify``). The SVT never
-copies FVT logic. The tests of a stage are listed in test_case_vars.py.
+playbook with ``exec``, its verification tests with ``verify``) or one product
+command ``./omnia.sh ...`` (a RUN step, OMNIA_RUN_TAGS). The SVT never copies FVT
+logic. The tests of a stage are listed in test_case_vars.py.
 """
 
 from typing import Dict, Tuple
@@ -84,6 +85,30 @@ CREDENTIAL_FILES: Dict[str, str] = {
     "image_build_manager": "image_build_credentials.yml",
     "orchestrator": "orchestrator_credentials.yml",
     "build_stream": "build_stream_credentials.yml",
+    # test/telemetry/setup_env.sh --domain-creds-stdin (one flat JSON object).
+    "telemetry": "telemetry_credentials.yml",
+}
+
+# RUN steps (test_case_vars "run"): the omnia.sh command lines an SVT test may run, as a
+# customer runs them. "-r <domain>" (the domain's default flow) or "-r <domain> --tags <tag>"
+# with a tag of this list; "--prepare-base" alone. Anything else is refused.
+OMNIA_RUN_TAGS: Dict[str, Tuple[str, ...]] = {
+    "repo_manager": ("execute",),
+    "image_build_manager": ("build",),
+    "orchestrator": ("provision", "pxeboot"),
+    "telemetry": ("precheck", "validate", "cleanup_idrac", "cleanup_ldms"),
+}
+OMNIA_PREPARE_BASE = ("--prepare-base",)
+
+# A previous BuildStream installation (even a half one: Postgres up, API quadlet gone) has
+# to be cleaned, or omnia.sh --cleanup --all refuses to start. Shared by every theme.
+BUILD_STREAM_CLEANUP_REQUIRES: Dict[FvtStep, Tuple[str, ...]] = {
+    ("build_stream", ("cleanup", "test")): (
+        "/etc/containers/systemd/omnia_build_stream.container",
+        "/etc/containers/systemd/omnia_postgres.container",
+        "{domain_data}/postgres",
+        "{domain_data}/build_stream_root",
+    ),
 }
 
 THEMES: Dict[str, Dict] = {
@@ -113,14 +138,7 @@ THEMES: Dict[str, Dict] = {
         # ({domain_data} is the data folder of the step's domain). A half installed
         # product (BuildStream: Postgres up, API quadlet gone) still has to be cleaned,
         # or omnia.sh --cleanup --all refuses to start.
-        "cleanup_requires": {
-            ("build_stream", ("cleanup", "test")): (
-                "/etc/containers/systemd/omnia_build_stream.container",
-                "/etc/containers/systemd/omnia_postgres.container",
-                "{domain_data}/postgres",
-                "{domain_data}/build_stream_root",
-            ),
-        },
+        "cleanup_requires": BUILD_STREAM_CLEANUP_REQUIRES,
         # Cleanup steps of products this theme does not deploy but a previous installation may
         # have: they run only when the domain holds deployed state (a file under its
         # output/ or log/ in the data path, the rule omnia.sh --cleanup --all applies).
@@ -183,6 +201,88 @@ THEMES: Dict[str, Dict] = {
             "debug_mode": ("build_stream", "", "debug_mode", "bool"),
         },
     },
+    "observability": {
+        "title": "Observability End-to-End (iDRAC, LDMS)",
+        "description": "Telemetry of a deployed cluster: the iDRAC and LDMS sources deployed "
+                       "with omnia.sh -r telemetry, then the telemetry FVT checks by test ID",
+        "profile": "observability",
+        "cleanup_steps": CLEANUP_STEPS,
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
+        # build_stream: its setup_env.sh writes the repo_manager, image_build_manager and
+        # orchestrator stores (creds_suite), and its cleanup FVT removes a previous BuildStream.
+        "fvt_domains": ("repo_manager", "image_build_manager", "discovery", "orchestrator",
+                        "telemetry", "build_stream"),
+        "credential_domains": ("repo_manager", "image_build_manager", "orchestrator",
+                               "telemetry"),
+        "creds_suite": "build_stream",
+        # Stores written by another suite than creds_suite: the suite takes one flat JSON
+        # object on --domain-creds-stdin and has no --domain option.
+        "creds_suites": {"telemetry": "telemetry"},
+        "cleanup_requires": BUILD_STREAM_CLEANUP_REQUIRES,
+        "cleanup_when_deployed": ("telemetry", "discovery"),
+        # Cluster stages first (repo_manager -> image_build_manager -> orchestrator, the order
+        # omnia.sh recommends), then observability last: telemetry needs the Kubernetes and
+        # Slurm nodes the orchestrator brings up.
+        "stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy",
+                   "observability_cleanup", "observability_precheck", "observability_deploy",
+                   "observability_idrac", "observability_ldms"),
+        "soft_stages": ("observability_cleanup", "observability_idrac", "observability_ldms"),
+        # Default: an already deployed cluster. ./run_validation.sh svt_observability all and
+        # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
+        # and the pipeline does no clean reinstall unless clean_reinstall is "true".
+        "default_skip_stages": ("initialization", "prepare_base", "repo_sync", "image_build",
+                                "cluster_deploy"),
+        # The stages the report counts as scenarios: cleanup (when enabled), then the deploy
+        # stage and the stages after it that ran. Precheck is a gate, not a scenario.
+        "scenario_stages": ("observability_cleanup", "observability_deploy",
+                            "observability_idrac", "observability_ldms"),
+        # Stages that are off unless <theme>_test_config.yml stages: turns them on.
+        "optional_stages": ("observability_cleanup",),
+        "default_clean_reinstall": False,
+        # omnia.sh -r <domain> RUN steps allowed in this theme (OMNIA_RUN_TAGS).
+        "run_domains": ("repo_manager", "image_build_manager", "orchestrator", "telemetry"),
+        "stage_info": {
+            "prepare_base": (
+                "Prepare Base",
+                "omnia.sh --prepare-base (repo_manager, image_build_manager, orchestrator), "
+                "then their prepare checks"),
+            "repo_sync": (
+                "Repository Sync",
+                "omnia.sh -r repo_manager --tags execute, then its checks"),
+            "image_build": (
+                "Image Build",
+                "omnia.sh -r image_build_manager --tags build, then its checks"),
+            "cluster_deploy": (
+                "Cluster Deploy",
+                "omnia.sh -r orchestrator provision and PXE boot: Kubernetes and Slurm nodes "
+                "up"),
+            "observability_cleanup": (
+                "Observability Cleanup",
+                "The iDRAC and LDMS telemetry of an earlier deployment removed "
+                "(omnia.sh -r telemetry --tags cleanup_ldms, cleanup_idrac)"),
+            "observability_precheck": (
+                "Observability Precheck",
+                "omnia.sh -r telemetry --tags precheck and validate: the cluster is healthy "
+                "and the telemetry inputs are valid"),
+            "observability_deploy": (
+                "Observability Deploy",
+                "omnia.sh -r telemetry (enabled sources and sinks), then Kafka, "
+                "VictoriaMetrics, VictoriaLogs and the telemetry pods"),
+            "observability_idrac": (
+                "iDRAC Telemetry",
+                "iDRAC pods and containers, then iDRAC data in MySQL, Kafka and "
+                "VictoriaMetrics"),
+            "observability_ldms": (
+                "LDMS Telemetry",
+                "LDMS aggregator, store and bridge, then the samplers and LDMS data in Kafka "
+                "and VictoriaMetrics"),
+        },
+        "fvt_settings": {
+            "sync_telemetry_input": ("telemetry", "", "sync_telemetry_input", "bool"),
+            "configure_ome": ("telemetry", "", "configure_ome", "bool"),
+            "configure_sfm": ("telemetry", "", "configure_sfm", "bool"),
+        },
+    },
     "catalog_build": {
         "title": "Catalog Build",
         "description": "Catalog build: for every catalog, ./omnia.sh --select-catalog, then "
@@ -218,20 +318,24 @@ THEMES: Dict[str, Dict] = {
         "fvt_settings": {},
     },
     "cluster_lifecycle": {
-        "title": "Cluster Lifecycle (Slurm)",
-        "description": "Cluster lifecycle: deploy, run Slurm workloads, "
-                       "remove a node, add it back",
+        "title": "Cluster Lifecycle (Slurm + Kubernetes)",
+        "description": "Cluster lifecycle: deploy Slurm and Kubernetes clusters, "
+                       "run workloads, remove/add nodes, telemetry and token renewal",
         "profile": "cluster_lifecycle",
         "cleanup_steps": CLEANUP_STEPS,
         "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
-        "fvt_domains": ("orchestrator",),
+        "fvt_domains": ("orchestrator", "telemetry"),
         "credential_domains": ("orchestrator",),
         "creds_suite": "build_stream",
         "cleanup_requires": {},
         "cleanup_when_deployed": ("telemetry",),
         "stages": ("deploy_slurm_cluster", "slurm_jobs",
-                   "slurm_node_remove", "slurm_node_add"),
-        "soft_stages": ("slurm_jobs", "slurm_node_remove", "slurm_node_add"),
+                   "slurm_node_remove", "slurm_node_add",
+                   "deploy_k8s_cluster", "k8s_telemetry",
+                   "k8s_token_renew"),
+        "soft_stages": ("slurm_jobs", "slurm_node_remove", "slurm_node_add",
+                        "k8s_telemetry",
+                        "k8s_token_renew"),
         "stage_info": {
             "deploy_slurm_cluster": (
                 "Deploy Slurm Cluster",
@@ -243,13 +347,25 @@ THEMES: Dict[str, Dict] = {
                 "Job submission from control, login and compiler nodes; "
                 "IPoIB traffic path (IPv4/IPv6/dual-stack)"),
             "slurm_node_remove": (
-                "Delete Node",
+                "Delete Slurm Node",
                 "Remove a Slurm compute node from the PXE mapping, "
                 "re-provision and verify removal"),
             "slurm_node_add": (
-                "Add Node",
+                "Add Slurm Node",
                 "Restore the removed node, re-provision and verify "
                 "re-addition to Slurm membership"),
+            "deploy_k8s_cluster": (
+                "Deploy Kubernetes Cluster",
+                "Verify Kubernetes cluster health: node membership, "
+                "services, control plane, system pods, VIP, etcd and storage"),
+            "k8s_telemetry": (
+                "Telemetry (Offline)",
+                "Deploy and verify telemetry in offline mode "
+                "(nodes pull packages from Pulp, no internet required)"),
+            "k8s_token_renew": (
+                "Renew Tokens",
+                "Run the bootstrap token refresh script and verify "
+                "each renewed token has the configured TTL"),
         },
         "state_probe": None,
         "fvt_settings": {},
@@ -295,6 +411,22 @@ def soft_stages(theme: str) -> Tuple[str, ...]:
 def theme_title(theme: str) -> str:
     """Return the display name of ``theme``."""
     return str(THEMES.get(theme, {}).get("title") or theme.replace("_", " ").title())
+
+
+def default_skip_stages(theme: str) -> Tuple[str, ...]:
+    """Return the stages of ``theme`` that 'all' and the pipeline leave out by default."""
+    return tuple(THEMES.get(theme, {}).get("default_skip_stages") or ())
+
+
+def default_clean_reinstall(theme: str) -> bool:
+    """Return whether the pipeline's initialization does a clean reinstall by default."""
+    return bool(THEMES.get(theme, {}).get("default_clean_reinstall", True))
+
+
+def creds_suite_of(theme: str, domain: str) -> str:
+    """Return the FVT suite whose setup_env.sh writes the credential store of ``domain``."""
+    return str((THEMES[theme].get("creds_suites") or {}).get(domain)
+               or THEMES[theme]["creds_suite"])
 
 
 # Suites that run from their own bootstrap .venv, never from the Omnia venv
