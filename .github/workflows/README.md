@@ -20,8 +20,9 @@ All workflows run on pull requests targeting `main`, `release_*`, `issue-*`, `pu
 | 12 | **ShellCheck** | `shellcheck.yml` | 1 | Blocking | Static analysis of shell scripts |
 | 13 | **Secure Code Review** | `secure-code-review.yml` | 1 | Advisory | Scans added lines against secure-coding rules from past security fixes; posts a pass/fail checklist PR comment, never blocks |
 | 14 | **Compliance Gate** | `compliance.yml` | 1 | Blocking | Scores the changed `src/<domain>`, `test/<domain>`, SVT and pipeline against the code-style standards; waivers in `.github/compliance/exceptions.yml`, no-regression baseline in `baseline.json` |
+| 15 | **PR Comment** | `pr-comment.yml` | 1 | Advisory | Posts the Compliance Gate and Secure Code Review comments for fork PRs (read-only token) from a `workflow_run` with a write token |
 
-**Total: 14 workflows, 16 jobs**
+**Total: 15 workflows, 17 jobs**
 
 > **Note:** YAML linting is handled by `ansible-lint` (production profile). A separate `yamllint` workflow is not required.
 
@@ -165,7 +166,7 @@ Based on analysis of 100 merged PRs (excluding giant sync PRs):
 | `test/system_test/**` | SVT |
 | `test/pipeline/**` | pipeline |
 | `test/plugins/**` | every `test/<domain>` (shared framework) |
-| `.github/compliance/**`, `.github/scripts/compliance*`, `.github/workflows/compliance.yml`, `docs/code-style/**` | everything |
+| `docs/code-style/**` | everything |
 | anything else | nothing; the job passes |
 
 Domains: `build_stream`, `discovery`, `image_build_manager`, `main`, `orchestrator`, `repo_manager`, `telemetry`, `utils`.
@@ -198,6 +199,8 @@ The checkers are vendored from the Omnia_Spec skills `omnia-test-domain-complian
 - `known-debt`: a real gap accepted for now; remove the entry when it is fixed.
 
 A failing check is waived only when every finding in it is covered.
+
+**PR comment:** on a pull request the gate also posts (and updates in place) one comment, like Secure Code Review. It has one section per checked domain, marked `PASSED` or `NOT PASSED` (a domain is not passed on an unwaived critical finding or a score below baseline), with each finding tagged `OPEN`, `KNOWN DEBT`, `WAIVED false positive` or `ADVISORY`. When a PR changes no domain (for example only workflows or docs), the comment says `no domain changes found` and lists the changed areas. Posting is best effort and never changes the job result. PRs from forks get a read-only token in `pull_request` workflows, so the comment is also staged as an artifact and posted by the `PR Comment` workflow (`pr-comment.yml`, `workflow_run`), which runs from the default branch with a write token; it also posts the Secure Code Review comment. It skips same-repository PRs, whose own workflow already posts the comment. It never checks out PR code, accepts only an integer PR number that matches the run's head commit, and caps the comment size. It takes effect once merged to the default branch. The same content is in the job summary.
 
 **Raising the baseline** after an improvement: `python3 .github/scripts/compliance_gate.py --update-baseline` (add `--base origin/main` to refresh only changed domains), then commit `baseline.json`.
 
