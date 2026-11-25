@@ -864,6 +864,39 @@ TEST_CASES = {
         "id": "UTILS_NFT_OCI_IMAGE_INGEST_N005",
         "title": "Logging completeness",
     },
+    # --- UT test cases (TC-UT-001 through TC-UT-008) ---
+    "ut_input_schema_validation": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U001",
+        "title": "Input schema validation module",
+    },
+    "ut_credential_key_rejection": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U002",
+        "title": "Credential-key rejection",
+    },
+    "ut_registry_connection_validator": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U003",
+        "title": "Registry connection validator",
+    },
+    "ut_boot_artifact_extractor": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U004",
+        "title": "Boot artifact extractor",
+    },
+    "ut_build_status_generator": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U005",
+        "title": "Build status generator",
+    },
+    "ut_s3_path_constructor": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U006",
+        "title": "S3 path constructor",
+    },
+    "ut_cleanup_handler": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U007",
+        "title": "Cleanup handler",
+    },
+    "ut_orchestrator_build_type_allow_list": {
+        "id": "UTILS_UT_OCI_IMAGE_INGEST_U008",
+        "title": "Orchestrator image build type allow-list",
+    },
 }
 
 # Legacy ID mapping for backward compatibility with existing reports

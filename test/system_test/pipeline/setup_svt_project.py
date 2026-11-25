@@ -73,8 +73,21 @@ from setup_gitlab_project import (  # noqa: E402  # test/pipeline, the shared Gi
     _validate_token,
     _validate_url,
 )
+from library.vars.catalog_vars import (  # noqa: E402
+    CATALOG_STAGE_PREFIX,
+    catalog_soft_stages,
+    catalog_stage_info,
+    catalog_stages,
+)
 from library.vars.common_vars import INPUTS_FILE  # noqa: E402
-from library.vars.theme_vars import THEMES, soft_stages, stage_info, theme_title  # noqa: E402
+from library.vars.theme_vars import (  # noqa: E402
+    THEMES,
+    default_clean_reinstall,
+    default_skip_stages,
+    soft_stages,
+    stage_info,
+    theme_title,
+)
 
 DEFAULT_CONFIG = HERE / "svt_pipeline_config.yml"
 PIPELINE_FILES = (("svt_ci.py", "svt_ci.py"),)
@@ -158,6 +171,16 @@ def trigger_job(cluster: str, theme: str) -> str:
     return f"svt_{cluster}" if len(THEMES) == 1 else f"svt_{cluster}_{theme}"
 
 
+def disabled_stages(theme: str) -> List[str]:
+    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false)."""
+    try:
+        with open(SVT_ROOT / f"{theme}_test_config.yml", "r", encoding="utf-8") as stream:
+            block = (yaml.safe_load(stream) or {}).get("stages") or {}
+    except (OSError, yaml.YAMLError):
+        block = {}
+    return [name for name in THEMES[theme].get("optional_stages") or () if not block.get(name)]
+
+
 def ci_file(theme: str) -> str:
     """Return the child pipeline file of a theme (the jobs of one cluster)."""
     return f".gitlab-ci-svt-{theme}.yml"
@@ -216,14 +239,54 @@ def ci_variables(config: Dict[str, Any]) -> Dict[str, str]:
     return variables
 
 
-def jobs_of(theme: str) -> List[str]:
+def catalog_plan(theme: str) -> Dict[str, Any]:
+    """Return the catalog plan of a catalog theme, resolved from this checkout ({} otherwise).
+
+    The catalog stages are known only after ./setup_env.sh --configure, so the
+    pipeline resolves the same plan here (<theme>_test_config.yml and
+    ./omnia.sh --list-catalogs of this checkout): one job per catalog. The
+    initialization job fails when the plan --configure wrote on the OIM
+    differs (SVT_CATALOG_PLAN).
+    """
+    if not THEMES[theme].get("catalog_plan"):
+        return {}
+    # pylint: disable=import-outside-toplevel  # only catalog themes need these
+    from library.functions.catalog_func import plan
+    from library.functions.config_func import ConfigError, load_svt_config
+    try:
+        settings = load_svt_config(theme)["catalog"]
+        return {"settings": settings, "entries": plan(settings)}
+    except (ConfigError, ValueError) as exc:
+        raise SystemExit(f"catalog plan of {theme}: {exc}") from exc
+
+
+def theme_stages(theme: str, plan: Dict[str, Any]) -> Tuple[Tuple[str, ...], Tuple[str, ...],
+                                                            Dict[str, Tuple[str, str]]]:
+    """Return (stages, soft stages, {stage: (title, description)}) of the theme's jobs."""
+    if plan:
+        return catalog_stages(plan), catalog_soft_stages(plan), catalog_stage_info(plan)
+    return (tuple(THEMES[theme]["stages"]), soft_stages(theme),
+            dict(THEMES[theme].get("stage_info") or {}))
+
+
+def plan_variable(plan: Dict[str, Any]) -> str:
+    """Return SVT_CATALOG_PLAN: <stage>=<catalog> of every catalog, comma separated."""
+    return ",".join(f"{entry['stage']}={entry['catalog']}" for entry in plan.get("entries") or [])
+
+
+def jobs_of(stages: Tuple[str, ...]) -> List[str]:
     """Return the pipeline jobs in order: preflight (checks and checkout), the SVT stages, summary."""
-    return ["preflight", FIRST_STAGE, *THEMES[theme]["stages"], LAST_STAGE]
+    return ["preflight", FIRST_STAGE, *stages, LAST_STAGE]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
+    """Return (GitLab timeout, seconds) of a job: its own entry, else catalog_stage for a
+    catalog stage, else default_hours."""
     hours = (config.get("svt") or {}).get("timeouts_hours") or {}
-    value = float(hours.get(job, hours.get("default_hours", 6)))
+    fallback = hours.get("default_hours", 6)
+    if job.startswith(CATALOG_STAGE_PREFIX):
+        fallback = hours.get("catalog_stage", fallback)
+    value = float(hours.get(job, fallback))
     minutes = max(10, int(round(value * 60)))
     return f"{minutes}m", minutes * 60
 
@@ -343,7 +406,9 @@ def render_parent(config: Dict[str, Any]) -> str:
 
 def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
     """Return (the child pipeline text of ``theme``, longest job timeout in seconds)."""
-    jobs = jobs_of(theme)
+    plan = catalog_plan(theme)
+    stages, soft, info = theme_stages(theme, plan)
+    jobs = jobs_of(stages)
     bao = bool(openbao_variables()["BAO_SERVER_URL"])
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
@@ -358,6 +423,10 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         f'  SVT_THEME: "{theme}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
+        # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
+        f'  SVT_DEFAULT_CLEAN_REINSTALL: "{str(default_clean_reinstall(theme)).lower()}"',
+        f'  SVT_DEFAULT_SKIP_STAGES: "{",".join(default_skip_stages(theme))}"',
+        *([f'  SVT_CATALOG_PLAN: "{plan_variable(plan)}"'] if plan else []),
         '  GIT_DEPTH: "1"',
         "",
         "stages:",
@@ -375,21 +444,30 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
     ]
     for job in jobs:
         timeout = _timeout(config, job)[0]
-        title, description = stage_info(theme, job) if job != "preflight" \
-            else ("Preflight", "SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, "
-                              "svt/ inputs copied")
+        title, description = info.get(job) or (stage_info(theme, job) if job != "preflight" else (
+            "Preflight", "SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, "
+                         "svt/ inputs copied"))
         lines += [f"# {title}: {description}", f"{job}:", f"  stage: {job}",
                   f"  timeout: {timeout}"]
-        if job in soft_stages(theme):
+        if job in soft:
             lines += ["  # A failure here does not stop the stages after it; the summary still fails.",
                       "  allow_failure: true"]
         if job == FIRST_STAGE and bao:
             lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL"]
         if job in THEMES[theme]["stages"]:
-            lines += ["  rules:",
-                      f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
-                      "      when: never",
-                      "    - when: on_success",
+            off = job in disabled_stages(theme)
+            lines += ["  rules:"]
+            if off:
+                # Off in <theme>_test_config.yml stages:, whatever SVT_SKIP_STAGES says.
+                lines += ["    - when: never"]
+            else:
+                lines += [f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
+                          "      when: never"]
+            if job in default_skip_stages(theme) and not off:
+                # Left out by default (empty SVT_SKIP_STAGES); "none" or another list runs it.
+                lines += ["    - if: '$SVT_SKIP_STAGES == null || $SVT_SKIP_STAGES == \"\"'",
+                          "      when: never"]
+            lines += ["    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
         elif job == LAST_STAGE:
             lines += ["  when: always", "  artifacts:", "    when: always",

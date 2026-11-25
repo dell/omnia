@@ -103,18 +103,24 @@ def test_oci_invalid_credentials(host):
     """Verify invalid credentials are rejected without leakage.
 
     Exercises the actual production failure path:
-    1. Runs regctl against the live registry with deliberately bad
-       credentials and verifies it returns an auth error (401/403).
-    2. Scans all pipeline outputs for credential leakage.
-    3. Verifies the error message does not contain the bad password.
+    1. Positive control: the stored credentials get HTTP 200 from the
+       Registry V2 ``/v2/`` auth endpoint (the call the production
+       validate_registry_connection role makes).
+    2. Deliberately bad credentials get HTTP 401 from the same probe;
+       the production role fails on that 401/403 before any pull.
+    3. The bad password never appears in the output, and all pipeline
+       outputs are scanned for credential leakage.
+    Credentials travel only in private 0600 curl config files; no global
+    regctl or curl state is read or written.
     """
     tc = TC["oci_invalid_credentials"]
     tl = TestLogger(tc["title"], tc["id"])
 
     from library.functions.oci_image_ingest_func import (
         get_oci_output_path, get_oci_log_path, get_registry_info,
+        get_oci_src_utils_path, registry_v2_auth_cmd,
     )
-    from library.functions import run_on_host
+    from library.functions import get_utils_input_path, run_on_host
     from library.vars import CMDS
 
     reg_info = get_registry_info(host)
@@ -126,30 +132,40 @@ def test_oci_invalid_credentials(host):
     namespace = reg_info["namespace"]
     bad_password = "INVALID_FVT_TEST_PASSWORD_xyzzy"
 
-    # 1. Negative: run regctl with bad credentials against the live registry
-    #    This exercises the same Docker V2 API path the production
-    #    validate_registry_connection role uses.
-    bad_auth = run_on_host(
+    # 1. Positive control: the stored credentials authenticate (HTTP 200)
+    #    through the same private-config probe, so a failure below cannot be
+    #    a TLS or connectivity problem.
+    control = run_on_host(
         host,
-        f"regctl registry login {endpoint} "
-        f"--user bad_user --pass '{bad_password}' 2>&1; "
-        f"regctl tag ls {endpoint}/{namespace}/nonexistent 2>&1; "
-        f"regctl registry logout {endpoint} 2>&1",
+        registry_v2_auth_cmd(endpoint, vault_dir=get_utils_input_path(host)),
     )
-    bad_output = bad_auth.stdout.strip().lower()
-    assert (
-        "unauthorized" in bad_output
-        or "denied" in bad_output
-        or "401" in bad_output
-        or "403" in bad_output
-        or "error" in bad_output
-    ), (
-        f"Expected auth rejection with bad credentials, got: {bad_auth.stdout.strip()}"
+    assert control.stdout.strip() == "200", (
+        f"Control probe with stored credentials returned "
+        f"{control.stdout.strip()!r}, cannot attribute failure to credentials"
     )
 
-    # 2. Verify the bad password does not appear in the output
+    # 2. Negative: bad credentials through the same probe must be rejected
+    #    with HTTP 401 (password in a 0600 file, never in argv)
+    bad_auth = run_on_host(
+        host, registry_v2_auth_cmd(endpoint, "bad_user", bad_password)
+    )
+    assert bad_auth.stdout.strip() == "401", (
+        f"Bad credentials should be rejected with HTTP 401, got "
+        f"{bad_auth.stdout.strip()!r}"
+    )
     assert bad_password not in bad_auth.stdout, (
-        "Bad password value leaked into regctl error output"
+        "Bad password value leaked into probe output"
+    )
+
+    # 2b. Rejection prevents the pull: production proceeds to regctl only
+    #     after the /v2/ check passes, so the pull never starts.
+    gate = run_on_host(
+        host,
+        "grep -n \"_oci_v2_check.status in \\[401, 403\\]\" "
+        f"{get_oci_src_utils_path(host)}/roles/validate_registry_connection/tasks/registry.yml",
+    )
+    assert gate.stdout.strip(), (
+        "Production role does not fail on a 401/403 from the /v2/ check"
     )
 
     # 3. Scan pipeline outputs for credential leakage
@@ -244,7 +260,7 @@ def test_oci_inaccessible_namespace(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     from library.functions.oci_image_ingest_func import (
-        validate_oci_config_structure, get_registry_info,
+        validate_oci_config_structure, get_registry_info, regctl_cmd,
     )
     from library.functions import run_on_host
 
@@ -274,17 +290,16 @@ def test_oci_inaccessible_namespace(host):
 
     # 1. Negative: run regctl tag ls against a nonexistent namespace
     #    This is the same code path the production pipeline uses.
+    # The endpoint must appear in both regctl_cmd() (TLS/auth config) and the
+    # image ref (registry routing); without it regctl defaults to docker.io.
     regctl_result = run_on_host(
-        host,
-        f"regctl tag ls {endpoint}/{bad_ns}/test-image 2>&1",
+        host, regctl_cmd(endpoint, f"tag ls {endpoint}/{bad_ns}/test-image")
     )
     regctl_out = regctl_result.stdout.strip().lower()
-    assert (
-        regctl_result.rc != 0
-        or "not found" in regctl_out
-        or "error" in regctl_out
-        or "unauthorized" in regctl_out
-        or "denied" in regctl_out
+    assert regctl_result.rc != 0 and any(
+        marker in regctl_out
+        for marker in ("not found", "404", "401", "403", "unauthorized",
+                       "denied", "forbidden")
     ), (
         f"Expected regctl to fail for inaccessible namespace, "
         f"got rc={regctl_result.rc}: {regctl_result.stdout.strip()}"
@@ -307,8 +322,11 @@ def test_oci_inaccessible_namespace(host):
     if first_img:
         good_result = run_on_host(
             host,
-            f"regctl tag ls {endpoint}/{configured_namespace}/"
-            f"{first_img['image_name']} 2>&1 | head -3",
+            regctl_cmd(
+                endpoint,
+                f"tag ls {endpoint}/{configured_namespace}/"
+                f"{first_img['image_name']}",
+            ),
         )
         assert good_result.rc == 0 and good_result.stdout.strip(), (
             f"Configured namespace '{configured_namespace}' should be accessible"

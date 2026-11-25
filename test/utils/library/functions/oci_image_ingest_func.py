@@ -31,16 +31,12 @@ from omnia_auto import (
     read_remote_env,
 )
 
-# Production source paths (for invoking production validators)
-SRC_UTILS_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    '..', '..', '..', '..', 'src', 'utils',
-)
+from .host_func import resolve_target_source_root
 
 from ..vars.common_vars import (
     CMDS,
-    OCI_IMAGE_INGEST_CONFIG_FILE,
     OCI_IMAGE_INGEST_CREDENTIALS_FILE,
+    OCI_IMAGE_INGEST_CONFIG_FILE,
     OCI_BUILD_STATUS_FILE,
     OCI_IMAGE_BUILD_TYPE,
     OCI_ACCEPTED_BUILD_TYPES,
@@ -52,6 +48,7 @@ from ..vars.common_vars import (
     OCI_SUPPORTED_OPERATIONS,
     OCI_WORKDIR_PATTERN,
     OCI_SAFE_CHAR_PATTERN,
+    OCI_IMAGE_INGEST_TAG,
 )
 
 
@@ -930,8 +927,11 @@ def verify_registry_tag(host, endpoint: str, namespace: str,
     Returns:
         Dict with success, tags list, and raw output.
     """
+    # The endpoint must appear in both the regctl_cmd() call (for TLS/auth
+    # config) and in the image reference (for registry routing).  Without
+    # it in the ref, regctl defaults to docker.io.
     ref = f"{endpoint}/{namespace}/{image}"
-    cmd = f"regctl registry set {endpoint} --tls insecure 2>&1; regctl tag ls {ref} 2>&1"
+    cmd = regctl_cmd(endpoint, f"tag ls {ref}")
     result = run_on_host(host, cmd)
     if result.rc != 0:
         return {
@@ -951,7 +951,10 @@ def verify_registry_digest(host, endpoint: str, namespace: str,
         Dict with success, digest string, and platform.
     """
     ref = f"{endpoint}/{namespace}/{image}:{tag}"
-    cmd = f"regctl registry set {endpoint} --tls insecure 2>&1; regctl manifest get {ref} --format '{{{{.GetDescriptor.Digest}}}}' 2>&1"
+    cmd = regctl_cmd(
+        endpoint,
+        f"manifest get {ref} --format '{{{{.GetDescriptor.Digest}}}}'",
+    )
     result = run_on_host(host, cmd)
     # regctl may return non-zero due to auth warnings but still output the digest
     output = result.stdout.strip()
@@ -974,10 +977,10 @@ def verify_registry_platform(host, endpoint: str, namespace: str,
         Dict with success and platform string (e.g. linux/amd64).
     """
     ref = f"{endpoint}/{namespace}/{image}:{tag}"
-    cmd = (
-        f"regctl registry set {endpoint} --tls insecure 2>&1; "
-        f"regctl manifest get {ref} --platform linux/amd64 "
-        f"--format '{{{{.GetDescriptor.Digest}}}}' 2>&1"
+    cmd = regctl_cmd(
+        endpoint,
+        f"manifest get {ref} --platform linux/amd64 "
+        f"--format '{{{{.GetDescriptor.Digest}}}}'",
     )
     result = run_on_host(host, cmd)
     if result.rc != 0:
@@ -1175,6 +1178,117 @@ def verify_orchestrator_boot_contract(
     }
 
 
+def list_release_objects(host, bucket: str, status_data: Dict[str, Any],
+                         functional_group: str) -> Dict[str, Any]:
+    """List the S3 objects of the release that build_status.yml names.
+
+    The functional-group prefix also holds Image Build Manager releases, so
+    the listing is scoped to ``dirname(kernel)`` of the group's entry in
+    ``functional_group_images`` (``<bucket>/<group>/<image>-ingest/<release>/``,
+    bucket stripped).
+    """
+    arch_match = re.search(r"(x86_64|aarch64)$", functional_group)
+    arch = arch_match.group(1) if arch_match else "x86_64"
+    for entry in _collect_fg_entries(status_data, arch):
+        if entry.get("functional_group") == functional_group:
+            prefix = os.path.dirname(entry.get("kernel", ""))
+            if prefix.startswith(bucket + "/"):
+                prefix = prefix[len(bucket) + 1:]
+            if prefix:
+                return list_s3_objects_live(host, bucket, prefix + "/")
+    return {
+        "success": False, "objects": [], "count": 0,
+        "error": f"No functional_group_images entry for {functional_group}",
+    }
+
+
+def get_oci_src_utils_path(host) -> str:
+    """Return <source_root>/src/utils on the execution target.
+
+    The source root follows the other domains: the local checkout in local
+    mode, ``clone_path`` from test_config.yml in remote mode.
+
+    Raises:
+        FileNotFoundError: If the utils source directory is missing.
+    """
+    src_path = os.path.join(resolve_target_source_root(), "src", "utils")
+    if run_on_host(host, f"test -d {src_path}").rc != 0:
+        raise FileNotFoundError(
+            f"Omnia utils source not found on target: {src_path}"
+        )
+    return src_path
+
+
+def regctl_cmd(endpoint: str, args: str, user: Optional[str] = None,
+               password: Optional[str] = None) -> str:
+    """Build a regctl command that uses a private, session-scoped config.
+
+    The config (0600, in a 0700 mktemp directory) is passed through
+    REGCTL_CONFIG and removed afterwards, mirroring the production
+    validate_registry_connection role.  The operator's global
+    ~/.regctl/config.json is never read or written.  Credentials, when
+    given, live only in that file and never appear in regctl's arguments.
+    """
+    import base64
+    import json as json_mod
+
+    entry = {"hostname": endpoint, "tls": "insecure"}
+    if user:
+        entry.update({"user": user, "pass": password})
+    encoded = base64.b64encode(
+        json_mod.dumps({"hosts": {endpoint: entry}}).encode("utf-8")
+    ).decode("ascii")
+    return (
+        "umask 077; d=$(mktemp -d); "
+        f"echo {encoded} | base64 -d > \"$d/regctl.json\"; "
+        f"REGCTL_CONFIG=\"$d/regctl.json\" regctl {args} 2>&1; rc=$?; "
+        "rm -rf \"$d\"; exit $rc"
+    )
+
+
+def registry_v2_auth_cmd(endpoint: str, user: Optional[str] = None,
+                         password: Optional[str] = None,
+                         vault_dir: Optional[str] = None) -> str:
+    """Build a Registry V2 ``/v2/`` auth probe that prints the HTTP code.
+
+    This is the call the production validate_registry_connection role uses
+    to authenticate.  Credentials are read by curl from a private mktemp
+    config file, never from its arguments.  Pass ``user``/``password`` for a
+    literal pair, or ``vault_dir`` to decrypt the stored OCI credentials on
+    the host (ansible-vault, output piped straight into the config file).
+    """
+    import base64
+    import json as json_mod
+
+    head = (
+        "insecure\nsilent\nconnect-timeout = 10\noutput = \"/dev/null\"\n"
+        f"url = \"https://{endpoint}/v2/\"\n"
+        "write-out = \"%{http_code}\"\n"
+    )
+    esc = lambda v: json_mod.dumps(v)[1:-1]
+    if vault_dir:
+        creds = f"{vault_dir}/{OCI_IMAGE_INGEST_CREDENTIALS_FILE}"
+        key = f"{vault_dir}/.oci_image_ingest_credentials_key"
+        user_line = (
+            f"ansible-vault view --vault-password-file {key} {creds} | "
+            "python3 -c 'import sys,yaml,json; c=yaml.safe_load(sys.stdin); "
+            "print(\"user = \" + json.dumps(c[\"registry_username\"] + \":\" "
+            "+ c[\"registry_password\"]))' >> \"$d/curl.cfg\"; "
+        )
+    else:
+        line = f'user = "{esc(user)}:{esc(password)}"\n'
+        user_line = (
+            f"echo {base64.b64encode(line.encode()).decode()} | base64 -d "
+            ">> \"$d/curl.cfg\"; "
+        )
+    return (
+        "umask 077; d=$(mktemp -d); "
+        f"echo {base64.b64encode(head.encode()).decode()} | base64 -d "
+        "> \"$d/curl.cfg\"; " + user_line +
+        "curl -K \"$d/curl.cfg\" 2>&1; rc=$?; rm -rf \"$d\"; exit $rc"
+    )
+
+
 def run_production_validation(host, config_dict) -> Dict[str, Any]:
     """Invoke the production validate_config() and normalize() API.
 
@@ -1201,11 +1315,7 @@ def run_production_validation(host, config_dict) -> Dict[str, Any]:
     encoded = base64.b64encode(
         yaml_mod.safe_dump(config_dict).encode("utf-8")
     ).decode("ascii")
-    src_path = run_on_host(
-        host, "realpath " + os.path.normpath(SRC_UTILS_PATH)
-    ).stdout.strip()
-    if not src_path:
-        src_path = "/root/main/omnia/src/utils"
+    src_path = get_oci_src_utils_path(host)
     mu_path = f"{src_path}/plugins/module_utils"
     schema_path = (f"{mu_path}/input_validation/schema"
                    "/oci_image_ingest_config.json")
@@ -1238,33 +1348,249 @@ def run_production_validation(host, config_dict) -> Dict[str, Any]:
         return {"success": False, "errors": [f"Execution failed: {result.stdout.strip()}"]}
 
 
-def run_pipeline_with_fault(host, config_override, timeout=300):
-    """Run the OCI ingest pipeline with a modified config for fault injection.
+def get_build_status_checksum(host) -> str:
+    """Return the SHA-256 checksum of build_status.yml, or '' if absent."""
+    output_path = get_oci_output_path(host)
+    find_cmd = CMDS["find_build_status"].format(path=output_path)
+    find_result = run_on_host(host, find_cmd)
+    status_path = find_result.stdout.strip()
+    if not status_path:
+        return ""
+    checksum_result = run_on_host(host, CMDS["sha256sum"].format(path=status_path))
+    return checksum_result.stdout.strip()
 
-    Backs up the real config, writes the override, runs the playbook,
-    restores the original, and returns the playbook result.
+
+def run_pipeline_with_fault(host, config_override, timeout=900):
+    """Run the OCI ingest pipeline with a modified input config.
+
+    Backs up the real config, writes the override, runs the production
+    playbook (utils.yml --tags oci_image_ingest), restores the original
+    config in ``finally`` and returns the run_playbook result dict.
     """
+    import yaml as yaml_mod
+    from library.functions import run_playbook
+    from ..vars.common_vars import PLAYBOOK_UTILS
+
     config_path = get_oci_config_path(host)
     backup_path = config_path + ".fvt_backup"
-
-    # Backup original config
     run_on_host(host, CMDS["copy_file"].format(src=config_path, dst=backup_path))
     try:
-        import yaml as yaml_mod
         override_yaml = yaml_mod.dump(config_override, default_flow_style=False)
-        run_on_host(
-            host,
-            f"cat > {config_path} << 'ENDOFCFG'\n{override_yaml}ENDOFCFG",
-        )
-        # Run the playbook (expect failure)
-        from library.functions import run_playbook
-        result = run_playbook(
-            host,
-            CMDS["playbook_utils_oci"],
-            timeout=timeout,
-        )
-        return result
+        run_on_host(host, f"cat > {config_path} << 'ENDOFCFG'\n{override_yaml}ENDOFCFG")
+        return run_playbook(playbook=PLAYBOOK_UTILS, tag=OCI_IMAGE_INGEST_TAG, timeout=timeout)
     finally:
-        # Always restore original config
         run_on_host(host, CMDS["copy_file"].format(src=backup_path, dst=config_path))
         run_on_host(host, f"rm -f {backup_path}")
+
+
+# =============================================================================
+# CONTROLLED FAULT INJECTION AGAINST THE PRODUCTION PIPELINE
+# =============================================================================
+# Each scenario runs the real playbook. Faults are injected without touching
+# production state: a scratch S3 bucket keeps the real release untouched, and
+# command shims (df, mksquashfs, s3cmd) are placed first on PATH of the
+# playbook process only, in a private temp directory removed afterwards.
+
+_FAULT_RUN_CACHE: Dict[str, Dict[str, Any]] = {}
+
+_S3_BAD_CFG = (
+    "[default]\nhost_base = 127.0.0.1:1\nhost_bucket = 127.0.0.1:1\n"
+    "use_https = False\naccess_key = fvt\nsecret_key = fvt\nmax_retries = 0\n"
+)
+
+
+def _shim_bodies(real_s3cmd: str, bad_cfg: str) -> Dict[str, str]:
+    """Shell bodies of the fault shims, keyed by scenario."""
+    return {
+        "storage": {"df": (
+            'for a in "$@"; do case "$a" in --output=avail) '
+            "printf 'Avail\\n1024\\n'; exit 0;; esac; done\nexec /usr/bin/df \"$@\"\n")},
+        "mksquashfs": {"mksquashfs": (
+            'echo partial > "$2"\n'
+            'echo "FATAL ERROR: injected mksquashfs failure" >&2\nexit 1\n')},
+        "s3_unreachable": {"s3cmd": f'exec {real_s3cmd} -c {bad_cfg} "$@"\n'},
+        "s3_partial": {"s3cmd": (
+            'if [ "$1" = put ]; then for a in "$@"; do case "$a" in */rootfs.squashfs) '
+            'echo "ERROR: injected upload failure" >&2; exit 12;; esac; done; fi\n'
+            f'exec {real_s3cmd} "$@"\n')},
+    }
+
+
+def _read_log(host) -> List[str]:
+    log_file = f"{get_oci_log_path(host)}/oci_image_ingest.log"
+    return run_on_host(host, f"cat {log_file} 2>/dev/null").stdout.splitlines()
+
+
+def release_snapshot(host, status_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Checksum of build_status.yml plus the S3 objects of every named release."""
+    bucket = (status_data.get("s3_configurations") or {}).get("bucket", "")
+    releases = {}
+    for src in status_data.get("oci_sources", []):
+        fg = src.get("functional_group", "")
+        listing = list_release_objects(host, bucket, status_data, fg)
+        releases[fg] = sorted(o["path"] for o in listing.get("objects", []))
+    return {"status_checksum": get_build_status_checksum(host), "releases": releases}
+
+
+def run_fault_scenario(host, name: str, timeout: int = 1800) -> Dict[str, Any]:
+    """Run one fault scenario through the production playbook (cached per session).
+
+    Scenarios: storage, mksquashfs, s3_unreachable, s3_partial, registry_unreachable.
+
+    Returns a dict with: skipped (reason or ''), result (run_playbook dict),
+    output (whitespace-normalised playbook output), log (ingest log lines written
+    during the run), before/after (release_snapshot), scratch_objects (objects left
+    in the scratch bucket), workdir_clean, lock_held, elapsed.
+    """
+    if name in _FAULT_RUN_CACHE:
+        return _FAULT_RUN_CACHE[name]
+    import shutil
+    import tempfile
+    import time
+    import uuid
+    from omnia_auto import is_local_execution
+    from library.functions import run_playbook
+    from ..vars.common_vars import PLAYBOOK_UTILS
+
+    out: Dict[str, Any] = {"skipped": ""}
+    if name != "registry_unreachable" and not is_local_execution():
+        out["skipped"] = "command-shim fault injection needs local execution mode"
+        _FAULT_RUN_CACHE[name] = out
+        return out
+    status = validate_build_status(host)
+    if not status["success"]:
+        out["skipped"] = f"no build_status.yml: {status['error']}"
+        return out
+    status_data = status["status_data"]
+    out["before"] = release_snapshot(host, status_data)
+    log_before = len(_read_log(host))
+
+    scratch = ""
+    shim_dir = tempfile.mkdtemp(prefix="fvt_shim_")
+    old_path = os.environ.get("PATH", "")
+    started = time.time()
+    try:
+        if name in ("storage", "mksquashfs", "s3_partial"):
+            scratch = f"fvt-oci-{uuid.uuid4().hex[:12]}"
+            mb = run_on_host(host, f"s3cmd mb s3://{scratch}")
+            assert mb.rc == 0, f"cannot create scratch bucket: {mb.stderr}"
+        if name == "registry_unreachable":
+            cfg = validate_oci_config_structure(host)["config"]
+            import copy
+            bad = copy.deepcopy(cfg)
+            bad["registries"][0]["registry_hostname"] = "192.0.2.1"
+            out["result"] = run_pipeline_with_fault(host, bad, timeout=timeout)
+        else:
+            bad_cfg = os.path.join(shim_dir, "bad.s3cfg")
+            with open(bad_cfg, "w", encoding="utf-8") as fh:
+                fh.write(_S3_BAD_CFG)
+            os.chmod(bad_cfg, 0o600)
+            real_s3cmd = shutil.which("s3cmd") or "s3cmd"
+            for sname, body in _shim_bodies(real_s3cmd, bad_cfg)[name].items():
+                path = os.path.join(shim_dir, sname)
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write("#!/bin/bash\n" + body)
+                os.chmod(path, 0o700)
+            os.environ["PATH"] = shim_dir + os.pathsep + old_path
+            extra = {"oci_ingest_bucket": scratch} if scratch else {}
+            out["result"] = run_playbook(
+                playbook=PLAYBOOK_UTILS, tag=OCI_IMAGE_INGEST_TAG,
+                extra_vars=extra, timeout=timeout)
+        if scratch:
+            out["scratch_objects"] = [
+                l for l in run_on_host(host, f"s3cmd ls -r s3://{scratch}/").stdout.splitlines()
+                if l.strip()]
+    finally:
+        os.environ["PATH"] = old_path
+        shutil.rmtree(shim_dir, ignore_errors=True)
+        if scratch:
+            run_on_host(host, f"s3cmd rb --recursive --force s3://{scratch}")
+    out["elapsed"] = time.time() - started
+    res = out["result"]
+    out["output"] = re.sub(r"\s+", " ", f"{res.get('output', '')} {res.get('error', '')}")
+    out["log"] = _read_log(host)[log_before:]
+    out["after"] = release_snapshot(host, status_data)
+    out["workdir_clean"] = check_oci_workdir_cleaned(host)["success"]
+    out["lock_held"] = check_lock_file_status(host)["locked"]
+    _FAULT_RUN_CACHE[name] = out
+    return out
+
+
+def check_fault_run(run: Dict[str, Any], phase: str, expect: List[str],
+                    forbid: Optional[List[str]] = None) -> List[str]:
+    """Common safe-failure assertions; returns a list of violated expectations."""
+    errors: List[str] = []
+    result = run["result"]
+    text = run["output"] + " " + " ".join(run["log"])
+    if result.get("success") or result.get("rc") == 0:
+        errors.append("pipeline did not fail")
+    if f"(phase: {phase})" not in text:
+        errors.append(f"failure not attributed to '(phase: {phase})'")
+    errors += [f"missing '{e}' in output/log" for e in expect if e not in text]
+    errors += [f"unexpected '{f}' in output" for f in (forbid or []) if f in run["output"]]
+    if run["before"] != run["after"]:
+        errors.append("build_status.yml or the published release changed")
+    if not run["workdir_clean"]:
+        errors.append("working directory not cleaned")
+    if run["lock_held"]:
+        errors.append("project lock not released")
+    if not any(" - ERROR - " in l and "run failed" in l for l in run["log"]):
+        errors.append("failure not written to the ingest log")
+    if run.get("scratch_objects"):
+        errors.append(f"objects left in scratch bucket: {run['scratch_objects']}")
+    return errors
+
+
+def credentials_leaked_in(host, text: str) -> bool:
+    """True when a stored registry username/password value appears in ``text``.
+
+    The values are decrypted on the host and fed to ``grep -F -f`` through
+    process substitution; they never enter this process or a command line.
+
+    Guards against blank patterns: empty or whitespace-only credential
+    values are filtered out before grep, and at least one non-blank
+    pattern must be present.  If ansible-vault fails or the YAML is
+    unparsable, the function raises instead of silently returning False.
+    """
+    import base64
+    cred_path = get_oci_credentials_path(host)
+    key = os.path.join(os.path.dirname(cred_path), ".oci_image_ingest_credentials_key")
+    encoded = base64.b64encode(text.encode()).decode()
+    cmd = (
+        "umask 077; f=$(mktemp); "
+        f"echo {encoded} | base64 -d > \"$f\"; "
+        "patterns=$(ansible-vault view --vault-password-file "
+        f"{key} {cred_path} | python3 -c '"
+        "import sys,yaml; c=yaml.safe_load(sys.stdin) or {}; "
+        "vals=[v for v in (c.get(\"registry_username\"), c.get(\"registry_password\")) "
+        "if v and str(v).strip()]; "
+        "assert vals, \"No non-blank credentials found\"; "
+        "[print(str(v).strip()) for v in vals]"
+        "'); rc=$?; "
+        "if [ $rc -ne 0 ]; then rm -f \"$f\"; echo ERROR; exit 1; fi; "
+        "if grep -qF -f <(echo \"$patterns\") \"$f\"; "
+        "then echo LEAK; else echo CLEAN; fi; rm -f \"$f\""
+    )
+    result = run_on_host(host, f"bash -c {shlex_quote(cmd)}")
+    if "ERROR" in result.stdout or (result.rc != 0 and "LEAK" not in result.stdout
+                                     and "CLEAN" not in result.stdout):
+        raise RuntimeError(
+            f"credentials_leaked_in: vault decrypt or credential extraction failed: "
+            f"{result.stdout.strip()}"
+        )
+    return "LEAK" in result.stdout
+
+
+def shlex_quote(value: str) -> str:
+    import shlex
+    return shlex.quote(value)
+
+
+def latest_completed_run(host) -> List[str]:
+    """Ingest log lines of the most recent run that wrote build_status.yml."""
+    lines = _read_log(host)
+    starts = [i for i, l in enumerate(lines) if "run started:" in l] + [len(lines)]
+    for lo, hi in reversed(list(zip(starts, starts[1:]))):
+        if any("build_status.yml written" in l for l in lines[lo:hi]):
+            return lines[lo:hi]
+    return []

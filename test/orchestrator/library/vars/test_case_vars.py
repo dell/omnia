@@ -1321,6 +1321,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
     },
+    "k8s_node_remove": {
+        "id": "ORCH_FVT_PXEBOOT_V531",
+        "title": "Verify Kubernetes worker node removal lifecycle",
+        "component": "Kubernetes node removal",
+    },
+    "k8s_node_add": {
+        "id": "ORCH_FVT_PXEBOOT_V532",
+        "title": "Verify Kubernetes worker node re-addition lifecycle",
+        "component": "Kubernetes node re-addition",
+    },
     # ── DCGM / CUDA verification (ORCH_FVT_PXEBOOT_V501-V518) ─────────
     "dcgm_cuda_validation": {
         "id": "ORCH_FVT_PXEBOOT_V522",

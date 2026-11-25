@@ -28,12 +28,18 @@ import re
 import time
 
 import pytest
+import yaml
 
 from library.functions import (
     TestLogger,
     run_on_host,
 )
 from library.functions.oci_image_ingest_func import (
+    check_fault_run,
+    credentials_leaked_in,
+    latest_completed_run,
+    run_fault_scenario,
+    get_oci_src_utils_path,
     get_oci_log_path,
     get_oci_output_path,
     validate_build_status,
@@ -52,163 +58,131 @@ from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 # TC-NFT-001: Registry connection validation timeout
 # =============================================================================
 
+# Production waits the whole connect timeout, then logs the failure; the log span
+# also covers the task start-up before the connection attempt (~1 s measured).
+OVERHEAD_ALLOWANCE_S = 5
+
+
+def _log_time(line):
+    from datetime import datetime
+    return datetime.strptime(line[:23], "%Y-%m-%d %H:%M:%S,%f")
+
+
 @pytest.mark.nft
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(901)
 def test_nft_registry_connection_timeout(host):
-    """Verify registry connection validation completes within 30 seconds.
+    """Production registry validation fails an unreachable registry within 30 s.
 
-    Tests:
-    1. Connection to an unreachable endpoint (RFC 5737 TEST-NET) times out
-       within 30 seconds wall-clock time.
-    2. The production validate_registry_connection role has a timeout config.
+    Runs the production pipeline with the registry hostname set to an RFC 5737
+    TEST-NET address and measures, from the production ingest log, the time from
+    credential validation to the recorded failure of the connection phase. Also
+    checks the production default connect timeout is <= 30 s. The production role
+    waits the full timeout, so the measured span is the timeout plus ~1 s of task
+    overhead; the assertion allows OVERHEAD_ALLOWANCE_S for that.
     """
     tc = TC["nft_registry_connection_timeout"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # 1. Verify unreachable endpoint times out within 30s
-    start = time.time()
-    result = run_on_host(
-        host,
-        "curl -sk -o /dev/null -w '%{http_code}' "
-        "https://192.0.2.1:443/v2/ --connect-timeout 15 --max-time 30 2>&1",
-    )
-    elapsed = time.time() - start
-    assert elapsed < 35, (
-        f"Unreachable endpoint check took {elapsed:.1f}s — exceeds 30s threshold"
-    )
+    src = get_oci_src_utils_path(host)
+    defaults = run_on_host(
+        host, f"cat {src}/roles/validate_registry_connection/defaults/main.yml").stdout
+    configured = yaml.safe_load(defaults)["oci_ingest_connect_timeout"]
+    assert int(configured) <= 30, f"production connect timeout {configured}s exceeds 30s"
 
-    # 2. Verify production role has timeout configuration
-    timeout_check = run_on_host(
-        host,
-        r"grep -rE 'timeout|connect_timeout' "
-        "/root/main/omnia/src/utils/roles/validate_registry_connection/ "
-        "2>/dev/null | head -3",
-    )
-    assert timeout_check.stdout.strip(), (
-        "Production role does not have timeout configuration"
+    run = run_fault_scenario(host, "registry_unreachable")
+    if run["skipped"]:
+        tl.skipped(run["skipped"])
+        pytest.skip(run["skipped"])
+    errors = check_fault_run(run, "connection", ["Registry connection failed"])
+    assert not errors, "; ".join(errors)
+
+    stamps = [(_log_time(l), l) for l in run["log"]]
+    begin = next(t for t, l in stamps if "credentials validated" in l)
+    end = next(t for t, l in stamps if " - ERROR - " in l and "run failed" in l)
+    elapsed = (end - begin).total_seconds()
+    assert elapsed <= int(configured) + OVERHEAD_ALLOWANCE_S, (
+        f"connection-phase failure took {elapsed:.1f}s "
+        f"(production timeout {configured}s + {OVERHEAD_ALLOWANCE_S}s overhead allowance)"
     )
 
     tl.passed(
-        f"Unreachable endpoint detected in {elapsed:.1f}s (< 30s); "
-        f"production role has timeout config"
+        f"Unreachable registry failed the connection phase in {elapsed:.1f}s "
+        f"(production timeout {configured}s)"
     )
 
-
-# =============================================================================
-# TC-NFT-002: Image transfer elapsed time recorded
-# =============================================================================
 
 @pytest.mark.nft
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(902)
 def test_nft_transfer_elapsed_time_recorded(host):
-    """Verify elapsed time is recorded for pipeline operations.
+    """Elapsed time is recorded in the production log for every ingested mapping.
 
-    Checks the Ansible log for task timing information from the
-    most recent pipeline run.
+    Reads the most recent completed run from the production ingest log and checks
+    that each mapping's result line carries elapsed_seconds, non-decreasing across
+    mappings and within the run. The production code logs one cumulative value per
+    mapping (not separate pull/extract/squashfs/upload durations), so that is what
+    is asserted here.
     """
     tc = TC["nft_transfer_elapsed_time"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    log_path = get_oci_log_path(host)
-    # Check for Ansible task timing in logs
-    timing_check = run_on_host(
-        host,
-        r"grep -rE 'PLAY RECAP|ok=|changed=|elapsed|duration|time' "
-        f"{log_path}/ 2>/dev/null | tail -10",
-    )
-    # Also check the report for timing data
-    report_check = run_on_host(
-        host,
-        r"grep -rE 'duration|elapsed|seconds' "
-        "/opt/omnia/reports/utils_*.json 2>/dev/null | head -5",
-    )
+    run = latest_completed_run(host)
+    if not run:
+        tl.skipped("No completed ingest run in the production log")
+        pytest.skip("No completed ingest run in the production log")
 
-    has_timing = bool(
-        timing_check.stdout.strip() or report_check.stdout.strip()
-    )
-    if not has_timing:
-        tl.skipped("No timing data found in logs or reports")
-        pytest.skip("Pipeline logs not available for timing verification")
+    mappings = int(re.search(r"mappings=(\d+)", run[0]).group(1))
+    results = [l for l in run if re.search(r"mapping=\S+ result=", l)]
+    assert len(results) == mappings, f"{len(results)} result lines for {mappings} mappings"
+    elapsed = []
+    for line in results:
+        match = re.search(r"elapsed_seconds=(\d+)", line)
+        assert match, f"no elapsed_seconds in: {line[:160]}"
+        elapsed.append(int(match.group(1)))
+    assert elapsed == sorted(elapsed), f"elapsed_seconds not monotonic: {elapsed}"
+    total = (_log_time(run[-1]) - _log_time(run[0])).total_seconds()
+    assert elapsed[-1] <= total + 1, f"elapsed {elapsed[-1]}s exceeds logged run time {total:.0f}s"
 
-    tl.passed("Elapsed time data found in pipeline logs/reports")
+    tl.passed(f"elapsed_seconds recorded for {mappings} mapping(s): {elapsed}")
 
-
-# =============================================================================
-# TC-NFT-003: Error phase identification
-# =============================================================================
 
 @pytest.mark.nft
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(903)
 def test_nft_error_phase_identification(host):
-    """Verify error messages identify the failed phase and provide guidance.
+    """Induced failures report the failing phase without leaking credentials.
 
-    Checks:
-    1. Production roles define phase-specific error messages.
-    2. Error messages do not contain credential values.
+    Runs the five production fault scenarios (connection, pull, materialization and
+    two upload faults) and asserts each failure is attributed to its phase in the
+    playbook output and ingest log, and that no stored registry credential value
+    appears in either.
     """
     tc = TC["nft_error_phase_identification"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    phases_found = []
-    phase_patterns = {
-        "connection": (
-            "validate_registry_connection",
-            r"connection|connectivity|Registry connection failed",
-        ),
-        "validation": (
-            "validate_oci_image_ingest_config",
-            r"validation failed|not yet supported|not defined",
-        ),
-        "credential": (
-            "collect_oci_image_ingest_credentials",
-            r"credential|empty|mismatch",
-        ),
+    scenarios = {
+        "registry_unreachable": ("connection", "Registry connection failed"),
+        "storage": ("pull", "Insufficient free space"),
+        "mksquashfs": ("materialization", "mksquashfs failed"),
+        "s3_unreachable": ("upload", "S3 upload failed"),
+        "s3_partial": ("upload", "S3 upload failed"),
     }
-
-    for phase, (role_name, pattern) in phase_patterns.items():
-        role_dir = f"/root/main/omnia/src/utils/roles/{role_name}"
-        check = run_on_host(
-            host,
-            f"grep -rE '{pattern}' {role_dir}/ 2>/dev/null | head -3",
+    seen = []
+    for name, (phase, message) in scenarios.items():
+        run = run_fault_scenario(host, name)
+        if run["skipped"]:
+            tl.skipped(run["skipped"])
+            pytest.skip(run["skipped"])
+        errors = check_fault_run(run, phase, [message])
+        assert not errors, f"{name}: {'; '.join(errors)}"
+        assert not credentials_leaked_in(host, run["output"] + "\n" + "\n".join(run["log"])), (
+            f"{name}: stored registry credential value found in output or log"
         )
-        if check.stdout.strip():
-            phases_found.append(phase)
+        seen.append(phase)
 
-    assert len(phases_found) >= 2, (
-        f"Expected phase-specific errors for >= 2 phases, found: {phases_found}"
-    )
+    tl.passed(f"Phase-attributed failures without credential leakage: {', '.join(seen)}")
 
-    # Verify no credential values in error messages (vars files)
-    for role_name in ["validate_registry_connection",
-                      "collect_oci_image_ingest_credentials"]:
-        vars_check = run_on_host(
-            host,
-            f"grep -rE 'registry_password|registry_username' "
-            f"/root/main/omnia/src/utils/roles/{role_name}/vars/ "
-            f"2>/dev/null | grep -v 'no_log' | grep -v '#' | head -3",
-        )
-        # Allow references to field names in error message templates
-        # but not actual values
-        output = vars_check.stdout.strip()
-        if output:
-            for line in output.splitlines():
-                assert ":" not in line.split("registry_password")[-1][:10] or \
-                    "length" in line or "default" in line, (
-                    f"Possible credential value in error message: {line}"
-                )
-
-    tl.passed(
-        f"Phase-specific error messages found for: {', '.join(phases_found)}; "
-        f"no credential values in error templates"
-    )
-
-
-# =============================================================================
-# TC-NFT-004: Credential security compliance
-# =============================================================================
 
 @pytest.mark.nft
 @pytest.mark.oci_image_ingest
@@ -278,54 +252,38 @@ def test_nft_credential_security_compliance(host):
 @pytest.mark.oci_image_ingest
 @pytest.mark.order(905)
 def test_nft_logging_completeness(host):
-    """Verify pipeline logs contain all required operational fields.
+    """The production ingest log records every required operational field.
 
-    Required fields: registry endpoint, namespace, image reference,
-    digest, operation, S3 keys.
+    For the most recent completed run: endpoint, namespace, image reference, digest,
+    operation, S3 endpoint/prefix, artifact names, sizes and SHA-256 checksums, and
+    elapsed time must all be logged, and no stored credential value may appear.
     """
     tc = TC["nft_logging_completeness"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    status_result = validate_build_status(host)
-    if not status_result["success"]:
-        tl.skipped(f"No build_status.yml: {status_result['error']}")
-        pytest.skip("Pipeline must complete successfully first")
+    run = latest_completed_run(host)
+    if not run:
+        tl.skipped("No completed ingest run in the production log")
+        pytest.skip("No completed ingest run in the production log")
+    text = "\n".join(run)
 
-    sources = status_result["status_data"].get("oci_sources", [])
-    assert sources, "No oci_sources in build_status"
-
-    # Verify required fields are present in build_status (the primary log)
-    required_fields = {
-        "registry": False,
-        "repository": False,
-        "digest": False,
-        "kernel_version": False,
-        "functional_group": False,
+    required = {
+        "run start": r"run started: project=\S+ run_id=\S+ registries=\S+ mappings=\d+ s3_endpoint=https?://\S+",
+        "registry endpoint": r"registry validated: endpoint=\S+ protocol=\S+ namespaces=\S+",
+        "namespace/image/digest/operation": (
+            r"mapping=\S+ registry=\S+ namespace=\S+ image=\S+ digest=sha256:[0-9a-f]{64} "
+            r"platform=\S+ operation=repo_to_bucket"),
+        "S3 prefix": r"s3_prefix=\S+/\S+-ingest/\S+",
+        "artifact size": r'"size_bytes": \d+',
+        "artifact checksum": r'"sha256": "[0-9a-f]{64}"',
+        "elapsed time": r"elapsed_seconds=\d+",
+        "build status path": r"build_status.yml written: path=\S+",
     }
-    for source in sources:
-        for field in required_fields:
-            if source.get(field):
-                required_fields[field] = True
+    missing = [k for k, pat in required.items() if not re.search(pat, text)]
+    assert not missing, f"production log missing: {missing}"
+    names = set(re.findall(r'"name": "([^"]+)"', text))
+    for prefix in ("vmlinuz-", "initramfs-", "rootfs.squashfs"):
+        assert any(n.startswith(prefix) for n in names), f"no {prefix} artifact logged"
+    assert not credentials_leaked_in(host, text), "stored credential value found in the log"
 
-    missing = [f for f, v in required_fields.items() if not v]
-    assert not missing, (
-        f"Missing required fields in build_status oci_sources: {missing}"
-    )
-
-    # Verify S3 configuration is logged
-    s3_cfg = status_result["status_data"].get("s3_configurations", {})
-    assert s3_cfg.get("endpoint_url"), "Missing S3 endpoint in build_status"
-    assert s3_cfg.get("bucket"), "Missing S3 bucket in build_status"
-
-    # Verify no credentials in build_status
-    import json
-    status_str = json.dumps(status_result["status_data"])
-    for cred_field in OCI_CREDENTIAL_FIELDS:
-        assert cred_field not in status_str, (
-            f"Credential field '{cred_field}' found in build_status"
-        )
-
-    tl.passed(
-        f"All required fields present in build_status: "
-        f"{', '.join(required_fields.keys())}; no credentials logged"
-    )
+    tl.passed(f"All {len(required)} operational fields logged; no credentials logged")

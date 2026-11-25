@@ -78,6 +78,9 @@ MARKERS: list[str] = [
     "fault_injection",
     "reprovision",
     "local_storage",
+    "node_remove",
+    "node_add",
+    "token_renew",
 ]
 
 # =====================================================================
@@ -126,6 +129,7 @@ SUITES: dict[str, list[str]] = {
         "kubernetes_recovery",
         "slurm_recovery",
         "slurm_lifecycle",
+        "kubernetes_lifecycle",
         "ipoib_network",
         "ipoib_resilience",
     ],

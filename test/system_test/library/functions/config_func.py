@@ -32,6 +32,7 @@ import yaml
 
 from dataset_generator.dataset_edit import Change, dump_yaml, load_yaml, set_value, split_header
 
+from .catalog_settings import CatalogSettingsError, load_catalog_settings
 from .fvt_func import domain_dir
 from .svt_report_func import fvt_report_settings
 from ..messages.svt_msgs import CONFIG_MSGS
@@ -104,37 +105,74 @@ def load_svt_config(theme: str) -> Dict[str, Any]:
         raise ConfigError(CONFIG_MSGS["invalid_yaml"].format(path=path, error=exc)) from exc
     if not isinstance(data, dict):
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="the file"))
+    if "cleanup" in data:
+        raise ConfigError(CONFIG_MSGS["cleanup_moved"].format(theme_path=path, path=INPUTS_FILE))
     unknown_keys = sorted(set(data) - {*CONFIG_KEYS, theme})
     if unknown_keys:
         raise ConfigError(CONFIG_MSGS["unknown_key"].format(
             path=path, names=", ".join(unknown_keys), known=", ".join((*CONFIG_KEYS, theme))))
-    cleanup_block = data.get("cleanup") or {}
-    if not isinstance(cleanup_block, dict):
-        raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="cleanup"))
+    cleanup_block, cleanup_path = _cleanup_source(data, path)
     nfs_block = cleanup_block.get(NFS_CLEANUP_KEY) or {}
     unknown = sorted(set(cleanup_block) - set(CLEANUP_FLAGS) - {NFS_CLEANUP_KEY})
     if unknown:
         raise ConfigError(CONFIG_MSGS["unknown_suite"].format(
-            path=path, names=", ".join(unknown),
+            path=cleanup_path, names=", ".join(unknown),
             known=", ".join((*CLEANUP_FLAGS, NFS_CLEANUP_KEY))))
     cleanup: Dict[str, Dict[str, bool]] = {}
     for suite, (_, allowed) in CLEANUP_FLAGS.items():
         block = cleanup_block.get(suite) or {}
         if not isinstance(block, dict):
-            raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path,
+            raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=cleanup_path,
                                                                 where=f"cleanup.{suite}"))
         bad = sorted(set(block) - {CLEANUP_ENABLED_KEY, *allowed})
         if bad:
             raise ConfigError(CONFIG_MSGS["unknown_flag"].format(
-                path=path, suite=suite, names=", ".join(bad),
+                path=cleanup_path, suite=suite, names=", ".join(bad),
                 known=", ".join((CLEANUP_ENABLED_KEY, *allowed))))
-        cleanup[suite] = {key: _require_bool(value, f"cleanup.{suite}.{key}", path)
+        cleanup[suite] = {key: _require_bool(value, f"cleanup.{suite}.{key}", cleanup_path)
                           for key, value in block.items()}
         cleanup[suite].setdefault(CLEANUP_ENABLED_KEY, True)
     return {"theme": theme, "path": path, "cleanup": cleanup,
-            "nfs": _load_nfs_block(theme, nfs_block, path),
+            "nfs": _load_nfs_block(theme, nfs_block, cleanup_path),
+            "stages": _load_stages_block(theme, data.get("stages") or {}, path),
             "report": _load_report_block(data.get("report") or {}, path),
-            "fvt_settings": _load_theme_block(theme, data.get(theme) or {}, path)}
+            **_load_theme_settings(theme, data.get(theme), path)}
+
+
+def _cleanup_source(data: Dict[str, Any], path: str):
+    """Return (the cleanup block, the file it is in).
+
+    The cleanup is shared by every theme and lives only in the ``cleanup`` block of
+    user_inputs.yml. A theme file with a ``cleanup`` block of its own is refused.
+    """
+    if "cleanup" in data:
+        raise ConfigError(CONFIG_MSGS["cleanup_moved"].format(theme_path=path, path=INPUTS_FILE))
+    block = _read_inputs_block("cleanup") or {}
+    if not isinstance(block, dict):
+        raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=INPUTS_FILE, where="cleanup"))
+    return block, INPUTS_FILE
+
+
+def _read_inputs_block(name: str, path: str = INPUTS_FILE) -> Any:
+    """Return the top-level block ``name`` of user_inputs.yml, or None when it is absent."""
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            data = yaml.safe_load(stream) or {}
+    except OSError as exc:
+        raise ConfigError(CONFIG_MSGS["unreadable"].format(path=path, error=exc.strerror)) from exc
+    except yaml.YAMLError as exc:
+        raise ConfigError(CONFIG_MSGS["invalid_yaml"].format(path=path, error=exc)) from exc
+    return data.get(name) if isinstance(data, dict) else None
+
+
+def _load_theme_settings(theme: str, block: Any, path: str) -> Dict[str, Any]:
+    """Return the checked theme block: FVT settings, plus catalog settings for catalog themes."""
+    if not THEMES[theme].get("catalog_plan"):
+        return {"fvt_settings": _load_theme_block(theme, block or {}, path)}
+    try:
+        return {"fvt_settings": {}, "catalog": load_catalog_settings(block, path)}
+    except CatalogSettingsError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 def _check_setting(kind: str, value: Any, where: str, path: str) -> Any:
@@ -183,15 +221,30 @@ def _load_report_block(block: Any, path: str) -> Dict[str, str]:
     return report
 
 
+def _load_stages_block(theme: str, block: Any, path: str) -> Dict[str, bool]:
+    """Return the on/off flag of each optional stage of ``theme`` (default off)."""
+    optional = tuple(THEMES[theme].get("optional_stages") or ())
+    if not isinstance(block, dict):
+        raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="stages"))
+    bad = sorted(set(block) - set(optional))
+    if bad:
+        raise ConfigError(CONFIG_MSGS["unknown_flag"].format(
+            path=path, suite="stages", names=", ".join(bad), known=", ".join(optional)))
+    return {stage: _require_bool(block.get(stage, False), f"stages.{stage}", path)
+            for stage in optional}
+
+
 def _load_nfs_block(theme: str, block: Any, path: str) -> Dict[str, bool]:
     """Return the checked cleanup.nfs flags (one per NFS share of the theme, default true)."""
     flags = tuple(THEMES[theme].get("nfs_shares") or ())
+    known = tuple(dict.fromkeys(flag for item in THEMES.values()
+                                for flag in (item.get("nfs_shares") or ())))
     if not isinstance(block, dict):
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="cleanup.nfs"))
-    bad = sorted(set(block) - set(flags))
+    bad = sorted(set(block) - set(known))
     if bad:
         raise ConfigError(CONFIG_MSGS["unknown_flag"].format(
-            path=path, suite=NFS_CLEANUP_KEY, names=", ".join(bad), known=", ".join(flags)))
+            path=path, suite=NFS_CLEANUP_KEY, names=", ".join(bad), known=", ".join(known)))
     return {flag: _require_bool(block.get(flag, True), f"cleanup.nfs.{flag}", path)
             for flag in flags}
 

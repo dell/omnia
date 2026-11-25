@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared body of an SVT test: run its FVT step, add it to the stage report, assert.
+"""Shared body of an SVT test: run its step, add it to the stage report, assert.
 
-Each SVT test (svt/<theme>/) runs one FVT step of test_case_vars.TEST_CASES:
-``exec`` runs the playbook, ``verify`` its verification tests. The screen
-output and the FVT results of the step go into the stage section of the SVT
-report. Once a test of a stage failed, the later tests of that stage are
-skipped (they need what it should have set up).
+Each SVT test (svt/<theme>/) runs one step of test_case_vars.TEST_CASES: an FVT
+step (``exec`` runs the playbook, ``verify`` its verification tests, selected by
+suite and marker) or a RUN step (``./omnia.sh ...``, omnia_run_func.py). The step
+passes when its exit status is 0. The screen output and the FVT results of the
+step go into the stage section of the SVT report. Once a test of a stage failed,
+the later tests of that stage are skipped (they need what it should have set up).
 """
 
 import os
@@ -27,10 +28,12 @@ from typing import Any, Dict
 import pytest
 from omnia_auto import TestLogger
 
-from . import run_func, svt_report_func, track_func
+from . import catalog_func, run_func, svt_report_func, track_func
 from .config_func import load_svt_config
 from .fvt_func import describe_step, run_fvt_step, step_info
-from ..messages.svt_msgs import SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
+from .omnia_run_func import describe_run, run_info, run_omnia_step
+from .pxe_publish_func import LOCAL_DOMAIN, run_local_step
+from ..messages.svt_msgs import CATALOG_MSGS, SETUP_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
 from ..vars.common_vars import REPORT_SECTION_ENV
 from ..vars.test_case_vars import TEST_CASES
 
@@ -79,32 +82,69 @@ def _resumed(theme: str, tc: Dict[str, Any]) -> str:
         return ""
 
 
+def _label(tc: Dict[str, Any]) -> str:
+    """Return the command of the step as text."""
+    return describe_run(tc["run"]) if "run" in tc else describe_step(tc["step"])
+
+
+def _info(tc: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the report's header chips of the step."""
+    return run_info(tc["run"]) if "run" in tc else step_info(tc["step"])
+
+
+def _run_step(theme: str, tc: Dict[str, Any]) -> Dict[str, Any]:
+    """Run the step of ``tc``: ./omnia.sh (RUN), an SVT action or the FVT step."""
+    if "run" in tc:
+        return run_omnia_step(theme, tc["run"])
+    # "action": an SVT action instead of an FVT step (catalog_build: select or skip a catalog).
+    if tc.get("action"):
+        return catalog_func.run_action(tc)
+    # LOCAL_DOMAIN ("svt"): a local SVT step (pxe_publish_func.py), not a remote FVT runner.
+    if tc["step"][0] == LOCAL_DOMAIN:
+        return run_local_step(tc["step"])
+    return run_fvt_step(tc["step"])
+
+
 def run_svt_test(theme: str, name: str) -> None:
-    """Run SVT test ``<theme>_<name>`` and assert that its FVT step passed."""
+    """Run SVT test ``<theme>_<name>`` and assert that its step passed."""
     tc = TEST_CASES[f"{theme}_{name}"]
-    label = describe_step(tc["step"])
+    label = _label(tc)
     resumed = _resumed(theme, tc)
     if resumed:
         _report(theme, svt_report_func.make_item({
             "id": tc["id"], "name": tc["title"], "status": "Skipped", "details": resumed,
-            "command": label, "fvt": step_info(tc["step"])}))
+            "command": label, "fvt": _info(tc)}))
         pytest.skip(resumed)
     blocked = _FAILED.get(tc["stage"])
-    if blocked:
+    # "always": a test that runs even after an earlier failure of its stage (cleanup).
+    if blocked and not tc.get("always"):
         reason = TEST_LOG_MSGS["blocked"].format(test=blocked)
         _report(theme, svt_report_func.make_item({
             "id": tc["id"], "name": tc["title"], "status": "Skipped", "details": reason,
-            "command": label, "fvt": step_info(tc["step"])}))
+            "command": label, "fvt": _info(tc)}))
         pytest.skip(reason)
     logger = TestLogger(tc["title"], tc["id"])
-    result = run_fvt_step(tc["step"])
+    result = _run_step(theme, tc)
+    if result.get("skipped"):
+        _report(theme, svt_report_func.make_item({
+            "id": tc["id"], "name": tc["title"], "status": "Skipped",
+            "details": result["skipped"], "fvt": result["fvt"]}))
+        pytest.skip(result["skipped"])
+    note = f"$ {result['command']}"
+    # "stop_leftovers": after a failed exec, stop the playbook workers it left running.
+    if not result["success"] and tc.get("stop_leftovers"):
+        stopped = catalog_func.stop_leftovers(tc["step"][0], print)
+        if stopped:
+            note += "\n" + CATALOG_MSGS["leftovers_stopped"].format(
+                domain=tc["step"][0], pids=", ".join(str(pid) for pid in stopped))
     _report(theme, svt_report_func.make_item({
         "id": tc["id"], "name": tc["title"], "status": "Passed" if result["success"] else "Failed",
         "duration": result["duration"], "command": label, "output": result["output"],
-        "results": result["results"], "fvt": result["fvt"], "details": f"$ {result['command']}",
-        "error": "" if result["success"] else f"{label} failed (rc={result['rc']})"}))
+        "results": result["results"], "fvt": result["fvt"], "details": note,
+        "error": "" if result["success"] else (result.get("error")
+                                               or f"{label} failed (rc={result['rc']})")}))
     _track(theme, tc["stage"], tc["id"], result["success"])
-    fields = [("FVT step", label), ("rc", result["rc"]),
+    fields = [("Command" if "run" in tc else "FVT step", label), ("rc", result["rc"]),
               ("FVT results", len(result["results"]))]
     if result["success"]:
         logger.passed_fields(TEST_LOG_MSGS["test_ok"].format(step=label), fields)

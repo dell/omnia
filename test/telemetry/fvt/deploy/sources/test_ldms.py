@@ -35,6 +35,7 @@ Test cases:
     TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists
     TEL_FVT_DEPLOY_V027: Verify earliest LDMS data in Kafka topic
     TEL_FVT_DEPLOY_V028: Verify latest LDMS data in Kafka topic
+    TEL_FVT_DEPLOY_V029: Verify LDMS metrics in VictoriaMetrics
 """
 
 import pytest
@@ -59,7 +60,12 @@ from library.functions.k8s_func import (
     verify_kafka_topic_ready,
     verify_pods_by_prefix,
 )
-from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source, is_bridge_enabled
+from library.functions.telemetry_func import (
+    is_bridge_enabled,
+    is_sink_enabled,
+    is_sink_enabled_for_source,
+    is_source_enabled,
+)
 
 
 def _skip_if_ldms_disabled(host):
@@ -724,3 +730,77 @@ def test_ldms_kafka_data(host):
             )
 
     assert result["success"], result.get("error", "LDMS data verification failed")
+
+
+# =========================================================================
+# TEL_FVT_DEPLOY_V029: Verify LDMS metrics in VictoriaMetrics
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.functional
+@pytest.mark.ldms
+@pytest.mark.order(59)
+def test_ldms_vm_data(host):
+    """TEL_FVT_DEPLOY_V029: Verify LDMS metrics in VictoriaMetrics.
+
+    The Vector-LDMS bridge consumes the Kafka ldms topic and writes the LDMS
+    fields to VictoriaMetrics (source_subsystem="ldms"). Every LDMS node of the
+    orchestrator inventory must have a fresh sample for every sampler plugin of
+    telemetry_config.yml.
+    """
+    from library.functions.ldms_func import verify_ldms_vm_data
+
+    _skip_if_ldms_disabled(host)
+    if not is_bridge_enabled(host, "vector_ldms"):
+        pytest.skip("Vector-LDMS bridge not enabled in telemetry_config.yml")
+    if not is_sink_enabled(host, "victoria_metrics"):
+        pytest.skip("VictoriaMetrics sink not enabled in telemetry_config.yml")
+
+    tc = TC["ldms_vm_data"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    tl.check("Querying VictoriaMetrics for LDMS series per host and plugin")
+    result = verify_ldms_vm_data(host)
+
+    if result.get("skipped"):
+        tl.skipped(result.get("reason", "LDMS VictoriaMetrics verification skipped"))
+        pytest.skip(result.get("reason", "LDMS VictoriaMetrics verification skipped"))
+
+    details_lines = [
+        "VictoriaMetrics: "
+        f"https://{result.get('vmselect_ip', '')}:{result.get('vmselect_port', '')}",
+        f"Expected hostnames: {result.get('expected_hostnames', [])}",
+        f"Expected plugins: {result.get('expected_plugins', [])}",
+        f"Fresh host/plugin series: {result.get('found_instance_count', 0)}"
+        f"/{result.get('expected_instance_count', 0)}",
+        "",
+        "Newest sample per host/plugin:",
+    ]
+    latest = result.get("latest", {})
+    for instance in sorted(set(result.get("found_instances", []))
+                           | set(result.get("stale_instances", []))
+                           | set(result.get("missing_instances", []))):
+        if instance in result.get("found_instances", []):
+            icon = "\u2713"
+        elif instance in result.get("stale_instances", []):
+            icon = "\u26a0"
+        else:
+            icon = "\u2717"
+        stamp = _format_unix_timestamp(latest.get(instance)) or "NO DATA"
+        details_lines.append(f"  {icon} {instance}: {stamp}")
+    if result.get("error"):
+        details_lines.extend(["", f"Error: {result['error']}"])
+    details = "\n".join(details_lines)
+
+    if result["success"]:
+        tl.passed(
+            f"LDMS metrics fresh in VictoriaMetrics for all "
+            f"{result.get('expected_instance_count', 0)} host/plugin series",
+            details,
+        )
+    else:
+        tl.failed("LDMS metrics missing or stale in VictoriaMetrics", details)
+
+    assert result["success"], result.get(
+        "error", "LDMS VictoriaMetrics verification failed"
+    )

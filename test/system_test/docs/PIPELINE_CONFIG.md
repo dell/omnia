@@ -36,7 +36,7 @@ flags are in `build_stream_test_config.yml` ([TEST_CONFIG.md](TEST_CONFIG.md)).
 
 `timeouts_hours` keys are the job names: `preflight` (the checks and the checkout), `initialization`, then the
 theme's stages (`prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cleanup`) and
-`summary`. A job without its own entry uses `default_hours` (6 when that is missing too). The
+`summary`. The catalog_build jobs (`catalog_01`, `catalog_02` ...) use `catalog_stage` when they have no entry of their own. A job without its own entry uses `default_hours` (6 when that is missing too). The
 shortest allowed limit is 10 minutes. The runner's own maximum timeout still applies, so raise
 that too for long stages.
 
@@ -108,8 +108,8 @@ waits. All clusters of the file run at the same time, each on its own OIM.
 
 | Key | Default | Meaning | Becomes |
 |---|---|---|---|
-| `clean_reinstall` | `true` | `true`: the initialization job runs `./setup_env.sh --force`: cleanup (including the NFS shares), then a full install. `false`: no cleanup, install only what changed | `<PREFIX>_SVT_CLEAN_REINSTALL` |
-| `skip_stages` | empty | Theme stages to leave out, comma separated, e.g. `cadence,automatic_cleanup` | `<PREFIX>_SVT_SKIP_STAGES` |
+| `clean_reinstall` | empty (theme default) | `true`: the initialization job runs `./setup_env.sh --force`: cleanup (including the NFS shares), then a full install. `false`: no cleanup, install only what changed. Empty: the theme's default (`default_clean_reinstall`: `true` for build_stream, `false` for observability) | `<PREFIX>_SVT_CLEAN_REINSTALL` |
+| `skip_stages` | empty (theme default) | Theme stages to leave out, comma separated, e.g. `cadence,automatic_cleanup`. Empty: the theme's `default_skip_stages` (none for build_stream; `prepare_base,repo_sync,image_build,cluster_deploy` for observability, which runs on a deployed cluster). `none`: run every stage | `<PREFIX>_SVT_SKIP_STAGES` |
 | `user_inputs` | `user_inputs.yml` | Inputs file of this cluster: a file of `clusters/<cluster>/svt/` in the GitLab project, with the syntax of `user_inputs.yml`. The checkout job copies it to the OIM as `user_inputs.yml`, so one cluster can keep several (`user_inputs_ib.yml`, `user_inputs_small.yml` ...) and choose by changing this variable in GitLab (Settings > CI/CD > Variables) without `--update`. Empty means `user_inputs.yml`. A plain file name only (`.yml`/`.yaml`, no folder); a name that is not in the project fails the checkout before anything on the OIM is touched | `<PREFIX>_SVT_USER_INPUTS` |
 
 ### `clusters.<name>.secret_path`
