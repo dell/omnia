@@ -217,17 +217,19 @@ cleanup_credentials: true
 #
 # Decide whether Slurm shared data is deleted. Supported values:
 #   true  - delete the configured Slurm shared directories, then unmount the
-#           Slurm storage and remove its fstab entries
+#           Slurm storage and remove its fstab entries; the nfs_shares suite
+#           then empties the nfs_slurm NFS share of storage_config.yml
 #   false - preserve shared data, but still unmount the Slurm storage and
-#           remove its fstab entries
+#           remove its fstab entries; the nfs_slurm test is skipped
 # Default: true
 cleanup_slurm: true
 #
 # Decide whether Kubernetes shared data is deleted. Supported values:
 #   true  - delete every entry under the configured Kubernetes shared mount,
-#           then unmount the storage and remove its fstab entries
+#           then unmount the storage and remove its fstab entries; the
+#           nfs_shares suite then empties the nfs_k8s NFS share
 #   false - preserve shared data, but still unmount the Kubernetes storage and
-#           remove its fstab entries
+#           remove its fstab entries; the nfs_k8s test is skipped
 # Default: true
 cleanup_k8s: true
 #

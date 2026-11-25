@@ -214,7 +214,7 @@ operations and includes destructive prepare, provision, and cleanup cases.
 | `prepare` | `openchami`, `network`, `openldap` | OpenCHAMI, PostgreSQL, networking, DNS/DHCP, and local OpenLDAP readiness |
 | `provision` | `openchami` | Provision reports plus SMD, Boot Service, Metadata Service, and network inventory |
 | `pxeboot` | See `SUITES` in `library/vars/domain_vars.py` | Node boot completion, node features, and workload-cluster behavior; reboot and node-removal suites run last |
-| `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` | Explicit full-cleanup postconditions |
+| `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials`, `nfs_shares` | Explicit full-cleanup postconditions |
 
 An untagged FVT flow uses `precheck -> prepare -> provision -> pxeboot`.
 Cleanup is always explicit. Reboot cases never run without `--marker reboot`,
@@ -385,8 +385,8 @@ Review these `test_config.yml` settings first:
 | Setting | `true` | `false` |
 |---|---|---|
 | `cleanup_credentials` | Remove Orchestrator credential artifacts | Preserve them |
-| `cleanup_slurm` | Delete Slurm shared data, then detach storage | Preserve data, but detach storage |
-| `cleanup_k8s` | Delete Kubernetes shared data, then detach storage | Preserve data, but detach storage |
+| `cleanup_slurm` | Delete Slurm shared data, then detach storage; the `nfs_slurm` NFS share is emptied (`nfs_shares` suite) | Preserve data, but detach storage; the NFS share test is skipped |
+| `cleanup_k8s` | Delete Kubernetes shared data, then detach storage; the `nfs_k8s` NFS share is emptied (`nfs_shares` suite) | Preserve data, but detach storage; the NFS share test is skipped |
 | `cleanup_benchmark_tools` | Remove HPC benchmark staged artifacts after verification | Retain artifacts for inspection |
 
 All default to `true`. Cleanup removes deployment state and is not a harmless

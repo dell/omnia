@@ -195,6 +195,14 @@ from .cleanup_func import (
     cleanup_extra_vars,
     cleanup_selection_fields,
 )
+from .nfs_cleanup_func import (
+    can_run_locally,
+    empty_nfs_share,
+    get_nfs_source,
+    get_protected_paths,
+    get_storage_config_path,
+    nfs_share_selected,
+)
 from .external_ldap_pxeboot_func import (
     check_external_ldap_backend,
     check_external_ldap_proxy,
@@ -533,6 +541,7 @@ __all__ = [
     "check_cleanup_kubernetes",
     "check_cleanup_openchami",
     "check_cleanup_openldap",
+    "can_run_locally",
     "check_cleanup_slurm",
     "check_coredhcp_config_file",
     "check_coredhcp_multisubnet_running_image",
@@ -787,6 +796,11 @@ __all__ = [
     "check_vault_encryption",
     "cleanup_extra_vars",
     "cleanup_selection_fields",
+    "empty_nfs_share",
+    "get_nfs_source",
+    "get_protected_paths",
+    "get_storage_config_path",
+    "nfs_share_selected",
     "persistent_changed_count",
     "resolve_nft_thresholds",
     "reconcile_external_ldap_proxy",
