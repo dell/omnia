@@ -1,7 +1,8 @@
 # Omnia System Verification (SVT)
 
 `test/system_test` is the integration test of Omnia on one OIM. You choose a
-**theme** (today `build_stream`, the default): its settings are
+**theme**: `build_stream` (the default) or `observability` (iDRAC and LDMS
+telemetry, see [below](#theme-observability)); its settings are
 `<theme>_test_config.yml` (`build_stream_test_config.yml`). You fill the
 cluster values in `user_inputs.yml`. Then two commands do everything:
 
@@ -98,6 +99,50 @@ tests of the stage are skipped (they need what it set up).
 The tests are data in [`library/vars/test_case_vars.py`](library/vars/test_case_vars.py);
 `svt/test_svt.py` generates one pytest test per entry.
 
+## Theme observability
+
+Telemetry (observability) of a **deployed** cluster: the iDRAC and LDMS sources are
+deployed with the product command `./omnia.sh -r telemetry`, then checked with the
+telemetry FVT tests selected by suite and marker. Every source but iDRAC and LDMS is off
+(`telemetry` block of `user_inputs.yml`).
+
+```bash
+./setup_env.sh --theme observability           # configure, install (no cleanup), credentials
+./run_validation.sh svt_observability all       # initialization -> observability stages -> summary
+./run_validation.sh svt_observability all --skip-stages none   # also build the cluster first
+```
+
+Two kinds of SVT test:
+
+- **RUN**: `./omnia.sh --prepare-base` or `./omnia.sh -r <domain> [--tags <tag>]`, as a
+  customer runs it (allowed commands: `OMNIA_RUN_TAGS` in `library/vars/theme_vars.py`).
+- **VERIFY**: one FVT step, selected by suite and marker like build_stream (for example
+  `--suite sources --marker idrac+sanity`). The step passes when its exit status is 0.
+
+| Stage | Type | ID | Step | FVT test cases |
+|---|---|---|---|---|
+| `prepare_base` | hard, **skipped by default** | `001`-`004` | `./omnia.sh --prepare-base`; repo_manager, image_build_manager, orchestrator `prepare verify --marker sanity` | |
+| `repo_sync` | hard, **skipped by default** | `005`-`006` | `./omnia.sh -r repo_manager --tags execute`; `execute verify` | |
+| `image_build` | hard, **skipped by default** | `007`-`008` | `./omnia.sh -r image_build_manager --tags build`; `build verify` | |
+| `cluster_deploy` | hard, **skipped by default** | `009`-`013` | `./omnia.sh -r orchestrator --tags provision`, `--tags pxeboot`; provision, Kubernetes and Slurm cluster checks | |
+| `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014`-`017` | `./omnia.sh -r telemetry --tags cleanup_ldms`, `cleanup_idrac` | `TEL_FVT_CLEANUP_V007`, `V006` |
+| `observability_precheck` | hard | `018`-`021` | `./omnia.sh -r telemetry --tags precheck`, `--tags validate` | `TEL_FVT_PRECHECK_V001`-`V003`, `TEL_FVT_VALIDATE_V001` |
+| `observability_deploy` | hard | `022`-`023` | `./omnia.sh -r telemetry` | `TEL_FVT_DEPLOY_V001`-`V008`, `V110` |
+| `observability_idrac` | soft | `024`-`025` | readiness, then data flow | `V010`, `V011`, `V012`, `V016`, `V017`, `V112`, `V113`; `V013`, `V014`, `V015`, `V018` |
+| `observability_ldms` | soft | `026`-`027` | readiness, then data flow | `V020`, `V021`, `V022`, `V026`; `V023`-`V025`, `V027`, `V028`, `V029` |
+
+IDs are `SVT_OBSERVABILITY_<NNN>`; FVT IDs `V0xx`/`V1xx` are `TEL_FVT_DEPLOY_V0xx`.
+
+**Defaults** (theme data): `./run_validation.sh svt_observability all` leaves out
+`prepare_base`, `repo_sync`, `image_build` and `cluster_deploy` (recorded as skipped;
+`--skip-stages none` runs them, a single stage runs with `./run_validation.sh
+svt_observability <stage>`), and `./setup_env.sh` cleans nothing without `--force`. In the
+pipeline, an empty `skip_stages` and `clean_reinstall` of the cluster block give the same
+defaults (`skip_stages: "none"` runs every stage). The telemetry credential store
+(`telemetry_credentials.yml`: BMC, MySQL and LDMS sampler) is written by
+`test/telemetry/setup_env.sh`; the OpenBao secret is `<secret_path>/telemetry`
+([OPENBAO.md](docs/OPENBAO.md)).
+
 ## Theme catalog_build
 
 For every catalog, one at a time: `./omnia.sh --select-catalog <catalog>`, then the
@@ -160,6 +205,7 @@ test/system_test/
 │                                PIPELINE_CONFIG.md
 ├── pipeline/                    setup_svt_project.py, cleanup_svt_project.py, svt_ci.py, svt_pipeline_config.yml (GitLab); README.md
 ├── build_stream_test_config.yml the theme's settings: FVT overrides, cleanup flags, report
+├── observability_test_config.yml the observability theme's settings
 ├── user_inputs.yml              the cluster values
 ├── (secret.yaml, values.yaml)   PowerScale CSI, optional: seeded from src/orchestrator/examples/ into
 │                                the cluster's folder of the GitLab project and edited there (or by

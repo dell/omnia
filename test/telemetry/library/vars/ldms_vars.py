@@ -67,6 +67,23 @@ LDMS_BINARY_PATH = "/opt/ovis-ldms/sbin/ldmsd"
 LDMS_PACKAGE_NAME = "ovis-ldms"
 
 # =============================================================================
+# LDMS DATA IN VICTORIAMETRICS (Vector-LDMS bridge)
+# =============================================================================
+
+# Vector-LDMS writes every numeric LDMS field as ldms_<schema>_<field> with the
+# labels source_subsystem="ldms", instance=<hostname> and plugin=<schema>
+# (src/telemetry/roles/deploy_ldms/templates/vector/vector-ldms-config.toml.j2).
+# The query returns the newest sample time of every host/plugin series.
+LDMS_VM_LATEST_QUERY = (
+    'max by (instance, plugin) (timestamp({source_subsystem="ldms"}))'
+)
+# A host/plugin is fresh when its newest sample is at most this old.
+LDMS_VM_FRESH_SECONDS = 300
+# Polls while the bridge batches the first samples into VictoriaMetrics.
+LDMS_VM_POLL_ATTEMPTS = 12
+LDMS_VM_POLL_INTERVAL_SECONDS = 10
+
+# =============================================================================
 # LDMS LOG MESSAGES
 # =============================================================================
 

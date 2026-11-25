@@ -37,6 +37,7 @@ reports what is missing.
 | `<stage>` / `all` | required | One stage, or every stage from `--start-stage`, then `summary` |
 | `--run-id` | the current run | Must be the run started by `./setup_env.sh --configure`; another id is refused |
 | `--start-stage` | `initialization` | With `all`: first stage |
+| `--skip-stages` | the theme's `default_skip_stages` | With `all`: theme stages to leave out, comma separated (recorded as skipped, not in the report's planned stages); `none` runs every stage. observability leaves out `prepare_base,repo_sync,image_build,cluster_deploy` by default |
 | `--quiet` | off | Output to the stage log only |
 
 Exit codes: `0` passed or skipped, `1` failed, `2` invalid arguments, the
@@ -251,7 +252,11 @@ The run folder is `<report_path>/<run_id>/` (default `reports/<run_id>/`).
    to write.
 4. **Optional:** `creds_suite`, `cleanup_requires` (a cleanup step that runs
    only when any of its files or folders exists, so a half installed product is still cleaned) and `state_probe` (read-only product state: each
-   stage's outputs and what the run left behind) in the theme entry.
+   stage's outputs and what the run left behind) in the theme entry. Also:
+   `creds_suites` (a store written by another suite's `setup_env.sh`, flat JSON, no
+   `--domain`), `default_skip_stages` and `default_clean_reinstall` (what `all` and the
+   pipeline do by default), `run_domains` (RUN steps: `"run": (<omnia.sh arguments>)` in
+   test_case_vars, checked against `OMNIA_RUN_TAGS`).
 
 ## Local checks (same as the GitHub workflows)
 
