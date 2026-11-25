@@ -16,7 +16,7 @@ Runs the complete lifecycle: setup the environment, clean up any previous deploy
 
 **Flow:**
 ```
-initialization > cleanup_<domains> > cleanup_omnia >
+initialization > cleanup_<domains> > test_cleanup_<domains> > cleanup_omnia >
 setup_main > test_main_installation > <domains> > test_<domains> > summary
 ```
 
@@ -68,7 +68,7 @@ Runs domain-specific cleanup playbooks (`--tags cleanup`) and optionally runs `o
 
 **Flow:**
 ```
-initialization > cleanup_<domains> > cleanup_omnia (only if domains=default) > summary
+initialization > cleanup_<domains> > test_cleanup_<domains> > cleanup_omnia (only if domains=default) > summary
 ```
 
 **Example — clean up everything:**
@@ -256,7 +256,7 @@ The pipeline runs these stages in order. Which stages actually execute depends o
 22. summary                           Y          Y     Y
 ```
 
-A failed cleanup does not stop the other cleanups, but nothing after `cleanup_omnia` runs.
+A failed cleanup or cleanup test does not stop the other ones, but nothing after `cleanup_omnia` runs. The cleanup tests (`test_cleanup_<domain>`, one per cleanup stage, run after all the cleanups, same order and same domain selection) are not numbered in the table above.
 See [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) for how each stage works.
 
 Legend:
@@ -274,8 +274,9 @@ Legend:
 | Stage | Description |
 |---|---|
 | **initialization** | One stage: the clone of Omnia on the OIM and the pipeline helpers taken from it, the checks of the CI/CD variables, the OIM host key, the input folders and SSH, the commit and `omnia.env`, and (`DOMAINS=default`) the read-only NFS check, so an unreachable share stops the run before anything is deleted. Nothing secret is written to an artifact |
-| **cleanup_\<domain\>** | Runs `fvt_<domain> cleanup test` in the Omnia venv: the exec step, then its verify step (utils: only its combined cleanup tests, never the NFS shares). Every cleanup runs even after one failed; nothing is installed after a failure. First run: nothing to clean |
-| **cleanup_omnia** | Runs `omnia.sh --cleanup --all`. Not run when `cleanup_orchestrator` failed (it empties the Slurm and K8s NFS shares). Only runs when `DOMAINS=default` |
+| **cleanup_\<domain\>** | Runs the cleanup playbook with `./omnia.sh --run <domain> --tags <cleanup tag>` in the Omnia venv, with the flags of the cluster's `test_config.yml`; no test runs. Every cleanup runs even after one failed; nothing is installed after a failure. First run: nothing to clean |
+| **test_cleanup_\<domain\>** | Runs `fvt_<domain> cleanup verify` in the Omnia venv (utils: only its combined cleanup tests) with the pipeline id as the report id. The orchestrator one also empties the Slurm and K8s NFS shares. Needs the marker of its cleanup |
+| **cleanup_omnia** | Runs `omnia.sh --cleanup --all`. Not run when `cleanup_orchestrator` or `test_cleanup_orchestrator` failed (the latter empties the Slurm and K8s NFS shares). Only runs when `DOMAINS=default` |
 | **setup_main** | Runs `omnia.sh -s` (the Omnia venv and every `domain-init`) in `default` mode or with `ENABLE_SETUP=true`, then copies `clusters/<name>/inputs/src/<domain>/` of every deploy domain and the catalog to the OIM in `default` and `deploy` mode |
 | **test_main_installation** | Runs `run_validation.sh fvt_main verify` in the Omnia venv |
 | **\<domain\>** | Fetches the domain credentials from OpenBao (JWT auth), encrypts them with ansible-vault, runs every playbook tag one by one with `./omnia.sh --run <domain> --tags <tag>`. A failure stops the pipeline |

@@ -25,11 +25,15 @@ over SSH:
     checkout              record the commit of the clone and copy omnia.env (the clone itself is
                           made by the bootstrap of the initialization job)
     nfs-check             read-only: every Slurm/K8s NFS share of the OIM's storage_config.yml mounts
-    cleanup <domain>      fvt_<domain> cleanup test: exec, then verify, in the Omnia venv (orchestrator:
-                          its nfs_shares suite empties the NFS shares selected by cleanup_slurm and
-                          cleanup_k8s; utils: only its combined cleanup tests)
+    cleanup <domain>      the cleanup playbook of the domain: ./omnia.sh --run <domain> --tags
+                          <cleanup tag> with the variables of the test_config.yml, in the Omnia venv
+                          (no test runs here)
+    cleanup-verify <domain>
+                          fvt_<domain> cleanup verify in the Omnia venv: what the cleanup must have
+                          left (orchestrator: its nfs_shares suite empties the NFS shares selected
+                          by cleanup_slurm and cleanup_k8s)
     cleanup-omnia         one stage: omnia.sh --cleanup --all --skip-approval (not run when the
-                          orchestrator cleanup failed)
+                          orchestrator cleanup or its verification failed)
     setup-main            one stage: omnia.sh -s, then copy clusters/<cluster>/inputs/<domain>/ of
                           every deploy domain to <data>/<domain>/input/<project>/ and the catalog
     install               omnia.sh -s only (recreates the Omnia venv, runs every domain-init)
@@ -41,8 +45,11 @@ over SSH:
     verify <domain|main>  test config and credentials, then TEST_<DOMAIN>_CMD (default
                           ./run_validation.sh fvt_<domain> verify)
     summary               status of every job and the email; fails the pipeline when initialization,
-                          a cleanup, setup_main or a domain exec failed (a failed verify or a
-                          tolerated cleanup, utils and discovery, does not)
+                          a cleanup or its verification, setup_main or a domain exec failed (a
+                          failed domain verify or a tolerated cleanup, utils and discovery, does not)
+
+Every FVT run of the pipeline gets the pipeline id as its report id (run_id of test_config.yml and
+CI_PIPELINE_ID), so the reports of all domains and phases carry the same id.
 
 DRY_RUN=true prints what would run on the OIM and changes nothing.
 
@@ -65,7 +72,7 @@ import time
 import urllib.error
 import urllib.request
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Deque, Dict, List, Optional, Sequence, Tuple
 
 DOMAINS = ("repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry",
            "utils", "build_stream")
@@ -81,7 +88,8 @@ PROTECTED_PATHS = ("/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/lib6
 STATUS_DIR = "pipeline_job_status"
 ERROR_DIR = f"{STATUS_DIR}/errors"
 MAX_REASON = 600
-TOLERATED_JOBS = ("cleanup_utils", "cleanup_discovery")
+TOLERATED_JOBS = ("cleanup_utils", "cleanup_discovery", "test_cleanup_utils",
+                  "test_cleanup_discovery")
 COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
 MAX_REPORTS = 50
@@ -101,6 +109,16 @@ CREDENTIAL_FILES = {
     "telemetry": "telemetry_credentials.yml",
 }
 OPTIONAL_CREDENTIALS = ("discovery",)
+CLEANUP_TAGS = {
+    "repo_manager": "cleanup_pulp",
+    "image_build_manager": "cleanup",
+    "discovery": "cleanup",
+    "orchestrator": "cleanup",
+    "telemetry": "cleanup",
+    "utils": "cleanup",
+    "build_stream": "cleanup",
+}
+SAFE_EXTRA_VAR = re.compile(r"^[A-Za-z0-9_]{1,40}=(true|false)$")
 TEST_CREDENTIALS = ("orchestrator", "telemetry")
 BAO_TIMEOUT = 30
 SSH_RETRIES = 5
@@ -391,9 +409,10 @@ def require_ready() -> None:
 
 
 def failed_cleanups() -> List[str]:
-    """Return the cleanup jobs that failed (the tolerated ones do not count)."""
+    """Return the cleanup jobs and cleanup verifications that failed (tolerated ones do not count)."""
     return [name for name, status, _ in _statuses()
-            if status == "failed" and name.startswith("cleanup_") and name not in TOLERATED_JOBS]
+            if status == "failed" and name.startswith(("cleanup_", "test_cleanup_"))
+            and name not in TOLERATED_JOBS]
 
 
 def require_cleanups_ok() -> None:
@@ -457,14 +476,95 @@ def initialize() -> int:
     return _mark("initialization", 0)
 
 
+def _test_setting(cluster: str, domain: str, key: str, default: bool, block: str = "") -> bool:
+    """Return the true/false setting ``key`` of the cluster's test_config.yml of the domain.
+
+    ``block`` names a top-level mapping that holds the key (build_stream: ``cleanup``). The
+    default of the test suite is returned when the file or the key is absent.
+    """
+    path = os.path.join(Layout(cluster).test_dir(domain), "test_config.yml")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return default
+    inside = not block
+    for line in lines:
+        if block and re.match(rf"^{re.escape(block)}:\s*(#.*)?$", line):
+            inside = True
+            continue
+        if block and inside and re.match(r"^\S", line) and not line.startswith("#"):
+            inside = False
+        pattern = rf"^{'  ' if block else ''}{re.escape(key)}:\s*(true|false)\s*(#.*)?$"
+        match = re.match(pattern, line) if inside else None
+        if match:
+            return match.group(1) == "true"
+    return default
+
+
+def cleanup_playbook_vars(cluster: str, domain: str) -> List[str]:
+    """Return the ``key=value`` extra variables of the cleanup playbook of a domain.
+
+    The same variables the FVT cleanup of the domain passes, from the cluster's test_config.yml
+    (defaults of the suites when absent): orchestrator and build_stream pass every flag
+    explicitly, the others only what differs from the playbook default.
+    """
+    def flag(key: str, default: bool, block: str = "") -> bool:
+        return _test_setting(cluster, domain, key, default, block)
+
+    def text(value: bool) -> str:
+        return "true" if value else "false"
+
+    if domain == "orchestrator":
+        return [f"{k}={text(flag(k, True))}" for k in ("cleanup_credentials", "cleanup_slurm",
+                                                       "cleanup_k8s")]
+    if domain == "build_stream":
+        return [f"postgres_backup={text(flag('postgres_backup', False, 'cleanup'))}",
+                f"cleanup_credentials={text(flag('cleanup_credentials', True, 'cleanup'))}"]
+    if domain == "telemetry":
+        found = ["Delete_sinks_volume=true"] if flag("delete_sinks_volume", False) else []
+        found += [f"{k}=false" for k in ("cleanup_credentials", "cleanup_logs")
+                  if not flag(k, True)]
+        return found
+    if domain in ("repo_manager", "image_build_manager") and not flag("cleanup_credentials", True):
+        return ["cleanup_credentials=false"]
+    return []
+
+
 def cleanup(domain: str) -> int:
-    """fvt_<domain> cleanup test: exec, then verify (utils: only its combined cleanup tests)."""
-    apply_cluster()
+    """Run the cleanup playbook of the domain with ``./omnia.sh --run <domain> --tags <tag>``.
+
+    No test runs here: the next stage, ``cleanup_verify``, checks what the cleanup left. The tag
+    and the extra variables are the ones the FVT cleanup of the domain uses
+    (``CLEANUP_TAGS``, ``cleanup_playbook_vars``). A passed cleanup leaves the marker that stage
+    needs. An OIM without an Omnia venv (the first run) has nothing to clean and passes.
+    """
+    cluster = apply_cluster()
     _domain(domain)
     require_ready()
-    extra = "--marker cleanup" if domain == "utils" else ""
     missing = f"echo 'No Omnia venv on the OIM, nothing to clean for {domain}'; exit 0"
-    rc = _fvt(domain, "cleanup", "test", extra, missing)
+    rc = _omnia_run(domain, CLEANUP_TAGS[domain], cleanup_playbook_vars(cluster, domain), missing)
+    return _mark(f"cleanup_{domain}", rc)
+
+
+def cleanup_verify(domain: str) -> int:
+    """fvt_<domain> cleanup verify: what the cleanup must have left, in the Omnia venv.
+
+    Runs after the cleanup stages and before the Omnia cleanup, which removes the Omnia venv. It
+    needs the Omnia venv and the test requirements (``_fvt`` activates and installs them). The
+    orchestrator verification also empties the NFS shares (its ``nfs_shares`` suite).
+    """
+    cluster = apply_cluster()
+    _domain(domain)
+    require_ready()
+    if not os.path.isfile(f"{STATUS_DIR}/cleanup_{domain}.ok") and _env("DRY_RUN").lower() != "true":
+        _fail(f"cleanup_{domain} did not pass, so its result is not verified. HOW TO FIX: read the "
+              f"log of cleanup_{domain}, fix the cause and run the pipeline again")
+    extra = "--marker cleanup" if domain == "utils" else ""
+    missing = f"echo 'No Omnia venv on the OIM, nothing to verify for {domain}'; exit 0"
+    rc = _stage_test_files(cluster, domain)
+    if not rc:
+        rc = _fvt(domain, "cleanup", "verify", extra, missing)
     _fetch_reports(f"{_env('CI_JOB_NAME')}__")
     return rc
 
@@ -545,20 +645,25 @@ def cleanup_omnia() -> int:
     uses its own venv, because the cleanup removes the Omnia venv. The reports of the cleanup
     are kept before /opt/omnia is removed.
     """
-    apply_cluster()
+    cluster = apply_cluster()
     require_ready()
     path = install_path()
-    if "cleanup_orchestrator" in failed_cleanups() and _env("DRY_RUN").lower() != "true":
-        _say("ERROR: cleanup_orchestrator failed (it empties the NFS shares), so the Omnia "
-             "cleanup was not run and the Omnia venv is kept for the next try")
+    blocked = [n for n in failed_cleanups() if n.endswith("orchestrator")]
+    if blocked and _env("DRY_RUN").lower() != "true":
+        _say(f"ERROR: {', '.join(blocked)} failed (the orchestrator cleanup and its verification "
+             "empty the NFS shares), so the Omnia cleanup was not run and the Omnia venv is kept "
+             "for the next try")
         return 1
+    rc = _stage_test_files(cluster, "main")
+    if rc:
+        return rc
     return _run(f"""set -e
 cd {shlex.quote(path)}/test/main
 grep -q '^cleanup_all:' test_config.yml && sed -i -E 's/^cleanup_all:.*/cleanup_all: true/' test_config.yml || echo 'cleanup_all: true' >> test_config.yml
 chmod +x setup_env.sh run_validation.sh
 ./setup_env.sh --venv
 source .venv/bin/activate
-./run_validation.sh fvt_main cleanup test {_verbosity()}
+{_run_id_script()}./run_validation.sh fvt_main cleanup test {_verbosity()}
 """, "fvt_main cleanup test (omnia.sh --cleanup --all)")
 
 
@@ -777,6 +882,61 @@ def credentials(domain: str) -> int:
 SAFE_EXTRA = re.compile(r"^(--marker [a-z_]{1,32})?$")
 
 
+def _run_id_script() -> str:
+    """Bash lines that give the FVT run the pipeline id as its report id (in test_config.yml).
+
+    Every test module reads ``run_id`` of its test_config.yml, and the report files are prefixed
+    with CI_PIPELINE_ID, so all reports of a pipeline carry its id. Nothing is set outside CI.
+    """
+    pipeline_id = _env("CI_PIPELINE_ID")
+    if not re.fullmatch(r"[0-9]{1,12}", pipeline_id):
+        return ""
+    return (f"export CI_PIPELINE_ID={pipeline_id}\n"
+            "if grep -q '^run_id:' test_config.yml 2>/dev/null; then "
+            f"sed -i -E 's/^run_id:.*/run_id: \"{pipeline_id}\"/' test_config.yml; "
+            f"else echo 'run_id: \"{pipeline_id}\"' >> test_config.yml; fi\n")
+
+
+def _stage_test_files(cluster: str, domain: str, bao: bool = False) -> int:
+    """Copy the cluster's test_config.yml, test_run_config.yml and test credentials to the OIM.
+
+    The files of ``clusters/<cluster>/inputs/test/<domain>/`` replace the defaults of the
+    checkout (an absent file keeps the default). The credentials come from the File variable
+    ``<CLUSTER>_TEST_CREDS`` and, with ``bao`` (a job that has the OpenBao token), for
+    orchestrator and telemetry from the OpenBao secret ``test_<domain>``, which wins. They are
+    vault-encrypted on the OIM.
+    """
+    if _dry_run(f"copy the test config of {domain} to the OIM"):
+        return 0
+    target = f"{install_path()}/test/{domain}"
+    source = Layout(cluster).test_dir(domain)
+    for name in ("test_config.yml", "test_run_config.yml"):
+        file_path = os.path.join(source, name)
+        if os.path.isfile(file_path):
+            with open(file_path, "rb") as handle:
+                if _put(f"{target}/{name}", handle.read(), "644"):
+                    return 1
+        else:
+            _say(f"{name} not in the project, using the defaults of the checkout")
+    creds_file = _env(f"{cluster.upper().replace('-', '_')}_TEST_CREDS")
+    placed = bool(creds_file and os.path.isfile(creds_file))
+    if placed:
+        with open(creds_file, "rb") as handle:
+            if _put(f"{target}/test_creds.yml", handle.read()):
+                return 1
+    if bao and domain in TEST_CREDENTIALS:
+        text = bao_secret(f"test_{domain}")
+        if text is None:
+            _say(f"WARNING: no test_{domain} credentials from OpenBao, using the existing ones")
+        elif _put(f"{target}/test_creds.yml", text.encode()):
+            return 1
+        placed = True
+    if placed:
+        return _run(f"cd {shlex.quote(target)}\n" + _encrypt("test_creds.yml", ".test_creds.key", True),
+                    "encrypt test_creds.yml")
+    return 0
+
+
 def _fvt(domain: str, tag: str, command: str, extra: str = "", missing: str = _NO_VENV) -> int:
     """Run ./run_validation.sh fvt_<domain> <tag> <command> [--marker <name>] in the Omnia venv."""
     apply_cluster()
@@ -790,20 +950,24 @@ def _fvt(domain: str, tag: str, command: str, extra: str = "", missing: str = _N
 {_activate(missing)}
 cd {shlex.quote(path)}/test/{domain}
 {PIP_INSTALL}
-./run_validation.sh fvt_{domain} {tag} {command} {extra} {_verbosity()}
+{_run_id_script()}./run_validation.sh fvt_{domain} {tag} {command} {extra} {_verbosity()}
 """, f"fvt_{domain} {tag} {command} {extra}".replace("  ", " ").strip())
 
 
-def _omnia_run(domain: str, tag: str) -> int:
-    """Run ./omnia.sh --run <domain> --tags <tag> from the Omnia checkout, in the Omnia venv."""
+def _omnia_run(domain: str, tag: str, extra_vars: Sequence[str] = (), missing: str = "") -> int:
+    """Run ./omnia.sh --run <domain> --tags <tag> [-e key=value ...] in the Omnia venv."""
     apply_cluster()
     _domain(domain)
     path = install_path()
+    for item in extra_vars:
+        if not SAFE_EXTRA_VAR.match(item):
+            _fail(f"'{item}' is not a key=true|false extra variable")
+    extras = "".join(f" -e {shlex.quote(item)}" for item in extra_vars)
     return _run(f"""set -e
-{_activate(_NO_VENV)}
+{_activate(missing or _NO_VENV)}
 cd {shlex.quote(path)}/src/main && chmod +x omnia.sh
-./omnia.sh --run {domain} --tags {_tag(tag)}
-""", f"omnia.sh --run {domain} --tags {tag}")
+./omnia.sh --run {domain} --tags {_tag(tag)}{extras}
+""", f"omnia.sh --run {domain} --tags {tag}{extras}")
 
 
 def deploy(domain: str) -> int:
@@ -846,37 +1010,15 @@ def verify_domain(domain: str) -> int:
     if _dry_run(f"copy the test config and run: {command}"):
         return 0
     target = f"{path}/test/{domain}"
-    source = Layout(cluster).test_dir(domain)
-    for name in ("test_config.yml", "test_run_config.yml"):
-        file_path = os.path.join(source, name)
-        if os.path.isfile(file_path):
-            with open(file_path, "rb") as handle:
-                if _put(f"{target}/{name}", handle.read(), "644"):
-                    return 1
-        else:
-            _say(f"{name} not in the project, using the defaults of the checkout")
-    creds_file = _env(f"{cluster.upper().replace('-', '_')}_TEST_CREDS")
-    if creds_file and os.path.isfile(creds_file):
-        with open(creds_file, "rb") as handle:
-            if _put(f"{target}/test_creds.yml", handle.read()):
-                return 1
-    if domain in TEST_CREDENTIALS:
-        text = bao_secret(f"test_{domain}")
-        if text is None:
-            _say(f"WARNING: no test_{domain} credentials from OpenBao, using the existing ones")
-        elif _put(f"{target}/test_creds.yml", text.encode()):
-            return 1
-    if (creds_file and os.path.isfile(creds_file)) or domain in TEST_CREDENTIALS:
-        rc = _run(f"cd {shlex.quote(target)}\n" + _encrypt("test_creds.yml", ".test_creds.key", True),
-                  "encrypt test_creds.yml")
-        if rc:
-            return rc
+    rc = _stage_test_files(cluster, domain, bao=True)
+    if rc:
+        return rc
     return _run(f"""set -e
 {_activate(_NO_VENV)}
 cd {shlex.quote(target)}
 {PIP_INSTALL}
 export CI_PIPELINE_ID={shlex.quote(_env("CI_PIPELINE_ID", "0"))}
-{command}
+{_run_id_script()}{command}
 """, command)
 
 
@@ -1086,15 +1228,16 @@ def summary() -> int:
     if html_report:
         attachments.append(html_report)
     _send_summary_email(jobs, attachments)
-    blocking = [n for n in failed if not n.startswith("test_") and n not in TOLERATED_JOBS]
+    blocking = [n for n in failed if (not n.startswith("test_") or n.startswith("test_cleanup_"))
+                and n not in TOLERATED_JOBS]
     if blocking:
         _say(f"The pipeline fails because of: {', '.join(blocking)}")
     return 1 if blocking else 0
 
 
 def main(argv: List[str]) -> int:
-    one = {"cleanup": cleanup, "credentials": credentials, "deploy": deploy,
-           "verify": verify_domain}
+    one = {"cleanup": cleanup, "cleanup-verify": cleanup_verify, "credentials": credentials,
+           "deploy": deploy, "verify": verify_domain}
     none = {"initialize": initialize, "init": init, "checkout": checkout,
             "nfs-check": nfs_preflight, "cleanup-omnia": cleanup_omnia, "setup-main": setup_main,
             "install": install, "inputs": inputs, "summary": summary}

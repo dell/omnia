@@ -24,13 +24,15 @@
 # Flow of the default mode:
 #   initialization: clone Omnia on the OIM, take the helpers from it, checks, commit and
 #                   omnia.env, NFS check (one stage)
-#   cleanup_<domain> ...: fvt_<domain> cleanup test (exec, then verify), one stage per domain
-#   cleanup_omnia: the Slurm/K8s NFS shares (test/utils), then omnia.sh --cleanup --all
+#   cleanup_<domain> ...: omnia.sh --run <domain> --tags <cleanup tag>, one stage per domain
+#   test_cleanup_<domain> ...: fvt_<domain> cleanup verify, one stage per domain (the orchestrator
+#                   one empties the Slurm/K8s NFS shares)
+#   cleanup_omnia: omnia.sh --cleanup --all (test/main)
 #   setup_main: omnia.sh -s, then the inputs of every domain (one stage)
 #   test_main_installation -> <domain> (omnia.sh --run, tag by tag) -> test_<domain> (verify) ... -> summary
 #
-# A failed initialization skips every other stage; only summary runs. A failed cleanup does not
-# stop the other cleanups, but nothing is installed after it. A failed domain stage stops the
+# A failed initialization skips every other stage; only summary runs. A failed cleanup or cleanup
+# verification does not stop the other ones, but nothing is installed after it. A failed domain stage stops the
 # pipeline (its verify and the later domains are skipped); a failed verify does not stop the next
 # domain.
 #
@@ -64,6 +66,13 @@ stages:
   - cleanup_discovery
   - cleanup_image_build_manager
   - cleanup_repo_manager
+  - test_cleanup_build_stream
+  - test_cleanup_utils
+  - test_cleanup_telemetry
+  - test_cleanup_orchestrator
+  - test_cleanup_discovery
+  - test_cleanup_image_build_manager
+  - test_cleanup_repo_manager
   - cleanup_omnia
   - setup_main
   - test_main_installation
@@ -399,6 +408,328 @@ cleanup_repo_manager:
   script:
     - python3 ci_tools/pipeline_ci.py cleanup repo_manager
 
+test_cleanup_build_stream:
+  stage: test_cleanup_build_stream
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /build_stream/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /build_stream/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify build_stream
+
+test_cleanup_utils:
+  stage: test_cleanup_utils
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /utils/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /utils/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify utils
+
+test_cleanup_telemetry:
+  stage: test_cleanup_telemetry
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /telemetry/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /telemetry/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify telemetry
+
+test_cleanup_orchestrator:
+  stage: test_cleanup_orchestrator
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /orchestrator/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /orchestrator/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify orchestrator
+
+test_cleanup_discovery:
+  stage: test_cleanup_discovery
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: test_cleanup_orchestrator
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /discovery/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /discovery/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify discovery
+
+test_cleanup_image_build_manager:
+  stage: test_cleanup_image_build_manager
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: test_cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: test_cleanup_discovery
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /image_build_manager/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /image_build_manager/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify image_build_manager
+
+test_cleanup_repo_manager:
+  stage: test_cleanup_repo_manager
+  timeout: 3h
+  allow_failure: true
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
+    - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: test_cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: test_cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: test_cleanup_image_build_manager
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$SKIP_STAGES =~ /repo_manager/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /repo_manager/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py cleanup-verify repo_manager
+
 cleanup_omnia:
   stage: cleanup_omnia
   timeout: 3h
@@ -425,6 +756,27 @@ cleanup_omnia:
       artifacts: true
       optional: true
     - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: test_cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: test_cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: test_cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_repo_manager
       artifacts: true
       optional: true
   rules:
@@ -620,9 +972,11 @@ summary:
   allow_failure: false
   variables:
     PIPELINE_JOB_ORDER: "initialization,cleanup_build_stream,cleanup_utils,cleanup_telemetry,cleanup_orchestrator,cleanup_disco\
-      very,cleanup_image_build_manager,cleanup_repo_manager,cleanup_omnia,setup_main,test_main_installation,\
-      repo_manager,test_repo_manager,image_build_manager,test_image_build_manager,discovery,test_discovery,o\
-      rchestrator,test_orchestrator,telemetry,test_telemetry"
+      very,cleanup_image_build_manager,cleanup_repo_manager,test_cleanup_build_stream,test_cleanup_utils,tes\
+      t_cleanup_telemetry,test_cleanup_orchestrator,test_cleanup_discovery,test_cleanup_image_build_manager,\
+      test_cleanup_repo_manager,cleanup_omnia,setup_main,test_main_installation,repo_manager,test_repo_manag\
+      er,image_build_manager,test_image_build_manager,discovery,test_discovery,orchestrator,test_orchestrato\
+      r,telemetry,test_telemetry"
   needs:
     - job: initialization
       artifacts: true
@@ -646,6 +1000,27 @@ summary:
       artifacts: true
       optional: true
     - job: cleanup_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_build_stream
+      artifacts: true
+      optional: true
+    - job: test_cleanup_utils
+      artifacts: true
+      optional: true
+    - job: test_cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: test_cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: test_cleanup_discovery
+      artifacts: true
+      optional: true
+    - job: test_cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: test_cleanup_repo_manager
       artifacts: true
       optional: true
     - job: cleanup_omnia

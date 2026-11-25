@@ -28,11 +28,13 @@ For every cluster, in this order:
    the OIM and takes the pipeline helpers (`pipeline_ci.py`, `library/`) from that clone, checks
    the input folders and SSH, records the commit, copies `omnia.env` and, before any cleanup,
    checks that the Slurm and Kubernetes NFS shares can be mounted.
-2. **Cleanup**: one stage per domain, each running `fvt_<domain> cleanup test` (the exec step, then
-   its verify step). Every cleanup runs, even after one failed. The orchestrator cleanup also
-   empties the Slurm and Kubernetes NFS shares (its `nfs_shares` suite, selected by `cleanup_slurm`
-   and `cleanup_k8s`); then the `cleanup_omnia` stage runs `omnia.sh --cleanup --all`. If any cleanup failed, nothing is installed and the pipeline
-   ends red. If initialization fails, every other stage is skipped and only the summary runs.
+2. **Cleanup**: one stage per domain runs the cleanup playbook (`./omnia.sh --run <domain> --tags
+   <cleanup tag>`, with the flags of the cluster's `test_config.yml`). Every cleanup runs, even
+   after one failed. Then one `test_cleanup_<domain>` stage per domain checks the result
+   (`fvt_<domain> cleanup verify`, in the Omnia venv). The orchestrator one also empties the Slurm
+   and Kubernetes NFS shares (its `nfs_shares` suite, selected by `cleanup_slurm` and
+   `cleanup_k8s`); then the `cleanup_omnia` stage runs `omnia.sh --cleanup --all`. If any cleanup or
+   cleanup test failed, nothing is installed and the pipeline ends red. If initialization fails, every other stage is skipped and only the summary runs.
 3. **Install** (`setup_main`, one stage): `omnia.sh -s` creates the Omnia venv and runs every
    `domain-init`, then the inputs of every domain (`clusters/<cluster>/inputs/src/<domain>/`) and the
    catalog are copied to `<data>/<domain>/input/<project>/` on the OIM. `fvt_main verify` tests the
@@ -45,7 +47,8 @@ For every cluster, in this order:
    reports.
 
 ```
-initialization > cleanup_<domain> ... > cleanup_omnia > setup_main > test_main_installation
+initialization > cleanup_<domain> ... > test_cleanup_<domain> ... > cleanup_omnia > setup_main
+   > test_main_installation
    > <domain> > test_<domain> ... > summary
 ```
 

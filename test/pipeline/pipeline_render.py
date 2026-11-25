@@ -25,10 +25,13 @@ ENABLE_SETUP, ENABLE_DISCOVERY, TEST_MODE, DRY_RUN and VERBOSE keep their meanin
 Failure rules:
 * initialization fails -> every other stage is skipped (the cleanup jobs need it and run on
   success, the later jobs wait for the earlier stages) and only ``summary`` runs.
-* A cleanup fails -> the cleanup jobs are ``allow_failure`` and each needs only initialization
-  and the earlier cleanups, so every cleanup and ``cleanup_omnia`` still run.  ``setup_main`` and
-  every domain stage then call ``require_cleanups_ok`` and fail, which skips the rest, and
-  ``summary`` fails the pipeline.  Nothing is installed.
+* A cleanup or its verification fails -> the cleanup jobs (``cleanup_<domain>``, the cleanup
+  playbook, and ``test_cleanup_<domain>``, its verification, run after all of them) are
+  ``allow_failure`` and each needs only initialization and the earlier jobs, so every cleanup,
+  every verification and ``cleanup_omnia`` still run (``cleanup_omnia`` only when the
+  orchestrator ones passed).  ``setup_main`` and every domain stage then call
+  ``require_cleanups_ok`` and fail, which skips the rest, and ``summary`` fails the pipeline.
+  Nothing is installed.
 * A domain stage fails -> the pipeline stops (its verify and the later domains are skipped).
   A verify fails -> the next domain still runs.
 """
@@ -74,13 +77,15 @@ INTRO = """
 # Flow of the default mode:
 #   initialization: clone Omnia on the OIM, take the helpers from it, checks, commit and
 #                   omnia.env, NFS check (one stage)
-#   cleanup_<domain> ...: fvt_<domain> cleanup test (exec, then verify), one stage per domain
-#   cleanup_omnia: the Slurm/K8s NFS shares (test/utils), then omnia.sh --cleanup --all
+#   cleanup_<domain> ...: omnia.sh --run <domain> --tags <cleanup tag>, one stage per domain
+#   test_cleanup_<domain> ...: fvt_<domain> cleanup verify, one stage per domain (the orchestrator
+#                   one empties the Slurm/K8s NFS shares)
+#   cleanup_omnia: omnia.sh --cleanup --all (test/main)
 #   setup_main: omnia.sh -s, then the inputs of every domain (one stage)
 #   test_main_installation -> <domain> (omnia.sh --run, tag by tag) -> test_<domain> (verify) ... -> summary
 #
-# A failed initialization skips every other stage; only summary runs. A failed cleanup does not
-# stop the other cleanups, but nothing is installed after it. A failed domain stage stops the
+# A failed initialization skips every other stage; only summary runs. A failed cleanup or cleanup
+# verification does not stop the other ones, but nothing is installed after it. A failed domain stage stops the
 # pipeline (its verify and the later domains are skipped); a failed verify does not stop the next
 # domain.
 #
@@ -347,7 +352,8 @@ def _job(name: str, stage: str, script: Sequence[str], conditions: Sequence[str]
 
 def render() -> str:
     """Return the text of .gitlab-ci-cluster.yml."""
-    stages = ["initialization", *(f"cleanup_{d}" for d in CLEANUP_ORDER), "cleanup_omnia",
+    stages = ["initialization", *(f"cleanup_{d}" for d in CLEANUP_ORDER),
+              *(f"test_cleanup_{d}" for d in CLEANUP_ORDER), "cleanup_omnia",
               "setup_main", "test_main_installation",
               *(s for d in DEPLOY_ORDER for s in (d, f"test_{d}")), "summary"]
     out = [LICENSE + INTRO, "workflow:", "  rules:",
@@ -373,6 +379,15 @@ def render() -> str:
         jobs.append(_job(name, name, [f"cleanup {domain}"],
                          [f"{CLEANUP_MODE} && {_domain_condition(domain)}"],
                          needs=["initialization"], optional=list(previous),
+                         allow_failure=True, skip=domain))
+        previous.append(name)
+    cleanups = list(previous)
+    for domain in CLEANUP_ORDER:
+        name = f"test_cleanup_{domain}"
+        jobs.append(_job(name, name, [f"cleanup-verify {domain}"],
+                         [f"{CLEANUP_MODE} && {_domain_condition(domain)}"],
+                         needs=["initialization"], optional=cleanups
+                         + [n for n in previous if n.startswith("test_cleanup_")],
                          allow_failure=True, skip=domain))
         previous.append(name)
     jobs.append(_job("cleanup_omnia", "cleanup_omnia", ["cleanup-omnia"],

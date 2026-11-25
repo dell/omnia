@@ -199,7 +199,7 @@ The Python environment has not been created on the target. Either:
 
 ## A Cleanup Failed and Nothing Was Installed
 
-**Symptoms:** a `cleanup_<domain>` or `cleanup_omnia` job is red, and `setup_main`, `inputs` and the
+**Symptoms:** a `cleanup_<domain>`, `test_cleanup_<domain>` or `cleanup_omnia` job is red, and `setup_main`, `inputs` and the
 domain stages are skipped.
 
 **Cause:** this is intended. Every cleanup runs, and if any failed the pipeline stops without
@@ -207,8 +207,8 @@ installing, so a half-clean OIM is not reinstalled.
 
 **Solutions:**
 
-1. Open the failed job: it names the command (`fvt_<domain> cleanup exec`, `omnia.sh --cleanup
-   --all`, or the NFS clearing) and its output.
+1. Open the failed job: it names the command (`omnia.sh --run <domain> --tags <cleanup tag>`,
+   `fvt_<domain> cleanup verify`, `omnia.sh --cleanup --all`, or the NFS clearing) and its output.
 2. Fix the cause on the OIM, then run the pipeline again; the cleanups are safe to repeat.
 3. `cleanup_utils` and `cleanup_discovery` are tolerated: their failure alone does not stop the install.
 
@@ -216,9 +216,9 @@ installing, so a half-clean OIM is not reinstalled.
 
 ## NFS Check or NFS Cleanup Failed
 
-**Symptoms:** the NFS check in `initialization` fails, or `cleanup_omnia` reports `NFS share ...`;
+**Symptoms:** the NFS check in `initialization` fails, or `test_cleanup_orchestrator` reports `NFS share ...`;
 the cleanups after a failed `initialization` fail at once with `initialization did not pass, so
-nothing was cleaned`. If the shares cannot be emptied, `cleanup_omnia` does not run
+nothing was cleaned`. If the shares cannot be emptied, `test_cleanup_orchestrator` fails and `cleanup_omnia` does not run
 `omnia.sh --cleanup --all`, so the Omnia venv is kept and the next run can try again.
 
 **Solutions:**
