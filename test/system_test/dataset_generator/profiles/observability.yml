@@ -18,7 +18,8 @@
 # Same format as profiles/build_stream.yml. The inputs of the cluster the
 # observability theme runs on (omnia.env, repo_manager, image_build_manager,
 # orchestrator) and the telemetry inputs (user_inputs.yml block telemetry:
-# iDRAC and LDMS sources on, the others off). The build_stream block of
+# iDRAC and LDMS sources on; PowerScale, UFM and OME off unless turned on
+# there). The build_stream block of
 # user_inputs.yml is not used by this profile.
 # ==============================================================================
 name: observability

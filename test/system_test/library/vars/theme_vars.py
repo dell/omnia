@@ -296,9 +296,9 @@ THEMES: Dict[str, Dict] = {
         "fvt_settings": {},
     },
     "observability": {
-        "title": "Observability End-to-End (iDRAC, LDMS)",
-        "description": "Telemetry of a deployed cluster: the iDRAC and LDMS sources deployed "
-                       "with omnia.sh -r telemetry, then the telemetry FVT checks by test ID",
+        "title": "Observability End-to-End (iDRAC, LDMS, PowerScale, OME, UFM, SFM)",
+        "description": "Telemetry of a deployed cluster: the enabled sources deployed with "
+                       "omnia.sh -r telemetry, then the telemetry FVT checks per source",
         "profile": "observability",
         "cleanup_steps": CLEANUP_STEPS,
         "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
@@ -319,8 +319,11 @@ THEMES: Dict[str, Dict] = {
         # Slurm nodes the orchestrator brings up.
         "stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy",
                    "observability_cleanup", "observability_precheck", "observability_deploy",
-                   "observability_idrac", "observability_ldms"),
-        "soft_stages": ("observability_cleanup", "observability_idrac", "observability_ldms"),
+                   "observability_idrac", "observability_ldms", "observability_powerscale",
+                   "observability_ome", "observability_ufm", "observability_sfm"),
+        "soft_stages": ("observability_cleanup", "observability_idrac", "observability_ldms",
+                        "observability_powerscale", "observability_ome", "observability_ufm",
+                        "observability_sfm"),
         # Default: an already deployed cluster. ./run_validation.sh svt_observability all and
         # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
@@ -329,9 +332,29 @@ THEMES: Dict[str, Dict] = {
         # The stages the report counts as scenarios: cleanup (when enabled), then the deploy
         # stage and the stages after it that ran. Precheck is a gate, not a scenario.
         "scenario_stages": ("observability_cleanup", "observability_deploy",
-                            "observability_idrac", "observability_ldms"),
-        # Stages that are off unless <theme>_test_config.yml stages: turns them on.
-        "optional_stages": ("observability_cleanup",),
+                            "observability_idrac", "observability_ldms",
+                            "observability_powerscale", "observability_ome",
+                            "observability_ufm", "observability_sfm"),
+        # Stages <theme>_test_config.yml stages: turns on or off. Off by default, unless listed
+        # in optional_stages_on: the PowerScale, OME, UFM and SFM stages are on by default
+        # (and still skipped while their source is off, see source_stages).
+        "optional_stages": ("observability_cleanup", "observability_powerscale",
+                            "observability_ome", "observability_ufm", "observability_sfm"),
+        "optional_stages_on": ("observability_powerscale", "observability_ome",
+                               "observability_ufm", "observability_sfm"),
+        # Stages that check one source: skipped (recorded with the reason, in 'all', by name
+        # and in the pipeline) when it is off. ("source", <name>): telemetry_sources.<name>
+        # of the deployed telemetry_config.yml (user_inputs.yml block telemetry) has neither
+        # metrics_enabled nor logs_enabled true. ("setting", <suite>, <key>): <key> of
+        # test/<suite>/test_config.yml is false (SFM is not a telemetry source).
+        "source_stages": {
+            "observability_idrac": ("source", "idrac"),
+            "observability_ldms": ("source", "ldms"),
+            "observability_powerscale": ("source", "powerscale"),
+            "observability_ome": ("source", "ome"),
+            "observability_ufm": ("source", "ufm"),
+            "observability_sfm": ("setting", "telemetry", "configure_sfm"),
+        },
         "default_clean_reinstall": False,
         # omnia.sh -r <domain> RUN steps allowed in this theme (OMNIA_RUN_TAGS).
         "run_domains": ("repo_manager", "image_build_manager", "orchestrator", "telemetry"),
@@ -352,7 +375,7 @@ THEMES: Dict[str, Dict] = {
                 "up"),
             "observability_cleanup": (
                 "Observability Cleanup",
-                "The iDRAC and LDMS telemetry of an earlier deployment removed "
+                "The telemetry sources and sinks of an earlier deployment removed "
                 "(omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false)"),
             "observability_precheck": (
                 "Observability Precheck",
@@ -370,11 +393,37 @@ THEMES: Dict[str, Dict] = {
                 "LDMS Telemetry",
                 "LDMS aggregator, store and bridge, then the samplers and LDMS data in Kafka "
                 "and VictoriaMetrics"),
+            "observability_powerscale": (
+                "PowerScale Telemetry",
+                "CSM Metrics PowerScale, OTEL Collector, CSI driver and exporter, then "
+                "PowerScale metrics in VictoriaMetrics and logs in VictoriaLogs"),
+            "observability_ome": (
+                "OME Telemetry",
+                "Vector-OME bridge and KafkaUser, then (configure_ome) OME mTLS, Kafka "
+                "forwarder, OME data in Kafka, VictoriaMetrics and VictoriaLogs"),
+            "observability_ufm": (
+                "UFM Telemetry",
+                "UFM external service, VMServiceScrape and credentials, then UFM InfiniBand "
+                "metrics in VictoriaMetrics"),
+            "observability_sfm": (
+                "SFM Telemetry",
+                "VictoriaMetrics workloads and services, then (configure_sfm) the SFM switch "
+                "path, Remote Write and SFM metrics in VictoriaMetrics"),
         },
+        # kind: bool; host (IP or host name, "" = not set); port (1-65535).
         "fvt_settings": {
             "sync_telemetry_input": ("telemetry", "", "sync_telemetry_input", "bool"),
             "configure_ome": ("telemetry", "", "configure_ome", "bool"),
+            "ome_ip": ("telemetry", "", "ome_ip", "host"),
+            "force_external_kafka_playbook": ("telemetry", "", "force_external_kafka_playbook",
+                                              "bool"),
             "configure_sfm": ("telemetry", "", "configure_sfm", "bool"),
+            "sfm_api_ip": ("telemetry", "", "sfm_api_ip", "host"),
+            "sfm_api_port": ("telemetry", "", "sfm_api_port", "port"),
+            "sfm_ssh_ip": ("telemetry", "", "sfm_ssh_ip", "host"),
+            "sfm_ssh_port": ("telemetry", "", "sfm_ssh_port", "port"),
+            "force_external_victoria_playbook": ("telemetry", "",
+                                                 "force_external_victoria_playbook", "bool"),
         },
     },
     "catalog_build": {

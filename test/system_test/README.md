@@ -2,7 +2,8 @@
 
 `test/system_test` is the integration test of Omnia on one OIM. You choose a
 **theme** (`build_stream`, the default; `catalog_build`; `cluster_lifecycle`; `observability`:
-iDRAC and LDMS telemetry, see [below](#theme-observability)): its settings are
+iDRAC, LDMS and optionally PowerScale, OME, UFM and SFM telemetry, see
+[below](#theme-observability)): its settings are
 `<theme>_test_config.yml` (`build_stream_test_config.yml`). The cleanup (the same for every theme)
 and OpenBao are blocks of `user_inputs.yml`, where you also fill the cluster values. Then two
 commands do everything:
@@ -109,10 +110,14 @@ The tests are data in [`library/vars/test_case_vars.py`](library/vars/test_case_
 
 ## Theme observability
 
-Telemetry (observability) of a **deployed** cluster: the iDRAC and LDMS sources are
-deployed with the product command `./omnia.sh -r telemetry`, then checked with the
-telemetry FVT tests selected by suite and marker. Every source but iDRAC and LDMS is off
-(`telemetry` block of `user_inputs.yml`).
+Telemetry (observability) of a **deployed** cluster: the enabled sources are deployed
+with the product command `./omnia.sh -r telemetry`, then checked with the telemetry FVT
+tests selected by suite and marker. By default only iDRAC and LDMS are on (`telemetry`
+block of `user_inputs.yml`). Every source stage (`observability_idrac` to
+`observability_sfm`) is **skipped automatically while its source is off**, with the reason in
+the log and the report, so with the default inputs the PowerScale, OME, UFM and SFM stages are
+skipped. A live PowerScale, OME, UFM or SFM source needs its external appliance (see
+[the source stages](#source-stages-skipped-while-the-source-is-off)).
 
 ```bash
 ./setup_env.sh --theme observability           # configure, install (no cleanup), credentials
@@ -138,17 +143,51 @@ Two kinds of SVT test:
 | `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false` (all telemetry sources and sinks; credentials kept) | none (the RUN step only) |
 | `observability_precheck` | hard | `018`-`021` | `./omnia.sh -r telemetry --tags precheck`, `--tags validate`; `precheck verify`, `validate verify` | every precheck check (`TEL_FVT_PRECHECK_V001`-`V004`), `TEL_FVT_VALIDATE_V001` |
 | `observability_deploy` | hard | `022` | `./omnia.sh -r telemetry` (validate, precheck, deploy) | none (the RUN step only) |
-| `observability_idrac` | soft | `024` | `deploy verify --suite sources --marker idrac` | every iDRAC check (`V010`-`V019`, `V112`, `V113`) |
-| `observability_ldms` | soft | `026` | `deploy verify --suite sources --marker ldms` | every LDMS check (`V020`-`V026`, `V028`, `V029`) |
+| `observability_idrac` | soft, skipped while `idrac` is off | `024` | `deploy verify --suite sources --marker idrac` | every iDRAC check (`V010`-`V019`, `V112`, `V113`) |
+| `observability_ldms` | soft, skipped while `ldms` is off | `026` | `deploy verify --suite sources --marker ldms` | every LDMS check (`V020`-`V026`, `V028`, `V029`) |
+| `observability_powerscale` | soft, skipped while `powerscale` is off (`stages:` can turn it off) | `028` | `deploy verify --suite sources --marker powerscale` | every PowerScale check (`V030`-`V054`, `V114`, `V115`) |
+| `observability_ome` | soft, skipped while `ome` is off (`stages:` can turn it off) | `029` | `deploy verify --suite sources --marker ome` | every OME check (`V070`-`V088`) |
+| `observability_ufm` | soft, skipped while `ufm` is off (`stages:` can turn it off) | `030` | `deploy verify --suite sources --marker ufm` | every UFM check (`V060`-`V064`) |
+| `observability_sfm` | soft, skipped while `configure_sfm` is false (`stages:` can turn it off) | `031` | `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) |
 
 IDs are `SVT_OBSERVABILITY_<NNN>` (`015`-`017`, `023`, `025` and `027` are retired); FVT IDs `V0xx`/`V1xx` are
 `TEL_FVT_DEPLOY_V0xx`. `V008` (all telemetry pods) and `V110` (install mode) are not in
 these selections; they still run in `fvt_telemetry deploy verify`.
 
+### Source stages: skipped while the source is off
+
+When a source stage starts (in `all`, by name, and in each pipeline job), it reads
+`telemetry_sources.<source>` of the deployed `telemetry_config.yml`
+(`<telemetry data>/input/<project>/`, written from the `telemetry` block of `user_inputs.yml`
+by `./setup_env.sh --configure` and `--install`; the `src` input when there is none yet). The
+stage is recorded as **skipped**, with the reason, unless `metrics_enabled` or `logs_enabled`
+is true. SFM is not a telemetry source: its stage is skipped while `configure_sfm` is false. So
+the FVT "disabled state" checks (`V019`, `V039`, `V064`, `V088`) are not run by the SVT.
+Inside a stage that runs, a check whose channel is off (for example PowerScale logs) is still
+skipped by the FVT. `stages:` in `observability_test_config.yml` can also leave the
+PowerScale, OME, UFM and SFM stages out (`false`), even with the source on. To check a live
+source:
+
+| Stage | `user_inputs.yml` (`telemetry`) | `observability_test_config.yml` (`observability`) | Credentials |
+|---|---|---|---|
+| PowerScale | `powerscale` source on, `powerscale_configurations.csm_observability_values_file_path`; the CSI driver on the cluster (`omnia_config` `enable_powerscale_csi: true`) | | `csi_username`, `csi_password` (domain store) |
+| OME | `ome` source and `vector_ome` bridge on | `configure_ome: true`, `ome_ip` | OME user, password (and PFX secret) in `test/telemetry/test_creds.yml` |
+| UFM | `ufm` source on, `ufm_configuration.ufm_endpoint` | | `ufm_username`, `ufm_password` (domain store, `auth_mode: basic`) |
+| SFM | nothing (SFM writes to the VictoriaMetrics sink) | `configure_sfm: true`, `sfm_api_ip`, `sfm_ssh_ip` (ports) | SFM API and SSH user/password in `test/telemetry/test_creds.yml` |
+
+The domain store (`telemetry_credentials.yml`) is written like the others
+(`./setup_env.sh --theme observability --update-domain-creds`, or OpenBao). The OME and SFM
+appliance credentials are FVT test credentials: after `./setup_env.sh --configure` wrote
+`configure_ome` / `configure_sfm` into `test/telemetry/test_config.yml`, run
+`cd ../telemetry && bash setup_env.sh --set-creds` once on the OIM (they are kept across runs).
+The OME and SFM stages **configure the appliance** (certificates, Kafka forwarder, SFM
+Remote Write): run them only against a lab appliance.
+
 **Defaults** (theme data): `./run_validation.sh svt_observability all` leaves out
-`initialization`, `prepare_base`, `repo_sync`, `image_build` and `cluster_deploy`, and
-`observability_cleanup` while it is off in the config (recorded as skipped;
-`--skip-stages none` runs them, a single stage runs with `./run_validation.sh
+`initialization`, `prepare_base`, `repo_sync`, `image_build` and `cluster_deploy`
+(`--skip-stages none` runs them), and every stage that is off under `stages:` in the config
+(`observability_cleanup` by default; all recorded as skipped;
+a single stage runs with `./run_validation.sh
 svt_observability <stage>`), and `./setup_env.sh` cleans nothing without `--force`. In the
 pipeline, an empty `skip_stages` and `clean_reinstall` of the cluster block give the same
 defaults (`skip_stages: "none"` runs every stage). The telemetry credential store

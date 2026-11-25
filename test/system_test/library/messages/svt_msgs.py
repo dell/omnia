@@ -38,6 +38,13 @@ STAGE_MSGS = {
     "skipped": "[{stage}] SKIPPED: {reason}",
     "failed": "[{stage}] FAILED after {duration}: {error}",
     "step": "[{stage}] {label}",
+    "source_off": "source {source} is off in {path} (telemetry_sources.{source}: no "
+                  "metrics_enabled or logs_enabled true); turn it on in the telemetry block "
+                  "of user_inputs.yml (then ./setup_env.sh --configure and --install) to run "
+                  "this stage",
+    "setting_off": "{key} is false in {path}; set observability.{key}: true in "
+                   "observability_test_config.yml (then ./setup_env.sh --configure) to run "
+                   "this stage",
     "tests_failed": "SVT tests of stage {stage} failed (pytest rc={rc}); see the run "
                     "folder {path}",
     "step_failed": "{label} failed (rc={rc})",
@@ -316,6 +323,9 @@ CONFIG_MSGS = {
     "invalid_yaml": "{path}: invalid YAML: {error}",
     "not_mapping": "{path}: {where} must be a key: value mapping",
     "not_bool": "{path}: {where} must be true or false, not {value!r}",
+    "invalid_host": "{path}: {where} must be an IP address or host name, or \"\" "
+                    "(got {value!r})",
+    "invalid_port": "{path}: {where} must be a port number 1-65535 (got {value!r})",
     "unknown_theme": "{path}: theme {theme!r} is not supported (supported: {known})",
     "unknown_suite": "{path}: cleanup has unknown suite(s) {names} (known: {known})",
     "cleanup_moved": (

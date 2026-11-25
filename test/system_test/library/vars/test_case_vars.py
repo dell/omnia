@@ -16,7 +16,8 @@
 
 ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
 (001-003 were the former whole-case tests; SVT_OBSERVABILITY_025 and 027 were the
-iDRAC and LDMS data-flow halves, now part of 024 and 026). Order: theme base +
+iDRAC and LDMS data-flow halves, now part of 024 and 026; 028-031 are PowerScale, OME,
+UFM and SFM). Order: theme base +
 position (build_stream 1000, observability 2000). Each test has one of:
 
 * ``step``: ``(domain, runner arguments)`` of ``test/<domain>/_run.py fvt_<domain>``:
@@ -344,6 +345,43 @@ TEST_CASES = {
         "id": "SVT_OBSERVABILITY_026", "order": 2090, "stage": "observability_ldms",
         "title": "LDMS: aggregator, store, bridge, samplers, Kafka, VictoriaMetrics",
         "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms")),
+    },
+    # The PowerScale, OME, UFM and SFM stages run by default (stages: in
+    # observability_test_config.yml can turn them off). Like observability_idrac and
+    # observability_ldms, each is skipped while its source is off (theme source_stages;
+    # SFM: configure_sfm). Within a stage, a check whose channel (metrics or logs) is off
+    # is skipped by the FVT. A live source needs its external appliance.
+    # ----------------------------------------------- stage observability_powerscale
+    # Every PowerScale check of the FVT source suite (CSM Metrics, OTEL Collector, CSI
+    # driver and volume exporter, metrics, syslog and logs, install-mode deployment).
+    "observability_powerscale_verify": {
+        "id": "SVT_OBSERVABILITY_028", "order": 2100, "stage": "observability_powerscale",
+        "title": "PowerScale: CSM Metrics, OTEL Collector, CSI exporter, VictoriaMetrics, "
+                 "VictoriaLogs",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "powerscale")),
+    },
+    # ------------------------------------------------------ stage observability_ome
+    # Every OME check (bridge, KafkaUser; with configure_ome: mTLS, forwarder, Kafka,
+    # VictoriaMetrics, VictoriaLogs). Needs ome_ip and the OME test credentials.
+    "observability_ome_verify": {
+        "id": "SVT_OBSERVABILITY_029", "order": 2110, "stage": "observability_ome",
+        "title": "OME: Vector-OME bridge, KafkaUser, forwarder, Kafka, VictoriaMetrics, "
+                 "VictoriaLogs",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ome")),
+    },
+    # ------------------------------------------------------ stage observability_ufm
+    "observability_ufm_verify": {
+        "id": "SVT_OBSERVABILITY_030", "order": 2120, "stage": "observability_ufm",
+        "title": "UFM: external service, VMServiceScrape, credentials, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ufm")),
+    },
+    # ------------------------------------------------------ stage observability_sfm
+    # Every SFM check (with configure_sfm: switch path, Remote Write, metrics). Configures
+    # the SFM appliance; needs sfm_api_ip, sfm_ssh_ip and the SFM test credentials.
+    "observability_sfm_verify": {
+        "id": "SVT_OBSERVABILITY_031", "order": 2130, "stage": "observability_sfm",
+        "title": "SFM: VictoriaMetrics services, switch path, Remote Write, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "sfm")),
     },
     # ============================================================ theme cluster_lifecycle
     # When use_discovery_mapping=true in the theme's test_config, the

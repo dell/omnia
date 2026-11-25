@@ -533,11 +533,13 @@ build_stream:
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # Used by the observability theme only (./setup_env.sh --theme observability):
-# iDRAC and LDMS are deployed and checked, every other source is off. The keys
-# are those of telemetry_config.yml; a key not given keeps the shipped value
-# (the LDMS sampler plugins, ports, sink sizes ...). The BMC, MySQL and LDMS
-# sampler passwords are credentials: ./setup_env.sh --theme observability
-# --set-domain-creds, or the OpenBao secret <secret_path>/telemetry.
+# iDRAC and LDMS are deployed and checked; the PowerScale, UFM and OME sources are off
+# by default (each needs its appliance). The stage of a source that is off here
+# (observability_idrac, _ldms, _powerscale, _ome, _ufm) is skipped automatically.
+# The keys are those of telemetry_config.yml; a key not given keeps the shipped value
+# (the LDMS sampler plugins, ports, sink sizes ...). The BMC, MySQL, LDMS sampler,
+# PowerScale CSI and UFM passwords are credentials: ./setup_env.sh --theme
+# observability --set-domain-creds, or the OpenBao secret <secret_path>/telemetry.
 # LDMS also needs its packages on the Slurm nodes: the ldms user repo of
 # repo_manager_config (above) and a catalog with LDMS when the cluster is built.
 telemetry:
@@ -546,6 +548,17 @@ telemetry:
   # |   cluster_inventory   "" = the orchestrator inventory of the project     |
   # |   telemetry_sources   idrac and ldms metrics_enabled MANDATORY (true)    |
   # |   bmc_group_data_path "" = the orchestrator's bmc_group_data.csv         |
+  # | Optional sources (stage observability_<source> in                        |
+  # | observability_test_config.yml):                                          |
+  # |   powerscale  needs the PowerScale CSI driver on the Kubernetes cluster  |
+  # |               (omnia_config enable_powerscale_csi: true, above) and      |
+  # |               csm_observability_values_file_path (absolute path of the   |
+  # |               CSM Observability values.yaml on this OIM)                 |
+  # |   ufm         needs ufm_endpoint (UFM appliance IP or name); auth_mode   |
+  # |               basic uses ufm_username/ufm_password of the credentials    |
+  # |   ome         turn on vector_ome too (Kafka -> Victoria); OME itself is  |
+  # |               configured by the FVT (configure_ome, ome_ip in            |
+  # |               observability_test_config.yml)                             |
   # +--------------------------------------------------------------------------+
   telemetry_config:
     cluster_inventory: ""
@@ -559,24 +572,39 @@ telemetry:
       powerscale:
         metrics_enabled: false
         logs_enabled: false
+        collection_targets: ["victoria_metrics", "victoria_logs"]
       ufm:
         metrics_enabled: false
         logs_enabled: false
+        collection_targets: ["victoria_metrics", "victoria_logs"]
       vast:
         metrics_enabled: false
         logs_enabled: false
       ome:
         metrics_enabled: false
         logs_enabled: false
+        collection_targets: ["kafka"]
     telemetry_bridges:
       # Vector-LDMS: Kafka ldms topic -> VictoriaMetrics (TEL_FVT_DEPLOY_V029)
       vector_ldms:
         metrics_enabled: true
+      # Vector-OME: Kafka ome.* topics -> VictoriaMetrics / VictoriaLogs; must be off
+      # when the ome source is off
       vector_ome:
         metrics_enabled: false
         logs_enabled: false
     idrac_telemetry_configurations:
       bmc_group_data_path: ""
+    powerscale_configurations:
+      csm_observability_values_file_path: ""
+    ufm_configuration:
+      ufm_endpoint: ""
+      ufm_metrics_port: 9001
+      # self_signed (no TLS verification) | ca_signed (needs ufm_ca_cert_path)
+      tls_mode: "self_signed"
+      ufm_ca_cert_path: ""
+      # basic (ufm_username/ufm_password of the credentials) | none
+      auth_mode: "basic"
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

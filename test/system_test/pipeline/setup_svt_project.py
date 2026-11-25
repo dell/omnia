@@ -183,13 +183,16 @@ def cluster_ci_file(cluster: str) -> str:
 
 
 def disabled_stages(theme: str) -> List[str]:
-    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false)."""
+    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false;
+    a stage not given is off, unless it is in the theme's optional_stages_on)."""
     try:
         with open(SVT_ROOT / f"{theme}_test_config.yml", "r", encoding="utf-8") as stream:
             block = (yaml.safe_load(stream) or {}).get("stages") or {}
     except (OSError, yaml.YAMLError):
         block = {}
-    return [name for name in THEMES[theme].get("optional_stages") or () if not block.get(name)]
+    default_on = set(THEMES[theme].get("optional_stages_on") or ())
+    return [name for name in THEMES[theme].get("optional_stages") or ()
+            if not block.get(name, name in default_on)]
 
 
 def ci_file(theme: str) -> str:

@@ -91,6 +91,11 @@ svt:
     observability_deploy: 2
     observability_idrac: 1
     observability_ldms: 1
+    # On by default; stages: of ../observability_test_config.yml can turn them off.
+    observability_powerscale: 1
+    observability_ome: 1
+    observability_ufm: 1
+    observability_sfm: 1
     # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
     # own entry.
     catalog_stage: 3

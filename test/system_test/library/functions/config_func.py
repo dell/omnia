@@ -21,7 +21,8 @@ generator (the rest of the suite's file stays exactly as it was):
 
 * the ``cleanup`` block (whitelisted keys, booleans only);
 * the theme block (``build_stream:`` catalog, cadence_catalog,
-  allow_pipeline_cancel, debug_mode), mapped by THEMES[theme]["fvt_settings"];
+  allow_pipeline_cancel, debug_mode; ``observability:`` configure_ome, ome_ip,
+  configure_sfm, sfm_api_ip ...), mapped by THEMES[theme]["fvt_settings"];
 * the report settings of the run (the FVT results go to <run folder>/fvt/).
 """
 
@@ -41,7 +42,9 @@ from ..vars.common_vars import (
     DEFAULT_SVT_REPORT_NAME,
     DEFAULT_SVT_REPORT_PATH,
     FVT_TEST_CONFIG,
+    HOST_RE,
     INPUTS_FILE,
+    MAX_PORT,
     MODULE_ROOT,
     NFS_CLEANUP_KEY,
     OPENBAO_KEYS,
@@ -176,10 +179,21 @@ def _load_theme_settings(theme: str, block: Any, path: str) -> Dict[str, Any]:
 
 
 def _check_setting(kind: str, value: Any, where: str, path: str) -> Any:
-    """Return a checked theme setting: a bool, or a catalog (number, absolute path or "")."""
+    """Return a checked theme setting: a bool, a host (IP or name, "" = not set), a port
+    (1-65535), or a catalog (number, absolute path or "")."""
     if kind == "bool":
         return _require_bool(value, where, path)
     text = "" if value is None else str(value).strip()
+    if kind == "host":
+        if text and not HOST_RE.fullmatch(text):
+            raise ConfigError(CONFIG_MSGS["invalid_host"].format(path=path, where=where,
+                                                                 value=text))
+        return text
+    if kind == "port":
+        if isinstance(value, bool) or not text.isdigit() or not 0 < int(text) <= MAX_PORT:
+            raise ConfigError(CONFIG_MSGS["invalid_port"].format(path=path, where=where,
+                                                                 value=value))
+        return int(text)
     if text == "" or (text.isdigit() and int(text) > 0):
         return int(text) if text else ""
     if text.startswith("/") and ".." not in text.split("/"):
@@ -222,15 +236,17 @@ def _load_report_block(block: Any, path: str) -> Dict[str, str]:
 
 
 def _load_stages_block(theme: str, block: Any, path: str) -> Dict[str, bool]:
-    """Return the on/off flag of each optional stage of ``theme`` (default off)."""
+    """Return the on/off flag of each optional stage of ``theme`` (default off, on for the
+    theme's optional_stages_on)."""
     optional = tuple(THEMES[theme].get("optional_stages") or ())
+    default_on = set(THEMES[theme].get("optional_stages_on") or ())
     if not isinstance(block, dict):
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where="stages"))
     bad = sorted(set(block) - set(optional))
     if bad:
         raise ConfigError(CONFIG_MSGS["unknown_flag"].format(
             path=path, suite="stages", names=", ".join(bad), known=", ".join(optional)))
-    return {stage: _require_bool(block.get(stage, False), f"stages.{stage}", path)
+    return {stage: _require_bool(block.get(stage, stage in default_on), f"stages.{stage}", path)
             for stage in optional}
 
 

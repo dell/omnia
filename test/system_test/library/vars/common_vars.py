@@ -47,6 +47,9 @@ REPORT_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}")
 REPORT_PATH_RE = re.compile(r"[A-Za-z0-9_./-]{1,255}")
 OPENBAO_URL_RE = re.compile(r"https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?")
 OPENBAO_PATH_RE = re.compile(r"[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*")
+# Theme settings of kind "host" (an appliance IPv4/IPv6 address or host name) and "port".
+HOST_RE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.:-]{0,252}[A-Za-z0-9])?")
+MAX_PORT = 65535
 OPENBAO_TOKEN_ENV = "BAO_TOKEN"
 # Each run has its own folder under report_path (the report, the stage logs,
 # run.json), so one folder is one run to send. The run is started by
@@ -124,6 +127,11 @@ OMNIA_ACTIVATE_SCRIPT = "activate-omnia.sh"
 # A domain's data root: <DOMAIN>_DATA_PATH, else <OMNIA_DATA_PATH>/<domain>.
 DOMAIN_DATA_KEY = "{domain}_DATA_PATH"
 DOMAIN_INPUT_DIR = os.path.join("input", "{project}")
+# The telemetry input the source stages read (observability source_stages): the deployed copy
+# in <telemetry data>/input/<project>/, else the src input the dataset generator writes.
+TELEMETRY_CONFIG_FILE = "telemetry_config.yml"
+TELEMETRY_SRC_CONFIG = os.path.join(REPO_ROOT, "src", "telemetry", "input",
+                                    TELEMETRY_CONFIG_FILE)
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 # ------------------------------------- FVT domains under test/<domain>
