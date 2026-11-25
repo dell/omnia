@@ -232,7 +232,11 @@ TEST_CASES = {
     # ── Validate — external repo_manager contract (Phase 1: remote OIM) ────
     "deploy_external_repo_manager_e2e": {
         "id": "IMGBM_FVT_VALIDATE_E005",
-        "title": "Phase 1: run repo_manager on external OIM, fetch contract, build images",
+        "title": "Phase 1: run repo_manager on external OIM, fetch contract",
+    },
+    "deploy_phase1_build": {
+        "id": "IMGBM_FVT_VALIDATE_E006",
+        "title": "Phase 1: build images using fetched external contract",
     },
     # ── Validate — external repo_manager contract (deploy) ─────────────────
     "deploy_external_contract": {

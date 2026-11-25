@@ -40,31 +40,37 @@ _STATUS_ONLY_TIMEOUT = 120  # 2 minutes for --tags status only
 def external_oim_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Extract and validate the external_oim block from test config.
 
+    In SVT mode, reads from environment variables (SVT_EXTERNAL_OIM_*) if
+    the config values are empty.
+
     Returns:
         Dict with keys: ip, ssh_user, ssh_port, omnia_path,
         repo_manager_tags, project_name.
 
     Raises:
-        ValueError: If required keys are missing or empty.
+        ValueError: If required keys are missing or empty (and not in env vars).
     """
     block = config.get("external_oim", {})
     if not isinstance(block, dict):
         raise ValueError("external_oim must be a mapping in test_config.yml")
-    ip = str(block.get("ip", "")).strip()
+    
+    # Read from config or environment variables (SVT mode)
+    ip = str(block.get("ip", "")).strip() or os.environ.get("SVT_EXTERNAL_OIM_IP", "").strip()
     if not ip:
         raise ValueError(
-            "external_oim.ip is required in test_config.yml "
+            "external_oim.ip is required in test_config.yml or SVT_EXTERNAL_OIM_IP env var "
             "for remote repo_manager execution"
         )
+    
     return {
         "ip": ip,
-        "ssh_user": str(block.get("ssh_user", "root")),
-        "ssh_port": int(block.get("ssh_port", 22)),
-        "omnia_path": str(block.get("omnia_path", "/root/main/omnia")),
+        "ssh_user": str(block.get("ssh_user", "root")).strip() or os.environ.get("SVT_EXTERNAL_OIM_USER", "root"),
+        "ssh_port": int(block.get("ssh_port", 22) or os.environ.get("SVT_EXTERNAL_OIM_SSH_PORT", 22)),
+        "omnia_path": str(block.get("omnia_path", "/root/main/omnia")).strip() or os.environ.get("SVT_EXTERNAL_OMNIA_PATH", "/root/main/omnia"),
         "repo_manager_tags": str(
             block.get("repo_manager_tags", "prepare,precheck,download,status")
         ),
-        "project_name": str(block.get("project_name", "project_default")),
+        "project_name": str(block.get("project_name", "project_default")).strip() or os.environ.get("SVT_EXTERNAL_PROJECT_NAME", "project_default"),
     }
 
 

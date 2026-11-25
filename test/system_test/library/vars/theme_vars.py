@@ -270,12 +270,16 @@ THEMES: Dict[str, Dict] = {
         "creds_suite": "build_stream",
         "cleanup_requires": {},
         "cleanup_when_deployed": (),
-        # Three stages: infrastructure, static verification, then
-        # Phase 1 end-to-end (repo_manager on OIM1 -> fetch -> build on OIM2)
-        # plus negative controls in one contract_build stage.
-        "stages": ("contract_prepare", "contract_validate", "contract_build"),
+        # Four stages: remote fetch, infrastructure, static verification,
+        # then build on OIM2 using the fetched contract.
+        "stages": ("contract_remote", "contract_prepare", "contract_validate", "contract_build"),
         "soft_stages": ("contract_validate",),
         "stage_info": {
+            "contract_remote": (
+                "Remote Repo Manager Fetch",
+                "Run repo_manager on the external OIM (OIM1), fetch the "
+                "generated repo_status.yml and Pulp certificate to this OIM "
+                "(OIM2), verify the contract is from an external source"),
             "contract_prepare": (
                 "Prepare Infrastructure",
                 "image_build_manager --tags prepare: set up container registry "
@@ -286,14 +290,19 @@ THEMES: Dict[str, Dict] = {
                 "parsing, extensibility, accepted and rejected inputs"),
             "contract_build": (
                 "Phase 1 Contract Build",
-                "Phase 1 end-to-end: run repo_manager on the external OIM "
-                "(OIM1), fetch the generated repo_status.yml, verify external "
-                "source, then run image_build_manager --tags build on this "
-                "OIM (OIM2).  Followed by two negative controls (sentinel URL "
-                "and invalid status) proving the playbook reads the staged file"),
+                "Build images on this OIM (OIM2) using the contract fetched "
+                "from the external OIM (OIM1).  Followed by two negative "
+                "controls (sentinel URL and invalid status) proving the "
+                "playbook reads the staged file"),
         },
         "state_probe": None,
-        "fvt_settings": {},
+        "fvt_settings": {
+            "external_oim_ip": ("image_build_manager", "external_oim", "ip", "text"),
+            "external_oim_ssh_user": ("image_build_manager", "external_oim", "ssh_user", "text"),
+            "external_oim_ssh_port": ("image_build_manager", "external_oim", "ssh_port", "text"),
+            "external_oim_omnia_path": ("image_build_manager", "external_oim", "omnia_path", "text"),
+            "external_oim_project_name": ("image_build_manager", "external_oim", "project_name", "text"),
+        },
     },
 }
 # Sections every theme has (title, description); the theme stages come from
