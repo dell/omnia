@@ -527,11 +527,10 @@ def test_collect_bundle_log_files_content(host):
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.nft
 @pytest.mark.order(37)
 def test_collect_bundle_worker_pod_logs(host):
-    """TC-NFT-005 L1: Verify log bundle contains worker pod log directories."""
-    tc = TC["collect_bundle_kafka_pod_logs"]
+    """Verify log bundle contains worker pod log directories (TC-NFT-005 L1)."""
+    tc = TC["collect_bundle_worker_pod_logs"]
     tl = TestLogger(tc["title"], tc["id"])
 
     output_path = get_collect_output_path(host)
@@ -549,16 +548,15 @@ def test_collect_bundle_worker_pod_logs(host):
     pod_count = len(result["found_pod_logs"])
     container_count = len(result["found_container_logs"])
     tl.info(f"Found {pod_count} pod logs and {container_count} container logs")
-    tl.passed("TC-NFT-005 L1 verification completed")
+    tl.passed("Worker pod logs verification completed")
 
 
 @pytest.mark.functional
 @pytest.mark.collect
-@pytest.mark.nft
 @pytest.mark.order(38)
 def test_collect_bundle_local_storage_status_files(host):
-    """TC-NFT-005 L3: Verify log bundle contains per-node local storage status files."""
-    tc = TC["collect_bundle_per_node_status"]
+    """Verify log bundle contains per-node local storage status files (TC-NFT-005 L3)."""
+    tc = TC["collect_bundle_local_storage_status"]
     tl = TestLogger(tc["title"], tc["id"])
 
     output_path = get_collect_output_path(host)
