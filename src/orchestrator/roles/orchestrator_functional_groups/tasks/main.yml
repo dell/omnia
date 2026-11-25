@@ -29,7 +29,7 @@
 
 - name: Generate functional groups from mapping.csv
   generate_functional_groups:
-    mapping_file_path: "{{ pxe_mapping_file_path }}"
+    mapping_file_path: "{{ pxe_mapping_effective_path | default(pxe_mapping_file_path) }}"
     functional_groups_file_path: "{{ functional_groups_config_path }}"
     omnia_config_path: "{{ omnia_config_dir }}/{{ omnia_config_file }}"
     classification_file_path: "{{ role_path }}/../../vars/functional_group_classification.yml"

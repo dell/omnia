@@ -56,7 +56,7 @@
   block:
     - name: Re-read mapping file if not available
       pxe_mapping_read:
-        path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+        path: "{{ hostvars['localhost']['pxe_mapping_effective_path'] | default(hostvars['localhost']['pxe_mapping_file_path']) }}"
         key: ADMIN_MAC
       register: _mapping_file_result
       no_log: true

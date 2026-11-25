@@ -233,6 +233,28 @@
              + (hostvars['localhost']['read_mapping_file']['dict'].values()
                 | map(attribute='BMC_MAC') | select('string') | list) }}
 
+    - name: Preview SMD entries that are no longer in the PXE mapping
+      openchami_reconcile:
+        action: cleanup_orphan_smd_entries
+        cluster_uri: "https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443"
+        access_token: "{{ openchami_access_token }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        current_service_tags: "{{ _pxe_service_tags }}"
+        current_macs: "{{ _pxe_all_macs }}"
+      check_mode: true
+      register: _orphan_preview_result
+      no_log: true
+
+    - name: Warn before removing nodes that were deleted or commented out
+      ansible.builtin.debug:
+        msg:
+          - "WARNING: {{ _orphan_preview_result.orphan_xnames | length }} node(s) are in SMD but not in the active PXE mapping"
+          - "(rows deleted or commented out with '#'). Their SMD groups, interfaces, components,"
+          - "endpoints and Hardware Inventory records will be DELETED and their XNAMEs freed:"
+          - "{{ _orphan_preview_result.orphan_xnames | join(', ') }}"
+          - "Uncommenting a row later allocates a new XNAME. Running nodes are not powered off."
+      when: _orphan_preview_result.orphan_xnames | default([]) | length > 0
+
     - name: Clean up orphaned SMD entries from previous deployments
       openchami_reconcile:
         action: cleanup_orphan_smd_entries

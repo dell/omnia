@@ -89,3 +89,55 @@ def test_ansible_readers_use_comment_aware_module():
         text = (SRC / "orchestrator" / rel).read_text(encoding="utf-8")
         assert not raw.search(text), rel
         assert "pxe_mapping_read:" in text, rel
+
+
+def _setup_task_text():
+    return (SRC / "orchestrator/roles/orchestrator_setup/tasks/main.yml").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_effective_mapping_is_built_for_every_tag():
+    text = _setup_task_text()
+    start = text.index("- name: Build effective PXE mapping without comments")
+    block = text[start:text.index("# Step 7:", start)]
+    when = block.split("block:")[0]
+    assert "omnia_run_tags" not in when and "tags" not in when
+    assert 'mode: "0600"' in block
+
+
+def test_effective_mapping_regex_removes_comments_and_blanks():
+    from ansible.plugins.filter.core import regex_replace
+
+    raw = "# top\r\nHDR,A\nx,1\n#c,2\n   # c3,3\n\ny,4\n  # last"
+    out = regex_replace(raw, r"(?m)^[ \t]*(#[^\n]*)?\r?\n", "")
+    out = regex_replace(out, r"(?m)^[ \t]*#[^\n]*$", "")
+    assert out == "HDR,A\nx,1\ny,4\n"
+
+
+def test_orchestrator_roles_prefer_effective_mapping_with_fallback():
+    for rel in (
+        "roles/passwordless_ssh/tasks/build_host_lists.yml",
+        "roles/mount_config/tasks/build_host_mount_map.yml",
+        "roles/k8s_config/tasks/create_k8s_config_nfs.yml",
+        "roles/deploy_openchami/tasks/configs/ochami.yml",
+        "roles/deploy_openchami/tasks/refresh_openchami_configs.yml",
+        "roles/provision_common/tasks/register_nodes.yml",
+        "roles/pxe_boot_inventory/tasks/main.yml",
+        "roles/slurm_config/tasks/inject_ib_nodeaddr.yml",
+        "roles/orchestrator_functional_groups/tasks/main.yml",
+        "roles/ib_ipv6_config/defaults/main.yml",
+    ):
+        text = (SRC / "orchestrator" / rel).read_text(encoding="utf-8")
+        assert "pxe_mapping_effective_path" in text, rel
+
+
+def test_orphan_preview_precedes_deletion():
+    text = (SRC / "orchestrator/playbooks/provision/provision_preamble.yml").read_text(
+        encoding="utf-8"
+    )
+    preview = text.index("Preview SMD entries that are no longer in the PXE mapping")
+    warn = text.index("Warn before removing nodes that were deleted or commented out")
+    delete = text.index("Clean up orphaned SMD entries from previous deployments")
+    assert preview < warn < delete
+    assert "check_mode: true" in text[preview:warn]

@@ -314,6 +314,45 @@
     - pxe_mapping_file_path | default('') | length > 0
     - pxe_mapping_file_path is file
 
+# Step 6c: Build the effective PXE mapping (comments and blank lines removed)
+#   Runs for every tag. Consumers read this copy so a commented-out node is
+#   never registered; the original file stays authoritative for validation
+#   messages and status records. The copy is rebuilt on every run.
+- name: Build effective PXE mapping without comments
+  when:
+    - pxe_mapping_file_path | default('') | length > 0
+    - pxe_mapping_file_path is file
+  block:
+    - name: Ensure effective PXE mapping directory exists
+      ansible.builtin.file:
+        path: "{{ pxe_mapping_effective_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Read PXE mapping source
+      ansible.builtin.slurp:
+        path: "{{ pxe_mapping_file_path }}"
+      register: _pxe_mapping_source
+      no_log: true
+
+    - name: Write effective PXE mapping
+      ansible.builtin.copy:
+        content: >-
+          {{ _pxe_mapping_source.content | b64decode
+             | regex_replace('(?m)^[ \t]*(#[^\n]*)?\r?\n', '')
+             | regex_replace('(?m)^[ \t]*#[^\n]*$', '') }}
+        dest: "{{ pxe_mapping_effective_target_path }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Publish effective PXE mapping path
+      ansible.builtin.set_fact:
+        pxe_mapping_effective_path: "{{ pxe_mapping_effective_target_path }}"
+  rescue:
+    - name: Report effective PXE mapping failure
+      ansible.builtin.fail:
+        msg: "{{ pxe_mapping_effective_fail_msg }}"
+
 # Step 7: Load repo_manager output (repo_status.yml)
 - name: Determine whether repo_status.yml is required for this flow
   ansible.builtin.set_fact:

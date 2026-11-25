@@ -550,8 +550,13 @@ the lifecycle finishes.
 - Removing a PXE mapping row, or commenting it out with a leading `#`, removes
   the node from the desired set. Blank and `#` lines are ignored by every
   reader, so a node commented out before its first provisioning is never
-  registered. For a node already in SMD, the next `provision` or `execute`
-  run executes `cleanup_orphan_smd_entries`, which deletes its group
+  registered. `orchestrator_setup` builds one comment-free copy of the mapping
+  per run (mode 0600, under `$ORCHESTRATOR_DATA_PATH/.tmp/`) for every tag;
+  Orchestrator roles read that copy, while validation messages and status
+  records keep referring to the original file. Comment-aware readers remain a
+  fallback for phase playbooks run without setup. For a node already in SMD, the next `provision` or `execute`
+  run first previews the orphans and prints a warning, then executes
+  `cleanup_orphan_smd_entries`, which deletes its group
   memberships, EthernetInterfaces, Node and NodeBMC components, component and
   Redfish endpoints, and Hardware Inventory record. The XNAME is freed and
   uncommenting the row later allocates a new XNAME. Metadata InstanceInfo and

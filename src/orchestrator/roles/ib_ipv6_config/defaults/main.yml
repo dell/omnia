@@ -15,7 +15,7 @@
 # IPoIB IPv6 configuration defaults
 
 # Path to the PXE mapping file (sole ingestion interface for IPoIB allocations)
-ib_ipv6_pxe_mapping_file: "{{ hostvars['localhost']['pxe_mapping_file'] | default(hostvars['localhost']['input_project_dir'] + '/pxe_mapping_file.csv') }}"
+ib_ipv6_pxe_mapping_file: "{{ hostvars['localhost']['pxe_mapping_effective_path'] | default(hostvars['localhost']['pxe_mapping_file'] | default(hostvars['localhost']['input_project_dir'] + '/pxe_mapping_file.csv')) }}"
 
 # Approved IPv6 prefixes (from network_spec.yml)
 ib_ipv6_approved_prefixes: "{{ hostvars['localhost']['network_spec_data']['ib_ipv6_approved_prefixes'] | default([]) }}"
