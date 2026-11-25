@@ -229,6 +229,11 @@ TEST_CASES = {
         "id": "IMGBM_FVT_VALIDATE_V004",
         "title": "Verify repo_ssl_verify is wired into build templates",
     },
+    # ── Validate — external repo_manager contract (Phase 1: remote OIM) ────
+    "deploy_external_repo_manager_e2e": {
+        "id": "IMGBM_FVT_VALIDATE_E005",
+        "title": "Phase 1: run repo_manager on external OIM, fetch contract, build images",
+    },
     # ── Validate — external repo_manager contract (deploy) ─────────────────
     "deploy_external_contract": {
         "id": "IMGBM_FVT_VALIDATE_E002",

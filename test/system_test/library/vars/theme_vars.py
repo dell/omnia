@@ -256,12 +256,12 @@ THEMES: Dict[str, Dict] = {
     },
     "external_contract": {
         "title": "External Contract",
-        "description": "Image Build Manager with externally supplied repo_status.yml: "
-                       "prepare infrastructure, contract verification tests, then "
-                       "real --tags build playbook execution.  Depends on a completed "
-                       "repo_manager run that produced repo_status.yml from an "
-                       "external source (4 of 23 FVT tests require the live file; "
-                       "set REQUIRE_LIVE_REPO_STATUS=1 to fail instead of skip)",
+        "description": "Phase 1 — External Repo Manager Validation: runs repo_manager "
+                       "on an external OIM (OIM1), fetches the generated repo_status.yml, "
+                       "and builds images on this OIM (OIM2).  Also includes contract "
+                       "verification tests and negative controls with the local live file.  "
+                       "Requires external_oim block in test_config.yml and "
+                       "external_oim_password in test_creds.yml.",
         "profile": "external_contract",
         "cleanup_steps": CLEANUP_STEPS,
         "nfs_shares": {},
@@ -270,8 +270,9 @@ THEMES: Dict[str, Dict] = {
         "creds_suite": "build_stream",
         "cleanup_requires": {},
         "cleanup_when_deployed": (),
-        # Three stages in workflow order: infrastructure, then static verification,
-        # then the real build with the externally staged repo_status.yml.
+        # Three stages: infrastructure, static verification, then
+        # Phase 1 end-to-end (repo_manager on OIM1 -> fetch -> build on OIM2)
+        # plus negative controls in one contract_build stage.
         "stages": ("contract_prepare", "contract_validate", "contract_build"),
         "soft_stages": ("contract_validate",),
         "stage_info": {
@@ -284,12 +285,12 @@ THEMES: Dict[str, Dict] = {
                 "20 contract verification tests: schema, semantic validation, external-source host check, "
                 "parsing, extensibility, accepted and rejected inputs"),
             "contract_build": (
-                "Contract Build",
-                "Real image_build_manager --tags build playbook with externally "
-                "staged repo_status.yml: full pipeline execution (validate, "
-                "parse, cert check, URL reachability, image build, S3/registry "
-                "push, build_status.yml), plus two tampered-file controls proving the "
-                "staged file is the one the playbook reads"),
+                "Phase 1 Contract Build",
+                "Phase 1 end-to-end: run repo_manager on the external OIM "
+                "(OIM1), fetch the generated repo_status.yml, verify external "
+                "source, then run image_build_manager --tags build on this "
+                "OIM (OIM2).  Followed by two negative controls (sentinel URL "
+                "and invalid status) proving the playbook reads the staged file"),
         },
         "state_probe": None,
         "fvt_settings": {},

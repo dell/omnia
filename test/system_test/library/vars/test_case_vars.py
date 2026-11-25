@@ -208,11 +208,11 @@ TEST_CASES = {
         "title": "Contract verification: schema, semantic, parse, extensibility (20 tests)",
         "step": (_IMG, ("validate", "verify", "--suite", "contract")),
     },
-    # contract_build ---------------------------------------------
+    # contract_build (includes Phase 1 E005 + existing E002-E004) --
     "external_contract_build_exec": {
         "id": "SVT_EXTERNAL_CONTRACT_004", "order": 4030, "stage": "contract_build",
-        "title": "Contract build: real --tags build with external repo_status.yml "
-                 "(consumed-path proof and two negative controls)",
+        "title": "Contract build: Phase 1 end-to-end (repo_manager on OIM1, "
+                 "fetch, build on OIM2) plus negative controls",
         "step": (_IMG, ("validate", "exec", "--suite", "contract")),
         # Fail (not skip) live-file tests during SVT — the prerequisite
         # (a completed repo_manager run with external output) must be met.

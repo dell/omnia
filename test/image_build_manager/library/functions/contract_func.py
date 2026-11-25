@@ -282,12 +282,20 @@ def cert_names(cert_path: str) -> Set[str]:
 
 def verify_external_source(
     data: Dict[str, Any], expected_host: str = "",
+    skip_cert: bool = False,
 ) -> Dict[str, Any]:
     """Check that a repo_status dict describes repositories on another host.
 
     Fails when any repository host is this OIM, when ``expected_host`` is
     set and any repository host differs from it, or when the certificate
     named in the file does not cover the repository hosts.
+
+    Args:
+        data: Parsed repo_status.yml dict.
+        expected_host: Optional pinned host that all repos must match.
+        skip_cert: When True, skip the local certificate SAN check.
+            Use this for cross-OIM scenarios where the local cert belongs
+            to this OIM and cannot cover the external OIM's repos.
 
     Returns:
         Dict with keys: success, details, hosts, local, errors.
@@ -305,16 +313,17 @@ def verify_external_source(
             f"repository host(s) {sorted(hosts - {expected_host.lower()})} "
             f"differ from external_repo_host {expected_host}"
         )
-    cert = (data.get("repo_manager", {}).get("certificates", {})
-            .get("server_crt", ""))
-    if cert and hosts:
-        try:
-            missing = sorted(hosts - cert_names(cert))
-            if missing:
-                errors.append(
-                    f"certificate {cert} does not cover host(s) {missing}")
-        except (OSError, subprocess.SubprocessError) as exc:
-            errors.append(f"certificate {cert} unreadable: {exc}")
+    if not skip_cert:
+        cert = (data.get("repo_manager", {}).get("certificates", {})
+                .get("server_crt", ""))
+        if cert and hosts:
+            try:
+                missing = sorted(hosts - cert_names(cert))
+                if missing:
+                    errors.append(
+                        f"certificate {cert} does not cover host(s) {missing}")
+            except (OSError, subprocess.SubprocessError) as exc:
+                errors.append(f"certificate {cert} unreadable: {exc}")
     return {
         "success": not errors,
         "details": "; ".join(errors) or (

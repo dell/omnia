@@ -196,6 +196,11 @@ def pytest_configure(config):
             "repo_manager run. Skipped when absent unless "
             "REQUIRE_LIVE_REPO_STATUS=1 is set."
         ),
+        "phase1": (
+            "Phase 1 — External Repo Manager Validation: runs repo_manager "
+            "on an external OIM, fetches the generated contract, and builds "
+            "images on this OIM."
+        ),
     }
         
     for name, desc in markers.items():
