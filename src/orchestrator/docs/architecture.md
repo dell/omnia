@@ -551,7 +551,8 @@ the lifecycle finishes.
   the node from the desired set. Blank and `#` lines are ignored by every
   reader, so a node commented out before its first provisioning is never
   registered. `orchestrator_setup` builds one comment-free copy of the mapping
-  per run (mode 0600, under `$ORCHESTRATOR_DATA_PATH/.tmp/`) for every tag;
+  per run (mode 0600, under `$ORCHESTRATOR_DATA_PATH/.tmp/`) for every tag
+  except cleanup-only runs, and the `artifacts` cleanup component removes it;
   Orchestrator roles read that copy, while validation messages and status
   records keep referring to the original file. Comment-aware readers remain a
   fallback for phase playbooks run without setup. For a node already in SMD, the next `provision` or `execute`

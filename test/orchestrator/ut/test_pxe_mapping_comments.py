@@ -102,7 +102,8 @@ def test_effective_mapping_is_built_for_every_tag():
     start = text.index("- name: Build effective PXE mapping without comments")
     block = text[start:text.index("# Step 7:", start)]
     when = block.split("block:")[0]
-    assert "omnia_run_tags" not in when and "tags" not in when
+    assert "'cleanup', 'cleanup_credentials'" in when
+    assert "'pxeboot'" not in when and "'provision'" not in when
     assert 'mode: "0600"' in block
 
 
@@ -141,3 +142,14 @@ def test_orphan_preview_precedes_deletion():
     delete = text.index("Clean up orphaned SMD entries from previous deployments")
     assert preview < warn < delete
     assert "check_mode: true" in text[preview:warn]
+
+
+def test_artifacts_cleanup_removes_effective_mapping():
+    base = SRC / "orchestrator/roles/cleanup"
+    for rel in (
+        "components/artifacts/tasks/cleanup.yml",
+        "components/artifacts/vars/component_spec.yml",
+        "config/default_cleanup.yml",
+    ):
+        text = (base / rel).read_text(encoding="utf-8")
+        assert ".tmp/pxe_mapping_effective.csv" in text, rel

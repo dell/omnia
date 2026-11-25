@@ -92,6 +92,7 @@ cleanup_components:
     preserve: []
     cleanup_paths:
       - "{{ orchestrator_output_dir }}"
+      - "{{ orchestrator_data_path }}/.tmp/pxe_mapping_effective.csv"
       - "{{ orchestrator_data_path }}/log/{{ project_name }}"
     description: "Orchestrator artifacts, state files, output directories, and runtime logs"
 

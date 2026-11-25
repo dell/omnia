@@ -315,13 +315,16 @@
     - pxe_mapping_file_path is file
 
 # Step 6c: Build the effective PXE mapping (comments and blank lines removed)
-#   Runs for every tag. Consumers read this copy so a commented-out node is
+#   Runs for every tag except cleanup-only runs (nothing reads it there). Consumers read this copy so a commented-out node is
 #   never registered; the original file stays authoritative for validation
 #   messages and status records. The copy is rebuilt on every run.
 - name: Build effective PXE mapping without comments
   when:
     - pxe_mapping_file_path | default('') | length > 0
     - pxe_mapping_file_path is file
+    - >-
+      omnia_run_tags | length == 0
+      or (omnia_run_tags | difference(['always', 'cleanup', 'cleanup_credentials']) | length > 0)
   block:
     - name: Ensure effective PXE mapping directory exists
       ansible.builtin.file:
