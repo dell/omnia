@@ -29,9 +29,9 @@ spec:
   
   # Image configuration
 {% set _vmagent_img = vmagent.image %}
-{% set _vmagent_parts = _vmagent_img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _vmagent_parts = _vmagent_img.split('@')[0] | regex_replace(':[^:/]+$', '') | split('/') %}
 {% set _vmagent_repo = '/'.join(_vmagent_parts[1:]) if (_vmagent_parts | length) > 2 or '.' in _vmagent_parts[0] else '/'.join(_vmagent_parts) %}
-{% set _vmagent_tag = _vmagent_img.split(':')[-1] %}
+{% set _vmagent_tag = _vmagent_img.split('@')[0].split(':')[-1] ~ ('@' ~ _vmagent_img.split('@')[1] if '@' in _vmagent_img else '') %}
   image:
 {% if telemetry_registry.host | default('') %}
     repository: {{ telemetry_registry.host }}/{{ _vmagent_repo }}
@@ -43,11 +43,11 @@ spec:
   
   # Config reloader sidecar image (used by operator for config hot-reload)
   # In offline mode with container_registry set, use the custom registry; otherwise use the full image URL
-{% set _config_reloader_image = telemetry_registry.images.victoria_operator.config_reloader | default('docker.io/victoriametrics/operator:config-reloader-v0.75.0') %}
+{% set _config_reloader_image = telemetry_registry.images.victoria_operator.config_reloader | default('docker.io/victoriametrics/operator:config-reloader-v0.75.0@sha256:11c5d33b2112571e72cdc020b63c8045f2cd523fec4768b67a91f96e36b05c59') %}
 {% if telemetry_registry.host | default('') %}
-{% set _parts = _config_reloader_image | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _parts = _config_reloader_image.split('@')[0] | regex_replace(':[^:/]+$', '') | split('/') %}
 {% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
-{% set _tag = _config_reloader_image.split(':')[-1] %}
+{% set _tag = _config_reloader_image.split('@')[0].split(':')[-1] ~ ('@' ~ _config_reloader_image.split('@')[1] if '@' in _config_reloader_image else '') %}
   configReloaderImage: "{{ telemetry_registry.host }}/{{ _repo }}:{{ _tag }}"
 {% else %}
   configReloaderImage: "{{ _config_reloader_image }}"

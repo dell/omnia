@@ -7,7 +7,7 @@ UT IDs use `TEL_UT_<SEQ>`: `TEL` is the stable Telemetry domain code, `UT` ident
 UT IDs also use `TEL_UT_CLEANUP_V<SEQ>` for cleanup sink tests: `TEL` is the stable Telemetry domain code, `UT` identifies the test level, `CLEANUP` identifies the subsystem, and `V<SEQ>` is a stable three-digit sequence.
 
 Every registered unit-test function has a stable ID in the range `TEL_UT_001`
-through `TEL_UT_077` and `TEL_UT_CLEANUP_V019` through `TEL_UT_CLEANUP_V062`. The centralized mapping is maintained in
+through `TEL_UT_081` and `TEL_UT_CLEANUP_V019` through `TEL_UT_CLEANUP_V062`. The centralized mapping is maintained in
 `library/vars/test_case_vars.py`; descriptive pytest function names remain
 unchanged.
 
@@ -23,6 +23,7 @@ unchanged.
 | `TEL_UT_062`–`TEL_UT_066` | `test_input_validation_fail_closed.py` | Telemetry `validate_input` fails closed on unknown or empty tags |
 | `TEL_UT_067` | `test_log_permissions.py` | Restricted Ansible log directory/file permissions (CWE-532) |
 | `TEL_UT_068`–`TEL_UT_077` | `test_idrac_bmc_inventory.py` | iDRAC MySQL ↔ `bmc_group_data.csv` parity (missing, stale, wrong-pod, duplicate rows), CSV parsing, safe lifecycle BMC selection, and MySQL-only node deletion |
+| `TEL_UT_078`–`TEL_UT_081` | `test_image_digest_pinning.py` | `telemetry_packages.yml` images are digest-pinned; L2 validation rejects tag-only, `:latest` and malformed digests |
 | `TEL_UT_CLEANUP_V019`–`TEL_UT_CLEANUP_V035` | `cleanup_sinks/test_cleanup_sinks_deps.py` | Cleanup sink dependency checking for Kafka, VictoriaMetrics, and VictoriaLogs |
 | `TEL_UT_CLEANUP_V036`–`TEL_UT_CLEANUP_V045` | `cleanup_sinks/test_cleanup_sinks_shortform.py` | Cleanup sink short-form parameter syntax and normalization |
 | `TEL_UT_CLEANUP_V046`–`TEL_UT_CLEANUP_V062` | `test_cleanup_sinks_parameter_normalization.py` | Parameter normalization logic for short-form sink arguments |

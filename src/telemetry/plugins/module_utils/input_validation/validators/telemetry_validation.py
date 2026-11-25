@@ -18,6 +18,7 @@
 This module contains functions for validating telemetry configuration.
 """
 import os
+import re
 import subprocess
 
 import yaml
@@ -33,6 +34,29 @@ _SSH_OPTIONS = (
     "-o", "BatchMode=yes",
 )
 _REMOTE_DIRECTORY_CHECK = 'IFS= read -r mount_path && test -d "$mount_path"'
+# <name>:<tag>@sha256:<64 hex>; name may include a registry host[:port] and path.
+_PINNED_IMAGE_RE = re.compile(
+    r"^[a-z0-9]+(?:[._-][a-z0-9]+)*(?::[0-9]+)?(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)+"
+    r":[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}@sha256:[a-f0-9]{64}$"
+)
+
+
+def _image_digest_errors(images):
+    """Return (field, value) pairs for images in the manifest that are not digest-pinned."""
+    invalid = []
+    if not isinstance(images, dict):
+        return invalid
+    for group, entries in images.items():
+        if not isinstance(entries, dict):
+            continue
+        for key, ref in entries.items():
+            if ref in (None, ""):
+                continue
+            ref_str = str(ref)
+            tag = ref_str.split("@", 1)[0].rsplit(":", 1)[-1]
+            if not _PINNED_IMAGE_RE.match(ref_str) or tag == "latest":
+                invalid.append((f"images.{group}.{key}", ref))
+    return invalid
 
 
 def _canonical_ipv4(value):
@@ -1514,6 +1538,17 @@ def validate_telemetry_packages(
     container_registry = data.get("container_registry", "")
     if container_registry and isinstance(container_registry, str) and container_registry.strip():
         logger.info(f"container_registry validation PASSED: {container_registry}")
+
+    # =========================================================================
+    # Validate every container image is pinned by digest (repo:tag@sha256:...)
+    # =========================================================================
+    image_errors = _image_digest_errors(data.get("images", {}))
+    for field, ref in image_errors:
+        errors.append(create_error_msg(
+            field, ref, en_us_validation_msg.IMAGE_DIGEST_REQUIRED_MSG
+        ))
+    if not image_errors and data.get("images"):
+        logger.info("images digest pinning validation PASSED")
 
     # =========================================================================
     # Validate helm_charts online_url format

@@ -36,9 +36,9 @@ spec:
   # Container Image Configuration
   # ========================================
 {% set _vlagent_img = victoria_logs_cluster.vlagent.image %}
-{% set _vlagent_parts = _vlagent_img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _vlagent_parts = _vlagent_img.split('@')[0] | regex_replace(':[^:/]+$', '') | split('/') %}
 {% set _vlagent_repo = '/'.join(_vlagent_parts[1:]) if (_vlagent_parts | length) > 2 or '.' in _vlagent_parts[0] else '/'.join(_vlagent_parts) %}
-{% set _vlagent_tag = _vlagent_img.split(':')[-1] %}
+{% set _vlagent_tag = _vlagent_img.split('@')[0].split(':')[-1] ~ ('@' ~ _vlagent_img.split('@')[1] if '@' in _vlagent_img else '') %}
   image:
 {% if telemetry_registry.host | default('') %}
     repository: {{ telemetry_registry.host }}/{{ _vlagent_repo }}
@@ -119,7 +119,7 @@ spec:
   # so we use busybox for the init container instead.
   initContainers:
     - name: cleanup-stale-locks
-      image: "{% set _bb_img = _support_images.busybox | default('docker.io/library/busybox:1.38') %}{% set _bb_parts = _bb_img | regex_replace(':[^:]+$', '') | split('/') %}{% set _bb_repo = '/'.join(_bb_parts[1:]) if (_bb_parts | length) > 2 or '.' in _bb_parts[0] else '/'.join(_bb_parts) %}{% set _bb_tag = _bb_img.split(':')[-1] %}{% if telemetry_registry.host | default('') %}{{ telemetry_registry.host }}/{{ _bb_repo }}:{{ _bb_tag }}{% else %}{{ _bb_img }}{% endif %}"
+      image: "{% set _bb_img = _support_images.busybox | default('docker.io/library/busybox:1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4') %}{% set _bb_parts = _bb_img.split('@')[0] | regex_replace(':[^:/]+$', '') | split('/') %}{% set _bb_repo = '/'.join(_bb_parts[1:]) if (_bb_parts | length) > 2 or '.' in _bb_parts[0] else '/'.join(_bb_parts) %}{% set _bb_tag = _bb_img.split('@')[0].split(':')[-1] ~ ('@' ~ _bb_img.split('@')[1] if '@' in _bb_img else '') %}{% if telemetry_registry.host | default('') %}{{ telemetry_registry.host }}/{{ _bb_repo }}:{{ _bb_tag }}{% else %}{{ _bb_img }}{% endif %}"
       command:
         - /bin/sh
         - -c

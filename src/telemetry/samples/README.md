@@ -82,7 +82,7 @@ all:
 ```yaml
 karaviMetricsPowerscale:
   enabled: true
-  image: quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.13.0
+  image: quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.13.0@sha256:3e598ab69e1d7cd091679cac721dae03b0df21cc73b3fab025f620677b9fb1d2
   collectorAddr: otel-collector:55680
   provisionerNames: csi-isilon.dellemc.com
   capacityMetricsEnabled: "true"
@@ -91,12 +91,12 @@ karaviMetricsPowerscale:
   authorization:
     enabled: false
     sidecarProxy:
-      image: quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.6.0
+      image: quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.6.0@sha256:11826a16e25962f348dfacd583e35d6e6565147c27cb52868d7d6888d85523af
     proxyHost:
     skipCertificateValidation: true
 
 otelCollector:
-  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.160.0
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.160.0@sha256:e495787f07dbe432ce763ebaf5bc3d113850e9eee2250ade7a3da6a882d0d69a
   service:
     type: ClusterIP
 

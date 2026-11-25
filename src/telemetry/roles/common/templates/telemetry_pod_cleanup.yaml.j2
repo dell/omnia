@@ -1,4 +1,14 @@
 ---
+{# Images come from telemetry_packages.yml (images.support.*), digest-pinned.
+   With container_registry set, the upstream registry prefix is replaced by it
+   and the @sha256 digest is kept. #}
+{% set _support = (telemetry_registry.images | default({})).support | default({}) %}
+{% set _kubectl_img = _support.kubectl | default('docker.io/alpine/kubectl:1.35.1@sha256:0829b6a99156e722033b3cadb441a3768ffb32a388f93695277740c81acd4a7c') %}
+{% set _busybox_img = _support.busybox | default('docker.io/library/busybox:1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4') %}
+{% if telemetry_registry.host | default('') %}
+{% set _kubectl_img = telemetry_registry.host ~ '/' ~ (_kubectl_img | regex_replace('^[^/]*\\.[^/]*/', '')) %}
+{% set _busybox_img = telemetry_registry.host ~ '/' ~ (_busybox_img | regex_replace('^[^/]*\\.[^/]*/', '')) %}
+{% endif %}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -25,7 +35,7 @@ spec:
             tolerationSeconds: 30  # Evict after 30s if node is unreachable
           containers:
           - name: kubectl-cleanup
-            image: docker.io/alpine/kubectl:1.35.1
+            image: "{{ _kubectl_img }}"
             command:
             - /bin/sh
             - -c
@@ -75,11 +85,8 @@ spec:
                         cleanup_pod="pvc-clean-$RANDOM"
 
                         # Create cleanup pod - remove lock files recursively
-                        # Use container_registry override if set
-                        BUSYBOX_IMAGE="{{ telemetry_registry.host | default('') }}/library/busybox:1.38"
-                        if [ -z "{{ telemetry_registry.host | default('') }}" ]; then
-                          BUSYBOX_IMAGE="busybox:1.38"
-                        fi
+                        # Digest-pinned image from telemetry_packages.yml (container_registry override applied)
+                        BUSYBOX_IMAGE="{{ _busybox_img }}"
                         kubectl run $cleanup_pod --image=$BUSYBOX_IMAGE -n telemetry --restart=Never \
                           --overrides="{\"spec\":{\"containers\":[{\"name\":\"cleanup\",\"image\":\"$BUSYBOX_IMAGE\",\"command\":[\"sh\",\"-c\",\"echo 'Cleaning lock files in /data...'; find /data -type f \\\\( -name '.lock' -o -name '*.lock' -o -name '*.sock' -o -name '*.pid' \\\\) -exec rm -fv {} \\\\; 2>/dev/null || true; echo 'Done'\"],\"volumeMounts\":[{\"name\":\"data\",\"mountPath\":\"/data\"}]}],\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc\"}}]}}" \
                           2>/dev/null || echo " Failed to create $cleanup_pod"

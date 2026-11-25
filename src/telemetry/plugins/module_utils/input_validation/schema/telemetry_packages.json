@@ -35,7 +35,7 @@
     },
     "images": {
       "type": "object",
-      "description": "Container images grouped by subsystem.",
+      "description": "Container images grouped by subsystem. Each image must be digest-pinned as <registry>/<repository>:<tag>@sha256:<64 hex> (enforced by L2 validation).",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": { "type": "string" }

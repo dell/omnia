@@ -22,10 +22,21 @@ authVolOption:
   secret:
     defaultMode: 0o400
     secretName: nersc-ldms-ovis-auth
+{# LDMS image from telemetry_packages.yml (images.ldms.sampler), digest-pinned.
+    The chart renders {{ registry }}{{ repository }}:{{ tag }}, so the digest is
+    carried in tag ("1.2@sha256:...") to produce a valid repo:tag@digest reference.
+    With container_registry set, the upstream registry prefix is replaced by it. #}
+{% set _ldms_img = (telemetry_images.ldms | default({})).sampler
+   | default('docker.io/dellhpcomniaaisolution/ubuntu-ldms:1.2@sha256:09701a81a3ac45eb23e03f7793e5ab6bc3b6ad9674e7751698764e50afb3befb') %}
+{% if telemetry_registry.host | default('') %}
+{% set _ldms_img = telemetry_registry.host ~ '/' ~ (_ldms_img | regex_replace('^[^/]*\\.[^/]*/', '')) %}
+{% endif %}
+{% set _ldms_name = _ldms_img.split('@')[0] | regex_replace(':[^:/]+$', '') %}
+{% set _ldms_tag = _ldms_img.split('@')[0].split(':')[-1] ~ ('@' ~ _ldms_img.split('@')[1] if '@' in _ldms_img else '') %}
 image:
-  registry: docker.io/dellhpcomniaaisolution
-  repository: /ubuntu-ldms
-  tag: "1.2"
+  registry: {{ _ldms_name.rsplit('/', 1)[0] }}
+  repository: /{{ _ldms_name.rsplit('/', 1)[1] }}
+  tag: "{{ _ldms_tag }}"
 imagePullSecretsOption:
   imagePullSecrets: []
 namespace: telemetry

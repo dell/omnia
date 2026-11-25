@@ -33,6 +33,13 @@ from ansible.module_utils.input_validation.core.validation_utils import (
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 # pylint: disable=too-many-nested-blocks,too-many-branches,too-many-statements
+def _image_repository(image):
+    """Return the repository of an image ref, dropping the @digest and :tag."""
+    name = str(image).split("@", 1)[0]
+    head, sep, tail = name.rpartition(":")
+    return head if sep and "/" not in tail else name
+
+
 def validate_powerscale_telemetry_config(
     data, powerscale_collection_targets,
     is_service_cluster_defined, config_paths, logger, errors,
@@ -250,10 +257,10 @@ def validate_powerscale_telemetry_config(
                         for img_key, actual_img in actual_images.items():
                             # Find matching expected image by registry/repo
                             # Compare the base image (without tag) to find the expected version
-                            actual_base = actual_img.rsplit(":", 1)[0] if ":" in actual_img else actual_img
+                            actual_base = _image_repository(actual_img)
                             for expected_key, expected_img in expected_images.items():
                                 if expected_img:
-                                    expected_base = expected_img.rsplit(":", 1)[0] if ":" in expected_img else expected_img
+                                    expected_base = _image_repository(expected_img)
                                     if actual_base == expected_base:
                                         if actual_img != expected_img:
                                             mismatched_images.append(

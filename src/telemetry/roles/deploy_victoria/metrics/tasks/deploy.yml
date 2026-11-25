@@ -48,16 +48,20 @@
 #   Use the original registry from the image URL in telemetry_packages.yml.
 - name: Parse operator image components from telemetry_registry
   vars:
-    _operator_image: "{{ telemetry_registry.images.victoria_operator.operator | default('docker.io/victoriametrics/operator:v0.75.0') }}"
+    _operator_image: "{{ telemetry_registry.images.victoria_operator.operator | default('docker.io/victoriametrics/operator:v0.75.0@sha256:78da26b41a819093707be2ab6a65a5dc19f43d58ec52f30b49a545c2c6b7bd55') }}"
     _config_reloader_image: >-
       {{ telemetry_registry.images.victoria_operator.config_reloader |
-      default('docker.io/victoriametrics/operator:config-reloader-v0.75.0') }}
+      default('docker.io/victoriametrics/operator:config-reloader-v0.75.0@sha256:11c5d33b2112571e72cdc020b63c8045f2cd523fec4768b67a91f96e36b05c59') }}
     _custom_registry: "{{ telemetry_registry.host | default('') }}"
   ansible.builtin.set_fact:
-    _operator_image_tag: "{{ _operator_image.split(':')[-1] }}"
-    _operator_image_without_tag: "{{ _operator_image | regex_replace(':[^:]+$', '') }}"
-    _config_reloader_image_tag: "{{ _config_reloader_image.split(':')[-1] }}"
-    _config_reloader_image_without_tag: "{{ _config_reloader_image | regex_replace(':[^:]+$', '') }}"
+    _operator_image_tag: >-
+      {{ _operator_image.split('@')[0].split(':')[-1]
+      ~ ('@' ~ _operator_image.split('@')[1] if '@' in _operator_image else '') }}
+    _operator_image_without_tag: "{{ _operator_image.split('@')[0] | regex_replace(':[^:/]+$', '') }}"
+    _config_reloader_image_tag: >-
+      {{ _config_reloader_image.split('@')[0].split(':')[-1]
+      ~ ('@' ~ _config_reloader_image.split('@')[1] if '@' in _config_reloader_image else '') }}
+    _config_reloader_image_without_tag: "{{ _config_reloader_image.split('@')[0] | regex_replace(':[^:/]+$', '') }}"
     _custom_registry: "{{ _custom_registry }}"
   when: victoria_operator_pkg is defined
 

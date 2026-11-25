@@ -87,79 +87,96 @@ slurm_cluster_mount: "/share_omnia"
 # All container images referenced by telemetry K8s manifests.
 # Images are grouped by subsystem for clarity.
 #
+# Digest Pinning (required):
+#   Every image MUST be written as "<registry>/<repository>:<tag>@sha256:<digest>".
+#   The tag is kept for readability; the container runtime pulls by digest, so a
+#   moved or re-pushed tag cannot change what is deployed. Input validation rejects
+#   images without an @sha256 digest.
+#   The digest is the multi-arch manifest list / OCI index digest of the tag
+#   (not a per-platform digest), so the same value works for every architecture
+#   the image publishes. To look one up:
+#     regctl image digest docker.io/victoriametrics/vmagent:v1.153.0
+#     skopeo inspect --format '{{.Digest}}' docker://docker.io/victoriametrics/vmagent:v1.153.0
+#   When you bump a tag, update its digest in the same change.
+#
 # Container Registry Override:
 #   If your air-gapped cluster routes through a local registry mirror,
 #   set container_registry to that host. All image references will be
-#   prefixed with this host (e.g., "myregistry:5000/victoriametrics/vmagent:v1.153.0").
-#   Leave empty to use the default registry in each image reference.
+#   prefixed with this host and the original digest is preserved
+#   (e.g., "myregistry:5000/victoriametrics/vmagent:v1.153.0@sha256:4741...").
+#   The mirror must hold the same manifest (Pulp container sync keeps upstream
+#   digests). Leave empty to use the default registry in each image reference.
 container_registry: ""
 
 images:
   # -- Sink: VictoriaMetrics --------------------------------------------------
   # Source: https://hub.docker.com/u/victoriametrics
   victoria_metrics:
-    vmstorage: "docker.io/victoriametrics/vmstorage:v1.153.0-cluster"
-    vmselect: "docker.io/victoriametrics/vmselect:v1.153.0-cluster"
-    vminsert: "docker.io/victoriametrics/vminsert:v1.153.0-cluster"
-    vmagent: "docker.io/victoriametrics/vmagent:v1.153.0"
-    operator: "docker.io/victoriametrics/operator:v0.75.0"
-    config_reloader: "docker.io/victoriametrics/operator:config-reloader-v0.75.0"
+    vmstorage: "docker.io/victoriametrics/vmstorage:v1.153.0-cluster@sha256:83e67bde1b2aa23b8393b0165c427cbd413696c9398cbdd75a709422786747f4"
+    vmselect: "docker.io/victoriametrics/vmselect:v1.153.0-cluster@sha256:3a593a1d02f765f366f50712c68d0e9418ab04f07a61517882bdb7ff620b0f38"
+    vminsert: "docker.io/victoriametrics/vminsert:v1.153.0-cluster@sha256:629d128af12ff951ad3bb2c3b2d45edb77fb561ce6b29ed644b8039e2bf218a7"
+    vmagent: "docker.io/victoriametrics/vmagent:v1.153.0@sha256:474135388ae700b842007d3e186a8ae60ccf7de3dfd776fb6ed27cf8522d8331"
+    operator: "docker.io/victoriametrics/operator:v0.75.0@sha256:78da26b41a819093707be2ab6a65a5dc19f43d58ec52f30b49a545c2c6b7bd55"
+    config_reloader: "docker.io/victoriametrics/operator:config-reloader-v0.75.0@sha256:11c5d33b2112571e72cdc020b63c8045f2cd523fec4768b67a91f96e36b05c59"
 
   # -- Sink: VictoriaLogs -----------------------------------------------------
   # Source: https://hub.docker.com/u/victoriametrics
   victoria_logs:
-    vlstorage: "docker.io/victoriametrics/victoria-logs:v1.53.0"
-    vlselect: "docker.io/victoriametrics/victoria-logs:v1.53.0"
-    vlinsert: "docker.io/victoriametrics/victoria-logs:v1.53.0"
-    vlagent: "docker.io/victoriametrics/vlagent:v1.53.0"
+    vlstorage: "docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d"
+    vlselect: "docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d"
+    vlinsert: "docker.io/victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d"
+    vlagent: "docker.io/victoriametrics/vlagent:v1.53.0@sha256:a82f93ffecc153fb068606903e512368b070272739d823abe99fad0eff6e1849"
 
   # -- Sink: Kafka (Strimzi) --------------------------------------------------
   # Source: https://quay.io/organization/strimzi
   kafka:
-    broker: "quay.io/strimzi/kafka:1.2.0-kafka-4.3.1"
+    broker: "quay.io/strimzi/kafka:1.2.0-kafka-4.3.1@sha256:fef34b5438e8556cc08c01f3e254e47346f061b53a4e38d4289853777e0ea7f1"
 
   # -- Operator: Strimzi Kafka Operator ----------------------------------------
   # Source: https://quay.io/organization/strimzi
   strimzi:
-    operator: "quay.io/strimzi/operator:1.2.0"
-    kafka_bridge: "quay.io/strimzi/kafka-bridge:1.2.0"
+    operator: "quay.io/strimzi/operator:1.2.0@sha256:77f8fa8121a67561c3418de985783d197f51b8931e9a47f793dc0437dc6bb21f"
+    kafka_bridge: "quay.io/strimzi/kafka-bridge:1.2.0@sha256:65b8e957487e35414041c1ef54ae03d1c2a736fce39c5d921bbccadfca282ee6"
 
   # -- Source: iDRAC Telemetry ------------------------------------------------
   # Source: https://hub.docker.com/u/dellhpcomniaaisolution
   idrac:
-    telemetry_receiver: "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.4"
-    kafka_pump: "docker.io/dellhpcomniaaisolution/kafkapump:1.4"
-    victoria_pump: "docker.io/dellhpcomniaaisolution/victoriapump:1.4"
-    activemq: "docker.io/apache/activemq:6.3.2"
-    mysql: "docker.io/library/mysql:9.7.2"
+    telemetry_receiver: "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.4@sha256:ff44bbc43f008c56ac8f7385b4264d87f51bfd1c1e2a9d7de170f53773db8ffd"
+    kafka_pump: "docker.io/dellhpcomniaaisolution/kafkapump:1.4@sha256:58ec376fcee7b53785018b63a74e5e88fca13d969b12fdd9b7c7c2938bf4684d"
+    victoria_pump: "docker.io/dellhpcomniaaisolution/victoriapump:1.4@sha256:7d47107fcf21426a1dbe94d75d1b27a1915548fddea84e4b07623496b1c44db4"
+    activemq: "docker.io/apache/activemq:6.3.2@sha256:fb98e5b8bc1ecc67ad19b0b982c00575fa12d54866f3cde9fa5b0ec1241631c2"
+    mysql: "docker.io/library/mysql:9.7.2@sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f"
 
   # -- Source: PowerScale (CSM Observability) ---------------------------------
   # Source: https://quay.io/organization/dell   https://github.com/dell/karavi-observability
   powerscale:
-    csm_metrics: "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.13.0"
-    otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.160.0"
-    csm_authorization_sidecar: "quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.6.0"
-    cert_manager_controller: "quay.io/jetstack/cert-manager-controller:v1.10.0"
-    cert_manager_cainjector: "quay.io/jetstack/cert-manager-cainjector:v1.10.0"
-    cert_manager_webhook: "quay.io/jetstack/cert-manager-webhook:v1.10.0"
-    nginx: "docker.io/nginxinc/nginx-unprivileged:1.30.4"
-    python: "docker.io/library/python:3.12-slim"
+    csm_metrics: "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.13.0@sha256:3e598ab69e1d7cd091679cac721dae03b0df21cc73b3fab025f620677b9fb1d2"
+    otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.160.0@sha256:e495787f07dbe432ce763ebaf5bc3d113850e9eee2250ade7a3da6a882d0d69a"
+    csm_authorization_sidecar: "quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.6.0@sha256:11826a16e25962f348dfacd583e35d6e6565147c27cb52868d7d6888d85523af"
+    cert_manager_controller: "quay.io/jetstack/cert-manager-controller:v1.10.0@sha256:bdacfee1ec9bc2b93d46eeb9cac3abc842813b60ba522848c551cb846384c367"
+    cert_manager_cainjector: "quay.io/jetstack/cert-manager-cainjector:v1.10.0@sha256:a19dc8e0044e291e8a474e8da20740c4a09770d0011be4cfe001245b9790a87c"
+    cert_manager_webhook: "quay.io/jetstack/cert-manager-webhook:v1.10.0@sha256:2ab7b1370983e99550ae3d7ea5f1c357b5a5f6910a608ac5e441ae727ab3f4ea"
+    nginx: "docker.io/nginxinc/nginx-unprivileged:1.30.4@sha256:a5866218f05961c7651a4a4a18d9bd0e5e5b4b26aafffb334df3423948db3560"
+    # "3.12-slim" is a floating tag; this digest is python 3.12.16-slim-trixie.
+    python: "docker.io/library/python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b"
 
   # -- Source: LDMS -----------------------------------------------------------
   # Source: https://hub.docker.com/r/dellhpcomniaaisolution/ubuntu-ldms
   ldms:
-    sampler: "docker.io/dellhpcomniaaisolution/ubuntu-ldms:1.2"
+    sampler: "docker.io/dellhpcomniaaisolution/ubuntu-ldms:1.2@sha256:09701a81a3ac45eb23e03f7793e5ab6bc3b6ad9674e7751698764e50afb3befb"
 
   # -- Bridge: Vector (Kafka-to-Victoria pipelines) ---------------------------
   # Source: https://hub.docker.com/r/timberio/vector
   vector:
-    vector: "docker.io/timberio/vector:0.59.0-debian"
+    vector: "docker.io/timberio/vector:0.59.0-debian@sha256:98e7b4dfe50750e61470697bbd2fbeca643d12bea97f351005038ef506eab630"
 
   # -- Utility / Init Containers ----------------------------------------------
+  # busybox: init containers (stale lock cleanup) and pod-cleanup PVC helper pods
+  # kubectl: pod-cleanup CronJob
   support:
-    busybox: "docker.io/library/busybox:1.38"
-    kubectl: "docker.io/alpine/kubectl:1.35.1"
-    curl: "docker.io/curlimages/curl:8.22.0"
+    busybox: "docker.io/library/busybox:1.38@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4"
+    kubectl: "docker.io/alpine/kubectl:1.35.1@sha256:0829b6a99156e722033b3cadb441a3768ffb32a388f93695277740c81acd4a7c"
+    curl: "docker.io/curlimages/curl:8.22.0@sha256:58adaa4e8dca9c988bae2aba4ab3434a0bb2da16bbe3f92dec39ec7785166777"
 
 # =============================================================================
 # Helm Chart Tarballs
