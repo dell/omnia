@@ -32,6 +32,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..vars.email_vars import (
     MAX_ATTACHMENT_BYTES,
+    MAX_MESSAGE_BYTES,
     SMTP_TIMEOUT,
     STATUS_STYLES,
     UNKNOWN_STYLE,
@@ -89,6 +90,26 @@ def not_run(order: Sequence[str], jobs: Sequence[Job]) -> List[str]:
             or (name in after and name not in seen)]
 
 
+def fit_attachments(attachments: Sequence[Tuple[str, bytes]], limit: int = MAX_MESSAGE_BYTES
+                    ) -> Tuple[List[Tuple[str, bytes]], List[str]]:
+    """Return (attachments that fit, names left out): the largest go first until the mail fits.
+
+    The size is what travels: a part over MAX_ATTACHMENT_BYTES is gzip-compressed, and base64
+    makes everything a third bigger.
+    """
+    def weight(item: Tuple[str, bytes]) -> int:
+        size = len(gzip.compress(item[1])) if len(item[1]) > MAX_ATTACHMENT_BYTES else len(item[1])
+        return size * 4 // 3
+
+    kept = list(attachments)
+    dropped: List[str] = []
+    while kept and sum(weight(item) for item in kept) > limit:
+        largest = max(kept, key=weight)
+        kept.remove(largest)
+        dropped.append(largest[0])
+    return kept, dropped
+
+
 def build_message(*, sender: str, recipients: Sequence[str], info: Dict[str, str],
                   jobs: Sequence[Job], order: Sequence[str],
                   attachments: Sequence[Tuple[str, bytes]] = (),
@@ -103,6 +124,7 @@ def build_message(*, sender: str, recipients: Sequence[str], info: Dict[str, str
         reasons: {job: why it failed}, shown under the failed job.
     """
     reasons = reasons or {}
+    attachments, left_out = fit_attachments(attachments)
     esc = html.escape
     verdict = verdict_of(jobs)
     color = VERDICT_COLORS[verdict]
@@ -143,6 +165,8 @@ def build_message(*, sender: str, recipients: Sequence[str], info: Dict[str, str
         "Download all artifacts", "#6c757d")
     footer = ("The test reports are attached (open them in a browser)." if attachments
               else "No test report was attached: none was produced or it could not be fetched.")
+    if left_out:
+        footer += (" Too large for the mail, see the job artifacts: " + ", ".join(left_out) + ".")
     body = (
         "<html><body style='margin:0;padding:16px;background:#f8f9fa;"
         "font-family:Arial,Helvetica,sans-serif;color:#212529'>"

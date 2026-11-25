@@ -21,6 +21,10 @@ import re
 MAX_LOG_CHARS = 200000
 LOG_HEAD_CHARS = 20000
 
+# The copy of the report attached to the mail keeps less of each log (the artifact has the full one).
+MAIL_LOG_CHARS = 40000
+MAIL_LOG_HEAD_CHARS = 8000
+
 # Job status (GitLab): (label, css class).
 STATUS_LABELS = {
     "success": ("PASSED", "pass"),

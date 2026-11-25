@@ -48,13 +48,13 @@ def clean_log(text: str) -> str:
     return "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"))
 
 
-def trim_log(text: str) -> str:
+def trim_log(text: str, limit: int = MAX_LOG_CHARS, head: int = LOG_HEAD_CHARS) -> str:
     """Keep the head and the tail of a very long log."""
-    if len(text) <= MAX_LOG_CHARS:
+    if len(text) <= limit:
         return text
-    tail = MAX_LOG_CHARS - LOG_HEAD_CHARS
-    omitted = len(text) - MAX_LOG_CHARS
-    return (f"{text[:LOG_HEAD_CHARS]}\n\n... {omitted} characters omitted (open the job page for "
+    tail = limit - head
+    omitted = len(text) - limit
+    return (f"{text[:head]}\n\n... {omitted} characters omitted (open the job page for "
             f"the whole log) ...\n\n{text[-tail:]}")
 
 
@@ -76,10 +76,10 @@ def redact_log(text: str) -> str:
     return text
 
 
-def render_log(text: str) -> str:
+def render_log(text: str, limit: int = MAX_LOG_CHARS, head: int = LOG_HEAD_CHARS) -> str:
     """Return the escaped log with the error, warning and ok lines marked."""
     rows: List[str] = []
-    for line in redact_log(trim_log(clean_log(text))).split("\n"):
+    for line in redact_log(trim_log(clean_log(text), limit, head)).split("\n"):
         cls = _line_class(line)
         escaped = html.escape(line)
         rows.append(f'<span class="{cls}">{escaped}</span>' if cls else escaped)
@@ -134,7 +134,8 @@ def _ordered(jobs: Sequence[Job], order: Sequence[str]) -> List[Job]:
     return sorted(jobs, key=lambda j: (rank.get(j["name"], len(rank)), j.get("id", 0)))
 
 
-def _stage_html(index: int, job: Job, log: str, reason: str) -> str:
+def _stage_html(index: int, job: Job, log: str, reason: str, limit: int = MAX_LOG_CHARS,
+                head: int = LOG_HEAD_CHARS) -> str:
     label, cls = _label(job["status"])
     name = html.escape(job["name"])
     meta = [f"<span>Job {html.escape(str(job.get('id', '-')))}</span>",
@@ -151,7 +152,7 @@ def _stage_html(index: int, job: Job, log: str, reason: str) -> str:
         body += f'<div class="reason"><b>Why it failed:</b> {html.escape(reason)}</div>'
     if log.strip():
         body += ('<div class="logbar"><button class="btn copy" type="button">Copy log</button></div>'
-                 f'<pre class="log" tabindex="0">{render_log(log)}</pre>')
+                 f'<pre class="log" tabindex="0">{render_log(log, limit, head)}</pre>')
     elif job["status"] in ("skipped", "created", "manual"):
         body += '<div class="empty">This stage did not run.</div>'
     else:
@@ -165,7 +166,8 @@ def _stage_html(index: int, job: Job, log: str, reason: str) -> str:
 
 
 def build_report(info: Mapping[str, str], jobs: Sequence[Job], logs: Mapping[str, str],
-                 reasons: Mapping[str, str], order: Sequence[str]) -> str:
+                 reasons: Mapping[str, str], order: Sequence[str],
+                 log_limit: int = MAX_LOG_CHARS, log_head: int = LOG_HEAD_CHARS) -> str:
     """Return the HTML report.
 
     Args:
@@ -176,6 +178,8 @@ def build_report(info: Mapping[str, str], jobs: Sequence[Job], logs: Mapping[str
         logs: {job name: its log}.
         reasons: {job name: why it failed}.
         order: the job names in pipeline order.
+        log_limit, log_head: a log longer than log_limit keeps its first log_head characters and
+            the rest of the limit from its end.
     """
     ordered = _ordered(jobs, order)
     verdict = verdict_of([(j["name"], j["status"], j.get("url", "")) for j in ordered])
@@ -199,7 +203,8 @@ def build_report(info: Mapping[str, str], jobs: Sequence[Job], logs: Mapping[str
              ("time", format_duration(pipeline_span(ordered)), "Duration")]
     cards_html = "".join(f'<div class="card {c}"><div class="n">{n}</div><div class="l">{label}</div>'
                          "</div>" for c, n, label in cards)
-    stages_html = "".join(_stage_html(i, job, logs.get(job["name"], ""), reasons.get(job["name"], ""))
+    stages_html = "".join(_stage_html(i, job, logs.get(job["name"], ""), reasons.get(job["name"], ""),
+                                      log_limit, log_head)
                           for i, job in enumerate(ordered, 1))
     title = f"Omnia Pipeline {info.get('cluster', '')}".strip()
     theme_script = (f"<script>try{{var t=localStorage.getItem('{THEME_KEY}')||(window.matchMedia&&"

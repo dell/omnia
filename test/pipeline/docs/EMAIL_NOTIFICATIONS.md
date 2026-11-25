@@ -17,8 +17,13 @@ Layout:
 - **Buttons:** open the pipeline, download all artifacts.
 - **Pipeline jobs:** one row per job that ran, in pipeline order, with its status and a link.
 - **Attachments:** the HTML and JSON test reports written on the OIM during this pipeline
-  (`TEST_REPORTS_PATH`, default `/automation`; a report over 5 MB is compressed). They are
-  also saved in the job artifacts (`pipeline_reports/`).
+  (`TEST_REPORTS_PATH`, default `/automation`; a report over 5 MB is compressed) and the HTML
+  report of the stages with their logs. The copy of the stage report in the mail keeps at most
+  40,000 characters of each log (the artifact `pipeline_report/` has up to 200,000, and a longer
+  log keeps its start and end with a link to the job). The attachments of one mail together stay
+  below 20 MB: when they would not, the largest are left out, named in the mail, and stay in the
+  job artifacts (`pipeline_reports/`, `pipeline_report/`). A job log is also limited by GitLab
+  itself (4 MB by default).
 - A plain-text version with the same facts.
 
 Subject: `Omnia Pipeline [<cluster>] <mode> - <VERDICT> (<failed jobs>)`.

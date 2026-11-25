@@ -21,6 +21,10 @@ MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 # Seconds allowed for the SMTP conversation.
 SMTP_TIMEOUT = 60
 
+# The attachments of one mail together stay below this size (most mail servers refuse more); the
+# largest ones are left out and named in the mail, they stay in the job artifacts.
+MAX_MESSAGE_BYTES = 20 * 1024 * 1024
+
 # Status of a job (GitLab CI_JOB_STATUS): (label, colour).
 STATUS_STYLES = {
     "success": ("PASSED", "#198754"),

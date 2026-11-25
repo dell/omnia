@@ -1235,7 +1235,7 @@ def _job_logs(jobs: List[Dict[str, Any]]) -> Dict[str, str]:
     return logs
 
 
-def _build_html_report(jobs: List[Dict[str, Any]]) -> Optional[Tuple[str, bytes]]:
+def _build_html_report(jobs: List[Dict[str, Any]]) -> Optional[Tuple[str, bytes, bytes]]:
     """Write pipeline_report/pipeline_<id>.html and return (name, content); None when it fails."""
     pipeline_id = _env("CI_PIPELINE_ID", "0")
     if not re.fullmatch(r"[0-9]{1,12}", pipeline_id):
@@ -1251,8 +1251,13 @@ def _build_html_report(jobs: List[Dict[str, Any]]) -> Optional[Tuple[str, bytes]
             "generated": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}
     try:
         from library.functions import report_func  # pylint: disable=import-outside-toplevel
+        from library.vars.report_vars import (  # pylint: disable=import-outside-toplevel
+            MAIL_LOG_CHARS, MAIL_LOG_HEAD_CHARS)
         order = [x for x in _env("PIPELINE_JOB_ORDER").split(",") if x]
-        page = report_func.build_report(info, jobs, _job_logs(jobs), _reasons(), order)
+        logs, reasons = _job_logs(jobs), _reasons()
+        page = report_func.build_report(info, jobs, logs, reasons, order)
+        mail_page = report_func.build_report(info, jobs, logs, reasons, order,
+                                             MAIL_LOG_CHARS, MAIL_LOG_HEAD_CHARS)
     except (ImportError, OSError, ValueError, KeyError, TypeError) as exc:
         _say(f"WARNING: the HTML report was not built: {type(exc).__name__}: {exc}")
         return None
@@ -1261,7 +1266,7 @@ def _build_html_report(jobs: List[Dict[str, Any]]) -> Optional[Tuple[str, bytes]
     with open(f"{HTML_REPORT_DIR}/{name}", "w", encoding="utf-8") as handle:
         handle.write(page)
     _say(f"HTML report of the stages and their logs: {HTML_REPORT_DIR}/{name} ({len(page) // 1024} KB)")
-    return name, page.encode()
+    return name, page.encode(), mail_page.encode()
 
 
 def _reasons() -> Dict[str, str]:
@@ -1363,10 +1368,10 @@ def summary() -> int:
     failed = [n for n, st, _ in jobs if st == "failed"]
     _say(f"{len(jobs)} jobs, {len(failed)} failed" + (f": {', '.join(failed)}" if failed else ""))
     attachments = _fetch_reports() if on_oim else []
-    html_report = _build_html_report(details or [
+    built = _build_html_report(details or [
         {"id": None, "name": n, "status": st, "url": url} for n, st, url in jobs])
-    if html_report:
-        attachments.append(html_report)
+    if built:
+        attachments.append((built[0], built[2]))
     _send_summary_email(jobs, attachments)
     blocking = [n for n in failed if n not in TOLERATED_JOBS]
     if blocking:
