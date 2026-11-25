@@ -68,7 +68,9 @@ did not pass fails with that reason.
   still deploy and test.
 - A failed cleanup or cleanup test does not stop the other cleanups and cleanup tests, but then
   `cleanup_omnia`, the install (`setup_main`) and every later stage are skipped and `summary` runs
-  (below). Nothing is tolerated: a failed `utils` or `discovery` cleanup stops the install too.
+  (below). Nothing is tolerated by default; `pipeline.tolerate_failures` in `pipeline_config.yml`
+  names jobs whose failure does not block the install or fail the pipeline (they still show as
+  failed in the report and the mail).
 - `summary` always runs, sends the report, and fails the pipeline when any job failed (a failed
   test too), so the pipeline is red when all stages ran but a test failed.
 

@@ -93,7 +93,6 @@ PROTECTED_PATHS = ("/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/lib6
 STATUS_DIR = "pipeline_job_status"
 ERROR_DIR = f"{STATUS_DIR}/errors"
 MAX_REASON = 600
-TOLERATED_JOBS: Tuple[str, ...] = ()
 COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
 REPORTS_DEFAULT = "/automation"
@@ -423,11 +422,20 @@ def require_ready() -> None:
               "(SSH, variables, an unreachable NFS share) and run the pipeline again")
 
 
+def tolerated_jobs() -> List[str]:
+    """Return the jobs whose failure is tolerated: the words of TOLERATE_FAILURES (job names).
+
+    A tolerated job still runs and is shown as failed in the report and the mail, but it neither
+    blocks the install nor fails the pipeline. Nothing is tolerated by default.
+    """
+    return [w for w in re.split(r"[ ,]+", _env("TOLERATE_FAILURES")) if SAFE_NAME.match(w)]
+
+
 def failed_cleanups() -> List[str]:
     """Return the cleanup jobs and cleanup verifications that failed (tolerated ones do not count)."""
     return [name for name, status, _ in _statuses()
             if status == "failed" and name.startswith(("cleanup_", "test_cleanup_"))
-            and name not in TOLERATED_JOBS]
+            and name not in tolerated_jobs()]
 
 
 def require_cleanups_ok() -> None:
@@ -1387,7 +1395,10 @@ def summary() -> int:
     built = _build_html_report(details or [
         {"id": None, "name": n, "status": st, "url": url} for n, st, url in jobs])
     _send_summary_email(jobs, _mail_attachments(attachments, built))
-    blocking = [n for n in failed if n not in TOLERATED_JOBS]
+    tolerated = [n for n in failed if n in tolerated_jobs()]
+    if tolerated:
+        _say(f"Failures tolerated (TOLERATE_FAILURES): {', '.join(tolerated)}")
+    blocking = [n for n in failed if n not in tolerated_jobs()]
     if blocking:
         _say(f"The pipeline fails because of: {', '.join(blocking)}")
     return 1 if blocking else 0

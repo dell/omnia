@@ -163,6 +163,7 @@ one (`inputs/src/` wins when it exists). The build stream and utils pipelines re
 | `enable_discovery` | `false` | Run the discovery stages |
 | `dry_run` | `false` | Print what would run on the OIM, change nothing |
 | `verbose` | `false` | pytest `-v` and ansible `-vvv` for the FVT runs of the cluster pipeline |
+| `tolerate_failures` | `""` | Job names whose failure is tolerated (for example `cleanup_telemetry,test_cleanup_telemetry`): they run and show as failed in the report, but do not block the install or fail the pipeline |
 | `skip_stages` | `""` | Words to skip, comma or space separated, each matched exactly: a domain (`telemetry`) skips all its stages; a stage name (`test_cleanup_telemetry`, `cleanup_omnia`, `setup_main`) skips that stage; the groups `cleanup`, `test_cleanup`, `deploy` and `test` skip every stage of that kind; `nfs_check` and `inputs` skip that step inside `initialization` and `setup_main`. See [docs/CLUSTER_PIPELINE.md](docs/CLUSTER_PIPELINE.md) |
 | `deploy_tags.<domain>` | per domain | Comma list of FVT tags run in exec mode (variable `<DOMAIN>_TAGS`) |
 | `test_commands.<domain>` | `./run_validation.sh fvt_<domain> verify` | The verify command (variable `TEST_<DOMAIN>_CMD`) |

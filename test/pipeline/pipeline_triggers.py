@@ -64,6 +64,7 @@ CLUSTER_SETTINGS: Tuple[Tuple[str, str, str, str], ...] = (
     ("pipeline", "dry_run", "DRY_RUN", "false"),
     ("pipeline", "verbose", "VERBOSE", "false"),
     ("pipeline", "skip_stages", "SKIP_STAGES", ""),
+    ("pipeline", "tolerate_failures", "TOLERATE_FAILURES", ""),
 )
 GLOBAL_SETTINGS: Tuple[Tuple[str, str, str], ...] = (
     ("email", "recipients", "EMAIL_RECIPIENTS"), ("email", "sender", "EMAIL_SENDER"),
@@ -200,7 +201,7 @@ def cluster_variables(cfg: Mapping, cluster: str, env: Mapping[str, str],
     for section, key, name, default in CLUSTER_SETTINGS:
         value, source = _pick(_section(scope, section).get(key), env.get(f"{prefix}_{name}"),
                               default)
-        if value or name in ("SKIP_STAGES",):
+        if value or name in ("SKIP_STAGES", "TOLERATE_FAILURES"):
             out[name] = (_check(name, value), source)
     for domain in DOMAIN_TAG_KEYS:
         name = f"{domain.upper()}_TAGS"

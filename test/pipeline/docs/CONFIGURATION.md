@@ -82,6 +82,7 @@ cluster1:
     dry_run: "false"
     verbose: "false"
     skip_stages: ""
+    tolerate_failures: ""
   deploy_tags:
     repo_manager: ""
     image_build_manager: ""
@@ -116,6 +117,7 @@ cluster1:
 | `pipeline.test_mode` | `false` | Enable test stages after deployment |
 | `pipeline.dry_run` | `false` | Simulate without making changes |
 | `pipeline.verbose` | `false` | Detailed logging: pytest `-v` and ansible `-vvv` (`--ansible-verbosity 3`) in the cluster pipeline |
+| `pipeline.tolerate_failures` | `""` | Job names (comma or space separated, for example `cleanup_telemetry,test_cleanup_telemetry`) whose failure is tolerated: the job still runs and is shown as failed in the report and the mail, but it does not block the install and does not fail the pipeline |
 | `pipeline.skip_stages` | `""` | Words to skip, comma or space separated, each matched exactly: a domain, a stage name, or `cleanup`, `test_cleanup`, `deploy`, `test`, `nfs_check`, `inputs` (table in [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md)) |
 
 #### Deploy Tags
