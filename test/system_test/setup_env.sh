@@ -166,7 +166,7 @@ if [ -n "$DOMAIN" ]; then
     DRIVER_ARGS+=(--domain "$DOMAIN")
 fi
 if [ -n "$THEME" ]; then
-    [[ "$THEME" =~ ^[a-z_]+$ ]] || fail "Invalid theme name: $THEME"
+    [[ "$THEME" =~ ^[a-z0-9_]+$ ]] || fail "Invalid theme name: $THEME"
     DRIVER_ARGS+=(--theme "$THEME")
 fi
 if [ "$FORCE" = true ]; then
