@@ -34,6 +34,8 @@ from omnia_auto import (
 )
 
 from .telemetry_func import (
+    get_vmselect_endpoint,
+    query_vm_instant,
     load_telemetry_config_from_target,
     read_remote_env,
     resolve_domain_data_path,
@@ -65,6 +67,10 @@ from ..vars.ldms_vars import (
     LDMS_SAMPLER_CONF_PATH,
     LDMS_BINARY_PATH,
     LDMS_CMD_TEMPLATES,
+    LDMS_VM_FRESH_SECONDS,
+    LDMS_VM_LATEST_QUERY,
+    LDMS_VM_POLL_ATTEMPTS,
+    LDMS_VM_POLL_INTERVAL_SECONDS,
 )
 from ..vars.ome_vars import KAFKA_BRIDGE_DEFAULT_PORT
 
@@ -1246,3 +1252,95 @@ def verify_ldms_earliest_data_in_kafka(
         "results_by_group": results_by_group,
         "error": error_msg,
     }
+
+
+# =========================================================================
+# LDMS Data in VictoriaMetrics (Vector-LDMS bridge)
+# =========================================================================
+
+def _short_host(name: str) -> str:
+    """Return the host part of a hostname or FQDN (``node1.cluster.local`` -> ``node1``)."""
+    return str(name or "").split(".", 1)[0]
+
+
+def _ldms_vm_latest(host) -> Dict[tuple, float]:
+    """Return {(short host, plugin): newest sample time} of the LDMS series in VictoriaMetrics."""
+    latest: Dict[tuple, float] = {}
+    for item in query_vm_instant(host, LDMS_VM_LATEST_QUERY):
+        labels = item.get("metric", {})
+        value = item.get("value", [])
+        try:
+            stamp = float(value[1]) if len(value) > 1 else 0.0
+        except (TypeError, ValueError):
+            continue
+        key = (_short_host(labels.get("instance", "")), str(labels.get("plugin", "")))
+        latest[key] = max(stamp, latest.get(key, 0.0))
+    return latest
+
+
+def verify_ldms_vm_data(
+    host,
+    attempts: int = LDMS_VM_POLL_ATTEMPTS,
+    interval_seconds: int = LDMS_VM_POLL_INTERVAL_SECONDS,
+    fresh_seconds: int = LDMS_VM_FRESH_SECONDS,
+) -> Dict[str, Any]:
+    """Verify fresh LDMS metrics in VictoriaMetrics for every LDMS host and sampler plugin.
+
+    Vector-LDMS consumes the Kafka ``ldms`` topic and writes ``ldms_<schema>_<field>``
+    gauges labelled ``source_subsystem="ldms"``, ``instance`` (the node) and ``plugin``.
+    The expected hosts come from the orchestrator inventory and the plugins from
+    telemetry_config.yml, like the Kafka checks. VictoriaMetrics is polled until every
+    host/plugin pair has a sample newer than ``fresh_seconds`` or the attempts run out.
+
+    Returns:
+        Dict with keys: success, skipped, reason, vmselect_ip, vmselect_port,
+        expected_hostnames, expected_plugins, expected_instance_count, found_instances,
+        found_instance_count, missing_instances, stale_instances, latest, error.
+    """
+    inv_result = get_ldms_hostnames_from_inventory(host)
+    if not inv_result["success"]:
+        return {"success": False, "skipped": True, "reason": inv_result["error"]}
+    hostnames = sorted({_short_host(name) for name in inv_result["hostnames"]})
+    plugins = get_ldms_sampler_plugins(host)
+    if not plugins:
+        return {"success": False, "skipped": True,
+                "reason": "No LDMS sampler plugins configured"}
+    ip, port = get_vmselect_endpoint(host)
+    expected = {(name, plugin) for name in hostnames for plugin in plugins}
+    result: Dict[str, Any] = {
+        "success": False, "skipped": False, "vmselect_ip": ip, "vmselect_port": port,
+        "expected_hostnames": hostnames, "expected_plugins": plugins,
+        "expected_instance_count": len(expected), "found_instances": [],
+        "found_instance_count": 0,
+        "missing_instances": sorted(f"{name}/{plugin}" for name, plugin in expected),
+        "stale_instances": [], "latest": {}, "error": "",
+    }
+    if not ip or not port:
+        result["error"] = "vmselect endpoint not found"
+        return result
+    for attempt in range(1, attempts + 1):
+        latest = _ldms_vm_latest(host)
+        now = time.time()
+        fresh = {key for key in expected if now - latest.get(key, 0.0) <= fresh_seconds}
+        stale = {key for key in expected if key in latest and key not in fresh}
+        result.update({
+            "found_instances": sorted(f"{name}/{plugin}" for name, plugin in fresh),
+            "found_instance_count": len(fresh),
+            "missing_instances": sorted(f"{name}/{plugin}"
+                                        for name, plugin in expected - fresh - stale),
+            "stale_instances": sorted(f"{name}/{plugin}" for name, plugin in stale),
+            "latest": {f"{name}/{plugin}": latest[(name, plugin)]
+                       for name, plugin in sorted(expected) if (name, plugin) in latest},
+        })
+        if fresh == expected:
+            result["success"] = True
+            return result
+        if attempt < attempts:
+            time.sleep(interval_seconds)
+    parts = []
+    if result["missing_instances"]:
+        parts.append(f"no LDMS series for {result['missing_instances']}")
+    if result["stale_instances"]:
+        parts.append(f"no sample in the last {fresh_seconds}s for {result['stale_instances']}")
+    result["error"] = "; ".join(parts)
+    return result
