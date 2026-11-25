@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""SVT test registry: stable IDs, titles, order, stage and the FVT step of each test.
+"""SVT test registry: stable IDs, titles, order, stage and the step of each test.
 
 ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
-(001-003 were the former whole-case tests). Order: theme base + position
-(build_stream 1000). ``step`` is ``(domain, runner arguments)`` of
-``test/<domain>/_run.py fvt_<domain>``: ``exec`` runs the playbook, ``verify``
-runs its verification tests. Within a stage, a test is skipped once an earlier
-test of the stage failed.
+(001-003 were the former whole-case tests). Order: theme base +
+position (build_stream 1000, observability 2000). Each test has one of:
+
+* ``step``: ``(domain, runner arguments)`` of ``test/<domain>/_run.py fvt_<domain>``:
+  ``exec`` runs the playbook, ``verify`` runs its verification tests, selected by
+  suite and marker like every other theme. The step passes when its exit status is 0.
+* ``run``: the arguments of ``src/main/omnia.sh`` (theme_vars.OMNIA_RUN_TAGS), the
+  product command a customer runs, e.g. ``("-r", "telemetry", "--tags", "precheck")``.
+
+Within a stage, a test is skipped once an earlier test of the stage failed.
 
 catalog_build (order 2000+): generated from the plan of the current run
 (catalog_vars.catalog_test_cases), one stage per catalog.
@@ -28,6 +33,7 @@ catalog_build (order 2000+): generated from the plan of the current run
 from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
+_TEL = "telemetry"
 _ORCH = "orchestrator"
 
 TEST_CASES = {
@@ -107,7 +113,168 @@ TEST_CASES = {
         "title": "Automatic cleanup of the cadence image (S3, registry, NFS)",
         "step": (_BS, ("execute", "verify", "--suite", "auto_cleanup")),
     },
+    # ======================================================== theme observability
+    # The cluster stages (prepare_base ... cluster_deploy) are skipped by default
+    # (theme default_skip_stages): the theme runs on a deployed cluster.
+    # ----------------------------------------------------------- stage prepare_base
+    "observability_prepare_base_run": {
+        "id": "SVT_OBSERVABILITY_001", "order": 2010, "stage": "prepare_base",
+        "title": "Prepare base: ./omnia.sh --prepare-base",
+        "run": ("--prepare-base",),
+    },
+    "observability_prepare_repo_manager_verify": {
+        "id": "SVT_OBSERVABILITY_002", "order": 2011, "stage": "prepare_base",
+        "title": "Prepare base: repo_manager prepare checks",
+        "step": ("repo_manager", ("prepare", "verify", "--marker", "sanity")),
+    },
+    "observability_prepare_image_build_manager_verify": {
+        "id": "SVT_OBSERVABILITY_003", "order": 2012, "stage": "prepare_base",
+        "title": "Prepare base: image_build_manager prepare checks",
+        "step": ("image_build_manager", ("prepare", "verify", "--marker", "sanity")),
+    },
+    "observability_prepare_orchestrator_verify": {
+        "id": "SVT_OBSERVABILITY_004", "order": 2013, "stage": "prepare_base",
+        "title": "Prepare base: orchestrator prepare checks",
+        "step": ("orchestrator", ("prepare", "verify", "--marker", "sanity")),
+    },
+    # -------------------------------------------------------------- stage repo_sync
+    "observability_repo_sync_run": {
+        "id": "SVT_OBSERVABILITY_005", "order": 2020, "stage": "repo_sync",
+        "title": "Repository sync: ./omnia.sh -r repo_manager --tags execute",
+        "run": ("-r", "repo_manager", "--tags", "execute"),
+    },
+    "observability_repo_sync_verify": {
+        "id": "SVT_OBSERVABILITY_006", "order": 2021, "stage": "repo_sync",
+        "title": "Repository sync: repo_manager execute checks",
+        "step": ("repo_manager", ("execute", "verify", "--marker", "sanity")),
+    },
+    # ------------------------------------------------------------ stage image_build
+    "observability_image_build_run": {
+        "id": "SVT_OBSERVABILITY_007", "order": 2030, "stage": "image_build",
+        "title": "Image build: ./omnia.sh -r image_build_manager --tags build",
+        "run": ("-r", "image_build_manager", "--tags", "build"),
+    },
+    "observability_image_build_verify": {
+        "id": "SVT_OBSERVABILITY_008", "order": 2031, "stage": "image_build",
+        "title": "Image build: image_build_manager build checks",
+        "step": ("image_build_manager", ("build", "verify", "--marker", "sanity")),
+    },
+    # --------------------------------------------------------- stage cluster_deploy
+    "observability_provision_run": {
+        "id": "SVT_OBSERVABILITY_009", "order": 2040, "stage": "cluster_deploy",
+        "title": "Cluster deploy: ./omnia.sh -r orchestrator --tags provision",
+        "run": ("-r", "orchestrator", "--tags", "provision"),
+    },
+    "observability_provision_verify": {
+        "id": "SVT_OBSERVABILITY_010", "order": 2041, "stage": "cluster_deploy",
+        "title": "Cluster deploy: orchestrator provision checks",
+        "step": ("orchestrator", ("provision", "verify", "--marker", "sanity")),
+    },
+    "observability_pxeboot_run": {
+        "id": "SVT_OBSERVABILITY_011", "order": 2042, "stage": "cluster_deploy",
+        "title": "Cluster deploy: ./omnia.sh -r orchestrator --tags pxeboot",
+        "run": ("-r", "orchestrator", "--tags", "pxeboot"),
+    },
+    "observability_kubernetes_verify": {
+        "id": "SVT_OBSERVABILITY_012", "order": 2043, "stage": "cluster_deploy",
+        "title": "Cluster deploy: Kubernetes cluster checks",
+        "step": ("orchestrator", ("pxeboot", "verify", "--suite", "kubernetes_cluster",
+                                  "--marker", "sanity")),
+    },
+    "observability_slurm_verify": {
+        "id": "SVT_OBSERVABILITY_013", "order": 2044, "stage": "cluster_deploy",
+        "title": "Cluster deploy: Slurm cluster checks",
+        "step": ("orchestrator", ("pxeboot", "verify", "--suite", "slurm_cluster",
+                                  "--marker", "sanity")),
+    },
+    # -------------------------------------------------- stage observability_cleanup
+    # The iDRAC and LDMS telemetry of an earlier deployment; soft (a cluster without
+    # telemetry yet may fail it, the deploy still follows).
+    "observability_cleanup_ldms_run": {
+        "id": "SVT_OBSERVABILITY_014", "order": 2050, "stage": "observability_cleanup",
+        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup_ldms",
+        "run": ("-r", _TEL, "--tags", "cleanup_ldms"),
+    },
+    "observability_cleanup_ldms_verify": {
+        "id": "SVT_OBSERVABILITY_015", "order": 2051, "stage": "observability_cleanup",
+        "title": "Cleanup: LDMS pods removed",
+        "step": (_TEL, ("cleanup_ldms", "verify")),
+    },
+    "observability_cleanup_idrac_run": {
+        "id": "SVT_OBSERVABILITY_016", "order": 2052, "stage": "observability_cleanup",
+        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup_idrac",
+        "run": ("-r", _TEL, "--tags", "cleanup_idrac"),
+    },
+    "observability_cleanup_idrac_verify": {
+        "id": "SVT_OBSERVABILITY_017", "order": 2053, "stage": "observability_cleanup",
+        "title": "Cleanup: iDRAC pods removed",
+        "step": (_TEL, ("cleanup_idrac", "verify")),
+    },
+    # ------------------------------------------------- stage observability_precheck
+    "observability_precheck_run": {
+        "id": "SVT_OBSERVABILITY_018", "order": 2060, "stage": "observability_precheck",
+        "title": "Precheck: ./omnia.sh -r telemetry --tags precheck",
+        "run": ("-r", _TEL, "--tags", "precheck"),
+    },
+    "observability_precheck_verify": {
+        "id": "SVT_OBSERVABILITY_019", "order": 2061, "stage": "observability_precheck",
+        "title": "Precheck: omnia.env, Kubernetes nodes Ready, kube_vip reachable",
+        "step": (_TEL, ("precheck", "verify", "--marker", "sanity")),
+    },
+    "observability_validate_run": {
+        "id": "SVT_OBSERVABILITY_020", "order": 2062, "stage": "observability_precheck",
+        "title": "Validate: ./omnia.sh -r telemetry --tags validate",
+        "run": ("-r", _TEL, "--tags", "validate"),
+    },
+    "observability_validate_verify": {
+        "id": "SVT_OBSERVABILITY_021", "order": 2063, "stage": "observability_precheck",
+        "title": "Validate: telemetry_config.yml valid",
+        "step": (_TEL, ("validate", "verify")),
+    },
+    # --------------------------------------------------- stage observability_deploy
+    "observability_deploy_run": {
+        "id": "SVT_OBSERVABILITY_022", "order": 2070, "stage": "observability_deploy",
+        "title": "Deploy: ./omnia.sh -r telemetry (enabled sources and sinks)",
+        "run": ("-r", _TEL),
+    },
+    "observability_stack_verify": {
+        "id": "SVT_OBSERVABILITY_023", "order": 2071, "stage": "observability_deploy",
+        "title": "Deploy: Kafka, VictoriaMetrics, VictoriaLogs, telemetry pods, install mode",
+        "step": (_TEL, ("deploy", "verify", "--marker", "sanity")),
+    },
+    # ---------------------------------------------------- stage observability_idrac
+    "observability_idrac_readiness_verify": {
+        "id": "SVT_OBSERVABILITY_024", "order": 2080, "stage": "observability_idrac",
+        "title": "iDRAC readiness: pods, StatefulSet, containers, VictoriaPump, service",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac+sanity")),
+    },
+    "observability_idrac_data_verify": {
+        "id": "SVT_OBSERVABILITY_025", "order": 2081, "stage": "observability_idrac",
+        "title": "iDRAC data flow: MySQL, receiver, Kafka, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac+functional")),
+    },
+    # ----------------------------------------------------- stage observability_ldms
+    "observability_ldms_readiness_verify": {
+        "id": "SVT_OBSERVABILITY_026", "order": 2090, "stage": "observability_ldms",
+        "title": "LDMS readiness: aggregator, store, Vector-LDMS bridge, Kafka topic",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+sanity")),
+    },
+    "observability_ldms_data_verify": {
+        "id": "SVT_OBSERVABILITY_027", "order": 2091, "stage": "observability_ldms",
+        "title": "LDMS data flow: samplers, Kafka, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+functional")),
+    },
     # ============================================================ theme cluster_lifecycle
+    # When use_discovery_mapping=true in the theme's test_config, the
+    # orchestrator's pxe_mapping_file.csv is replaced with the latest
+    # timestamped bmc_pxe_mapping_file_<ts>.csv from the discovery output.
+    # When use_discovery_mapping=false (default), this test is a no-op.
+    "cluster_lifecycle_use_discovery_mapping": {
+        "id": "SVT_CLUSTER_LIFECYCLE_014", "order": 3005, "stage": "deploy_slurm_cluster",
+        "title": "Discovery mapping: copy the latest discovery PXE mapping to orchestrator "
+                 "input (use_discovery_mapping=true) or skip (use_discovery_mapping=false)",
+        "step": ("svt", ("pxe_use_discovery_mapping",)),
+    },
     # deploy_slurm_cluster -------------------------------------------
     "cluster_lifecycle_precheck_exec": {
         "id": "SVT_CLUSTER_LIFECYCLE_001", "order": 3010, "stage": "deploy_slurm_cluster",
@@ -178,6 +345,26 @@ TEST_CASES = {
         "title": "Add a Slurm compute node",
         "step": (_ORCH, ("pxeboot", "verify", "--suite", "slurm_lifecycle",
                          "--marker", "node_lifecycle+node_add")),
+    },
+    # ============================================================ Kubernetes stream
+    # deploy_k8s_cluster ----------------------------------------------
+    "cluster_lifecycle_k8s_cluster_verify": {
+        "id": "SVT_CLUSTER_LIFECYCLE_015", "order": 3060, "stage": "deploy_k8s_cluster",
+        "title": "Kubernetes cluster health (membership, services, control plane, etcd, storage)",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster")),
+    },
+    # k8s_telemetry ---------------------------------------------------
+    "cluster_lifecycle_k8s_telemetry": {
+        "id": "SVT_CLUSTER_LIFECYCLE_016", "order": 3070, "stage": "k8s_telemetry",
+        "title": "Telemetry deploy and verify (offline / Pulp)",
+        "step": (_TEL, ("deploy", "exec")),
+    },
+    # k8s_token_renew -------------------------------------------------
+    "cluster_lifecycle_k8s_token_renew": {
+        "id": "SVT_CLUSTER_LIFECYCLE_017", "order": 3090, "stage": "k8s_token_renew",
+        "title": "Renew Kubernetes bootstrap tokens",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster",
+                         "--marker", "token_renew")),
     },
 }
 # ------------------------------------------------------ theme catalog_build

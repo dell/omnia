@@ -291,6 +291,9 @@ def pytest_configure(config):
         "reprovision": (
             "Provision-rerun idempotency checks; run only when --marker selects reprovision"
         ),
+        "node_remove": "Kubernetes/Slurm node removal lifecycle checks",
+        "node_add": "Kubernetes/Slurm node re-addition lifecycle checks",
+        "token_renew": "Kubernetes bootstrap token renewal checks",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

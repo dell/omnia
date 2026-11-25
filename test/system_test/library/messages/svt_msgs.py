@@ -204,6 +204,9 @@ SETUP_MSGS = {
         "the JSON keyed by domain to stdin, e.g. provider | ./setup_env.sh --yes"
     ),
     "creds_stdin_too_large": "the credential JSON on stdin exceeds {limit} bytes",
+    "creds_stdin_invalid": "the credential JSON on stdin must be one object keyed by domain, "
+                           "each value an object of fields, e.g. {\"telemetry\": "
+                           "{\"bmc_username\": ...}} (values are never printed)",
     "creds_incomplete": "still missing: {domains}. HOW TO FIX: "
                         "./setup_env.sh --set-domain-creds --domain <domain>",
     "creds_after_install": "set after the install (./setup_env.sh)",
@@ -256,6 +259,13 @@ RUN_MSGS = {
                 "replaces it in the report and the earlier one is kept in its history",
     "retry_resume": "--retry resumes at {stage}: the stages before it passed in this run",
     "retry_done": "--retry: every stage of run {run_id} already passed; only summary runs",
+    "skip_stages": "'all' leaves out: {stages} (theme {theme}; --skip-stages none runs every "
+                   "stage, --skip-stages <a,b> leaves out others)",
+    "skip_reason": "left out of 'all' (theme {theme}: its default, --skip-stages, or a stage "
+                   "turned off in {theme}_test_config.yml stages:); run it by name with "
+                   "./run_validation.sh svt_{theme} <stage>",
+    "skip_unknown": "--skip-stages: unknown stage(s) {names}; the theme stages are: {stages} "
+                    "('none' runs every stage)",
 }
 
 CATALOG_MSGS = {
@@ -308,6 +318,10 @@ CONFIG_MSGS = {
     "not_bool": "{path}: {where} must be true or false, not {value!r}",
     "unknown_theme": "{path}: theme {theme!r} is not supported (supported: {known})",
     "unknown_suite": "{path}: cleanup has unknown suite(s) {names} (known: {known})",
+    "cleanup_moved": (
+        "{theme_path} has a cleanup block. The cleanup is shared by every theme and is set only "
+        "in the cleanup block of {path}: move it there and delete it from the theme file"
+    ),
     "unknown_flag": "{path}: cleanup.{suite} has unknown key(s) {names} (known: {known})",
     "suite_section_missing": "{path}: has no {section!r} section to write the cleanup flags into",
     "suite_key_missing": "{path}: has no {key!r} key; the suite no longer supports this flag",
