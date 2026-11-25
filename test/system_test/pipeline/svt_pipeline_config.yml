@@ -145,7 +145,10 @@ clusters:
     # a new theme or a new order needs --update). preflight, initialization and summary run
     # once; each theme is its own expandable pipeline (its stages, then the result; it starts
     # directly with its first stage), and there is ONE report: an overview and a page per theme.
-    themes: "build_stream"
+    # Default: every theme that has test cases, build_stream last. observability needs a
+    # deployed cluster, so it comes after cluster_lifecycle (which deploys the Slurm and
+    # Kubernetes clusters).
+    themes: "catalog_build,cluster_lifecycle,observability,build_stream"
     # theme catalog_build: one job per catalog of ../catalog_build_test_config.yml, resolved
     # when the CI files are rendered; after changing the catalog list run --update --update-inputs.
     # "false": leave this cluster out of the default selection (SVT_CLUSTERS). Its trigger job
