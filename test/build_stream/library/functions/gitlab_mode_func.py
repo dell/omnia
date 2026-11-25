@@ -169,6 +169,19 @@ def external_tls(host: Any, ca_path: str) -> ssl.SSLContext:
         raise RuntimeError(f"GitLab CA bundle {ca_path} is invalid: {exc}") from exc
 
 
+def _external_input_problem(resolved: Dict[str, Any]) -> str:
+    """Return why the resolved input file cannot be used for external mode ("" = usable)."""
+    if not resolved["success"]:
+        return resolved["error"]
+    if resolved["mode"] != GITLAB_MODE_EXTERNAL:
+        return f"{GITLAB_MODE_KEY} is '{resolved['mode']}', not external"
+    settings = external_settings(resolved["config"])
+    if settings["url"] and settings["namespace"]:
+        return ""
+    return (f"{GITLAB_EXTERNAL_CONFIG_KEYS['url']} and "
+            f"{GITLAB_EXTERNAL_CONFIG_KEYS['namespace']} must be set in {resolved['path']}")
+
+
 def external_connection(host: Any) -> Dict[str, Any]:
     """Resolve the external GitLab API endpoint, token, TLS and project.
 
@@ -181,17 +194,10 @@ def external_connection(host: Any) -> Dict[str, Any]:
     if "result" in _CONNECTION_CACHE:
         return _CONNECTION_CACHE["result"]
     resolved = resolve_gitlab_mode(host)
-    if not resolved["success"]:
-        return {"success": False, "error": resolved["error"]}
-    if resolved["mode"] != GITLAB_MODE_EXTERNAL:
-        return {"success": False,
-                "error": f"{GITLAB_MODE_KEY} is '{resolved['mode']}', not external"}
+    problem = _external_input_problem(resolved)
+    if problem:
+        return {"success": False, "error": problem}
     settings = external_settings(resolved["config"])
-    if not settings["url"] or not settings["namespace"]:
-        return {"success": False,
-                "error": (f"{GITLAB_EXTERNAL_CONFIG_KEYS['url']} and "
-                          f"{GITLAB_EXTERNAL_CONFIG_KEYS['namespace']} must be set in "
-                          f"{resolved['path']}")}
     try:
         input_dir = domain_input_path(host, BSM_DOMAIN)
         credentials = read_vault_mapping(host, input_dir)

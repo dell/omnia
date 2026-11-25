@@ -275,7 +275,7 @@ class TestPrepareStatusFile:
         assert self._run("hosted", {**self.STATUS, "gitlab_host": "10.0.0.2"})["success"]
 
 
-class TestConftestModeSkip:
+class TestConftestModeSkip:  # pylint: disable=too-few-public-methods
     """The conftest hook skips tests of the other gitlab_mode."""
 
     @staticmethod
@@ -303,7 +303,7 @@ class TestConftestModeSkip:
                 conf._skip_for_gitlab_mode(self._item(marker))  # pylint: disable=protected-access
 
 
-class TestDatasetGenerator:
+class TestDatasetGenerator:  # pylint: disable=too-few-public-methods
     """The dataset generator asks for the fields of the selected mode."""
 
     @pytest.mark.parametrize("document,fields", [

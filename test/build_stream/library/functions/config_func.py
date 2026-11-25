@@ -17,7 +17,7 @@
 import posixpath
 from typing import Any, Dict, Iterable
 
-from ..gitlab_inputs import gitlab_settings, validate_gitlab_block
+from ..gitlab_inputs import validate_gitlab_block
 from ..vars.execute_vars import (
     DEFAULT_POLL_INTERVAL,
     IMAGE_GROUP_ID_RE,
