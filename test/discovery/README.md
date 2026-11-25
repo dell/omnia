@@ -64,7 +64,12 @@ vi test_config.yml             # Set oim_server_ip, dataset, etc.
 | `credentials` | Create or update encrypted OME credentials |
 | `execute` | Run the tagged OME discovery flow and verify outputs |
 | `discovery` | Full end-to-end: deploy discovery.yml + verify outputs |
+| (no tag) | Complete `discovery.yml` without `--tags`: `fvt/test_playbook.py`, run with `./run_validation.sh fvt_discovery exec` |
 | `cleanup` | Run cleanup and verify output/credential behavior |
+
+`./run_validation.sh fvt_discovery exec` (no tag) runs the complete playbook once, from `fvt/test_playbook.py`.
+`./run_validation.sh fvt_discovery <tag> exec` runs only that tag (`--tags <tag>`, from `fvt/<tag>/test_playbook.py`).
+`./run_validation.sh fvt_discovery test` (no tag) runs the complete playbook, then verifies every suite of every tag (cleanup and the other explicit-only tags are left out); `./run_validation.sh fvt_discovery verify` (no tag) runs that verification alone. `./run_validation.sh fvt_discovery <tag> test` runs that tag's playbook, then the tests of that tag.
 
 See [fvt/TEST_CASES.md](fvt/TEST_CASES.md) for the complete FVT test case registry.
 
