@@ -305,9 +305,10 @@ def _check_cleanup_storage(host, component: str) -> dict[str, Any]:
         (
             "Shared-data result",
             (
-                "delete requested; playbook enforces deletion before detachment"
+                "delete requested; the product keeps NFS data, so the nfs_shares suite "
+                "empties the share"
                 if delete_requested
-                else "preserved; only storage detachment was requested"
+                else "preserved; only storage detachment is verified"
             ),
         )
     )
