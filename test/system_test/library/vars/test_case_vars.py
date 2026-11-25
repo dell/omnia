@@ -34,6 +34,7 @@ from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
 _TEL = "telemetry"
+_SR = "orchestrator"
 _ORCH = "orchestrator"
 
 TEST_CASES = {
@@ -112,6 +113,67 @@ TEST_CASES = {
         "id": "SVT_BUILD_STREAM_016", "order": 1050, "stage": "automatic_cleanup",
         "title": "Automatic cleanup of the cadence image (S3, registry, NFS)",
         "step": (_BS, ("execute", "verify", "--suite", "auto_cleanup")),
+    },
+
+    # =========================================================================
+    # THEME: slurm_reboot
+    # =========================================================================
+
+    # ---------------------------------------- stage reboot_cluster
+    "slurm_reboot_ordered_reboot_verify": {
+        "id": "SVT_SLURM_REBOOT_001", "order": 2010, "stage": "reboot_cluster",
+        "title": "Ordered Slurm cluster shutdown and power-on",
+        "step": (_SR, ("reboot", "verify", "--marker", "reboot")),
+    },
+
+    # ---------------------------------------- stage verify_slurm_services
+    "slurm_reboot_slurm_membership_verify": {
+        "id": "SVT_SLURM_REBOOT_010", "order": 2110, "stage": "verify_slurm_services",
+        "title": "Verify Slurm membership after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_cluster",
+                        "--marker", "non_disruptive")),
+    },
+
+    # ---------------------------------------- stage verify_slurm_jobs
+    "slurm_reboot_ldap_jobs_verify": {
+        "id": "SVT_SLURM_REBOOT_020", "order": 2210, "stage": "verify_slurm_jobs",
+        "title": "Verify LDAP-owned Slurm jobs after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_ldap",
+                        "--marker", "non_disruptive")),
+    },
+    "slurm_reboot_root_jobs_verify": {
+        "id": "SVT_SLURM_REBOOT_021", "order": 2211, "stage": "verify_slurm_jobs",
+        "title": "Verify root Slurm jobs after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_jobs")),
+    },
+
+    # ---------------------------------------- stage verify_gpu_jobs
+    "slurm_reboot_gpu_verify": {
+        "id": "SVT_SLURM_REBOOT_030", "order": 2310, "stage": "verify_gpu_jobs",
+        "title": "Verify GPU inventory and job allocation after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_gpu")),
+    },
+    "slurm_reboot_dcgm_verify": {
+        "id": "SVT_SLURM_REBOOT_031", "order": 2311, "stage": "verify_gpu_jobs",
+        "title": "Verify DCGM integration after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_dcgm")),
+    },
+
+    # ---------------------------------------- stage verify_mpi_ipoib
+    "slurm_reboot_openmpi_verify": {
+        "id": "SVT_SLURM_REBOOT_040", "order": 2410, "stage": "verify_mpi_ipoib",
+        "title": "Verify OpenMPI installation and job after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_openmpi")),
+    },
+    "slurm_reboot_infiniband_verify": {
+        "id": "SVT_SLURM_REBOOT_041", "order": 2411, "stage": "verify_mpi_ipoib",
+        "title": "Verify InfiniBand configuration and connectivity after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "slurm_infiniband")),
+    },
+    "slurm_reboot_ipoib_verify": {
+        "id": "SVT_SLURM_REBOOT_042", "order": 2412, "stage": "verify_mpi_ipoib",
+        "title": "Verify IPoIB network and peer mesh after reboot",
+        "step": (_SR, ("pxeboot", "verify", "--suite", "ipoib_network")),
     },
     # ======================================================== theme observability
     # The cluster stages (prepare_base ... cluster_deploy) are skipped by default

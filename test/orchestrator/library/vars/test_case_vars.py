@@ -1825,6 +1825,12 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify IB addresses assigned on each node match ib_addr_mode",
         "component": "IPoIB mode address assignment",
     },
+    # ── Ordered reboot scenarios (V900 series) ─────────────────────────
+    "slurm_ordered_reboot": {
+        "id": "ORCH_FVT_PXEBOOT_V900",
+        "title": "Verify ordered Slurm cluster shutdown and power-on",
+        "component": "Slurm ordered cluster reboot",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1996,6 +2002,7 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "vast_storage": 42100,
         "kubernetes_recovery": 42200,
         "slurm_recovery": 42300,
+        "slurm_ordered_reboot": 42350,
         "slurm_lifecycle": 42400,
         "ipoib_network": 42500,
         "ipoib_resilience": 42600,
