@@ -253,6 +253,48 @@ THEMES: Dict[str, Dict] = {
         },
         "fvt_settings": {},
     },
+    "k8s_reboot": {
+        "title": "Kubernetes Ordered Reboot Verification",
+        "description": "Ordered Kubernetes cluster shutdown and power-on, then "
+                       "Kubernetes cluster health, storage, PowerScale, and "
+                       "telemetry verification",
+        "profile": "k8s_reboot",
+        "cleanup_steps": (),
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
+        "fvt_domains": ("orchestrator", "telemetry"),
+        "credential_domains": ("orchestrator",),
+        "creds_suite": "orchestrator",
+        "stages": (
+            "reboot_cluster",
+            "verify_k8s_cluster",
+            "verify_k8s_storage",
+            "verify_telemetry",
+        ),
+        "soft_stages": (
+            "verify_k8s_storage",
+            "verify_telemetry",
+        ),
+        "stage_info": {
+            "reboot_cluster": (
+                "Ordered Cluster Reboot",
+                "Graceful shutdown (worker -> control-plane), then "
+                "Redfish power-on (control-plane -> worker) with "
+                "per-group cloud-init verification"),
+            "verify_k8s_cluster": (
+                "Kubernetes Cluster Verification",
+                "Node readiness, control-plane readiness, system pods, "
+                "etcd health, and virtual IP ownership"),
+            "verify_k8s_storage": (
+                "Kubernetes Storage Verification",
+                "NFS and CSI storage, default StorageClass, PowerScale "
+                "snapshot components and dynamic provisioning"),
+            "verify_telemetry": (
+                "Telemetry Verification",
+                "PowerScale telemetry deployment, metrics, logs, and "
+                "CSI driver health after reboot"),
+        },
+        "fvt_settings": {},
+    },
     "observability": {
         "title": "Observability End-to-End (iDRAC, LDMS)",
         "description": "Telemetry of a deployed cluster: the iDRAC and LDMS sources deployed "

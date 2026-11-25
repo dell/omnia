@@ -176,6 +176,50 @@ TEST_CASES = {
         "title": "Verify IPoIB network and peer mesh after reboot",
         "step": (_SR, ("pxeboot", "verify", "--suite", "ipoib_network")),
     },
+
+    # =========================================================================
+    # THEME: k8s_reboot
+    # =========================================================================
+
+    # ---------------------------------------- stage reboot_cluster
+    "k8s_reboot_ordered_reboot_verify": {
+        "id": "SVT_K8S_REBOOT_001", "order": 4010, "stage": "reboot_cluster",
+        "title": "Ordered Kubernetes cluster shutdown and power-on",
+        "step": (_SR, ("reboot", "verify", "--marker", "reboot+kubernetes")),
+    },
+
+    # ---------------------------------------- stage verify_k8s_cluster
+    "k8s_reboot_nodes_verify": {
+        "id": "SVT_K8S_REBOOT_010", "order": 4110, "stage": "verify_k8s_cluster",
+        "title": "Verify Kubernetes node readiness after reboot",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster")),
+    },
+    "k8s_reboot_etcd_verify": {
+        "id": "SVT_K8S_REBOOT_011", "order": 4111, "stage": "verify_k8s_cluster",
+        "title": "Verify Kubernetes etcd health after reboot",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_etcd")),
+    },
+
+    # ---------------------------------------- stage verify_k8s_storage
+    "k8s_reboot_storage_verify": {
+        "id": "SVT_K8S_REBOOT_020", "order": 4210, "stage": "verify_k8s_storage",
+        "title": "Verify Kubernetes NFS and PowerScale storage after reboot",
+        "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_storage")),
+    },
+
+    # ---------------------------------------- stage verify_telemetry
+    "k8s_reboot_telemetry_sinks_verify": {
+        "id": "SVT_K8S_REBOOT_030", "order": 4310, "stage": "verify_telemetry",
+        "title": "Verify telemetry sinks (Kafka, VictoriaMetrics, VictoriaLogs) after reboot",
+        "step": ("telemetry", ("deploy", "verify", "--suite", "sinks",
+                               "--marker", "sanity")),
+    },
+    "k8s_reboot_telemetry_sources_verify": {
+        "id": "SVT_K8S_REBOOT_031", "order": 4311, "stage": "verify_telemetry",
+        "title": "Verify telemetry sources (iDRAC, LDMS, OME, PowerScale, UFM, VAST) after reboot",
+        "step": ("telemetry", ("deploy", "verify", "--suite", "sources",
+                               "--marker", "sanity")),
+    },
     # ======================================================== theme observability
     # The cluster stages (prepare_base ... cluster_deploy) are skipped by default
     # (theme default_skip_stages): the theme runs on a deployed cluster.
