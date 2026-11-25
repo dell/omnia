@@ -194,7 +194,7 @@ How the theme compares with build_stream: [docs/CATALOG_BUILD.md](docs/CATALOG_B
 | Doc | Contents |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | `./setup_env.sh` (configure, cleanup incl. NFS shares, install, credentials, PowerScale files, status), `user_inputs.yml` (PowerVault, PowerScale CSI), the dataset generator |
-| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the cleanup flags per suite (telemetry, discovery, NFS shares ...), the report |
+| [docs/TEST_CONFIG.md](docs/TEST_CONFIG.md) | Every setting of `build_stream_test_config.yml`: catalogs, the stages, the report (the cleanup flags and NFS shares are in the cleanup block of `user_inputs.yml`) |
 | [docs/CATALOG_BUILD.md](docs/CATALOG_BUILD.md) | **User guide of the `catalog_build` theme**: prerequisites, the two files to edit, step by step, every setting, reading the report, failures, the GitLab pipeline (one job per catalog), how it compares with build_stream, troubleshooting |
 | [docs/RUNNER.md](docs/RUNNER.md) | `./run_validation.sh`, the run and its guard, retry, the SVT report, adding a theme, stage or test |
 | [docs/OPENBAO.md](docs/OPENBAO.md) | Passwords from OpenBao: one place for its settings, the pipeline and manual ways to read them |

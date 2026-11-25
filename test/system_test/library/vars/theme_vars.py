@@ -46,7 +46,7 @@ CLEANUP_STEPS: Tuple[FvtStep, ...] = (
     ("repo_manager", ("cleanup", "test", "--marker", "destructive")),
     ("main", ("cleanup", "test")),
 )
-# Cleanup flags <theme>_test_config.yml may set, per suite:
+# Cleanup flags the cleanup block of user_inputs.yml (shared by every theme) may set, per suite:
 # (section of the suite's test_config.yml, "" = top level; allowed keys).
 # Every value is a boolean; "enabled" (SVT only) turns the suite's cleanup
 # step on or off and is never written into the suite.
