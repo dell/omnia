@@ -80,6 +80,16 @@ svt:
     build_deploy: 8
     cadence: 8
     automatic_cleanup: 4
+    # Theme observability (the cluster stages are skipped by default).
+    prepare_base: 4
+    repo_sync: 8
+    image_build: 8
+    cluster_deploy: 8
+    observability_cleanup: 1
+    observability_precheck: 1
+    observability_deploy: 2
+    observability_idrac: 1
+    observability_ldms: 1
     # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
     # own entry.
     catalog_stage: 3
@@ -180,3 +190,23 @@ clusters:
     # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
     # path.
     secret_path: ""
+  # Theme observability on a deployed cluster: uncomment and fill (target, omnia) like oim1.
+  # Leave clean_reinstall and skip_stages empty for the theme defaults: no clean reinstall,
+  # and prepare_base, repo_sync, image_build and cluster_deploy left out. skip_stages: "none"
+  # runs every stage (build the cluster first, with clean_reinstall: "true" for a reset).
+  # oim2:
+  #   theme: "observability"
+  #   target:
+  #     ip: ""
+  #     user: "root"
+  #     ssh_skip_host_key: "false"
+  #   omnia:
+  #     repo: "https://github.com/dell/omnia.git"
+  #     branch: "staging"
+  #     install_path: "/root/omnia"
+  #     checkout_mode: "update"
+  #   svt:
+  #     clean_reinstall: ""
+  #     skip_stages: ""
+  #     user_inputs: "user_inputs.yml"
+  #   secret_path: ""

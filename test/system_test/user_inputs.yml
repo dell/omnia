@@ -44,6 +44,9 @@
 #
 # Layout: one block per module, in this order
 #   main -> repo_manager -> image_build_manager -> orchestrator -> build_stream
+#   -> telemetry
+# Each theme uses the blocks of its profile (dataset_generator/profiles/<theme>.yml):
+# build_stream uses build_stream, observability uses telemetry.
 # Inside a module, one block per input file, holding only the keys a user sets.
 # ==============================================================================
 
@@ -523,6 +526,57 @@ build_stream:
   build_stream_config:
     build_stream_host_ip: ""
     gitlab_host: ""
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# TELEMETRY                          src/telemetry/input/telemetry_config.yml
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Used by the observability theme only (./setup_env.sh --theme observability):
+# iDRAC and LDMS are deployed and checked, every other source is off. The keys
+# are those of telemetry_config.yml; a key not given keeps the shipped value
+# (the LDMS sampler plugins, ports, sink sizes ...). The BMC, MySQL and LDMS
+# sampler passwords are credentials: ./setup_env.sh --theme observability
+# --set-domain-creds, or the OpenBao secret <secret_path>/telemetry.
+# LDMS also needs its packages on the Slurm nodes: the ldms user repo of
+# repo_manager_config (above) and a catalog with LDMS when the cluster is built.
+telemetry:
+  # +--------------------------------------------------------------------------+
+  # | telemetry_config.yml                                                     |
+  # |   cluster_inventory   "" = the orchestrator inventory of the project     |
+  # |   telemetry_sources   idrac and ldms metrics_enabled MANDATORY (true)    |
+  # |   bmc_group_data_path "" = the orchestrator's bmc_group_data.csv         |
+  # +--------------------------------------------------------------------------+
+  telemetry_config:
+    cluster_inventory: ""
+    telemetry_sources:
+      idrac:
+        metrics_enabled: true
+        collection_targets: ["victoria_metrics", "kafka"]
+      ldms:
+        metrics_enabled: true
+        collection_targets: ["kafka"]
+      powerscale:
+        metrics_enabled: false
+        logs_enabled: false
+      ufm:
+        metrics_enabled: false
+        logs_enabled: false
+      vast:
+        metrics_enabled: false
+        logs_enabled: false
+      ome:
+        metrics_enabled: false
+        logs_enabled: false
+    telemetry_bridges:
+      # Vector-LDMS: Kafka ldms topic -> VictoriaMetrics (TEL_FVT_DEPLOY_V029)
+      vector_ldms:
+        metrics_enabled: true
+      vector_ome:
+        metrics_enabled: false
+        logs_enabled: false
+    idrac_telemetry_configurations:
+      bmc_group_data_path: ""
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

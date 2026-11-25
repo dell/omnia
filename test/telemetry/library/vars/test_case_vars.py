@@ -242,6 +242,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V028",
         "title": "Verify latest LDMS data in Kafka topic",
     },
+    "ldms_vm_data": {
+        "id": "TEL_FVT_DEPLOY_V029",
+        "title": "Verify LDMS metrics in VictoriaMetrics",
+    },
     # -- Sources: PowerScale ------------------------------------------------
     "powerscale_csm_deploy": {
         "id": "TEL_FVT_DEPLOY_V030",
