@@ -424,6 +424,7 @@ from .slurm_pxeboot_func import (
     check_slurm_scheduler,
     check_slurm_services,
 )
+from .k8s_reboot_pxeboot_func import check_k8s_ordered_reboot
 from .slurm_reboot_pxeboot_func import check_slurm_ordered_reboot
 from .slurm_recovery_pxeboot_func import check_slurm_cluster_recovery
 from .smd_provision_func import check_smd_groups, check_smd_identity
@@ -732,6 +733,7 @@ __all__ = [
     "check_prepare_postgresql_readiness",
     "check_provision_reports",
     "check_slurm_cluster_recovery",
+    "check_k8s_ordered_reboot",
     "check_slurm_ordered_reboot",
     "check_slurm_compiler_ldap_authentication",
     "check_slurm_compiler_ldap_invalid_password",
