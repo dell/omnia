@@ -537,6 +537,10 @@ class TestReport:
 
         if existing_mod_idx is not None:
             mod = run["modules"][existing_mod_idx]
+            # A retried run replaces the earlier result of the same test instead of repeating it.
+            fresh = {(r.get("test_name"), r.get("tc_id")) for r in self.results}
+            mod["results"] = [r for r in mod["results"]
+                              if (r.get("test_name"), r.get("tc_id")) not in fresh]
             mod["results"].extend(self.results)
             mod["playbook_logs"] = self.playbook_logs
             mod["command_type"] = self.command_type

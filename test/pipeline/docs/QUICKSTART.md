@@ -133,7 +133,8 @@ pipeline:
   domains: "repo_manager"
 ```
 
-Then run the pipeline again.
+Commit the file and run the pipeline again: the `config` job of the pipeline reads it, so no
+CI/CD variable has to be edited (a value that is empty in the file keeps the project variable).
 
 ### Clean up and start fresh
 

@@ -97,6 +97,7 @@ COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
 MAX_REPORTS = 50
 REPORTS_DEFAULT = "/automation"
+REPORTS_KEEP_DAYS = 30
 REPORT_NAME = "omnia_pipeline_report"
 TEST_MODULES = ("main", "repo_manager", "image_build_manager", "discovery", "orchestrator",
                 "telemetry", "utils", "build_stream")
@@ -997,8 +998,13 @@ def prepare_reports() -> int:
     path = install_path()
     body = "".join(f"[ -d {shlex.quote(f'{path}/test/{m}')} ] && (cd {shlex.quote(f'{path}/test/{m}')}\n"
                    f"{script})\n" for m in TEST_MODULES)
+    keep = _env("REPORTS_KEEP_DAYS", str(REPORTS_KEEP_DAYS))
+    if not re.fullmatch(r"[0-9]{1,4}", keep) or int(keep) < 1:
+        _fail(f"REPORTS_KEEP_DAYS '{keep}' is not a number of days (1 or more)")
+    folder = shlex.quote(_reports_path())
     rc = _run(f"""set -e
-umask 027; mkdir -p {shlex.quote(_reports_path())}; chmod 750 {shlex.quote(_reports_path())}
+umask 027; mkdir -p {folder}; chmod 750 {folder}
+find {folder} -maxdepth 1 -type f -name '[0-9]*_{REPORT_NAME}.*' -mtime +{int(keep)} -delete || true
 {body}true
 """, "set run_id, report_name and report_path in every test_config.yml")
     if not rc:

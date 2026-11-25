@@ -563,31 +563,28 @@ def _cleanup_process(process: Any) -> None:
 
 
 def run_full_playbook_test(
+    log: TestLogger,
     run_playbook_fn: Callable[..., Dict[str, Any]],
     playbook: str,
-    title: str,
-    tc_id: str,
 ) -> None:
     """Run the complete ``playbook`` without ``--tags`` and assert that it succeeded.
 
-    Every domain's ``fvt/test_playbook.py`` calls this with its own ``run_playbook`` wrapper, so
-    the playbook name, working directory and defaults stay the domain's. The log lines and the
-    failure message are the ones :func:`run_playbook` already produces.
+    Every domain's ``fvt/test_playbook.py`` creates its own ``TestLogger`` and calls this with its
+    ``run_playbook`` wrapper, so the playbook name, working directory and defaults stay the
+    domain's. The log lines and the failure message are the ones :func:`run_playbook` already
+    produces.
 
     Args:
+        log: The test's logger (``TestLogger(title, tc_id)``).
         run_playbook_fn: The domain's ``run_playbook`` wrapper (called without arguments).
         playbook: Playbook file name, for the log line.
-        title: Test case title.
-        tc_id: Test case ID.
     """
-    log = TestLogger(title, tc_id)
     log.check(RUNNER_LOG_MSGS["starting_playbook"].format(playbook=playbook, tag="none"))
     result = run_playbook_fn()
+    stats = {"rc": result["rc"], "duration": result["duration"]}
     if result["success"]:
-        log.passed(RUNNER_LOG_MSGS["playbook_completed"].format(
-            rc=result["rc"], duration=result["duration"]))
+        log.passed(RUNNER_LOG_MSGS["playbook_completed"].format(**stats))
     else:
-        log.failed(RUNNER_LOG_MSGS["playbook_failed"].format(
-            rc=result["rc"], duration=result["duration"]), result.get("error", ""))
+        log.failed(RUNNER_LOG_MSGS["playbook_failed"].format(**stats), result.get("error", ""))
     assert result["success"], result.get("error") or RUNNER_LOG_MSGS["playbook_failed"].format(
-        rc=result["rc"], duration=result["duration"])
+        **stats)

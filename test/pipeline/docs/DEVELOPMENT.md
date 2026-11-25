@@ -8,14 +8,15 @@ How the pipeline sources fit together, how to change them and how they are teste
 
 | File | Role | Runs on |
 |---|---|---|
-| `pipeline_render.py` | Tables of stages, order, rules; writes `.gitlab-ci-cluster.yml` | your machine |
-| `.gitlab-ci-cluster.yml` | Generated cluster pipeline (committed) | GitLab |
+| `pipeline_render.py` | Tables of stages, order, rules; writes the parent, cluster, build stream and utils pipelines | your machine |
+| `.gitlab-ci*.yml` | The generated pipelines (committed) | GitLab |
 | `pipeline_ci.py` | The command of every cluster job | the GitLab runner, taken from the Omnia clone |
 | `library/functions/email_func.py`, `library/vars/email_vars.py` | The summary email | the GitLab runner, taken from the clone |
 | `setup_gitlab_project.py` | Creates the project, uploads files, sets variables, `--scan-host-keys` | your machine |
-| `send_email.py` | Legacy email script of the old utils and build stream pipelines; the generated pipelines use `library/` | not used |
+| `pipeline_triggers.py` | Reads `pipeline_config.yml`, writes the trigger jobs of the parent pipeline | the GitLab runner, uploaded to the project |
+| `ut/` | Unit tests of the helpers | your machine |
 
-Only the YAML files, `send_email.py` and `pipeline_config.yml` are uploaded to the GitLab project
+Only the YAML files, `pipeline_triggers.py` and `pipeline_config.yml` are uploaded to the GitLab project
 (`collect_pipeline_files()` in `setup_gitlab_project.py`). The helpers are not: the `initialization`
 job clones Omnia on the OIM and copies `pipeline_ci.py` and `library/` out of the clone into
 `ci_tools/` (the `BOOTSTRAP` script in `pipeline_render.py`), so a change to them only needs a push
@@ -67,9 +68,19 @@ DRY_RUN=true ...                       # a pipeline run that prints what it woul
 ```
 
 `pipeline_render.py --check` fails when `.gitlab-ci-cluster.yml` was edited by hand or a table in
-`pipeline_render.py` changed without `--write`. The pipeline has no unit tests: try a change with
+`pipeline_render.py` changed without `--write`. Run the unit tests of the helpers (they need no
+GitLab, no OIM and no network):
+
+```bash
+python3 -m pytest test/pipeline/ut
+```
+
+They cover the config parser and the trigger generation, the exact skip words, the failure model of
+the generated pipelines, the placeholder resolution of the inputs, the cleanup flags, the report
+settings, the summary rule and the redaction of the report logs. Try a change on a pipeline with
 `DRY_RUN=true` (every job prints what it would run on the OIM and changes nothing) before a real
-run. Do not run the cleanup, the install or the NFS clearing against a live OIM to "test" them.
+run, and check the YAML with the CI lint of your GitLab (`POST /projects/:id/ci/lint`). Do not run
+the cleanup, the install or the NFS clearing against a live OIM to "test" them.
 
 ### Lint
 

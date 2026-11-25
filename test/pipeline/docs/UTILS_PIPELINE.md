@@ -136,7 +136,7 @@ UTILS_MODE=default_logs
 CLUSTER1_TEST_MODE=false
 ```
 
-**Result**: Runs `initialization` → `setup_environment` → `log_collection_cluster` → `log_collection_oim` → `summary`
+**Result**: Runs `initialization` → `setup_utils` → `log_collection_cluster` → `log_collection_oim` → `summary`
 
 ### Example 2: Install OS
 
@@ -146,7 +146,7 @@ UTILS_MODE=install_os
 CLUSTER1_TEST_MODE=false
 ```
 
-**Result**: Runs `initialization` → `setup_environment` → `install_os` → `summary`
+**Result**: Runs `initialization` → `setup_utils` → `install_os` → `summary`
 
 ### Example 3: Collect Logs + Run Tests
 
@@ -156,7 +156,7 @@ UTILS_MODE=default_logs
 CLUSTER1_TEST_MODE=true
 ```
 
-**Result**: Runs `initialization` → `setup_environment` → `log_collection_cluster` → `log_collection_oim` → `test_utils` → `summary`
+**Result**: Runs `initialization` → `setup_utils` → `log_collection_cluster` → `log_collection_oim` → `test_utils` → `summary`
 
 ### Example 4: Dry-Run Mode
 

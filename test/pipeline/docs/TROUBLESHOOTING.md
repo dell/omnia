@@ -197,6 +197,22 @@ The Python environment has not been created on the target. Either:
 
 ---
 
+## The `config` Job Failed
+
+**Symptoms:** the first job of the pipeline, `config`, is red and no cluster pipeline starts.
+
+**Cause:** `pipeline_triggers.py` could not read `pipeline_config.yml`. The log gives the file and
+the line, for example `ERROR: pipeline_config.yml: line 12: expected 'key: value'`, `PIPELINE_MODE
+must be one of default, deploy, cleanup`, `pipeline_config.yml has no section 'cluster2:'` or
+`no cluster: set global.clusters`.
+
+**Solutions:** fix the line in `pipeline_config.yml` and commit it. Only mappings are supported (no
+lists, anchors or tabs). The log of a good run lists every value with its source (`config`,
+`variable` or `default`), which shows which CI/CD variable of the project still applies when a
+value of the file is empty.
+
+---
+
 ## A Cleanup Failed and Nothing Was Installed
 
 **Symptoms:** a `cleanup_<domain>`, `test_cleanup_<domain>` or `cleanup_omnia` job is red, and `setup_main`, `inputs` and the

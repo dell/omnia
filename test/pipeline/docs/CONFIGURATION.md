@@ -6,7 +6,31 @@ Complete reference for all `pipeline_config.yml` settings and CI/CD variables.
 
 ## pipeline_config.yml Structure
 
-All configuration is in `pipeline_config.yml`. This file is used by `setup_gitlab_project.py` to create CI/CD variables in GitLab.
+All configuration is in `pipeline_config.yml`, in the GitLab project.
+
+**Edit the file and commit it: that is all.** The first job of every pipeline (`config`) runs
+`pipeline_triggers.py`, which reads the file of the commit being run and passes its values to the
+cluster, utils or build stream pipeline of every cluster. No CI/CD variable of the project has to
+be changed. For every setting the first non-empty value of these wins:
+
+1. the value in `pipeline_config.yml`;
+2. the CI/CD variable of the project with the old name (`<CLUSTER>_PIPELINE_MODE`,
+   `<CLUSTER>_OMNIA_BRANCH`, `CLUSTERS`, `UTILS_ENABLE`, ...), so a project that was set up with
+   variables keeps working;
+3. the default.
+
+An empty value in the file therefore keeps the project variable. The `config` job prints every
+value with its source (`<config>`, `<variable>` or `<default>`). Values that rules depend on are
+checked (`pipeline_mode`, `utils_mode`, the true/false flags), and a mistake fails that job with
+the line of the problem; `$` in a value stays literal.
+
+What stays a CI/CD variable, because it is a secret: the OIM password
+(`<CLUSTER>_TARGET_PASS`), the host key (`<CLUSTER>_SSH_KNOWN_HOSTS`, a File variable),
+`PIPELINE_API_TOKEN`, the optional `<CLUSTER>_TEST_CREDS` and the SMTP credentials
+(`SMTP_USER`, `SMTP_PASSWORD`). The child pipelines inherit them.
+
+`setup_gitlab_project.py` is only needed to create the project, upload the files and store these
+secrets.
 
 ### Global Settings
 
@@ -138,7 +162,8 @@ test_commands:
 
 ## CI/CD Variables
 
-After running `setup_gitlab_project.py --create`, the following CI/CD variables are created in GitLab:
+`setup_gitlab_project.py` can still store the settings of the file as CI/CD variables. They are the
+fallback of step 2 above; the file wins when it has a value:
 
 ### Global Variables
 
@@ -167,6 +192,7 @@ Project-level variables that are not per cluster:
 | `BAO_CA_CERT` | | CA file that verifies the OpenBao TLS certificate |
 | `BAO_TLS_SKIP_VERIFY` | `true` | `false` verifies OpenBao with the system certificates |
 | `TEST_REPORTS_PATH` | `/automation` | Folder on the OIM with the test reports attached to the email |
+| `REPORTS_KEEP_DAYS` | `30` | Reports of earlier pipelines older than this are deleted from that folder by `initialization` |
 | `SSH_CONNECT_TIMEOUT` | `30` | SSH connect timeout in seconds |
 | `DRY_RUN` | `false` | Per cluster through `<CLUSTER>_DRY_RUN`: print what would run on the OIM |
 

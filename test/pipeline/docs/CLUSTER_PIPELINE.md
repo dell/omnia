@@ -314,7 +314,9 @@ test config is copied. All runs therefore write into one report,
 suite per run: `<domain>_<tag>` for a tag (`telemetry_cleanup`, `utils_cleanup`,
 `build_stream_cleanup`, ...) and `<domain>` for a run without a tag (`telemetry`). The suite that
 ran last is at the top; the layout of the report is unchanged. The folder is outside `/opt/omnia`,
-so the Omnia cleanup does not remove it. The cleanup and cleanup test stages also copy the report
+so the Omnia cleanup does not remove it. `initialization` deletes reports of earlier pipelines
+older than `REPORTS_KEEP_DAYS` (default 30) from it. A retried job replaces the earlier result of
+the same test in the report instead of adding it again. The cleanup and cleanup test stages also copy the report
 to `pipeline_reports/` (prefixed with the job name), and the summary attaches it.
 
 ---
@@ -335,7 +337,7 @@ to `pipeline_reports/` (prefixed with the job name), and the summary attaches it
 | Inline shell in the YAML, repeated per domain | `pipeline_ci.py`; the YAML is generated |
 | `StrictHostKeyChecking=no`, `known_hosts` removed | Host key required |
 | `TARGET_PASS` in the `target.env` artifact | `SSHPASS` only, no file |
-| `initialization`, `setup_environment` and `nfs_check` were three stages, `inputs` and `cleanup_nfs` stages of their own | One `initialization` stage (clone, checks, NFS check); `setup_main` installs after the cleanup |
+| (cluster pipeline) `initialization`, `setup_environment` and `nfs_check` were three stages, `inputs` and `cleanup_nfs` stages of their own | One `initialization` stage (clone, checks, NFS check); `setup_main` installs after the cleanup |
 | Cleanup by playbook tags | The cleanup playbook with `omnia.sh --run`, then `fvt_<domain> cleanup verify` in its own stage |
 | Cleanup failure stopped the pipeline immediately | All cleanups run, then it stops without installing |
 | NFS shares kept their data | Slurm and K8s shares emptied by `test_cleanup_orchestrator` (`nfs_shares` suite) |
