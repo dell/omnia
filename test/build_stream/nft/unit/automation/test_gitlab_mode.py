@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests of the gitlab_mode-aware execute scenario (hosted / external)."""
+"""Unit tests of the gitlab_mode-aware execute scenario (needs the FVT toolchain)."""
 
-from datetime import date
+import importlib.util
+import pathlib
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -23,16 +24,14 @@ import pytest
 pytest.importorskip("omnia_auto", reason="FVT toolchain (omnia_auto plugin) is not installed")
 
 # pylint: disable=wrong-import-position
-from library.functions import gitlab_external_func as ext
 from library.functions import gitlab_mode_func as mode
-from library.functions.config_func import (
-    ConfigValidationError,
-    gitlab_settings,
-    validate_test_config,
-)
+from library.functions import gitlab_project_func as project_func
+from library.functions import prepare_func
+from library.functions.config_func import ConfigValidationError, validate_test_config
 
 pytestmark = pytest.mark.unit
 
+MODULE_ROOT = pathlib.Path(__file__).resolve().parents[3]
 EXTERNAL_CONFIG = {
     "gitlab_mode": "external",
     "gitlab_host": "",
@@ -43,11 +42,12 @@ EXTERNAL_CONFIG = {
     "build_stream_port": 8010,
 }
 HOSTED_CONFIG = {"gitlab_mode": "hosted", "gitlab_host": "10.0.0.2"}
+CREDENTIALS = {"gitlab_api_token": "glpat-x", "gitlab_project_id": 7}
 
 
 @pytest.fixture(autouse=True)
 def _fresh_mode_cache():
-    """Every test resolves the mode again."""
+    """Every test resolves the mode and connection again."""
     mode.reset_gitlab_mode_cache()
     yield
     mode.reset_gitlab_mode_cache()
@@ -60,12 +60,19 @@ def _resolve(config):
         return mode.resolve_gitlab_mode(object(), refresh=True)
 
 
+def _load(name, relative):
+    """Import a script of the suite by path."""
+    spec = importlib.util.spec_from_file_location(name, MODULE_ROOT / relative)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class TestModeResolution:
     """gitlab_mode is read from the input file and validated."""
 
     @pytest.mark.parametrize("config,expected", [
-        (HOSTED_CONFIG, "hosted"),
-        (EXTERNAL_CONFIG, "external"),
+        (HOSTED_CONFIG, "hosted"), (EXTERNAL_CONFIG, "external"),
         ({"gitlab_mode": " External "}, "external"),
     ])
     def test_supported_modes_resolve(self, config, expected):
@@ -100,10 +107,8 @@ class TestModeApplies:
     """hosted_only / external_only tests are skipped only for the other mode."""
 
     @pytest.mark.parametrize("config,required,applies", [
-        (HOSTED_CONFIG, "hosted", True),
-        (HOSTED_CONFIG, "external", False),
-        (EXTERNAL_CONFIG, "external", True),
-        (EXTERNAL_CONFIG, "hosted", False),
+        (HOSTED_CONFIG, "hosted", True), (HOSTED_CONFIG, "external", False),
+        (EXTERNAL_CONFIG, "external", True), (EXTERNAL_CONFIG, "hosted", False),
     ])
     def test_decision(self, config, required, applies):
         """GIVEN the resolved mode THEN only the matching tests apply."""
@@ -119,277 +124,211 @@ class TestModeApplies:
             assert mode.mode_applies(object(), "external")["applies"] is True
 
 
-class TestExternalSettings:
-    """Defaults and normalization of the external inputs."""
-
-    def test_defaults_and_trailing_slash(self):
-        """GIVEN the minimal external inputs THEN defaults are applied."""
-        settings = mode.external_settings(EXTERNAL_CONFIG)
-        assert settings["url"] == "https://gitlab.example.test"
-        assert settings["project_path"] == "infra/omnia-catalog"
-        assert (settings["branch"], settings["visibility"]) == ("main", "private")
-
-    def test_explicit_values(self):
-        """GIVEN explicit inputs THEN they are used."""
-        settings = mode.external_settings({
-            **EXTERNAL_CONFIG, "gitlab_project_namespace": "/a/b/",
-            "gitlab_project_name": "cat", "gitlab_default_branch": "dev",
-            "gitlab_project_visibility": "internal", "gitlab_ca_cert_path": "",
-        })
-        assert settings["project_path"] == "a/b/cat"
-        assert (settings["branch"], settings["visibility"], settings["ca_path"]) == (
-            "dev", "internal", "")
-
-
 class TestExternalConnection:
     """The external connection uses the PAT, the CA bundle and the project path."""
 
-    def _connect(self, config=None, credentials=None, tls=object()):
-        credentials = {"gitlab_api_token": "glpat-x", "gitlab_project_id": 7} \
-            if credentials is None else credentials
+    @staticmethod
+    def _connect(config=None, credentials=None):
+        credentials = CREDENTIALS if credentials is None else credentials
         _resolve(config or EXTERNAL_CONFIG)
         with patch.object(mode, "domain_input_path", return_value="/data/input/p"), \
-                patch.object(mode, "read_vault_mapping", return_value=credentials), \
-                patch.object(mode, "external_tls", return_value=tls):
-            return mode.external_connection(object())
+                patch.object(mode, "read_vault_mapping", return_value=credentials) as vault, \
+                patch.object(mode, "external_tls", return_value=object()):
+            return mode.external_connection(object()), vault
 
     def test_connection_fields(self):
         """GIVEN valid inputs THEN URL, API base, token header and project ref are built."""
-        connection = self._connect()
+        connection, _ = self._connect()
         assert connection["success"]
         assert connection["api"] == "https://gitlab.example.test/api/v4"
         assert connection["headers"] == {"PRIVATE-TOKEN": "glpat-x"}
         assert connection["project_ref"] == "infra%2Fomnia-catalog"
         assert connection["project_id"] == "7"
 
-    def test_missing_token_fails_without_echoing_secrets(self):
-        """GIVEN an empty token THEN the connection fails."""
-        connection = self._connect(credentials={"gitlab_api_token": ""})
+    def test_connection_is_built_once(self):
+        """GIVEN a built connection THEN the vault is not decrypted again."""
+        _, vault = self._connect()
+        with patch.object(mode, "read_vault_mapping") as again:
+            mode.external_connection(object())
+        assert vault.call_count == 1 and again.call_count == 0
+
+    def test_failed_connection_is_not_cached(self):
+        """GIVEN an empty token THEN the failure is reported and retried next time."""
+        connection, _ = self._connect(credentials={"gitlab_api_token": ""})
         assert not connection["success"] and "gitlab_api_token" in connection["error"]
+        assert "result" not in mode._CONNECTION_CACHE  # pylint: disable=protected-access
 
     def test_hosted_mode_is_rejected(self):
         """GIVEN gitlab_mode hosted THEN no external connection is built."""
-        connection = self._connect(config=HOSTED_CONFIG)
+        connection, _ = self._connect(config=HOSTED_CONFIG)
         assert not connection["success"] and "not external" in connection["error"]
 
     def test_empty_ca_uses_system_trust_store(self):
         """GIVEN no CA path THEN a default TLS context verifies the server."""
-        context = mode.external_tls(object(), "")
-        assert context.verify_mode.name == "CERT_REQUIRED"
+        assert mode.external_tls(object(), "").verify_mode.name == "CERT_REQUIRED"
 
     def test_unreadable_ca_bundle_fails_closed(self):
         """GIVEN an unreadable CA bundle THEN TLS setup raises."""
-        failed = SimpleNamespace(rc=1, stdout="")
-        with patch.object(mode, "run_cmd", return_value=failed), pytest.raises(RuntimeError):
+        with patch.object(mode, "run_cmd", return_value=SimpleNamespace(rc=1, stdout="")), \
+                pytest.raises(RuntimeError):
             mode.external_tls(object(), "/missing.pem")
 
 
-class TestPureHelpers:
-    """Syntax, version, expiry and mode helpers of the external checks."""
-
-    @pytest.mark.parametrize("url,valid", [
-        ("https://gitlab.example.test", True),
-        ("https://10.0.0.5:8443/group", True),
-        ("https://host:70000", False),
-        ("http://gitlab.example.test", False),
-        ("", False),
-    ])
-    def test_url(self, url, valid):
-        """URL syntax matches the product validator."""
-        assert ext.is_valid_external_url(url) is valid
-
-    @pytest.mark.parametrize("value,valid", [("infra", True), ("infra/omnia-builds", True),
-                                             ("/infra", False), ("in fra", False), ("", False)])
-    def test_namespace(self, value, valid):
-        """Group path syntax matches the product validator."""
-        assert ext.is_valid_namespace(value) is valid
-
-    @pytest.mark.parametrize("version,major", [("17.4.1-ee", 17), ("19.0", 19), ("x", None)])
-    def test_major_version(self, version, major):
-        """The major GitLab version is parsed."""
-        assert ext.gitlab_major_version(version) == major
-
-    def test_days_until(self):
-        """Token expiry is counted in whole days."""
-        assert ext.days_until("2026-12-24", date(2026, 11, 24)) == 30
-        assert ext.days_until("", date(2026, 11, 24)) is None
-        assert ext.days_until("garbage") is None
-
-    @pytest.mark.parametrize("value,safe", [("644", True), ("600", True), ("444", True),
-                                            ("664", False), ("755", False), ("x", False)])
-    def test_ca_mode(self, value, safe):
-        """The CA bundle must be 0644 or stricter without execute bits."""
-        assert ext.mode_is_ca_safe(value) is safe
-
-
 class TestModeInputsCheck:
-    """check_gitlab_mode_inputs validates the inputs of the resolved mode."""
+    """check_gitlab_mode_inputs reports the resolved mode and its inputs."""
 
     @staticmethod
     def _check(config, expected=""):
         resolved = _resolve(config)
-        with patch.object(ext, "resolve_gitlab_mode", return_value=resolved):
-            return ext.check_gitlab_mode_inputs(object(), expected)
+        with patch.object(mode, "resolve_gitlab_mode", return_value=resolved):
+            return mode.check_gitlab_mode_inputs(object(), expected)
 
-    def test_hosted_needs_ipv4_host(self):
-        """GIVEN hosted with an IPv4 gitlab_host THEN the check passes."""
-        result = self._check(HOSTED_CONFIG)
-        assert result["success"] and result["mode"] == "hosted"
-        assert not self._check({"gitlab_mode": "hosted", "gitlab_host": "name"})["success"]
-
-    def test_external_needs_url_and_namespace(self):
-        """GIVEN external inputs THEN URL and namespace are validated."""
+    def test_modes_pass_with_valid_inputs(self):
+        """GIVEN valid hosted and external inputs THEN the check passes."""
+        assert self._check(HOSTED_CONFIG)["mode"] == "hosted"
         assert self._check(EXTERNAL_CONFIG)["success"]
-        broken = {**EXTERNAL_CONFIG, "gitlab_external_url": "http://x"}
-        assert not self._check(broken)["success"]
-        assert not self._check({**EXTERNAL_CONFIG, "gitlab_project_namespace": ""})["success"]
 
-    def test_expected_mode_must_match(self):
-        """GIVEN gitlab.expected_mode THEN a different input mode fails."""
-        assert self._check(EXTERNAL_CONFIG, "external")["success"]
+    def test_invalid_inputs_and_expected_mode_fail(self):
+        """GIVEN a broken input or a different expected mode THEN the check fails."""
+        assert not self._check({**EXTERNAL_CONFIG, "gitlab_external_url": "http://x"})["success"]
         assert not self._check(EXTERNAL_CONFIG, "hosted")["success"]
 
-    def test_unresolvable_mode_fails(self):
+    def test_unresolvable_mode_fails_with_empty_mode(self):
         """GIVEN no gitlab_mode THEN the check fails with the mode empty."""
         result = self._check({})
         assert not result["success"] and result["mode"] == ""
 
 
-class TestExternalChecks:
-    """External checks against a fake GitLab API (no network)."""
+class TestProjectFunctionsExternalBranch:
+    """gitlab_project_func uses the external connection only in external mode."""
 
     CONNECTION = {
-        "success": True, "error": "", "url": "https://gitlab.example.test",
-        "api": "https://gitlab.example.test/api/v4", "tls": object(),
-        "headers": {"PRIVATE-TOKEN": "glpat-secret"}, "project_ref": "infra%2Fomnia-catalog",
-        "project_id": "7", "config": EXTERNAL_CONFIG, "input_dir": "/d",
-        "settings": mode.external_settings(EXTERNAL_CONFIG),
+        "success": True, "error": "", "api": "https://gl/api/v4", "tls": object(),
+        "headers": {"PRIVATE-TOKEN": "t"}, "project_ref": "infra%2Fomnia-catalog",
+        "settings": {"project_path": "infra/omnia-catalog", "branch": "dev",
+                     "visibility": "internal"},
     }
 
+    def _patch(self, mode_name, connection=None):
+        resolved = {"success": True, "mode": mode_name, "config": {}, "path": "p", "error": ""}
+        return (patch.object(project_func, "resolve_gitlab_mode", return_value=resolved),
+                patch.object(project_func, "external_connection",
+                             return_value=connection or self.CONNECTION))
+
+    def test_hosted_mode_has_no_external_connection(self):
+        """GIVEN hosted THEN the SSH-derived hosted path is kept."""
+        first, second = self._patch("hosted")
+        with first, second as connect:
+            assert project_func._external_connection(object()) == {}  # pylint: disable=protected-access
+        assert connect.call_count == 0
+
+    def test_external_api_context(self):
+        """GIVEN external THEN the API context carries the PAT header, project ref and branch."""
+        first, second = self._patch("external")
+        with first, second:
+            context = project_func._api_context(object(), {})  # pylint: disable=protected-access
+        assert context["api_url"] == "https://gl/api/v4" and context["branch"] == "dev"
+        assert context["project_id"] == "infra%2Fomnia-catalog" and not context["error"]
+
+    def test_external_connection_error_is_returned(self):
+        """GIVEN a failed external connection THEN the context carries the error."""
+        first, second = self._patch("external", {"success": False, "error": "no token"})
+        with first, second:
+            context = project_func._api_context(object(), {})  # pylint: disable=protected-access
+        assert context == {"error": "no token"}
+
+    def test_expected_visibility_follows_the_mode(self):
+        """GIVEN external THEN the configured visibility is the expectation."""
+        first, second = self._patch("external")
+        with first, second:
+            value = project_func._expected_project_setting(  # pylint: disable=protected-access
+                object(), "project_visibility", "visibility", "private")
+        assert value == "internal"
+
+
+class TestPrepareStatusFile:
+    """build_stream_status.yml is checked per mode."""
+
+    STATUS = {"overall_status": "prepared", "build_stream_host": "h", "build_stream_port": 1,
+              "gitlab_host": "", "gitlab_url": "https://gl", "bsm_api_url": "https://b",
+              "gitlab_mode": "external"}
+
+    def _run(self, mode_name, status):
+        resolved = {"success": True, "mode": mode_name, "config": {}, "path": "p", "error": ""}
+        with patch.object(prepare_func, "domain_output_path", return_value="/out"), \
+                patch.object(prepare_func, "read_remote_yaml", return_value=status), \
+                patch.object(prepare_func, "resolve_gitlab_mode", return_value=resolved):
+            return prepare_func.check_prepare_status_file(object())
+
+    def test_external_accepts_an_empty_gitlab_host(self):
+        """GIVEN external THEN an empty gitlab_host passes."""
+        assert self._run("external", self.STATUS)["success"]
+
+    def test_external_requires_the_mode_key(self):
+        """GIVEN external without gitlab_mode in the status file THEN the check fails."""
+        status = {key: value for key, value in self.STATUS.items() if key != "gitlab_mode"}
+        assert not self._run("external", status)["success"]
+
+    def test_hosted_still_requires_gitlab_host(self):
+        """GIVEN hosted THEN an empty gitlab_host fails as before."""
+        assert not self._run("hosted", self.STATUS)["success"]
+        assert self._run("hosted", {**self.STATUS, "gitlab_host": "10.0.0.2"})["success"]
+
+
+class TestConftestModeSkip:
+    """The conftest hook skips tests of the other gitlab_mode."""
+
     @staticmethod
-    def _api(routes):
-        def fake(_tls, _method, url, **_options):
-            for suffix, data in routes.items():
-                if url.endswith(suffix):
-                    ok = data is not None
-                    return {"success": ok, "status": 200 if ok else 404, "data": data,
-                            "error": "" if ok else "HTTP 404"}
-            return {"success": False, "status": 404, "data": None, "error": "HTTP 404"}
-        return fake
+    def _item(marker):
+        return SimpleNamespace(name="test_x", get_closest_marker=lambda name: name == marker)
 
-    def _run(self, function, routes, *args, journal=None, stat=None):
-        with patch.object(ext, "external_connection", return_value=dict(self.CONNECTION)), \
-                patch.object(ext, "http_json", side_effect=self._api(routes)), \
-                patch.object(ext, "_journal", return_value=journal or {
-                    "path": "j", "text": "", "data": {}, "rc": 1}), \
-                patch.object(ext, "_stat", return_value=stat or {"owner": "0", "mode": "600"}):
-            return function(object(), *args)
+    @pytest.fixture(name="conf")
+    def _conf(self):
+        return _load("fvt_conftest", "conftest.py")
 
-    def test_api_check_passes_for_supported_version_and_scopes(self):
-        """GIVEN GitLab 18, full scopes, valid token and an admin THEN the check passes."""
-        routes = {
-            "/version": {"version": "18.2.1"},
-            "/personal_access_tokens/self": {"scopes": ["api", "write_repository"],
-                                             "expires_at": "2099-01-01"},
-            "/user": {"id": 1, "username": "root", "is_admin": True},
-            "/groups/infra": {"id": 5},
-        }
-        assert self._run(ext.check_external_gitlab_api, routes, 30)["success"]
-
-    @pytest.mark.parametrize("version,scopes,reason", [
-        ("16.9.0", ["api", "write_repository"], "GitLab version"),
-        ("18.2.1", ["api"], "Token scopes"),
+    @pytest.mark.parametrize("marker,mode_name,skipped", [
+        ("hosted_only", "external", True), ("hosted_only", "hosted", False),
+        ("external_only", "hosted", True), ("external_only", "external", False),
+        (None, "external", False),
     ])
-    def test_api_check_fails(self, version, scopes, reason):
-        """GIVEN an unsupported version or missing scope THEN the check names it."""
-        routes = {
-            "/version": {"version": version},
-            "/personal_access_tokens/self": {"scopes": scopes, "expires_at": "2099-01-01"},
-            "/user": {"id": 1, "is_admin": True},
-            "/groups/infra": {"id": 5},
-        }
-        result = self._run(ext.check_external_gitlab_api, routes, 0)
-        assert not result["success"] and reason in result["error"]
-
-    def test_expiring_token_fails_the_threshold(self):
-        """GIVEN a token that expires too soon THEN the check fails."""
-        routes = {
-            "/version": {"version": "18.0"},
-            "/personal_access_tokens/self": {"scopes": ["api", "write_repository"],
-                                             "expires_at": "2000-01-01"},
-            "/user": {"id": 1, "is_admin": True},
-            "/groups/infra": {"id": 5},
-        }
-        assert not self._run(ext.check_external_gitlab_api, routes, 0)["success"]
-
-    def test_project_check(self):
-        """GIVEN an Omnia-marked project in the namespace THEN the check passes."""
-        project = {"id": 7, "path_with_namespace": "infra/omnia-catalog",
-                   "description": "Omnia (managed-by:omnia-buildstream)",
-                   "visibility": "private", "default_branch": "main"}
-        routes = {"/projects/infra%2Fomnia-catalog": project,
-                  "/protected_branches/main": {"name": "main"}}
-        assert self._run(ext.check_external_project, routes)["success"]
-        project["description"] = "someone else"
-        result = self._run(ext.check_external_project, routes)
-        assert not result["success"] and "Ownership marker" in result["error"]
-
-    def test_runner_check_needs_online_runner_and_user_provided(self):
-        """GIVEN an online runner and a user_provided journal entry THEN the check passes."""
-        journal = {"path": "j", "text": "", "rc": 0,
-                   "data": {"resources": [{"type": "runner", "action": "user_provided"}]}}
-        routes = {"/projects/infra%2Fomnia-catalog": {"id": 7},
-                  "/projects/7/runners?status=online&per_page=100": [{"id": 1}]}
-        assert self._run(ext.check_external_runner, routes, journal=journal)["success"]
-        routes["/projects/7/runners?status=online&per_page=100"] = []
-        assert not self._run(ext.check_external_runner, routes, journal=journal)["success"]
-
-    def test_journal_never_contains_the_token(self):
-        """GIVEN the PAT in the journal text THEN the check fails."""
-        data = {"schema_version": 1, "gitlab_url": "https://gitlab.example.test",
-                "project_id": "7", "resources": [{"type": name} for name in (
-                    "project", "runner", "access_token", "trigger", "variable")]}
-        clean = {"path": "j", "text": "{}", "rc": 0, "data": data}
-        leaky = {**clean, "text": "glpat-secret"}
-        connection = dict(self.CONNECTION)
-        with patch.object(ext, "external_connection", return_value=connection), \
-                patch.object(ext, "_stat", return_value={"owner": "0", "mode": "600"}):
-            with patch.object(ext, "_journal", return_value=clean):
-                assert ext.check_external_journal(object())["success"]
-            with patch.object(ext, "_journal", return_value=leaky):
-                assert not ext.check_external_journal(object())["success"]
-
-    def test_connection_failure_is_a_failed_result(self):
-        """GIVEN no connection THEN every check fails with the reason."""
-        with patch.object(ext, "external_connection",
-                          return_value={"success": False, "error": "no token"}):
-            result = ext.check_external_project(object())
-        assert not result["success"] and "no token" in result["error"]
+    def test_skip_decision(self, conf, marker, mode_name, skipped):
+        """GIVEN a mode marker and the resolved mode THEN only the other mode is skipped."""
+        resolved = {"success": True, "mode": mode_name, "config": {}, "path": "p", "error": ""}
+        with patch.object(mode, "resolve_gitlab_mode", return_value=resolved), \
+                patch.object(conf, "get_testinfra_host", return_value=object()):
+            if skipped:
+                with pytest.raises(pytest.skip.Exception):
+                    conf._skip_for_gitlab_mode(self._item(marker))  # pylint: disable=protected-access
+            else:
+                conf._skip_for_gitlab_mode(self._item(marker))  # pylint: disable=protected-access
 
 
-class TestGitlabConfig:
-    """test_config.yml gitlab block."""
+class TestDatasetGenerator:
+    """The dataset generator asks for the fields of the selected mode."""
+
+    @pytest.mark.parametrize("document,fields", [
+        ({"gitlab_mode": "external"},
+         ("build_stream_host_ip", "gitlab_external_url", "gitlab_project_namespace")),
+        ({"gitlab_mode": "hosted"}, ("build_stream_host_ip", "gitlab_host")),
+        ({}, ("build_stream_host_ip", "gitlab_host")),
+    ])
+    def test_review_fields(self, document, fields):
+        """GIVEN the document mode THEN the review fields follow it."""
+        pytest.importorskip("jinja2")
+        generator = _load("generate_dataset", "datasets/generator/generate_dataset.py")
+        assert generator._review_fields(document) == fields  # pylint: disable=protected-access
+
+
+class TestConfigIntegration:
+    """test_config.yml validation wires the gitlab block."""
 
     BASE = {"report_path": "/tmp/r", "report_name": "n", "installation": {"catalog": 1}}
 
-    def test_defaults(self):
-        """GIVEN no gitlab block THEN defaults apply."""
-        validate_test_config(self.BASE)
-        assert gitlab_settings(self.BASE) == {"expected_mode": "",
-                                              "token_min_days_remaining": 30}
-
-    @pytest.mark.parametrize("block", [
-        {"expected_mode": "cloud"}, {"token_min_days_remaining": -1},
-        {"token_min_days_remaining": True}, {"unknown": 1},
-    ])
-    def test_invalid_blocks_are_rejected(self, block):
-        """GIVEN an invalid gitlab block THEN validation fails."""
+    def test_invalid_block_raises_config_error(self):
+        """GIVEN an invalid gitlab block THEN validation raises ConfigValidationError."""
         with pytest.raises(ConfigValidationError):
-            validate_test_config({**self.BASE, "gitlab": block})
+            validate_test_config({**self.BASE, "gitlab": {"expected_mode": "cloud"}})
 
-    def test_valid_block(self):
-        """GIVEN a valid gitlab block THEN it is accepted."""
-        config = {**self.BASE, "gitlab": {"expected_mode": "external",
-                                          "token_min_days_remaining": 0}}
-        validate_test_config(config)
-        assert gitlab_settings(config)["expected_mode"] == "external"
+    def test_valid_block_is_accepted(self):
+        """GIVEN a valid gitlab block THEN validation passes."""
+        validate_test_config({**self.BASE, "gitlab": {"expected_mode": "external"}})

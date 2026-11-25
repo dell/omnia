@@ -397,42 +397,10 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_EXECUTE_E001",
         "title": "Deploy build_stream.yml --tags execute",
     },
-    # --- Execute: GitLab mode and external (customer-managed) GitLab ---
+    # --- Execute: GitLab mode (hosted / external) ---
     "gitlab_mode_detected": {
         "id": "BSM_FVT_EXECUTE_V104",
         "title": "Verify gitlab_mode and its inputs in the build_stream input file",
-    },
-    "external_credentials": {
-        "id": "BSM_FVT_EXECUTE_V105",
-        "title": "Verify external GitLab credentials in the credential store",
-    },
-    "external_ca_bundle": {
-        "id": "BSM_FVT_EXECUTE_V106",
-        "title": "Verify the external GitLab CA bundle",
-    },
-    "external_gitlab_api": {
-        "id": "BSM_FVT_EXECUTE_V107",
-        "title": "Verify external GitLab version, token and group role over verified TLS",
-    },
-    "external_project": {
-        "id": "BSM_FVT_EXECUTE_V108",
-        "title": "Verify the Omnia project in the external GitLab namespace",
-    },
-    "external_runner": {
-        "id": "BSM_FVT_EXECUTE_V109",
-        "title": "Verify an operator-provided runner is online for the project",
-    },
-    "external_ci_token": {
-        "id": "BSM_FVT_EXECUTE_V110",
-        "title": "Verify the omnia-ci project access token",
-    },
-    "external_trigger_variables": {
-        "id": "BSM_FVT_EXECUTE_V111",
-        "title": "Verify the pipeline trigger and CI/CD variables",
-    },
-    "external_journal": {
-        "id": "BSM_FVT_EXECUTE_V112",
-        "title": "Verify the external GitLab setup journal",
     },
     # --- Execute: build/deploy (automatic + manual), cadence, image cleanup ---
     "build_trigger_pipeline": {

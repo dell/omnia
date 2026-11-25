@@ -26,12 +26,12 @@ The tag first reads ``gitlab_mode`` from the build_stream input file:
 """
 
 import pytest
-from omnia_auto import load_test_config
 
 from library.functions import (
     TestLogger,
     check_gitlab_mode_inputs,
     gitlab_settings,
+    load_test_config,
     report_check,
     report_tag_playbook,
     run_playbook,

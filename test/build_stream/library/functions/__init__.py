@@ -70,20 +70,10 @@ from library.functions.gitlab_func import (
 
 # --- GitLab mode (hosted / external) and external GitLab verification ---
 from library.functions.gitlab_mode_func import (
+    check_gitlab_mode_inputs,
     mode_applies,
     reset_gitlab_mode_cache,
     resolve_gitlab_mode,
-)
-from library.functions.gitlab_external_func import (
-    check_external_ca_bundle,
-    check_external_ci_token,
-    check_external_credentials,
-    check_external_gitlab_api,
-    check_external_journal,
-    check_external_project,
-    check_external_runner,
-    check_external_trigger_and_variables,
-    check_gitlab_mode_inputs,
 )
 
 # --- BuildStream health verification ---
@@ -179,11 +169,8 @@ from library.functions.cadence_toggle_func import (
     verify_cadence_disable_live,
     verify_cadence_reenable_live,
 )
-from library.functions.config_func import (
-    cleanup_settings,
-    gitlab_settings,
-    installation_settings,
-)
+from library.functions.config_func import cleanup_settings, installation_settings
+from library.gitlab_inputs import gitlab_settings
 from library.functions.image_cleanup_func import (
     build_auto_cleanup_image_step,
     build_pipeline_cleanup_image_step,
@@ -355,14 +342,6 @@ __all__ = [
     "mode_applies",
     "reset_gitlab_mode_cache",
     "resolve_gitlab_mode",
-    "check_external_ca_bundle",
-    "check_external_ci_token",
-    "check_external_credentials",
-    "check_external_gitlab_api",
-    "check_external_journal",
-    "check_external_project",
-    "check_external_runner",
-    "check_external_trigger_and_variables",
     "check_gitlab_mode_inputs",
     # BuildStream health
     "check_build_stream_enabled",
