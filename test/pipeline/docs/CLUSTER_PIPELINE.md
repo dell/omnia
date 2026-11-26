@@ -189,7 +189,15 @@ first failure. The verify stage that follows still runs `./run_validation.sh fvt
 
 **With tags or without.** `deploy_tags.<domain>` in the config (variable `<DOMAIN>_TAGS`, a comma
 list such as `prepare,execute`) runs exactly those tags, one `./omnia.sh --run <domain> --tags <tag>` each. With no list the
-domain's default tags below run in order.
+domain's default tags run in order:
+
+| Domain | Default tags |
+|---|---|
+| `repo_manager` | `precheck`, `prepare`, `execute`, `status` |
+| `image_build_manager` | `validate`, `prepare`, `build` |
+| `discovery` | `precheck`, `validate`, `execute` |
+| `orchestrator` | `precheck`, `prepare`, `provision`, `pxeboot` |
+| `telemetry` | `precheck`, `validate`, `deploy` |
 
 **Verbose.** `VERBOSE=true` adds `-v --ansible-verbosity 3` to every FVT call (pytest `-v` and
 `ansible-playbook -vvv`). `--ansible-verbosity <0-4>` is a runner option of every domain and sets
