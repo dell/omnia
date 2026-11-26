@@ -219,6 +219,7 @@ THEMES: Dict[str, Dict] = {
             "verify_mpi_ipoib",
         ),
         "soft_stages": (
+            "verify_slurm_services",
             "verify_slurm_jobs",
             "verify_gpu_jobs",
             "verify_mpi_ipoib",
