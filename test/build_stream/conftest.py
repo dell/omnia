@@ -58,6 +58,11 @@ from library.functions.validation_func import (
     validate_all,
     ConfigValidationError,
 )
+from library.functions.gitlab_mode_func import (
+    GITLAB_MODE_EXTERNAL,
+    GITLAB_MODE_HOSTED,
+    mode_applies,
+)
 from library.functions.log_func import skip_test
 from library.messages import TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES
@@ -91,10 +96,10 @@ _FVT_SUITE_ORDER = {
     "precheck": {"": 0, "environment": 1, "containers": 2, "credentials": 3},
     "prepare": {"": 0, "build_stream": 1},
     "execute": {
-        "": 0, "gitlab_server": 1, "gitlab_runner": 2, "gitlab_project": 3,
-        "build_automatic": 4, "build_manual": 5, "deploy_automatic": 6,
-        "deploy_manual": 7, "cadence": 8, "auto_cleanup": 9, "pipeline_cleanup": 10,
-        "log_query": 11,
+        "": 0, "gitlab_server": 1, "gitlab_runner": 2, "gitlab_external": 3,
+        "gitlab_project": 4, "build_automatic": 5, "build_manual": 6,
+        "deploy_automatic": 7, "deploy_manual": 8, "cadence": 9, "auto_cleanup": 10,
+        "pipeline_cleanup": 11, "log_query": 12,
     },
     "cleanup": {"": 0, "gitlab": 1, "build_stream": 2},
 }
@@ -166,6 +171,8 @@ def pytest_configure(config):
         "security": "Authentication, authorization, and input security test",
         "disruptive": "Explicitly enabled test that changes live service state",
         "log_observability": "Pipeline log query API and CI console logs (log_query, ER-BSM-003)",
+        "hosted_only": "Verifies gitlab_mode: hosted; skipped when the input selects external",
+        "external_only": "Verifies gitlab_mode: external; skipped when the input selects hosted",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -438,15 +445,41 @@ def pytest_runtest_makereport(item):
         report.add_result(report_payload)
 
 
+# Marker -> the gitlab_mode the test verifies.
+_MODE_MARKERS = {"hosted_only": GITLAB_MODE_HOSTED, "external_only": GITLAB_MODE_EXTERNAL}
+
+
+def _skip_for_gitlab_mode(item) -> None:
+    """Skip a mode-specific test when the input file selects the other mode.
+
+    ``gitlab_mode`` is read once from build_stream_config.yml on the OIM. A
+    test without a mode marker always runs; a mode that cannot be read never
+    skips (the test then reports the problem itself).
+    """
+    required = next((mode for marker, mode in _MODE_MARKERS.items()
+                     if item.get_closest_marker(marker)), "")
+    if not required:
+        return
+    decision = mode_applies(get_testinfra_host(), required)
+    if decision["applies"]:
+        return
+    tc = _TC_BY_NAME.get(item.name, {"id": item.name, "title": item.name})
+    message = LOG["gitlab_mode_skip"].format(mode=decision["mode"], required=required,
+                                             reason=decision["reason"])
+    pytest.skip(skip_test(TestLogger(tc["title"], tc["id"]), message))
+
+
 def pytest_runtest_setup(item):
     """Skip a test whose category entry test already failed in this session.
 
     The skip is logged through the test's own TestLogger, so the console shows
-    the test with the reason and the summary and report carry it too.
+    the test with the reason and the summary and report carry it too. Tests
+    that verify the other ``gitlab_mode`` are skipped the same way.
     """
     category = _fvt_category(item)
     failed = item.session.stash.get(_ENTRY_FAILED, {}).get(category)
     if not failed:
+        _skip_for_gitlab_mode(item)
         return
     entry_id, entry_title = failed
     tc = _TC_BY_NAME.get(item.name, {"id": item.name, "title": item.name})

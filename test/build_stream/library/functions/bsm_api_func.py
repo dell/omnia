@@ -57,7 +57,6 @@ from ..vars.execute_vars import (
     BSM_CONFIG_FILE,
     BSM_CONFIG_KEYS,
     BSM_CREDENTIAL_KEYS,
-    BSM_CREDENTIALS_FILE,
     BSM_DOMAIN,
     BSM_TLS_CERT,
     GITLAB_API,

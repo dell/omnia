@@ -68,6 +68,14 @@ from library.functions.gitlab_func import (
     check_domain_input_dirs,
 )
 
+# --- GitLab mode (hosted / external) and external GitLab verification ---
+from library.functions.gitlab_mode_func import (
+    check_gitlab_mode_inputs,
+    mode_applies,
+    reset_gitlab_mode_cache,
+    resolve_gitlab_mode,
+)
+
 # --- BuildStream health verification ---
 from library.functions.build_stream_func import (
     check_build_stream_enabled,
@@ -149,6 +157,18 @@ from library.functions.precheck_func import (
     check_precheck_domain_files,
 )
 
+# --- Execute: external GitLab verification ---
+from library.functions.gitlab_external_func import (
+    check_external_ca_bundle,
+    check_external_ci_token,
+    check_external_credentials,
+    check_external_gitlab_api,
+    check_external_journal,
+    check_external_project,
+    check_external_runner,
+    check_external_trigger_and_variables,
+)
+
 # --- Prepare (build_stream.yml --tags prepare) ---
 from library.functions.prepare_func import (
     check_prepare_containers,
@@ -162,6 +182,7 @@ from library.functions.cadence_toggle_func import (
     verify_cadence_reenable_live,
 )
 from library.functions.config_func import cleanup_settings, installation_settings
+from library.gitlab_inputs import gitlab_settings
 from library.functions.image_cleanup_func import (
     build_auto_cleanup_image_step,
     build_pipeline_cleanup_image_step,
@@ -330,6 +351,11 @@ __all__ = [
     "check_gitlab_pipeline_variables",
     "check_omnia_env_in_repo",
     "check_domain_input_dirs",
+    "gitlab_settings",
+    "mode_applies",
+    "reset_gitlab_mode_cache",
+    "resolve_gitlab_mode",
+    "check_gitlab_mode_inputs",
     # BuildStream health
     "check_build_stream_enabled",
     "check_build_stream_health",
@@ -391,6 +417,14 @@ __all__ = [
     "check_prepare_containers",
     "check_prepare_services",
     "check_prepare_status_file",
+    "check_external_ca_bundle",
+    "check_external_ci_token",
+    "check_external_credentials",
+    "check_external_gitlab_api",
+    "check_external_journal",
+    "check_external_project",
+    "check_external_runner",
+    "check_external_trigger_and_variables",
     # Execute: build/deploy (automatic + manual), cadence, image cleanup
     "failure_fields",
     "installation_settings",

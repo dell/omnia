@@ -37,6 +37,8 @@ from library.functions import (
 from library.vars import TEST_CASES as TC
 from library.messages import TEST_ASSERT_MSGS as ASSERT
 
+pytestmark = pytest.mark.hosted_only
+
 
 @pytest.mark.sanity
 @pytest.mark.order(90101)
