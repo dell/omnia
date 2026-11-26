@@ -16,6 +16,26 @@
 # Removes only Omnia-owned resources. The project, customer variables and the
 # operator's runner are never touched. Each step tolerates API failures and the
 # summary reports every result.
+- name: Check whether external GitLab ownership state exists
+  ansible.builtin.stat:
+    path: "{{ hostvars['localhost']['output_project_dir'] }}/external_gitlab_journal.json"
+  register: _ecl_journal_stat
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Report that external GitLab cleanup is already complete
+  ansible.builtin.debug:
+    msg: >-
+      External GitLab setup journal is not present. There is no Omnia ownership
+      state to clean; external GitLab cleanup is already complete.
+  when: not _ecl_journal_stat.stat.exists
+  run_once: true
+
+- name: End external GitLab cleanup when the setup journal is absent
+  ansible.builtin.meta: end_role
+  when: not _ecl_journal_stat.stat.exists
+
 - name: Clean up the external GitLab integration
   delegate_to: localhost
   connection: local

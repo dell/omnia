@@ -271,24 +271,33 @@ class TestProjectOwnership:
             assert "PRESERVED (customer-owned" in out
             assert not journal_path.exists()
 
-    @pytest.mark.parametrize("raw_journal", [None, "{broken"])
-    def test_marked_project_without_reliable_journal_is_preserved(self, tmp_path, raw_journal):
-        # The marker alone never authorizes deleting the project: with a missing
-        # or corrupt journal nothing is deleted and ownership evidence is kept.
+    def test_missing_journal_ends_cleanup_as_already_complete(self, tmp_path):
+        # A successful prior cleanup removes the journal. A second run therefore
+        # completes without API calls, credential changes or false warnings.
         with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
-            result, out, journal_path = run_cleanup(tmp_path, gitlab, raw_journal=raw_journal)
+            result, out, journal_path = run_cleanup(tmp_path, gitlab)
+            assert result.returncode == 0, out
+            assert not gitlab.requests
+            assert "external GitLab cleanup is already complete" in out
+            assert "Remote cleanup complete: False" not in out
+            assert not journal_path.exists()
+
+    def test_marked_project_with_corrupt_journal_is_preserved(self, tmp_path):
+        # A present but corrupt journal is not an idempotent second-run signal:
+        # no remote resource is deleted and the evidence remains for recovery.
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, raw_journal="{broken")
             assert result.returncode == 0, out
             assert not [r for r in gitlab.requests if r[0] == "DELETE"]
             assert not gitlab.project_deleted
             assert "Remote cleanup complete: False" in out
-            assert journal_path.exists() == (raw_journal is not None)
+            assert journal_path.exists()
 
 
 class TestUnreliableJournal:
     """GIVEN no reliable ownership evidence WHEN cleanup runs THEN no remote variable is deleted."""
 
     @pytest.mark.parametrize("name,kwargs", [
-        ("missing", {}),
         ("malformed", {"raw_journal": "{not json"}),
         ("not-a-document", {"raw_journal": "[1, 2, 3]"}),
         ("unsupported-schema", {"journal": {"schema_version": 99, "resources": [variable("BSM_API_URL", "created")]}}),
