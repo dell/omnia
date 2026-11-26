@@ -214,9 +214,14 @@ operations and includes destructive prepare, provision, and cleanup cases.
 | `prepare` | `openchami`, `network`, `openldap` | OpenCHAMI, PostgreSQL, networking, DNS/DHCP, and local OpenLDAP readiness |
 | `provision` | `openchami` | Provision reports plus SMD, Boot Service, Metadata Service, and network inventory |
 | `pxeboot` | See `SUITES` in `library/vars/domain_vars.py` | Node boot completion, node features, and workload-cluster behavior; reboot and node-removal suites run last |
+| (no tag) | `fvt/test_playbook.py` | Complete `orchestrator.yml` without `--tags`, run with `./run_validation.sh fvt_orchestrator exec` |
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials`, `nfs_shares` | Explicit full-cleanup postconditions |
 
-An untagged FVT flow uses `precheck -> prepare -> provision -> pxeboot`.
+`./run_validation.sh fvt_orchestrator exec` (no tag) runs the complete playbook once, from `fvt/test_playbook.py`.
+`./run_validation.sh fvt_orchestrator <tag> exec` runs only that tag (`--tags <tag>`, from `fvt/<tag>/test_playbook.py`).
+`./run_validation.sh fvt_orchestrator test` (no tag) runs the complete playbook, then verifies every suite of every tag (cleanup and the other explicit-only tags are left out); `./run_validation.sh fvt_orchestrator verify` (no tag) runs that verification alone. `./run_validation.sh fvt_orchestrator <tag> test` runs that tag's playbook, then the tests of that tag.
+
+An untagged `test` runs the complete playbook, then verifies `precheck -> prepare -> provision -> pxeboot`.
 Cleanup is always explicit. Reboot cases never run without `--marker reboot`,
 and node remove/add cases never run without `--marker node_lifecycle`.
 
@@ -428,8 +433,8 @@ FVT runs write structured JSON and HTML reports using `report_path` and
 `report_name` from `test_config.yml`. The default files are:
 
 ```text
-/opt/omnia/reports/orchestrator_test_report.json
-/opt/omnia/reports/orchestrator_test_report.html
+/automation/orchestrator_test_report.json
+/automation/orchestrator_test_report.html
 ```
 
 Console output and report entries use stable IDs defined in

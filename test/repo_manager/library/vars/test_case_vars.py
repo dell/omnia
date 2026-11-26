@@ -419,4 +419,8 @@ TEST_CASES = {
         "id": "RM_FVT_CATALOG_VALIDATE_V002",
         "title": "Verify catalog validation log file exists",
     },
+    "deploy_full_playbook": {
+        "id": "RM_FVT_FULL_PLAYBOOK_E001",
+        "title": "Deploy repo_manager (complete playbook, no tags)",
+    },
 }
