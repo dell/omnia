@@ -65,7 +65,7 @@ MARKERS: List[str] = [
 
 SUITES: Dict[str, List[str]] = {
     "precheck": ["connectivity"],
-    "validate": ["status"],
+    "validate": ["status", "contract"],
     "prepare": ["container", "s3"],
     "build": [
         "s3", "registry", "naming",
