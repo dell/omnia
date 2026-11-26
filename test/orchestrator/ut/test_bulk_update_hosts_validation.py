@@ -31,7 +31,8 @@ VALID_IPS = ["10.5.0.1", "192.168.1.255", "fd00::1", "2001:db8::10",
 VALID_NAMES = ["node001", "nid00001", "ctl-01", "ctl-01.cluster.local", "Node01"]
 HOSTILE_NAMES = ["node1'; touch /tmp/x; echo '", "node1/e id/", "node1\n",
                  "node1\nOMNIA_HOSTS_EOF\ntouch /tmp/x", "node1;id", "$(id)",
-                 "`id`", "node 1", "", "-node", "a" * 254, "node_01"]
+                 "`id`", "node 1", "", "-node", "a" * 254, "node_01",
+                 None, True, 12345]
 HOSTILE_IPS = ["10.0.0.1; id", "10.0.0.1'", "10.0.0.1\n", "10.0.0.1/24",
                "999.1.1.1", " 10.0.0.1", "", None, 167772161,
                "fe80::1%a'b;id", "fe80::1%x\ntouch"]

@@ -135,8 +135,9 @@ IP_CHARSET_PATTERN = re.compile(r"[0-9A-Fa-f.:]+(?:%[A-Za-z0-9_.-]+)?")
 
 def _is_valid_hostname(value):
     """Return True for an RFC-1123 hostname/FQDN with no shell or sed metacharacters."""
-    text = str(value)
-    return len(text) <= 253 and HOSTNAME_PATTERN.fullmatch(text) is not None
+    if not isinstance(value, str):
+        return False
+    return len(value) <= 253 and HOSTNAME_PATTERN.fullmatch(value) is not None
 
 
 def _is_valid_ip(value):
