@@ -42,6 +42,7 @@ UNKNOWN_LABEL = ("NOT RUN", "skip")
 REDACT_PATTERNS = (
     (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
      "***REDACTED PRIVATE KEY***"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*", re.S), "***REDACTED PRIVATE KEY***"),
     (re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}"), r"\1 ***REDACTED***"),
     (re.compile(r"\b(glpat|ghp|gho|ghs|github_pat)[-_][A-Za-z0-9_-]{10,}"), "***REDACTED TOKEN***"),
     (re.compile(

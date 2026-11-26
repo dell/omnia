@@ -31,6 +31,7 @@ from email.mime.text import MIMEText
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..vars.email_vars import (
+    FAILED_STATUSES,
     MAX_ATTACHMENT_BYTES,
     MAX_MESSAGE_BYTES,
     SMTP_TIMEOUT,
@@ -77,7 +78,7 @@ def status_cell(status: str) -> str:
 def verdict_of(jobs: Sequence[Job]) -> str:
     if not jobs:
         return "UNKNOWN"
-    return "FAILED" if any(status == "failed" for _, status, _ in jobs) else "PASSED"
+    return "FAILED" if any(status in FAILED_STATUSES for _, status, _ in jobs) else "PASSED"
 
 
 def not_run(order: Sequence[str], jobs: Sequence[Job]) -> List[str]:
