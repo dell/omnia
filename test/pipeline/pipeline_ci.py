@@ -448,7 +448,8 @@ def missing_cleanup_markers() -> List[str]:
     tolerated = tolerated_jobs()
     missing: List[str] = []
     for domain in CLEANUP_TAGS:
-        for name, group in (X):
+        for name, group in ((f"cleanup_{domain}", "cleanup"),
+                            (f"test_cleanup_{domain}", "test_cleanup")):
             if any(_skipped(word) for word in (domain, name, group)) or name in tolerated:
                 continue
             if not os.path.isfile(f"{STATUS_DIR}/{name}.ok"):
