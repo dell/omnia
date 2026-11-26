@@ -20,6 +20,7 @@ from .cleanup_msgs import (
 from .cleanup_msgs import (
     TEST_LOG_MSGS as CLEANUP_TEST_LOG_MSGS,
 )
+from .nfs_msgs import NFS_MSGS
 from .precheck_msgs import (
     TEST_ASSERT_MSGS as PRECHECK_TEST_ASSERT_MSGS,
 )
@@ -46,6 +47,7 @@ from .pxeboot_msgs import (
 )
 
 __all__ = [
+    "NFS_MSGS",
     "CLEANUP_TEST_ASSERT_MSGS",
     "CLEANUP_TEST_LOG_MSGS",
     "PRECHECK_TEST_ASSERT_MSGS",

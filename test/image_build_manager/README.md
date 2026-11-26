@@ -210,9 +210,9 @@ names run their complete pytest suite; use `test` as the conventional form.
 
 For FVT with no tag, `verify` runs verification for precheck, validate,
 prepare, and build (excluding both cleanup flows). No-tag `exec` runs the
-playbook's default full-stack flow, and no-tag `test` runs that deployment
-followed by the same non-cleanup verification set. Verification is grouped in
-the lifecycle order `precheck` → `validate` → `prepare` → `build`; each phase
+complete playbook (`fvt/test_playbook.py`), and no-tag `test` runs that
+playbook followed by the same non-cleanup verification set. Verification is
+grouped in the order `precheck` → `validate` → `prepare` → `build`; each phase
 is grouped by its documented suites, and each suite then follows its existing
 `@pytest.mark.order(n)` values.
 
@@ -228,9 +228,13 @@ ARM-host readiness and tooling checks before artifact and package validation.
 | `validate` | `--tags validate` | Configuration, credentials, package/catalog input, effective `repo_ssl_verify`, and template wiring; does not consume `repo_status.yml` |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
 | `build` | `--tags build` | Build-only repo-status contract validation, S3 images, registry images, build_status, and **naming convention** |
+| (no tag) | no `--tags` | Complete playbook: `fvt/test_playbook.py`, run with `./run_validation.sh fvt_image_build_manager exec` |
 | `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials (kept with `cleanup_credentials: false` in `test_config.yml`); external PowerScale storage and s3cmd config are retained |
 | `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
-| *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
+
+`./run_validation.sh fvt_image_build_manager exec` (no tag) runs the complete playbook once, from `fvt/test_playbook.py`.
+`./run_validation.sh fvt_image_build_manager <tag> exec` runs only that tag (`--tags <tag>`, from `fvt/<tag>/test_playbook.py`).
+`./run_validation.sh fvt_image_build_manager test` (no tag) runs the complete playbook, then verifies every suite of every tag (cleanup and the other explicit-only tags are left out); `./run_validation.sh fvt_image_build_manager verify` (no tag) runs that verification alone. `./run_validation.sh fvt_image_build_manager <tag> test` runs that tag's playbook, then the tests of that tag.
 
 #### Build-type naming convention (within `build` tag)
 
@@ -679,7 +683,7 @@ encrypted runtime pair with `./setup_env.sh --set-domain-creds`.
 ## Reports
 
 Generated in the configured `report_path` (tracked default
-`/opt/omnia/reports`):
+`/automation`):
 
 | File | Format |
 |------|--------|

@@ -215,21 +215,29 @@ external_ldap_bind_username: ""
 # Default: true
 cleanup_credentials: true
 #
-# Decide whether Slurm shared data is deleted. Supported values:
-#   true  - delete the configured Slurm shared directories, then unmount the
-#           Slurm storage and remove its fstab entries
-#   false - preserve shared data, but still unmount the Slurm storage and
-#           remove its fstab entries
+# The product cleanup never deletes NFS shared data: cleanup_nfs_server is false
+# for Slurm and Kubernetes, so the cleanup only unmounts the storage and removes
+# its fstab entries. The two settings below therefore decide what the nfs_shares
+# suite does with the data after the cleanup. In both cases the suite first
+# verifies that the share is unmounted and not in fstab.
+#
+# cleanup_slurm - the nfs_slurm share of storage_config.yml. Supported values:
+#   true  - empty the share: mount it again temporarily (never added to fstab),
+#           delete everything in it (the export itself stays), unmount it and
+#           verify that it is empty (up to 3 attempts).
+#   false - keep the data: nothing is mounted or deleted.
 # Default: true
 cleanup_slurm: true
 #
-# Decide whether Kubernetes shared data is deleted. Supported values:
-#   true  - delete every entry under the configured Kubernetes shared mount,
-#           then unmount the storage and remove its fstab entries
-#   false - preserve shared data, but still unmount the Kubernetes storage and
-#           remove its fstab entries
+# cleanup_k8s - the nfs_k8s share of storage_config.yml. Supported values:
+#   true  - empty the share the same way as for cleanup_slurm.
+#   false - keep the data: nothing is mounted or deleted.
 # Default: true
 cleanup_k8s: true
+#
+# The nfs_shares suite mounts the shares on the execution OIM, so emptying a
+# share needs a local run as root there (oim_server_ip empty). The unmount and
+# fstab verification also works over SSH.
 #
 # DRY_RUN and SKIP_APPROVAL are supported by the product as environment
 # controls, not as Ansible extra variables. They are therefore deliberately
@@ -324,7 +332,7 @@ nft_performance_threshold_seconds:
 #   - A folder name (relative to the current working directory): reports
 #   - An absolute path: /var/reports/orchestrator
 # No spaces allowed in the path.
-report_path: /opt/omnia/reports
+report_path: /automation
 
 # Base name for report files (without extension).
 # Generates: orchestrator_test_report.json, orchestrator_test_report.html

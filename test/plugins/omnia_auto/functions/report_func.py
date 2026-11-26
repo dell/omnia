@@ -77,6 +77,23 @@ def build_report_name(base_name: str = "") -> str:
     return base_name
 
 
+_SAFE_TAG = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+
+def report_module_name(domain: str, fallback: Optional[str] = None) -> str:
+    """Return the suite name of the report for this run.
+
+    In a pipeline (``CI_PIPELINE_ID`` set) a run of an FVT tag is reported as ``<domain>_<tag>``
+    (for example ``telemetry_cleanup``), a run without a tag as the domain itself
+    (``telemetry``). Outside a pipeline the suite name chosen by the module (``fallback``, else
+    the domain) is kept. A tag that is not a plain name is ignored.
+    """
+    if not os.environ.get("CI_PIPELINE_ID"):
+        return fallback or domain
+    tag = os.environ.get("OMNIA_DEPLOY_TAG", "")
+    return f"{domain}_{tag}" if tag and _SAFE_TAG.match(tag) else domain
+
+
 # ── Sensitive Data Redaction ─────────────────────────────────────────────────
 
 _REDACT_PATTERNS = None
@@ -520,6 +537,10 @@ class TestReport:
 
         if existing_mod_idx is not None:
             mod = run["modules"][existing_mod_idx]
+            # A retried run replaces the earlier result of the same test instead of repeating it.
+            fresh = {(r.get("test_name"), r.get("tc_id")) for r in self.results}
+            mod["results"] = [r for r in mod["results"]
+                              if (r.get("test_name"), r.get("tc_id")) not in fresh]
             mod["results"].extend(self.results)
             mod["playbook_logs"] = self.playbook_logs
             mod["command_type"] = self.command_type

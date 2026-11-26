@@ -55,6 +55,7 @@ from omnia_auto import (  # noqa: E402
     get_last_tc_id,
     encrypt_test_credentials,
     build_report_name,
+    report_module_name,
     log,
     set_verbose_mode,
     add_session_result,
@@ -233,6 +234,7 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
+    module_name = report_module_name("discovery", module_name)
     configured_id = str(config.get("run_id") or "").strip()
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id

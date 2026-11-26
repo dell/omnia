@@ -114,7 +114,7 @@ automatically skipped.
 
 | Field | Required | Description | Template value |
 |-------|----------|-------------|----------------|
-| `report_path` | Yes | Output directory for JSON and HTML reports; spaces are not allowed. | `/opt/omnia/reports` |
+| `report_path` | Yes | Output directory for JSON and HTML reports; spaces are not allowed. | `/automation` |
 | `report_name` | Yes | Base report name containing only letters, numbers, `_`, or `-`. | `telemetry_test_report` |
 | `report_id` | No | Reserved configuration field. Current report creation takes its ID from the runner's `REPORT_ID` environment variable. | `""` |
 
