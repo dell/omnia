@@ -936,6 +936,14 @@
             kubectl create -f {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml || echo "WARNING: Failed to create IP address pool. Continuing."
             echo "Deploy Layer2 Configuration"
             kubectl create -f {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml || echo "WARNING: Failed to create L2 advertisement. Continuing."
+{% if local_storage | default([]) | selectattr('purpose', 'equalto', 'kafka') | list | length > 0 %}
+            echo "Installing TopoLVM for Kafka local storage (ER-ORCH-011 Story 4)"
+            if bash {{ k8s_client_mount_path }}/topolvm/install-topolvm.sh; then
+              echo "TopoLVM install and omnia-kafka-local StorageClass completed."
+            else
+              echo "ERROR: TopoLVM install failed. See /var/log/install-topolvm.log and 'helm status topolvm -n topolvm-system'."
+            fi
+{% endif %}
 
             #echo "Deploy Multus"
             #kubectl apply -f {{ k8s_client_mount_path }}/multus/{{ multus_package }}.yml

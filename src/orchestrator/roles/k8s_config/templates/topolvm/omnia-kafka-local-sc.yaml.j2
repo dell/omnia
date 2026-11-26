@@ -1,0 +1,25 @@
+{# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+   Licensed under the Apache License, Version 2.0 #}
+{# StorageClass manifest for Kafka local storage via TopoLVM.
+   _sc_name   : StorageClass name (omnia-kafka-local)
+   _vg        : declared purpose: kafka volume_group (the device class)
+   _mount_opts: declared purpose: kafka mount_options, as a list
+   FR-3.2: WaitForFirstConsumer, Retain, allowVolumeExpansion true, ext4, declared mount
+   options, no default annotation. #}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: "{{ _sc_name }}"
+provisioner: topolvm.io
+parameters:
+  csi.storage.k8s.io/fstype: "ext4"
+  topolvm.io/device-class: "{{ _vg }}"
+{% if _mount_opts | length > 0 %}
+mountOptions:
+{% for opt in _mount_opts %}
+  - {{ opt | to_json }}
+{% endfor %}
+{% endif %}
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+allowVolumeExpansion: true
