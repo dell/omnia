@@ -852,7 +852,36 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "kafka_error_log": (
         "grep -m 1 'ERROR node=%s' /var/log/local-disk-prep.log 2>/dev/null || true"
     ),
+    # ── TopoLVM / Kafka StorageClass — ER-ORCH-011 Story 4 ──────────────────
+    # Return all StorageClass objects as JSON (run on the control plane)
+    "topolvm_storageclasses": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get sc -o json"
+    ),
+    # Return all pods in the topolvm-system namespace as JSON
+    "topolvm_pods": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get pods -n topolvm-system -o json"
+    ),
+    # Return the helm release status for topolvm in topolvm-system
+    "topolvm_helm_status": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "helm status topolvm -n topolvm-system -o json 2>/dev/null || echo '{}'"
+    ),
+    # Return topolvm capacity annotations on all nodes as JSON
+    "topolvm_node_capacity": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get nodes -o json"
+    ),
 }
+
+# ── TopoLVM / Kafka StorageClass contract — ER-ORCH-011 Story 4 ──────────────
+# Values match roles/k8s_config/vars/main.yml and the HLD contract with Telemetry.
+TOPOLVM_NAMESPACE = "topolvm-system"
+TOPOLVM_PROVISIONER = "topolvm.io"
+TOPOLVM_KAFKA_STORAGECLASS = "omnia-kafka-local"
+TOPOLVM_KAFKA_FSTYPE = "ext4"
+TOPOLVM_CAPACITY_ANNOTATION_PREFIX = "capacity.topolvm.io/"
+KAFKA_STORAGE_LABEL_KEY = "omnia.dell.com/kafka-storage"
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
     "etcd-",

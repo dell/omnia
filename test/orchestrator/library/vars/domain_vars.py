@@ -81,6 +81,7 @@ MARKERS: list[str] = [
     "node_remove",
     "node_add",
     "token_renew",
+    "topolvm",
 ]
 
 # =====================================================================

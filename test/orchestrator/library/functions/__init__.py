@@ -264,6 +264,12 @@ from .kafka_local_disk_pxeboot_func import (
     check_kubernetes_kafka_disk_status,
     check_kubernetes_kafka_node_label,
 )
+from .topolvm_storageclass_pxeboot_func import (
+    check_default_storageclass_unchanged,
+    check_kafka_storageclass_properties,
+    check_topolvm_capacity_per_node,
+    check_topolvm_installed_when_kafka_declared,
+)
 from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_csi_dynamic_provisioning,
     check_kubernetes_default_storage_class,
@@ -271,6 +277,7 @@ from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_nfs_provisioner_contract,
     check_kubernetes_snapshot_controller,
     check_kubernetes_workload_scheduling,
+    check_topolvm_kafka_dynamic_provisioning,
 )
 from .local_storage_precheck_func import (
     check_precheck_local_storage_declarations,
@@ -663,6 +670,13 @@ __all__ = [
     "check_kubernetes_version_compatibility",
     "check_kubernetes_virtual_ip",
     "check_kubernetes_workload_scheduling",
+    "check_kubernetes_kafka_disk_status",
+    "check_kubernetes_kafka_node_label",
+    "check_topolvm_installed_when_kafka_declared",
+    "check_topolvm_capacity_per_node",
+    "check_kafka_storageclass_properties",
+    "check_default_storageclass_unchanged",
+    "check_topolvm_kafka_dynamic_provisioning",
     "check_lifecycle_fresh_install",
     "check_lifecycle_performance",
     "check_lifecycle_provision_verify",

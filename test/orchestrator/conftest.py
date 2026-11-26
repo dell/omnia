@@ -295,6 +295,7 @@ def pytest_configure(config):
         "node_remove": "Kubernetes/Slurm node removal lifecycle checks",
         "node_add": "Kubernetes/Slurm node re-addition lifecycle checks",
         "token_renew": "Kubernetes bootstrap token renewal checks",
+        "topolvm": "TopoLVM install and Kafka StorageClass checks (ER-ORCH-011 Story 4)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

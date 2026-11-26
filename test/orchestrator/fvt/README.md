@@ -28,7 +28,7 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 | `precheck` | `ORCH_FVT_PRECHECK_E001` | `V001`–`V012`, `V100`–`V105`, `V107`–`V117` | `environment`, `oim_readiness`, `storage`, `dependencies`, `inputs` |
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V007`, `V009`–`V011`, `V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V010` | `openchami` |
-| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V115`, `V117`–`V128`, `V200`–`V206`, `V208`–`V227`, `V300`–`V311`, `V400`–`V429`, `V500`–`V525`, `V600`–`V621`, `V700`–`V716` | see `SUITES` in `library/vars/domain_vars.py` |
+| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V115`, `V117`–`V128`, `V200`–`V206`, `V208`–`V227`, `V300`–`V311`, `V400`–`V429`, `V500`–`V525`, `V600`–`V621`, `V640`–`V644`, `V700`–`V716` | see `SUITES` in `library/vars/domain_vars.py` |
 | `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 The detailed tables below are the authoritative inventory. Each test's
