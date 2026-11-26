@@ -300,6 +300,10 @@ TEST_LOG_MSGS = {
     # Validate extended
     "input_config_ok": "image_build_config.yml present",
     "input_config_missing": "image_build_config.yml not found",
+    "oci_target_config_ok": "Target image_build_config.yml passes validate tag",
+    "oci_target_config_failed": "Target image_build_config.yml fails validate tag",
+    "oci_variant_ok": "External registry variant '{case}' matched its expected result",
+    "oci_variant_unexpected": "External registry variant '{case}' did not match its expected result",
 
     # repo_ssl_verify
     "repo_ssl_verify_ok": (

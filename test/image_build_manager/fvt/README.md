@@ -72,6 +72,8 @@ default build flows.
 | 2 | IMGBM_FVT_VALIDATE_V002 | `test_credentials_present` | sanity | Resolves the separate domain-credential path on the execution OIM. | `image_build_credentials.yml` exists; credential values are not printed. |
 | 3 | IMGBM_FVT_VALIDATE_V003 | `test_repo_ssl_verify_config` | sanity | Reads the explicit or default effective `repo_ssl_verify` value. | Configuration resolves to a valid Boolean value and its source is reported. |
 | 4 | IMGBM_FVT_VALIDATE_V004 | `test_repo_ssl_verify_applied` | x86_64, functional | Inspects the Image Thrillhouse base and compute source templates. | Both templates reference `repo_ssl_verify`, `sslverify`, and `gpgcheck`; the case skips when the effective configuration cannot be read or validated. |
+| 5 | IMGBM_FVT_VALIDATE_V005 | `test_target_config_validates_on_oim` | sanity | Runs the validate tag against the active target configuration. | Playbook exits successfully with the target `external_oci_registry` section, if any. |
+| 6 | IMGBM_FVT_VALIDATE_V006 | `test_external_registry_variant` (12 parametrized cases) | sanity | Runs the validate tag against temporary input and log directories (`input_project_dir`, `log_dir`) for valid, absent, and invalid `external_oci_registry` values and the cleanup flag. The target files are not modified. Local OIM only. | Valid cases exit successfully (the cleanup-flag warning appears in the validation log); invalid cases fail and name the field. Requirements: FR-2.1 and AC-002, AC-008, AC-012 (TC-FVT-007). |
 
 ## Prepare test cases
 

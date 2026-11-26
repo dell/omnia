@@ -229,6 +229,15 @@ TEST_CASES = {
         "id": "IMGBM_FVT_VALIDATE_V004",
         "title": "Verify repo_ssl_verify is wired into build templates",
     },
+    # ── Validate — external registry (TC-FVT-007) ─────────────────────
+    "oci_target_config": {
+        "id": "IMGBM_FVT_VALIDATE_V005",
+        "title": "Validate target external_oci_registry configuration",
+    },
+    "oci_registry_variants": {
+        "id": "IMGBM_FVT_VALIDATE_V006",
+        "title": "Validate external_oci_registry and cleanup-flag variants",
+    },
     # ── Cleanup ───────────────────────────────────────────────────────────
     "deploy_cleanup_images": {
         "id": "IMGBM_FVT_CLEANUP_IMAGES_E001",
