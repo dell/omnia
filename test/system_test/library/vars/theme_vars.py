@@ -314,6 +314,9 @@ THEMES: Dict[str, Dict] = {
         # Stores written by another suite than creds_suite: the suite takes one flat JSON
         # object on --domain-creds-stdin and has no --domain option.
         "creds_suites": {"telemetry": "telemetry"},
+        # Theme settings that turn on an external appliance: when one is true, the credential
+        # step sets the appliance credentials (test_creds.yml) of the telemetry suite too.
+        "external_credentials": ("configure_ome", "configure_sfm"),
         "cleanup_requires": BUILD_STREAM_CLEANUP_REQUIRES,
         "cleanup_when_deployed": ("telemetry", "discovery"),
         # Cluster stages first (repo_manager -> image_build_manager -> orchestrator, the order

@@ -33,10 +33,10 @@
 #      SFM is not a telemetry source: it only needs the VictoriaMetrics sink;
 #   3. OME and SFM only: configure_ome / configure_sfm and the appliance addresses
 #      below, then, after ./setup_env.sh --configure wrote them into
-#      test/telemetry/test_config.yml, the appliance credentials (test_creds.yml):
-#        cd ../telemetry && bash setup_env.sh --set-creds
-#      (the domain credentials csi_*, ufm_* go in telemetry_credentials.yml with the
-#      others: ./setup_env.sh --theme observability --update-domain-creds).
+#      test/telemetry/test_config.yml, ./setup_env.sh --theme observability prompts for the
+#      OME and SFM appliance credentials (test_creds.yml) when they are on, in a terminal
+#      (an unattended run reports them and skips the prompt). The domain credentials csi_*,
+#      ufm_* go in telemetry_credentials.yml with the others.
 # Cleanup flags are shared by every theme and live only in the cleanup block of
 # user_inputs.yml. ./setup_env.sh --configure writes the observability block into
 # the FVT suites' test/<suite>/test_config.yml. A change here needs

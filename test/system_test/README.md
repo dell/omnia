@@ -188,9 +188,11 @@ To check a live source:
 
 The domain store (`telemetry_credentials.yml`) is written like the others
 (`./setup_env.sh --theme observability --update-domain-creds`, or OpenBao). The OME and SFM
-appliance credentials are FVT test credentials: after `./setup_env.sh --configure` wrote
-`configure_ome` / `configure_sfm` into `test/telemetry/test_config.yml`, run
-`cd ../telemetry && bash setup_env.sh --set-creds` once on the OIM (they are kept across runs).
+appliance credentials are FVT test credentials, stored in `test/telemetry/test_creds.yml`.
+`./setup_env.sh --theme observability` prompts for them when `configure_ome` or `configure_sfm`
+is true, in a terminal (it asks before overwriting existing values). An unattended run cannot
+prompt, so it reports them and the OME and SFM stages fail with the reason until they are set
+(`cd test/telemetry && bash setup_env.sh --set-external-creds` does the same step alone).
 The OME and SFM stages **configure the appliance** (certificates, Kafka forwarder, SFM
 Remote Write): run them only against a lab appliance. Both SFM stages use the same settings and
 credentials.

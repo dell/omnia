@@ -204,6 +204,13 @@ SETUP_MSGS = {
                   "for the FVT and do not apply to the SVT. Next: "
                   "./run_validation.sh svt_{theme} all",
     "creds_failed": "the credential setup failed (rc={rc}); see the output above",
+    "external_creds_unattended": "{settings} is on, but its OME/SFM appliance credentials "
+                                 "cannot be prompted without a terminal: run ./setup_env.sh "
+                                 "--theme {theme} in a terminal (or bash setup_env.sh "
+                                 "--set-external-creds in test/telemetry)",
+    "external_creds_failed": "the OME/SFM appliance credentials were not set (rc={rc}); see "
+                             "the output above",
+    "external_creds_missing": "the OME/SFM appliance credentials file {path} was not written",
     "creds_all_set": "every domain credential store is already set "
                      "(change one with ./setup_env.sh --update-domain-creds --domain <d>)",
     "creds_need_stdin": (

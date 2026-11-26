@@ -167,6 +167,11 @@ CREDS_FLAGS = ("--set-domain-creds", "--update-domain-creds", "--domain-creds-st
                OPENBAO_CREDS_FLAG)
 CREDS_STDIN_FLAG = "--domain-creds-stdin"
 MAX_CREDS_STDIN_BYTES = 65536
+# OME and SFM appliance credentials (test_creds.yml of the telemetry suite): set by the suite's
+# --set-external-creds, which prompts only for the appliances its test_config.yml enables.
+EXTERNAL_CREDS_FLAG = "--set-external-creds"
+EXTERNAL_CREDS_SUITE = "telemetry"
+EXTERNAL_CREDS_FILE = "test_creds.yml"
 # Test requirements installed into the Omnia venv, per suite: checksums of the
 # suite's requirements.txt and setup_env.sh and of the omnia_auto wheel. A
 # suite whose checksum is unchanged is not installed again (unless --force).
