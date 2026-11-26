@@ -163,6 +163,14 @@ TEST_CASES = {
         "id": "UTILS_FVT_COLLECT_V012",
         "title": "Verify log bundle contains log files with content",
     },
+    "collect_bundle_worker_pod_logs": {
+        "id": "UTILS_FVT_COLLECT_V013",
+        "title": "Verify log bundle contains worker pod log directories",
+    },
+    "collect_bundle_local_storage_status": {
+        "id": "UTILS_FVT_COLLECT_V014",
+        "title": "Verify log bundle contains per-node local storage status files",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # NEGATIVE TEST CASES - COLLECT
@@ -896,6 +904,35 @@ TEST_CASES = {
     "ut_orchestrator_build_type_allow_list": {
         "id": "UTILS_UT_OCI_IMAGE_INGEST_U008",
         "title": "Orchestrator image build type allow-list",
+    },
+    # --- UT test cases for log collector local storage (ER-ORCH-011) ---
+    "ut_collect_worker_log_dirs": {
+        "id": "UTILS_UT_COLLECT_U001",
+        "title": "Verify worker pod log directories configured in vars",
+    },
+    "ut_collect_local_disk_prep_log": {
+        "id": "UTILS_UT_COLLECT_U002",
+        "title": "Verify local-disk-prep.log configured in vars",
+    },
+    "ut_collect_storage_config_file": {
+        "id": "UTILS_UT_COLLECT_U003",
+        "title": "Verify storage_config_file configured in vars",
+    },
+    "ut_collect_worker_tasks": {
+        "id": "UTILS_UT_COLLECT_U004",
+        "title": "Verify k8s_logs tasks collect worker log directories",
+    },
+    "ut_collect_nfs_status_tasks": {
+        "id": "UTILS_UT_COLLECT_U005",
+        "title": "Verify bundle tasks collect NFS status files",
+    },
+    "ut_validate_worker_pod_logs": {
+        "id": "UTILS_UT_COLLECT_U006",
+        "title": "Verify worker pod logs validator helper function",
+    },
+    "ut_validate_local_storage_status": {
+        "id": "UTILS_UT_COLLECT_U007",
+        "title": "Verify local storage status validator helper function",
     },
 }
 

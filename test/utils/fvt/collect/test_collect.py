@@ -39,6 +39,8 @@ from library.functions import (
     load_test_config,
     run_playbook,
     validate_bundle_log_files,
+    validate_bundle_worker_pod_logs,
+    validate_bundle_local_storage_status_files,
     validate_collect_pxe_file,
     validate_metadata_file,
     validate_tar_contents,
@@ -46,6 +48,7 @@ from library.functions import (
 )
 from library.vars import (
     TEST_CASES as TC,
+    PLAYBOOK_UTILS,
     PLAYBOOK_COLLECT,
     PLAYBOOK_WORKDIR,
     COLLECT_PXE_FILE,
@@ -458,8 +461,22 @@ def test_collect_bundle_contents(host):
         tl.skipped("No log bundle found, skipping content verification")
         pytest.skip("No log bundle found")
 
-    # Expected directories in the bundle (updated to match actual structure)
-    expected_dirs = ["k8s", "slurm"]
+    # Expected directories based on configured functional groups
+    input_path = get_utils_input_path(host)
+    collect_pxe_file = f"{input_path}/collect_pxe.yml"
+    config = {}
+    try:
+        content = host.run(f"cat {collect_pxe_file}").stdout
+        config = yaml.safe_load(content) or {}
+    except Exception:
+        pass
+
+    has_slurm = any(
+        ("slurm" in k or "login" in k)
+        for k, v in config.items()
+        if isinstance(v, list) and len(v) > 0
+    )
+    expected_dirs = ["k8s", "slurm"] if has_slurm else ["k8s"]
 
     result = validate_tar_contents(host, bundle_result["bundle_path"], expected_dirs)
 
@@ -523,6 +540,56 @@ def test_collect_bundle_log_files_content(host):
         f"Log file verification completed: {total_found} files found, {len(result['missing_files'])} missing")
 
 
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.order(37)
+def test_collect_bundle_worker_pod_logs(host):
+    """Verify log bundle contains worker pod log directories (TC-NFT-005 L1)."""
+    tc = TC["collect_bundle_worker_pod_logs"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_collect_output_path(host)
+    bundle_result = find_log_bundle(host, output_path)
+
+    if not bundle_result["success"]:
+        tl.skipped("No log bundle found, skipping worker pod logs verification")
+        pytest.skip("No log bundle found")
+
+    result = validate_bundle_worker_pod_logs(host, bundle_result["bundle_path"])
+    if not result["success"]:
+        tl.failed(f"Failed to check worker pod logs in bundle: {result['error']}")
+        pytest.fail(f"Failed to check worker pod logs: {result['error']}")
+
+    pod_count = len(result["found_pod_logs"])
+    container_count = len(result["found_container_logs"])
+    tl.info(f"Found {pod_count} pod logs and {container_count} container logs")
+    tl.passed("Worker pod logs verification completed")
+
+
+@pytest.mark.functional
+@pytest.mark.collect
+@pytest.mark.order(38)
+def test_collect_bundle_local_storage_status_files(host):
+    """Verify log bundle contains per-node local storage status files (TC-NFT-005 L3)."""
+    tc = TC["collect_bundle_local_storage_status"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_collect_output_path(host)
+    bundle_result = find_log_bundle(host, output_path)
+
+    if not bundle_result["success"]:
+        tl.skipped("No log bundle found, skipping local storage status verification")
+        pytest.skip("No log bundle found")
+
+    result = validate_bundle_local_storage_status_files(host, bundle_result["bundle_path"])
+    if not result["success"]:
+        tl.failed(f"Failed to check local storage status in bundle: {result['error']}")
+        pytest.fail(f"Failed to check local storage status: {result['error']}")
+
+    tl.info(f"Found {len(result['status_files'])} local storage status files in bundle")
+    tl.passed("TC-NFT-005 L3 verification completed")
+
+
 # =============================================================================
 # ENVIRONMENT VARIABLE VERIFICATION
 # =============================================================================
@@ -578,8 +645,8 @@ def test_collect_output_not_writable_fails(host):
 
     output_path = get_collect_output_path(host)
 
-    # Setup: Make output directory read-only
-    host.run(f"chmod 000 {output_path}")
+    # Setup: Make output directory immutable (read-only even for root)
+    host.run(f"chattr +i {output_path} 2>/dev/null || chmod 000 {output_path}")
 
     try:
         # Execute: Run collection (should fail)
@@ -592,8 +659,8 @@ def test_collect_output_not_writable_fails(host):
 
         assert not result["success"], "Collection should fail when output directory is not writable"
     finally:
-        # Cleanup: Restore permissions
-        host.run(f"chmod 755 {output_path}")
+        # Cleanup: Restore permissions and remove immutable flag
+        host.run(f"chattr -i {output_path} 2>/dev/null || true; chmod 755 {output_path}")
 
 
 @pytest.mark.functional
@@ -618,8 +685,12 @@ def test_collect_no_nodes_configured_fails(host):
         host.run(f"echo 'slurm_control_node_x86_64: []' >> {collect_pxe_file}")
         host.run(f"echo 'slurm_node_x86_64: []' >> {collect_pxe_file}")
 
-        # Execute: Run collection (should fail)
-        result = run_playbook(playbook=PLAYBOOK_COLLECT, tag="bundle")
+        # Execute: Run collection via utils.yml --tags collect with validation enabled
+        result = run_playbook(
+            playbook=PLAYBOOK_UTILS,
+            tag="collect",
+            extra_vars={"skip_validation": "false"},
+        )
 
         if not result["success"]:
             tl.passed("Collection failed as expected when no nodes are configured")

@@ -1,0 +1,93 @@
+#!/bin/bash
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# install-topolvm.sh — Rendered by Orchestrator; run from the shared NFS share
+# by the control-plane first-node cloud-init after kubeadm init completes.
+#
+# FR-3.1: Install TopoLVM from the offline repository with digest-pinned image.
+# FR-3.2: Create the Kafka StorageClass; leave the default StorageClass unchanged.
+# NFR-5: Air-gapped — no internet access; all artefacts come from {{ _stage_dir }}.
+#
+# This runs on the first control-plane node before any worker has joined. The
+# TopoLVM controller and node pods can only schedule on worker nodes (the node
+# pods only on Kafka-labelled ones), so the script does not wait for them: it
+# installs the release, creates the StorageClass (WaitForFirstConsumer needs no
+# running pod), and reports pod state. Pods become Ready as workers join.
+#
+# Usage: bash {{ _stage_dir }}/install-topolvm.sh
+set -euo pipefail
+export KUBECONFIG=/etc/kubernetes/admin.conf
+
+CHART="{{ _stage_dir }}/{{ _chart_pkg }}.tar.gz"
+VALUES="{{ _stage_dir }}/topolvm-values.yaml"
+SC_MANIFEST="{{ _stage_dir }}/omnia-kafka-local-sc.yaml"
+NS="{{ _ns }}"
+SC_NAME="{{ _sc_name }}"
+LOG=/var/log/install-topolvm.log
+
+log()  { echo "$(date +%FT%T) [topolvm-install] $*" | tee -a "$LOG"; }
+die()  { log "ERROR: $*"; exit 1; }
+
+# --- Guard: skip only when the release is deployed (idempotent) ---
+# A failed or pending release (for example an interrupted install) is removed
+# and installed again, so a partial install is never mistaken for a complete one.
+RELEASE_STATUS=$(helm status topolvm -n "$NS" -o json 2>/dev/null \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["info"]["status"])' 2>/dev/null \
+  || echo "absent")
+if [[ "$RELEASE_STATUS" == "deployed" ]]; then
+  log "TopoLVM Helm release already deployed; verifying StorageClass."
+else
+  if [[ "$RELEASE_STATUS" != "absent" ]]; then
+    log "TopoLVM release is in state '$RELEASE_STATUS'; uninstalling before reinstall."
+    helm uninstall topolvm -n "$NS" --wait >>"$LOG" 2>&1 \
+      || die "Could not remove the $RELEASE_STATUS TopoLVM release."
+  fi
+  # --- Prerequisite checks ---
+  [[ -f "$CHART" ]]  || die "Chart tarball missing at $CHART. Check Repo Manager."
+  [[ -f "$VALUES" ]] || die "Values file missing at $VALUES."
+
+  # --- Namespace + label ---
+  kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
+  kubectl label namespace "$NS" topolvm.io/webhook=ignore --overwrite
+
+  # --- Helm install (offline; chart is already on NFS). No --wait: see header. ---
+  log "Installing TopoLVM from $CHART ..."
+  helm upgrade --install topolvm "$CHART" \
+    --namespace "$NS" \
+    -f "$VALUES" \
+    --timeout 10m \
+    || die "Helm install failed. Check 'helm status topolvm -n $NS' and pod logs."
+
+  log "TopoLVM release installed."
+fi
+
+# --- StorageClass (idempotent apply) ---
+[[ -f "$SC_MANIFEST" ]] || die "StorageClass manifest missing at $SC_MANIFEST."
+kubectl apply -f "$SC_MANIFEST"
+log "StorageClass $SC_NAME applied."
+
+# --- Safety check: the Kafka StorageClass must never be the default (FR-3.2) ---
+default_sc=$(kubectl get sc -o jsonpath=\
+'{range .items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")]}{.metadata.name}{"\n"}{end}' \
+  2>/dev/null | head -1 || true)
+if [[ "$default_sc" == "$SC_NAME" ]]; then
+  die "StorageClass $SC_NAME is marked as default, which violates FR-3.2. Remove the annotation."
+fi
+
+# --- Report pod state (non-blocking; pods schedule as workers join) ---
+log "TopoLVM pods now:"
+kubectl -n "$NS" get pods -o wide 2>&1 | tee -a "$LOG" || true
+
+log "TopoLVM install complete. Default StorageClass: ${default_sc:-<none>}."

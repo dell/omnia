@@ -351,7 +351,9 @@
           "quay.io/metallb/controller",
           "quay.io/metallb/speaker",
           "kubectl_1_35_1",
-          "nfs_subdir_external_provisioner"
+          "nfs_subdir_external_provisioner",
+          "topolvm_chart_v17_3_0",
+          "ghcr.io/topolvm/topolvm-with-sidecar"
         ]
       },
       "service_k8s_telemetry_group": {
@@ -2106,6 +2108,35 @@
             "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
           }
         ]
+      },
+      "topolvm_chart_v17_3_0": {
+        "name": "topolvm-17.3.0",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ],
+            "url": "https://github.com/topolvm/topolvm/releases/download/topolvm-chart-v17.3.0/topolvm-17.3.0.tgz"
+          }
+        ]
+      },
+      "ghcr.io/topolvm/topolvm-with-sidecar": {
+        "name": "ghcr.io/topolvm/topolvm-with-sidecar",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ],
+            "registry": "ghcr.io"
+          }
+        ],
+        "tag": "0.42.0"
       },
       "dracut_network": {
         "name": "dracut-network",

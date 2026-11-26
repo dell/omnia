@@ -507,3 +507,18 @@
 - name: Get CSI PowerScale driver dependencies
   when: hostvars['localhost'].get('enable_powerscale_csi', false) | bool
   ansible.builtin.include_tasks: get_powerscale_dependencies.yml
+
+# ---------------------------------------------------------------------------
+# TopoLVM — stage chart + render values/StorageClass on the NFS share
+# FR-3.1: install only when a purpose: kafka entry exists.
+# FR-3.2: create omnia-kafka-local StorageClass; default unchanged.
+# ---------------------------------------------------------------------------
+- name: Resolve kafka disk entries from storage_config
+  ansible.builtin.set_fact:
+    _kafka_disk_entries: >-
+      {{ local_storage | default([])
+         | selectattr('purpose', 'equalto', 'kafka') | list }}
+
+- name: Stage TopoLVM artefacts when a Kafka disk is declared
+  when: _kafka_disk_entries | length > 0
+  ansible.builtin.include_tasks: install_topolvm.yml
