@@ -98,6 +98,7 @@ from omnia_auto import (
     TestReport,
     add_session_result,
     build_report_name,
+    report_module_name,
     encrypt_test_credentials,
     get_current_report,
     get_last_tc_id,
@@ -179,6 +180,7 @@ _TC_ID_MAP.update(
         ],
         "test_slurm_configless_mode": TEST_CASES["slurm_configless"]["id"],
         "test_slurm_cluster_recovery": TEST_CASES["slurm_recovery"]["id"],
+        "test_slurm_ordered_reboot": TEST_CASES["slurm_ordered_reboot"]["id"],
         "test_slurm_gpu_memory_stress": TEST_CASES["slurm_gpu_memory"]["id"],
         "test_slurm_compiler_node_jobs": TEST_CASES["slurm_compiler_jobs"]["id"],
         "test_openchami_removed": TEST_CASES["cleanup_openchami"]["id"],
@@ -574,6 +576,7 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
+    module_name = report_module_name("orchestrator", module_name)
     configured_id = str(config.get("run_id") or "").strip()
     run_id = configured_id or datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id
@@ -581,7 +584,7 @@ def pytest_sessionstart(session):
     report_name = build_report_name(
         base_name=base_name,
     )
-    report_path = str(config.get("report_path", "/opt/omnia/reports"))
+    report_path = str(config.get("report_path", "/automation"))
     # Only override to local reports for unit tests, not for local FVT execution
     if os.environ.get("OMNIA_COMMAND_TYPE") == "ut":
         report_path = os.path.join(_TEST_DIR, "reports")

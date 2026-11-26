@@ -173,3 +173,25 @@ result = run_playbook(
 | Function | What you need first |
 |----------|-------------------|
 | `run_playbook()` | `configure()` with config and credentials. `ansible-playbook` installed. |
+
+---
+
+## Ansible verbosity, full playbook and playbook output in the report
+
+- **Verbosity.** The ansible verbosity of `run_playbook` is, in this order: the `verbosity`
+  argument, the environment variable `OMNIA_ANSIBLE_VERBOSITY` (0 to 4), the setting
+  `default_verbosity` (1). `./run_validation.sh fvt_<domain> ... --ansible-verbosity <0-4>` sets
+  the variable for that run.
+- **Full playbook.** `./run_validation.sh fvt_<domain> exec` (no tag) runs `fvt/test_playbook.py`, the
+  one test file directly under `fvt/`: the complete domain playbook once, without `--tags`.
+  `./run_validation.sh fvt_<domain> <tag> exec` runs only that tag, from `fvt/<tag>/test_playbook.py`
+  (`--tags <tag>`). The full-playbook test calls
+  `omnia_auto.run_full_playbook_test(run_playbook, "<playbook>.yml", title, tc_id)` with the
+  domain's own `run_playbook` wrapper. Untagged `test` runs that playbook, then the verify suites of
+  every tag that is not explicit-only; untagged `verify` runs those suites alone. A domain without
+  `fvt/test_playbook.py` (utils) keeps running its default lifecycle tags for an untagged `exec`,
+  `verify` and `test`.
+- **Playbook output in the report.** `run_playbook` keeps its output for the running test
+  (`set_last_playbook_output`); `get_test_output()` returns the test screen output followed by
+  `PLAYBOOK_OUTPUT_MARKER` and the playbook output (head and tail of a very long one). The HTML
+  report shows it in a scrollable `Playbook output` pane under the test.

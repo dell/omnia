@@ -324,7 +324,7 @@ nft_recovery_timeout_seconds: 120
 # After the run, a JSON and an HTML report are written to
 # <report_path>/<report_name>.json and .html.
 # Directory on this host where the reports are written.
-report_path: /build_stream
+report_path: /automation
 # Report file name without extension.
 report_name: build_stream
 # ID shown in the report to group this run. Empty = current timestamp

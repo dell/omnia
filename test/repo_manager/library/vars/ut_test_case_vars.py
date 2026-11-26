@@ -736,6 +736,18 @@ UT_TEST_CASE_IDS = {
         "test_pulp_quadlet_contract.py"
         "::test_pulp_volumes_do_not_use_global_selinux_option"
     ): "RM_UT_340",
+    # ── wget end-of-options hardening (CWE-88) ────────────────────────────
+    **_class_cases(
+        "test_wget_argument_contract.py",
+        "WgetArgumentContractTests",
+        {
+            341: "test_every_wget_argv_ends_options_before_url",
+            342: "test_artifact_url_rejects_option_like_values",
+            343: "test_direct_rpm_wget_calls_end_options_before_url",
+            344: "test_tarball_spider_keeps_user_agent_before_end_of_options",
+            345: "test_iso_spider_ends_options_before_url",
+        },
+    ),
 }
 
 

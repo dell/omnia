@@ -58,6 +58,7 @@ from omnia_auto import (  # noqa: E402 - configure omnia_auto before consumers
     get_last_detail_fields,
     encrypt_test_credentials,
     build_report_name,
+    report_module_name,
     log,
     add_session_result,
     print_summary_table,
@@ -95,7 +96,7 @@ _FVT_SCENARIO_ORDER = {
 
 _FVT_SUITE_ORDER = {
     "precheck": {"": 0, "connectivity": 1},
-    "validate": {"": 0, "status": 1},
+    "validate": {"": 0, "status": 1, "contract": 2},
     "prepare": {"": 0, "container": 1, "s3": 2},
     "build": {
         "": 0,
@@ -191,6 +192,8 @@ def pytest_configure(config):
         "nft": "Non-functional tests (performance, idempotency)",
         "destructive": "Opt-in tests that remove deployed state",
         "security": "Security verification (permissions, credentials)",
+        "live_file": ("Needs the real repo_status.yml of a repo_manager run; skipped when "
+                      "absent unless REQUIRE_LIVE_REPO_STATUS=1"),
     }
         
     for name, desc in markers.items():
@@ -486,6 +489,7 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
+    module_name = report_module_name("image_build_manager", module_name)
     configured_id = str(config.get("run_id") or "").strip()
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id
@@ -527,8 +531,27 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         except (OSError, IOError) as exc:
             log(f"Report save failed: {exc}", "WARN")
 
+    # Surface live-file test skips so a green run can't hide them
+    _report_live_file_skips(terminalreporter)
+
     # Print summary table (from omnia_auto)
     print_summary_table()
+
+
+def _report_live_file_skips(terminalreporter):
+    """Warn when contract tests skipped for lack of the live repo_status.yml."""
+    skipped = [rep.nodeid.rsplit("::", 1)[-1] for rep in terminalreporter.stats.get("skipped", [])
+               if "contract" in rep.nodeid and "repo_status" in str(getattr(rep, "longrepr", ""))]
+    if not skipped:
+        return
+    terminalreporter.section("live-file contract tests")
+    terminalreporter.write_line(
+        f"WARNING: {len(skipped)} live-file test(s) were SKIPPED (repo_status.yml not found).")
+    terminalreporter.write_line(
+        "A green report with skips does NOT confirm the external-source contract was "
+        "validated against a real output file. Set REQUIRE_LIVE_REPO_STATUS=1 to fail instead.")
+    for name in skipped:
+        terminalreporter.write_line(f"  - {name}")
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

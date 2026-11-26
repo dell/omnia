@@ -31,6 +31,9 @@ import json
 from typing import Any, Dict, Iterable, List, Tuple, Union
 
 from ._file_io import advisory_lock, atomic_write_json
+from ..vars.validation_vars import (
+    MAX_PLAYBOOK_OUTPUT_CHARS, PLAYBOOK_OUTPUT_HEAD_CHARS, PLAYBOOK_OUTPUT_MARKER,
+)
 
 
 FieldItems = Union[Mapping[Any, Any], Iterable[Tuple[Any, Any]]]
@@ -153,6 +156,9 @@ _LAST_OUTPUT: ContextVar[str] = ContextVar(
 _LAST_TC_ID: ContextVar[str] = ContextVar(
     "omnia_auto_last_tc_id", default="",
 )
+_LAST_PLAYBOOK_OUTPUT: ContextVar[str] = ContextVar(
+    "omnia_auto_last_playbook_output", default="",
+)
 _LAST_DETAIL_FIELDS: ContextVar[Tuple[Dict[str, str], ...]] = ContextVar(
     "omnia_auto_last_detail_fields", default=(),
 )
@@ -160,9 +166,24 @@ _LAST_DETAIL_FIELDS: ContextVar[Tuple[Dict[str, str], ...]] = ContextVar(
 MAX_LINE_WIDTH = 100
 
 
+def set_last_playbook_output(text: str) -> None:
+    """Keep the output of the latest playbook run for the report of the running test.
+
+    A very long output keeps its head and its tail.
+    """
+    if len(text) > MAX_PLAYBOOK_OUTPUT_CHARS:
+        tail = MAX_PLAYBOOK_OUTPUT_CHARS - PLAYBOOK_OUTPUT_HEAD_CHARS
+        omitted = len(text) - MAX_PLAYBOOK_OUTPUT_CHARS
+        text = (f"{text[:PLAYBOOK_OUTPUT_HEAD_CHARS]}\n... {omitted} characters omitted ...\n"
+                f"{text[-tail:]}")
+    _LAST_PLAYBOOK_OUTPUT.set(text)
+
+
 def get_test_output(test_name: str = None) -> str:  # pylint: disable=unused-argument
-    """Get captured output for the last test."""
-    return _LAST_OUTPUT.get()
+    """Get captured output for the last test, then the full output of its playbook run."""
+    output = _LAST_OUTPUT.get()
+    playbook = _LAST_PLAYBOOK_OUTPUT.get()
+    return f"{output}{PLAYBOOK_OUTPUT_MARKER}{playbook}" if playbook else output
 
 
 def get_last_tc_id() -> str:
@@ -187,6 +208,7 @@ def clear_test_context() -> None:
     _LAST_OUTPUT.set("")
     _LAST_TC_ID.set("")
     _LAST_DETAIL_FIELDS.set(())
+    _LAST_PLAYBOOK_OUTPUT.set("")
 
 
 class TestLogger:
