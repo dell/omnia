@@ -233,4 +233,8 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "DISCOVERY_NFT_005",
         "title": "NFT: Cleanup idempotent (two runs succeed, state clean)",
     },
+    "deploy_full_playbook": {
+        "id": "DISCOVERY_FVT_FULL_PLAYBOOK_E001",
+        "title": "Deploy discovery (complete playbook, no tags)",
+    },
 }

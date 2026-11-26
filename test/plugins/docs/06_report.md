@@ -79,7 +79,7 @@ set_current_report(report)
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
 | `module_name` | `str` | **Yes** | A name for the scenario or module being tested. This appears as a label in the report. | `"build"` or `"validate"` |
-| `report_path` | `str` | **Yes** | Absolute path to the directory where JSON and HTML files will be saved. The directory is created automatically if it doesn't exist. | `"/opt/omnia/reports"` |
+| `report_path` | `str` | **Yes** | Absolute path to the directory where JSON and HTML files will be saved. The directory is created automatically if it doesn't exist. | `"/automation"` |
 | `report_name` | `str` | **Yes** | Base filename for the report (without extension). Two files are created: `<report_name>.json` and `<report_name>.html`. | `"image_test_report"` |
 | `server_ip` | `str` | **Yes** | The IP address of the target server. Results in the report are grouped by this IP. | `"10.20.0.100"` |
 | `report_id` | `str` | No | A unique identifier for this test run. If not given, an auto-generated timestamp is used (e.g., `"20260730120000"`). Pass a shared `report_id` across multiple modules to group them in the same run. | `"20260730120000"` |
@@ -197,8 +197,8 @@ variable), they are included in the report with:
 │  Duration:      5.48s                                               │
 │  Results:       4 passed, 0 failed, 1 skipped                      │
 ├────────────────────────────────────────────────────────────────────┤
-│  JSON: /opt/omnia/reports/image_test_report.json                    │
-│  HTML: /opt/omnia/reports/image_test_report.html                    │
+│  JSON: /automation/image_test_report.json                    │
+│  HTML: /automation/image_test_report.html                    │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -233,7 +233,7 @@ appear in the report even when no test results exist.
 | Parameter | Type | Required? | What to give | Example |
 |-----------|------|-----------|--------------|---------|
 | `module_name` | `str` | **Yes** | Domain name. | `"repo_manager"` |
-| `report_path` | `str` | **Yes** | Directory for JSON/HTML output. | `"/opt/omnia/reports"` |
+| `report_path` | `str` | **Yes** | Directory for JSON/HTML output. | `"/automation"` |
 | `report_name` | `str` | **Yes** | Base filename without extension. | `"repo_manager_fvt"` |
 | `server_ip` | `str` | **Yes** | Target server IP address. | `"localhost"` |
 | `report_id` | `str` | **Yes** | Shared report ID (e.g., CI_PIPELINE_ID). | `"12345"` |
@@ -253,7 +253,7 @@ appear in the report even when no test results exist.
 from omnia_auto.functions.report_func import record_playbook_failure
 record_playbook_failure(
     module_name=\"repo_manager\",
-    report_path=\"/opt/omnia/reports\",
+    report_path=\"/automation\",
     report_name=\"repo_manager_fvt\",
     server_ip=\"localhost\",
     report_id=\"${CI_PIPELINE_ID:-manual}\",
@@ -299,7 +299,7 @@ def pytest_sessionstart(session):
     # Create the report
     report = TestReport(
         module_name="build",
-        report_path=config.get("report_path", "/opt/omnia/reports"),
+        report_path=config.get("report_path", "/automation"),
         report_name=report_name,
         server_ip=config.get("oim_server_ip", "localhost"),
     )
@@ -399,7 +399,7 @@ extract this information for email notifications:
 ```python
 import json
 
-with open("/opt/omnia/reports/repo_manager_fvt.json") as f:
+with open("/automation/repo_manager_fvt.json") as f:
     report = json.load(f)
 
 for server_ip, server_data in report["servers"].items():

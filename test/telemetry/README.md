@@ -78,6 +78,7 @@ Run from inside the `test/telemetry/` directory:
 | `validate` | `--tags validate` | Input config and credentials validation |
 | `deploy` | `--tags deploy` | Deploy sinks + sources (Kafka, VM, VL, iDRAC, etc.) |
 | `deploy_sinks` | `--tags deploy_sinks` | Deploy sinks only (Kafka, VictoriaMetrics, VictoriaLogs) |
+| (no tag) | no `--tags` | Complete playbook: `fvt/test_playbook.py`, run with `./run_validation.sh fvt_telemetry exec` |
 | `cleanup` | `--tags cleanup` | Cleanup all resources (pods, services, topics, PVCs) |
 | `cleanup_sinks` | `--tags cleanup_sinks` | Cleanup sinks only (with dependency blocking) |
 | `cleanup_idrac` | `--tags cleanup_idrac` | Cleanup iDRAC source only |
@@ -86,7 +87,10 @@ Run from inside the `test/telemetry/` directory:
 | `cleanup_powerscale` | `--tags cleanup_powerscale` | Cleanup PowerScale source only |
 | `cleanup_ufm` | `--tags cleanup_ufm` | Cleanup UFM source only |
 | `cleanup_vast` | `--tags cleanup_vast` | Cleanup VAST source only |
-| *(none)* | *(no tag)* | Full end-to-end (all tags) |
+
+`./run_validation.sh fvt_telemetry exec` (no tag) runs the complete playbook once, from `fvt/test_playbook.py`.
+`./run_validation.sh fvt_telemetry <tag> exec` runs only that tag (`--tags <tag>`, from `fvt/<tag>/test_playbook.py`).
+`./run_validation.sh fvt_telemetry test` (no tag) runs the complete playbook, then verifies every suite of every tag (cleanup and the other explicit-only tags are left out); `./run_validation.sh fvt_telemetry verify` (no tag) runs that verification alone. `./run_validation.sh fvt_telemetry <tag> test` runs that tag's playbook, then the tests of that tag.
 
 ### NFT Tags
 

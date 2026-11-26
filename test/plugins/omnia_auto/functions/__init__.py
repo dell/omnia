@@ -58,11 +58,12 @@ from .report_func import (
     get_current_report,
     set_current_report,
     build_report_name,
+    report_module_name,
     record_playbook_failure,
 )
 
 # --- Runner ---
-from .runner_func import run_playbook
+from .runner_func import run_playbook, run_full_playbook_test
 
 # --- Sync ---
 from .sync_func import clone_repo, sync_files
@@ -119,6 +120,7 @@ __all__ = [
     "get_current_report",
     "set_current_report",
     "run_playbook",
+    "run_full_playbook_test",
     "clone_repo",
     "sync_files",
     "ValidationRunner",
