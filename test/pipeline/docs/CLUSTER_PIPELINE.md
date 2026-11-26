@@ -29,6 +29,8 @@ For the settings see [CONFIGURATION.md](CONFIGURATION.md), for the modes
  test_main_installation  fvt_main verify
  <domain>              omnia.sh --run, tag by tag: repo_manager, image_build_manager, discovery,
                        orchestrator, telemetry (one stage each)
+ pxeboot               orchestrator --tags pxeboot: runs only after the orchestrator stage passed;
+                       test_orchestrator runs only after pxeboot passed
  test_<domain>         verify of that domain (the next stage)
  summary               job table, the test reports, one email
 ```
@@ -124,6 +126,7 @@ exist before the clone. All of them need the cluster variables
 | `inputs` | Copies the inputs (below); refuses an input folder that holds a symbolic link |
 | `credentials <domain>` | Fetches the domain credentials from OpenBao and encrypts them on the OIM |
 | `deploy <domain>` | `credentials`, then every playbook tag with `./omnia.sh --run <domain> --tags <tag>` |
+| `pxeboot` | `./omnia.sh --run orchestrator --tags pxeboot`; its own stage between `orchestrator` and `test_orchestrator` (skip words `pxeboot`, `orchestrator`, `deploy`) |
 | `stage <domain> <tag>` | `fvt_<domain> <tag> exec` |
 | `verify <domain\|main>` | The test config and credentials, then the verify command |
 | `summary` | Prints the job table, fetches the test reports, sends the email |
@@ -196,7 +199,7 @@ domain's default tags run in order:
 | `repo_manager` | `precheck`, `prepare`, `execute`, `status` |
 | `image_build_manager` | `validate`, `prepare`, `build` |
 | `discovery` | `precheck`, `validate`, `execute` |
-| `orchestrator` | `precheck`, `prepare`, `provision`, `pxeboot` |
+| `orchestrator` | `precheck`, `prepare`, `provision`; then the stage `pxeboot` (tag `pxeboot`) |
 | `telemetry` | `precheck`, `validate`, `deploy` |
 
 **Verbose.** `VERBOSE=true` adds `-v --ansible-verbosity 3` to every FVT call (pytest `-v` and

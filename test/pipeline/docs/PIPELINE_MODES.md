@@ -258,10 +258,11 @@ The pipeline runs these stages in order. Which stages actually execute depends o
 24. discovery                       (disc)     (disc)
 25. test_discovery               (disc+test)  (disc+test)
 26. orchestrator                      Y          Y
-27. test_orchestrator               (test)     (test)
-28. telemetry                         Y          Y
-29. test_telemetry                  (test)     (test)
-30. summary                           Y          Y     Y
+27. pxeboot                           Y          Y  (after orchestrator passed)
+28. test_orchestrator               (test)     (test)  (after pxeboot passed)
+29. telemetry                         Y          Y
+30. test_telemetry                  (test)     (test)
+31. summary                           Y          Y     Y
 ```
 
 A failed cleanup or cleanup test does not stop the other ones, but `cleanup_omnia`, the install and every later stage are skipped and `summary` runs and fails the pipeline. Each `test_cleanup_<domain>` runs right after its `cleanup_<domain>` and has the same domain selection.

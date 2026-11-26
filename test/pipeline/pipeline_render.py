@@ -98,11 +98,12 @@ INTRO = """
 #   cleanup_omnia: omnia.sh --cleanup --all (test/main)
 #   setup_main: omnia.sh -s, then the inputs of every domain (one stage)
 #   test_main_installation -> <domain> (omnia.sh --run, tag by tag) -> test_<domain> (verify) ... -> summary
+#   (orchestrator is followed by its own pxeboot stage, then test_orchestrator)
 #
 # A failed initialization skips every other stage; only summary runs. A failed cleanup or cleanup
 # verification does not stop the other ones, but nothing is installed after it. A failed domain stage stops the
 # pipeline (its verify and the later domains are skipped); a failed verify does not stop the next
-# domain.
+# domain. pxeboot runs only after the orchestrator stage passed, test_orchestrator only after pxeboot passed.
 #
 # Variables: DOMAINS (default, or a regex such as repo_manager|orchestrator), SKIP_STAGES,
 # ENABLE_SETUP, ENABLE_DISCOVERY, TEST_MODE, DRY_RUN, VERBOSE, <DOMAIN>_TAGS (comma list of
@@ -469,6 +470,10 @@ def _cluster_jobs() -> List[List[str]]:
         jobs.append(_job(domain, domain, [f"deploy {domain}"],
                          [f"{extra}{DEPLOY_MODE} && {_domain_condition(domain)}"],
                          skip=(domain, "deploy"), id_tokens=True))
+        if domain == "orchestrator":
+            jobs.append(_job("pxeboot", "pxeboot", ["pxeboot"],
+                             [f"{DEPLOY_MODE} && {_domain_condition(domain)}"],
+                             skip=("pxeboot", domain, "deploy")))
         jobs.append(_job(f"test_{domain}", f"test_{domain}", [f"verify {domain}"],
                          [f'{extra}{DEPLOY_MODE} && $TEST_MODE == "true" && '
                           f"{_domain_condition(domain)}"], allow_failure=True,
@@ -527,7 +532,9 @@ def _stages(kind: str) -> List[str]:
     if kind == "build_stream":
         return [*cleanup, "prepare_base", *(f"test_{d}" for d in BASE_DOMAINS), "build_stream",
                 "test_build_stream", "summary"]
-    return [*cleanup, *(s for d in DEPLOY_ORDER for s in (d, f"test_{d}")), "summary"]
+    deploy = (s for d in DEPLOY_ORDER
+              for s in ((d, "pxeboot", f"test_{d}") if d == "orchestrator" else (d, f"test_{d}")))
+    return [*cleanup, *deploy, "summary"]
 
 
 INTRO_PARENT = """

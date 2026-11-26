@@ -30,11 +30,12 @@
 #   cleanup_omnia: omnia.sh --cleanup --all (test/main)
 #   setup_main: omnia.sh -s, then the inputs of every domain (one stage)
 #   test_main_installation -> <domain> (omnia.sh --run, tag by tag) -> test_<domain> (verify) ... -> summary
+#   (orchestrator is followed by its own pxeboot stage, then test_orchestrator)
 #
 # A failed initialization skips every other stage; only summary runs. A failed cleanup or cleanup
 # verification does not stop the other ones, but nothing is installed after it. A failed domain stage stops the
 # pipeline (its verify and the later domains are skipped); a failed verify does not stop the next
-# domain.
+# domain. pxeboot runs only after the orchestrator stage passed, test_orchestrator only after pxeboot passed.
 #
 # Variables: DOMAINS (default, or a regex such as repo_manager|orchestrator), SKIP_STAGES,
 # ENABLE_SETUP, ENABLE_DISCOVERY, TEST_MODE, DRY_RUN, VERBOSE, <DOMAIN>_TAGS (comma list of
@@ -85,6 +86,7 @@ stages:
   - discovery
   - test_discovery
   - orchestrator
+  - pxeboot
   - test_orchestrator
   - telemetry
   - test_telemetry
@@ -983,6 +985,18 @@ orchestrator:
   script:
     - python3 ci_tools/pipeline_ci.py deploy orchestrator
 
+pxeboot:
+  stage: pxeboot
+  timeout: 3h
+  rules:
+    - if: '$SKIP_STAGES =~ /(^|[ ,])(pxeboot|orchestrator|deploy)([ ,]|$)/'
+      when: never
+    - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS
+        =~ /orchestrator/)'
+      when: on_success
+  script:
+    - python3 ci_tools/pipeline_ci.py pxeboot
+
 test_orchestrator:
   stage: test_orchestrator
   timeout: 3h
@@ -1040,7 +1054,7 @@ summary:
       t_cleanup_discovery,cleanup_image_build_manager,test_cleanup_image_build_manager,cleanup_repo_manager,\
       test_cleanup_repo_manager,cleanup_omnia,test_cleanup_omnia,setup_main,test_main_installation,repo_mana\
       ger,test_repo_manager,image_build_manager,test_image_build_manager,discovery,test_discovery,orchestrat\
-      or,test_orchestrator,telemetry,test_telemetry"
+      or,pxeboot,test_orchestrator,telemetry,test_telemetry"
   needs:
     - job: initialization
       artifacts: true
@@ -1118,6 +1132,9 @@ summary:
       artifacts: true
       optional: true
     - job: orchestrator
+      artifacts: true
+      optional: true
+    - job: pxeboot
       artifacts: true
       optional: true
     - job: test_orchestrator

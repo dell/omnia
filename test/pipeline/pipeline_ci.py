@@ -42,6 +42,7 @@ over SSH:
     credentials <domain>  OpenBao credentials of the domain, vault-encrypted on the OIM
     deploy <domain>       credentials, then every playbook tag, one by one, with
                           ./omnia.sh --run <domain> --tags <tag> (<DOMAIN>_TAGS overrides)
+    pxeboot               orchestrator --tags pxeboot, its own stage after the orchestrator stage
     stage <domain> <tag>  fvt_<domain> <tag> exec
     verify <domain|main>  test config and credentials, then TEST_<DOMAIN>_CMD (default
                           ./run_validation.sh fvt_<domain> verify)
@@ -105,7 +106,7 @@ DOMAIN_STEPS = {
     "repo_manager": ("precheck", "prepare", "execute", "status"),
     "image_build_manager": ("validate", "prepare", "build"),
     "discovery": ("precheck", "validate", "execute"),
-    "orchestrator": ("precheck", "prepare", "provision", "pxeboot"),
+    "orchestrator": ("precheck", "prepare", "provision"),
     "telemetry": ("precheck", "validate", "deploy"),
     "build_stream": ("",),
     "utils": ("collect", "backup_oim_logs"),
@@ -1140,6 +1141,19 @@ def deploy(domain: str) -> int:
     return 0
 
 
+def pxeboot() -> int:
+    """Orchestrator pxeboot stage: ./omnia.sh --run orchestrator --tags pxeboot.
+
+    A stage of its own after the orchestrator stage. GitLab runs it only when the orchestrator
+    stage passed, and the orchestrator verify stage only when this one passed. The credentials
+    were put on the OIM by the orchestrator stage.
+    """
+    apply_cluster()
+    require_cleanups_ok()
+    _say("===== orchestrator: pxeboot (omnia.sh --run orchestrator --tags pxeboot) =====")
+    return _omnia_run("orchestrator", "pxeboot")
+
+
 def prepare_base() -> int:
     """Stage prepare_base of the build stream pipeline: the credentials of the base domains, then
     ``./omnia.sh --prepare-base`` (repo_manager, image_build_manager and orchestrator)."""
@@ -1413,8 +1427,8 @@ def main(argv: List[str]) -> int:
            "deploy": deploy, "verify": verify_domain}
     none = {"initialize": initialize, "init": init, "checkout": checkout,
             "nfs-check": nfs_preflight, "cleanup-omnia": cleanup_omnia,
-            "cleanup-omnia-verify": cleanup_omnia_verify, "setup-main": setup_main,
-            "install": install, "inputs": inputs, "summary": summary,
+            "cleanup-omnia-verify": cleanup_omnia_verify, "pxeboot": pxeboot,
+            "setup-main": setup_main, "install": install, "inputs": inputs, "summary": summary,
             "setup-utils": setup_utils, "prepare-base": prepare_base}
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
