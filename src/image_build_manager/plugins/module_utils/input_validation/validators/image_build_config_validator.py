@@ -22,6 +22,8 @@ This module validates image_build_config.yml for:
 - Functional groups source/list consistency
 - Build concurrency settings
 """
+import os
+
 from ansible.module_utils.input_validation.messages import (  # pylint: disable=E0401
     image_build_messages as msg,
 )
@@ -86,6 +88,7 @@ def _validate_external_oci_registry(config_data, errors, logger=None):
     - registry_hostname must not contain empty labels ("..").
     - registry_protocol 'http' is accepted only with tls_verify false.
     - https with tls_verify false is accepted with a warning.
+    - ca_cert_path, when set, must be an existing readable file.
     - Field types, enums and character sets are enforced by the L1 schema.
     """
     registry = config_data.get("external_oci_registry")
@@ -106,6 +109,28 @@ def _validate_external_oci_registry(config_data, errors, logger=None):
             logger.error(msg.EXTERNAL_OCI_HTTP_REQUIRES_NO_TLS_VERIFY_MSG)
     elif not tls_verify and logger:
         logger.warning(msg.EXTERNAL_OCI_TLS_DISABLED_WARN_MSG)
+
+    ca_cert_path = registry.get("ca_cert_path")
+    if ca_cert_path and not (os.path.isfile(ca_cert_path) and os.access(ca_cert_path, os.R_OK)):
+        error = msg.external_oci_ca_cert_invalid_msg(ca_cert_path)
+        errors.append(error)
+        if logger:
+            logger.error(error)
+
+
+def _validate_cleanup_flag(config_data, logger=None):
+    """
+    Warn when the local image cleanup flag is set without an external registry.
+
+    Rules:
+    - delete_local_registry_images_after_build true without external_oci_registry
+      is accepted with a warning: the OCI image is not retained after the run.
+    """
+    if config_data.get("delete_local_registry_images_after_build") and not config_data.get(
+        "external_oci_registry"
+    ):
+        if logger:
+            logger.warning(msg.EXTERNAL_OCI_NOT_RETAINED_WARN_MSG)
 
 
 def _validate_build_image_settings(config_data, errors, logger=None):
@@ -189,6 +214,7 @@ def validate(config_data, logger=None):
     _validate_s3_config(config_data, errors, logger)
     _validate_aarch64_config(config_data, errors, logger)
     _validate_external_oci_registry(config_data, errors, logger)
+    _validate_cleanup_flag(config_data, logger)
     _validate_build_image_settings(config_data, errors, logger)
     _validate_functional_groups_source(config_data, errors, logger)
     _validate_build_concurrency(config_data, errors, logger)

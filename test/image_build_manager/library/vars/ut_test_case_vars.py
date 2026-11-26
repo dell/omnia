@@ -363,6 +363,12 @@ UT_TEST_CASE_IDS = {
             174: "test_build_status_is_unchanged_without_external_registry",
             175: "test_build_status_records_a_sanitized_push_error_only",
             176: "test_push_tasks_are_wired_and_never_expose_credentials",
+            177: "test_external_registry_field_level_limits_reject_invalid_values",
+            178: "test_external_registry_field_level_limits_accept_documented_values",
+            179: "test_ca_cert_path_must_be_an_existing_readable_file",
+            180: "test_cleanup_flag_rejects_non_boolean_values",
+            181: "test_cleanup_flag_is_optional_and_accepts_a_boolean",
+            182: "test_cleanup_flag_without_harbor_warns_that_images_are_not_retained",
         },
     ),
 }

@@ -37,7 +37,7 @@ and unchanged.
 | `IMGBM_UT_159`–`160` | `test_input_validation_fail_closed.py` | Standalone `build_image_x86_64.yml` and `build_image_aarch64.yml` accept every tag their plays and roles define |
 | `IMGBM_UT_161` | `test_input_validation_fail_closed.py` | Empty values written by the credential template are placeholders, not validation errors |
 | `IMGBM_UT_162`–`164` | `test_runner_lifecycle_safety.py` | catalog_reuse E2E suite is skipped unless selected explicitly with `--suite catalog_reuse` |
-| `IMGBM_UT_165`–`176` | `test_external_oci_registry.py` | Optional `external_oci_registry` (Harbor) schema and semantic rules, Vault credential keys, `build_status.yml` `oci` section, and the credential-safe wiring of the precheck and push tasks |
+| `IMGBM_UT_165`–`182` | `test_external_oci_registry.py` | Optional `external_oci_registry` (Harbor) schema and semantic rules, field-level limits for `ca_cert_path`, `tag_policy`, `retry_count`, and `timeout_seconds`, the boolean cleanup flag and its not-retained warning, Vault credential keys, `build_status.yml` `oci` section, and the credential-safe wiring of the precheck and push tasks |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.

@@ -90,6 +90,33 @@
                     "type": "boolean",
                     "description": "Verify the registry TLS certificate. Set false only for a self-signed lab registry.",
                     "default": true
+                },
+                "ca_cert_path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "pattern": "^/[^\\s]*$",
+                    "description": "Optional absolute path to a PEM CA bundle. The file must exist and be readable on the OIM."
+                },
+                "tag_policy": {
+                    "type": "string",
+                    "enum": ["overwrite", "fail_if_exists"],
+                    "description": "Behavior for catalog-digest and release tags already held by the registry. The OS-version tag is always repointed.",
+                    "default": "overwrite"
+                },
+                "retry_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5,
+                    "description": "Transient-failure retries for each regctl operation.",
+                    "default": 2
+                },
+                "timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 30,
+                    "maximum": 3600,
+                    "description": "Timeout in seconds for each regctl operation.",
+                    "default": 300
                 }
             },
             "required": [
@@ -100,6 +127,11 @@
                 "auth_type"
             ],
             "additionalProperties": false
+        },
+        "delete_local_registry_images_after_build": {
+            "type": "boolean",
+            "description": "Delete the run's OCI images from the local registry after the run. Images are kept when the push or packaging failed. Without external_oci_registry the images are not retained.",
+            "default": false
         },
         "build_image": {
             "type": "object",
