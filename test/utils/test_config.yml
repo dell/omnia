@@ -97,7 +97,7 @@ sync_utils_input: true
 #   - A folder name (relative to the current working directory): reports
 #   - An absolute path: /var/reports/utils
 # No spaces allowed in the path.
-report_path: "reports"
+report_path: "/automation"
 
 # Base name for report files (without extension).
 # Generates: utils_test_report.json, utils_test_report.html

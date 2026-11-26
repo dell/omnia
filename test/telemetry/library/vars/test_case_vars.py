@@ -851,6 +851,10 @@ TEST_CASES = {
         "id": "TEL_UT_CLEANUP_V062",
         "title": "UT: Short-form detection logic",
     },
+    "deploy_full_playbook": {
+        "id": "TEL_FVT_FULL_PLAYBOOK_E001",
+        "title": "Deploy telemetry (complete playbook, no tags)",
+    },
 }
 
 

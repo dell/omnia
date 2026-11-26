@@ -100,6 +100,7 @@ from omnia_auto import (  # pylint: disable=wrong-import-position
     get_test_output,
     get_last_tc_id,
     build_report_name,
+    report_module_name,
     log,
     add_session_result,
     print_summary_table,
@@ -112,7 +113,7 @@ from library.functions.validation_func import (  # pylint: disable=wrong-import-
     ConfigValidationError,
     validate_all,
 )
-from library.vars import UT_TEST_CASE_IDS  # pylint: disable=wrong-import-position
+from library.vars import TEST_CASES, UT_TEST_CASE_IDS  # pylint: disable=wrong-import-position
 
 
 # =============================================================================
@@ -195,7 +196,7 @@ def pytest_sessionstart(session):
 def test_report():
     """Create a session-wide test report."""
     config = load_test_config()
-    report_path = config.get("report_path", "/opt/omnia/reports")
+    report_path = config.get("report_path", "/automation")
     oim_ip = config.get("oim_server_ip", "")
     if not oim_ip:
         oim_ip = "localhost"
@@ -207,7 +208,7 @@ def test_report():
         base_name=base_name,
     )
     report = TestReport(
-        module_name="repo_manager",
+        module_name=report_module_name("repo_manager"),
         report_path=report_path,
         report_name=report_name,
         server_ip=oim_ip,
@@ -302,6 +303,10 @@ def pytest_sessionfinish(session, exitstatus):
     print_summary_table()
 
 
+_DEPLOY_TC_IDS = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()
+                  if key.startswith("deploy_")}
+
+
 def _ut_test_node_key(item):
     """Return the stable registry key for a Repo Manager UT item."""
     normalized_node_id = item.nodeid.replace("\\", "/")
@@ -320,7 +325,7 @@ def _registered_test_case_id(item):
     match = re.match(r"^\s*(RM_(?:UT|FVT|NFT)_[A-Z0-9_]+):", doc)
     if match:
         return match.group(1)
-    return get_last_tc_id()
+    return _DEPLOY_TC_IDS.get(item.name, "") or get_last_tc_id()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

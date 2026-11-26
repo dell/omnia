@@ -120,7 +120,7 @@ credential-dependent run.
 
 | Field | Required | Description | Default |
 |-------|----------|-------------|---------|
-| `report_path` | No | Directory for test reports (relative or absolute) | `/opt/omnia/reports` |
+| `report_path` | No | Directory for test reports (relative or absolute) | `/automation` |
 | `report_name` | No | Base name for report files (no extension) | `image_test_report` |
 | `report_id` | No | Custom report ID. Empty = auto-generated timestamp. | `""` |
 
