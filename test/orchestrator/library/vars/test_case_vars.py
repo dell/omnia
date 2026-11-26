@@ -571,6 +571,32 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify per-node Kafka disk status file exists and reports valid result",
         "component": "Kafka disk status file",
     },
+    # ── TopoLVM / Kafka StorageClass — ER-ORCH-011 Story 4 ──────────────────
+    "topolvm_installed_when_kafka_declared": {
+        "id": "ORCH_FVT_PXEBOOT_V640",
+        "title": "TC-FVT-012: TopoLVM installed only when a Kafka disk is declared",
+        "component": "TopoLVM install",
+    },
+    "topolvm_capacity_per_node": {
+        "id": "ORCH_FVT_PXEBOOT_V641",
+        "title": "TC-FVT-012: TopoLVM reports declared VG capacity on Kafka-labelled nodes",
+        "component": "TopoLVM capacity",
+    },
+    "kafka_storageclass_properties": {
+        "id": "ORCH_FVT_PXEBOOT_V642",
+        "title": "TC-FVT-013: Kafka StorageClass has required properties",
+        "component": "Kafka StorageClass properties",
+    },
+    "default_storageclass_unchanged": {
+        "id": "ORCH_FVT_PXEBOOT_V643",
+        "title": "TC-FVT-013: Default StorageClass is unchanged after TopoLVM install",
+        "component": "Default StorageClass",
+    },
+    "topolvm_kafka_dynamic_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V644",
+        "title": "Verify a claim on the Kafka TopoLVM StorageClass binds and is removed",
+        "component": "Kafka TopoLVM provisioning",
+    },
     "kubernetes_recovery": {
         "id": "ORCH_FVT_PXEBOOT_V022",
         "title": "Verify Kubernetes control-plane reboot recovery",

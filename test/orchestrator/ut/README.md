@@ -18,6 +18,7 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_input_validation_fail_closed.py` | Vault-encrypted inputs are decrypted and validated with masked values, or reported unvalidated when no key exists (`ORCH_UT_102`–`104`) |
 | `test_powerscale_mount_options_contract.py` | `csi_powerscale_mount_options` rsize/wsize L2 range checks, schema rsize/wsize pairing, shipped defaults, and `ps_nfsmount_conf.j2` rendering (`ORCH_UT_180`–`186`) |
 | `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
+| `test_topolvm_kafka_storageclass.py` | ER-ORCH-011 Story 4: TopoLVM install script (no pod wait on the first node, idempotent reinstall of a partial release, default-class guard, missing chart), Kafka StorageClass and Helm values rendering, pinned artefacts and no inline secrets, declared VG and mount options, download-failure messages, chart URL layout, and Kafka-only staging and install (`ORCH_UT_458`–`474`) |
 
 Parameterized cases count as separate pytest results. Function names and
 docstrings carry `ORCH_UT_*` identifiers where a stable unit contract has been
@@ -57,6 +58,7 @@ python3 -m pytest --confcutdir=ut ut/test_hpc_platform_scripts.py -q
 python3 -m pytest --confcutdir=ut ut/test_orchestrator_status_reconcile.py -q
 python3 -m pytest --confcutdir=ut ut/test_kubernetes_etcd_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_powerscale_mount_options_contract.py -q
+python3 -m pytest --confcutdir=ut ut/test_topolvm_kafka_storageclass.py -q
 ```
 
 Unit tests must remain isolated: mock external commands at the helper boundary

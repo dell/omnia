@@ -23,10 +23,12 @@ from collections.abc import Mapping
 from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
+    KAFKA_STORAGE_LABEL_KEY,
     KUBERNETES_CSI_SNAPSHOT_POD_PREFIXES,
     KUBERNETES_TEST_IMAGE_DEFAULT,
     KUBERNETES_WAIT_TIMEOUT_SECONDS,
     PXEBOOT_COMMANDS,
+    TOPOLVM_KAFKA_STORAGECLASS,
 )
 from ._kubernetes_helpers import pod_ready
 from ._pxeboot_helpers import (
@@ -37,6 +39,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import kafka_declared
 from ._workload_helpers import kubernetes_context as _context
 from ._workload_helpers import optional_skip as _skip
 
@@ -328,7 +331,11 @@ def _test_image() -> str:
     return KUBERNETES_TEST_IMAGE_DEFAULT
 
 
-def _functional_manifest(namespace: str, storage_class: str = "") -> dict[str, Any]:
+def _functional_manifest(
+    namespace: str,
+    storage_class: str = "",
+    node_selector: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
     pod: dict[str, Any] = {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -346,6 +353,8 @@ def _functional_manifest(namespace: str, storage_class: str = "") -> dict[str, A
             "volumes": [{"name": "data", "emptyDir": {}}],
         },
     }
+    if node_selector:
+        pod["spec"]["nodeSelector"] = dict(node_selector)
     items: list[dict[str, Any]] = [pod]
     if storage_class:
         claim = {
@@ -365,7 +374,12 @@ def _functional_manifest(namespace: str, storage_class: str = "") -> dict[str, A
     return {"apiVersion": "v1", "kind": "List", "items": items}
 
 
-def _run_functional_manifest(host, control, storage_class: str = ""):
+def _run_functional_manifest(
+    host,
+    control,
+    storage_class: str = "",
+    node_selector: Mapping[str, str] | None = None,
+):
     namespace = _test_namespace()
     fields: list[tuple[str, object]] = [
         ("Test image", _test_image()),
@@ -387,7 +401,9 @@ def _run_functional_manifest(host, control, storage_class: str = ""):
             error = "Could not create the isolated validation namespace"
         else:
             created = True
-            encoded = _encoded_manifest(_functional_manifest(namespace, storage_class))
+            encoded = _encoded_manifest(
+                _functional_manifest(namespace, storage_class, node_selector)
+            )
             apply_result = remote_command(
                 host,
                 control,
@@ -511,6 +527,7 @@ def _functional_check(
     host,
     summary: str,
     storage_class: str = "",
+    node_selector: Mapping[str, str] | None = None,
 ):
     try:
         if not marker_is_authorized("functional"):
@@ -518,17 +535,20 @@ def _functional_check(
                 summary,
                 "Select the functional marker to authorize temporary workloads",
             )
-        _runtime, rows, control, config = _context(host)
+        runtime, rows, control, config = _context(host)
         if not rows:
             return _skip(summary, "No Kubernetes nodes are mapped")
         if storage_class == "ps01" and not bool(
             config.get("enable_powerscale_csi", False)
         ):
             return _skip(summary, "PowerScale CSI is disabled")
+        if storage_class == TOPOLVM_KAFKA_STORAGECLASS and not kafka_declared(runtime):
+            return _skip(summary, "No Kafka local_storage entry declared")
         success, fields, error = _run_functional_manifest(
             host,
             control,
             storage_class,
+            node_selector,
         )
         return runtime_result(success, summary, fields, error)
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
@@ -558,4 +578,19 @@ def check_kubernetes_csi_dynamic_provisioning(host) -> Dict[str, Any]:
         host,
         "Kubernetes PowerScale dynamic provisioning",
         "ps01",
+    )
+
+
+def check_topolvm_kafka_dynamic_provisioning(host) -> Dict[str, Any]:
+    """Bind, use, and remove one claim on the Kafka TopoLVM StorageClass.
+
+    The pod is pinned to a Kafka-labelled node, where the declared volume group
+    exists. The shared runner switches the PV to Delete before cleanup, so the
+    Retain StorageClass leaves no logical volume behind.
+    """
+    return _functional_check(
+        host,
+        "Kafka TopoLVM dynamic provisioning",
+        TOPOLVM_KAFKA_STORAGECLASS,
+        {KAFKA_STORAGE_LABEL_KEY: "true"},
     )
