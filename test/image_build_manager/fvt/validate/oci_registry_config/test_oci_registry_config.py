@@ -92,6 +92,7 @@ def _read_logs(log_dir: Path) -> str:
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_target_config_validates_on_oim():
+    """Validate the active target configuration with the validate tag."""
     tc = TC["oci_target_config"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_playbook(tag="validate")
@@ -113,6 +114,7 @@ def test_target_config_validates_on_oim():
 )
 def test_external_registry_variant(tmp_path, case_id, registry, top, expect_ok,
                                    expected_output, expected_log):
+    """Validate one external registry or cleanup-flag variant through the validate tag."""
     if not is_local_execution():
         pytest.skip("variant input directories are written on the local OIM")
     tc = TC["oci_registry_variants"]
