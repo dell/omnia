@@ -318,6 +318,26 @@ TEST_LOG_MSGS = {
         "Template check blocked by invalid repo_ssl_verify configuration"
     ),
 
+    # External repo_manager contract
+    "contract_validation_ok": "External repo_status contract validation passed",
+    "contract_validation_failed": "External repo_status contract validation failed",
+    "contract_parse_failed": "External repo_status parsing failed",
+    "contract_port_ok": "External contract: port {port} propagated correctly",
+    "contract_cert_ok": "External contract: certificate metadata propagated",
+    "contract_producer_ignored_ok": "External contract: producer metadata accepted and ignored",
+    "contract_rejected_ok": "External contract: invalid status correctly rejected",
+    "contract_rejection_expected": "External contract: expected rejection but validation passed",
+    "contract_sample_ok": "External contract: bundled {sample} sample passes full pipeline",
+
+
+    # Phase 1: remote repo_manager
+
+
+
+    "contract_external_source_ok": "repo_status source is external: {details}",
+    "contract_external_source_failed": "repo_status source is NOT external: {details}",
+
+
     # cleanup_images
     "cleanup_images_s3_ok": (
         "All S3 images deleted after cleanup_images"
@@ -576,6 +596,56 @@ TEST_ASSERT_MSGS = {
         "\u2551   3. Verify: /etc/profile.d/omnia-env.sh exists\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
+
+    "contract_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL REPO CONTRACT VALIDATION FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Errors: {errors}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify the external repo_status.yml has overall_status: success\n"
+        "\u2551   2. Verify it contains a non-empty repositories section\n"
+        "\u2551   3. Verify repo URLs follow https://<host>/<path>/ format\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_parse_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL REPO STATUS PARSE FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Error: {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify the file exists and is valid YAML\n"
+        "\u2551   2. Verify it contains overall_status and repositories keys\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+    "contract_rejection_expected": (
+        "External contract: expected rejection but validation passed.\n"
+        "HOW TO FIX:\n"
+        "  1. Verify the validator rejects status != success\n"
+        "  2. Verify the validator rejects empty/missing repositories"
+    ),
+
+    "contract_not_external": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 repo_status.yml IS NOT FROM AN EXTERNAL SOURCE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Problem: {details}\n"
+        "\u2551 Repository hosts: {hosts}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Place the repo_status.yml produced by the external Repo Manager\n"
+        "\u2551      at repo_manager_output_path (or the project output path)\n"
+        "\u2551   2. Optionally pin it with external_repo_host in test_config.yml\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+
+
+
+
 }
 
 # =============================================================================
