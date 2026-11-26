@@ -140,7 +140,7 @@ cleanup_credentials: true
 #   - A folder name (relative to the current working directory): reports
 #   - An absolute path: /var/reports/image_build
 # No spaces allowed in the path.
-report_path: /opt/omnia/reports
+report_path: /automation
 
 # Base name for report files (without extension).
 # Generates: image_test_report.json, image_test_report.html

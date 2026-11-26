@@ -25,7 +25,7 @@ clone_path: "/root/omnia"
 cleanup_credentials: true
 
 # Report output path.
-report_path: "/opt/omnia/reports"
+report_path: "/automation"
 
 # Report name.
 report_name: "repo_manager_test_report"

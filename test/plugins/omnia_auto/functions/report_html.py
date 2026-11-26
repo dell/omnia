@@ -36,6 +36,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
+from ..vars.validation_vars import PLAYBOOK_OUTPUT_MARKER
+
 _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # Status constants
@@ -102,6 +104,19 @@ def _redact_sensitive(text: str) -> str:
 
 # ── Log Issue Counter ────────────────────────────────────────────────────────
 
+def _highlight_playbook(text: str) -> str:
+    """Escape the playbook output and mark the failed and the warning lines."""
+    lines = []
+    for line in _escape_html(text).split("\n"):
+        failed_recap = "failed=" in line and "failed=0" not in line
+        if "fatal:" in line or "FAILED!" in line or "ERROR!" in line or failed_recap:
+            line = f'<span class="log-critical">{line}</span>'
+        elif "[WARNING]" in line or "WARNING:" in line:
+            line = f'<span class="log-warning">{line}</span>'
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _count_log_issues(logs: str) -> dict:
     """Count CRITICAL and WARNING occurrences in logs."""
     if not logs:
@@ -116,6 +131,12 @@ def _count_log_issues(logs: str) -> dict:
 
 # ── HTML Report Generator ──────────────────────────────────────────────────
 
+def _newest_first(suites, started: Dict[str, str]) -> List[str]:
+    """Return the suite names, the suite that started last first (then by name)."""
+    return sorted(suites, key=lambda name: (started.get(name, ""), name), reverse=True) \
+        if started else sorted(suites)
+
+
 def generate_html(data: Dict[str, Any]) -> str:
     """Generate enterprise-grade HTML report with suite-based layout,
     dark/light theme, skip classification, and sensitive-data redaction."""
@@ -127,6 +148,7 @@ def generate_html(data: Dict[str, Any]) -> str:
         lambda: {"pass": 0, "fail": 0, "skip": 0, "duration": 0.0}
     )
     playbook_logs_by_suite: Dict[str, Dict] = {}
+    suite_started: Dict[str, str] = {}
     server_info_list: List[str] = []
 
     for server_ip, server_data in servers.items():
@@ -151,6 +173,9 @@ def generate_html(data: Dict[str, Any]) -> str:
 
             for module in modules:
                 suite = module.get("module", "unknown")
+                started = str(module.get("start_time") or "")
+                if started > suite_started.get(suite, ""):
+                    suite_started[suite] = started
 
                 # Capture playbook logs per suite (first occurrence)
                 if module.get("playbook_logs") and suite not in playbook_logs_by_suite:
@@ -210,7 +235,7 @@ def generate_html(data: Dict[str, Any]) -> str:
     # ── 3. Build suite breakdown rows ───────────────────────────────────
     suite_rows_html = ""
     suite_bar_html = ""
-    for suite_name in sorted(suite_stats.keys()):
+    for suite_name in _newest_first(suite_stats, suite_started):
         s = suite_stats[suite_name]
         st = s["pass"] + s["fail"] + s["skip"]
         st_executed = s["pass"] + s["fail"]
@@ -243,7 +268,7 @@ def generate_html(data: Dict[str, Any]) -> str:
 
     detailed_sections_html = ""
     global_idx = 0
-    for suite_name in sorted(tests_by_suite.keys()):
+    for suite_name in _newest_first(tests_by_suite, suite_started):
         suite_tests = tests_by_suite[suite_name]
         s = suite_stats[suite_name]
         suite_status = _STATUS_PASS if s["fail"] == 0 else _STATUS_FAIL
@@ -294,11 +319,20 @@ def generate_html(data: Dict[str, Any]) -> str:
                 if has_log:
                     log_parts = ""
                     if t.get("details"):
-                        det = _escape_html(t["details"])
+                        screen, _, playbook = t["details"].partition(PLAYBOOK_OUTPUT_MARKER)
+                        det = _escape_html(screen)
                         det = det.replace("PASS:", "<span style='color:var(--clr-pass);font-weight:600;'>PASS:</span>")
                         det = det.replace("FAIL:", "<span style='color:var(--clr-fail);font-weight:600;'>FAIL:</span>")
                         det = det.replace("SKIP:", "<span style='color:var(--clr-skip);font-weight:600;'>SKIP:</span>")
-                        log_parts += f'<pre class="log-pre">{det}</pre>'
+                        if screen.strip():
+                            log_parts += f'<pre class="log-pre">{det}</pre>'
+                        if playbook.strip():
+                            pb_lines = playbook.count("\n") + 1
+                            log_parts += (
+                                '<div class="pb-title">Playbook output '
+                                f'<span class="text-muted">({pb_lines} lines, scroll to read all)</span></div>'
+                                f'<pre class="pb-log" tabindex="0">{_highlight_playbook(playbook)}</pre>'
+                            )
                     if t.get("error"):
                         err = _escape_html(t["error"][:2000])
                         log_parts += f'<div class="error-block"><strong>Error:</strong>\n{err}</div>'
@@ -521,8 +555,12 @@ def generate_html(data: Dict[str, Any]) -> str:
 
   /* Log rows */
   .log-row td {{ padding:0; }}
-  .log-content {{ background:var(--log-bg); color:var(--log-fg); padding:16px 20px; font-family:'Cascadia Code','Fira Code',Consolas,monospace; font-size:12px; max-height:350px; overflow-y:auto; line-height:1.6; }}
+  .log-content {{ background:var(--log-bg); color:var(--log-fg); padding:16px 20px; font-family:'Cascadia Code','Fira Code',Consolas,monospace; font-size:12px; line-height:1.6; }}
   .log-pre {{ background:var(--log-bg); color:var(--log-fg); padding:14px 18px; border-radius:6px; font-family:'Cascadia Code','Fira Code',Consolas,monospace; font-size:11px; white-space:pre-wrap; word-break:break-word; max-height:300px; overflow-y:auto; line-height:1.6; border:1px solid var(--border); }}
+  .pb-title {{ margin:12px 0 6px; font-size:12px; font-weight:700; color:var(--text); }}
+  .pb-log {{ background:var(--log-bg); color:var(--log-fg); padding:14px 18px; border-radius:6px; font-family:'Cascadia Code','Fira Code',Consolas,monospace; font-size:11px; white-space:pre; max-height:520px; overflow:auto; line-height:1.55; border:1px solid var(--border); margin:0; scrollbar-width:thin; }}
+  .pb-log::-webkit-scrollbar {{ width:10px; height:10px; }}
+  .pb-log::-webkit-scrollbar-thumb {{ background:var(--text-muted); border-radius:6px; }}
   .error-block {{ background:var(--err-bg); color:var(--err-fg); border:1px solid var(--err-border); border-radius:6px; padding:12px 16px; margin-top:8px; font-family:'Cascadia Code','Fira Code',Consolas,monospace; font-size:11px; white-space:pre-wrap; word-break:break-word; max-height:200px; overflow-y:auto; }}
   .log-link {{ color:var(--clr-brand); font-size:12px; font-weight:600; text-decoration:underline; cursor:pointer; transition:color 0.2s; }}
   .log-link:hover {{ color:var(--clr-brand-dk); }}

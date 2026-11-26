@@ -35,7 +35,7 @@ def _config(dataset=""):
         "oim_server_ip": "",
         "clone_path": "/root/omnia",
         "project_name": "project_default",
-        "report_path": "/opt/omnia/reports",
+        "report_path": "/automation",
         "report_name": "repo_manager_test_report",
         "dataset": dataset,
         "sync_repo_manager_input": False,
