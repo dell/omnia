@@ -67,6 +67,13 @@
     - name: Package and push the local OCI image
       when: _fg_local_probe.rc == 0
       block:
+        - name: Verify the local OCI image holds a complete boot set
+          oci_boot_ready_check:
+            image_repo: "{{ _fg_local_repo_ref }}"
+            image_ref: "{{ _fg_local_ref }}"
+            regctl_bin: "{{ ext_oci_regctl_bin }}"
+            timeout_seconds: "{{ ext_oci_registry.timeout_seconds | default(300) | int }}"
+
         - name: Annotate the local OCI image with provenance
           ansible.builtin.command:
             cmd: >-

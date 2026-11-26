@@ -371,6 +371,34 @@ UT_TEST_CASE_IDS = {
             182: "test_cleanup_flag_without_harbor_warns_that_images_are_not_retained",
         },
     ),
+    **_module_cases(
+        "test_oci_boot_ready.py",
+        {
+            183: "test_complete_boot_set_merged_across_layers",
+            184: "test_missing_initramfs_names_the_path",
+            185: "test_missing_kernel_modules_names_the_path",
+            186: "test_whiteout_removes_kernel_from_lower_layer",
+            187: "test_opaque_directory_hides_lower_layer_modules",
+            188: "test_opaque_directory_keeps_entries_from_its_own_layer",
+            189: "test_rescue_and_debug_kernels_do_not_count",
+            190: "test_absolute_and_parent_names_are_ignored",
+            191: "test_dot_slash_names_are_normalized",
+            192: "test_several_complete_sets_are_all_listed",
+        },
+    ),
+    **_module_cases(
+        "test_oci_boot_ready_check.py",
+        {
+            193: "test_layer_entries_are_listed_in_manifest_order",
+            194: "test_manifest_without_layers_fails",
+            195: "test_regctl_manifest_failure_reports_return_code",
+            196: "test_manifest_timeout_is_reported",
+            197: "test_layer_read_failure_reports_return_code",
+            198: "test_layer_timeout_kills_the_blob_reader",
+            199: "test_main_reports_complete_boot_set",
+            200: "test_main_names_the_missing_path",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
