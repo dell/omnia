@@ -851,7 +851,7 @@ def omnia_powerscale_csi_transfer_size_msg(
         f"omnia_config.yml: Kubernetes cluster '{cluster}' "
         f"csi_powerscale_mount_options {option}='{value}' is invalid; "
         f"{option} must be an integer greater than 0 and less than "
-        f"{max_size} (1 MiB), for example 946176."
+        f"{max_size} (1 MiB), for example 1044480."
     )
 
 

@@ -56,12 +56,12 @@
 #                   Default: "noatime,nolock" (Kubernetes) and "defaults,_netdev" (Slurm)
 #                   PowerScale with RHEL 10.x clients: if Input/output errors occur with the
 #                   default 1 MiB transfer size, set for example
-#                   "noatime,nolock,rsize=946176,wsize=946176,nosharecache" (Kubernetes) or
-#                   "defaults,_netdev,rsize=946176,wsize=946176,nosharecache" (Slurm)
+#                   "noatime,nolock,rsize=1044480,wsize=1044480,nosharecache" (Kubernetes) or
+#                   "defaults,_netdev,rsize=1044480,wsize=1044480,nosharecache" (Slurm)
 #                   nosharecache makes the transfer size take effect even if the same
-#                   export is already mounted on the node. Over TCP the kernel rounds
-#                   rsize/wsize down to a multiple of 4096 (946176 = 231 x 4096).
-#                   Instead of setting these options on the entry, set mount_params to
+#                   export is already mounted on the node. rsize/wsize set to 1 MiB - 4 KiB
+#                   (1044480) to stay below the 1 MiB threshold. Instead of setting these
+#                   options on the entry, set mount_params to
 #                   the powerscale_nfs profile below.
 #                   If specified, takes PRIORITY over mount_params profile
 #                   PowerScale CSI volumes are configured separately through
@@ -170,7 +170,7 @@ mounts:
 #
 # PowerScale profile (powerscale_nfs):
 #   RHEL 10.x clients can get Input/output errors on PowerScale at the default
-#   1 MiB NFS transfer size. This profile sets rsize/wsize to 946176 (924 KiB) on the
+#   1 MiB NFS transfer size. This profile sets rsize/wsize to 1044480 (1020 KiB) on the
 #   per-node sub-mounts, for Kubernetes and Slurm. Example:
 #     - name: "nfs_k8s"
 #       source: "<powerscale_ip>:/ifs/<path>"
@@ -199,8 +199,8 @@ mount_params:
   # PowerScale NFS share (Kubernetes or Slurm nfs_storage_name)
   powerscale_nfs:
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr,rsize=946176,wsize=946176,nosharecache"
-    node_nfs_mnt_opts: "rsize=946176,wsize=946176,nosharecache"
+    mnt_opts: "nosuid,rw,sync,hard,intr,rsize=1044480,wsize=1044480,nosharecache"
+    node_nfs_mnt_opts: "rsize=1044480,wsize=1044480,nosharecache"
 
 # -----------------------------Powervault-------------------------------------------
 # powervault_config
