@@ -32,6 +32,8 @@ Usage in playbook:
     ssh_connect_timeout: 10
   register: bulk_update_result
 """
+import ipaddress
+import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ansible.module_utils.basic import AnsibleModule
@@ -124,6 +126,48 @@ per_host_results:
 '''
 
 
+# ─── Input validation ───────────────────────────────────────────────────────
+
+_HOSTNAME_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+HOSTNAME_PATTERN = re.compile(rf"{_HOSTNAME_LABEL}(?:\.{_HOSTNAME_LABEL})*")
+IP_CHARSET_PATTERN = re.compile(r"[0-9A-Fa-f.:]+(?:%[A-Za-z0-9_.-]+)?")
+
+
+def _is_valid_hostname(value):
+    """Return True for an RFC-1123 hostname/FQDN with no shell or sed metacharacters."""
+    if not isinstance(value, str):
+        return False
+    return len(value) <= 253 and HOSTNAME_PATTERN.fullmatch(value) is not None
+
+
+def _is_valid_ip(value):
+    """Return True for an IPv4/IPv6 address string with no shell or sed metacharacters."""
+    if not isinstance(value, str) or not IP_CHARSET_PATTERN.fullmatch(value):
+        return False
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_inputs(hosts, ip_name_map, nodes_to_remove):
+    """Return a list of error strings for every unsafe input value."""
+    errors = []
+    for hostname, ip_addr in ip_name_map.items():
+        if not _is_valid_hostname(hostname):
+            errors.append(f"ip_name_map hostname {hostname!r} is not a valid hostname")
+        if not _is_valid_ip(ip_addr):
+            errors.append(f"ip_name_map[{hostname!r}] value {ip_addr!r} is not a valid IP address")
+    for name in nodes_to_remove or []:
+        if not _is_valid_hostname(name):
+            errors.append(f"nodes_to_remove entry {name!r} is not a valid hostname")
+    for host in hosts:
+        if not (_is_valid_ip(host) or _is_valid_hostname(host)):
+            errors.append(f"hosts entry {host!r} is not a valid IP address or hostname")
+    return errors
+
+
 # ─── Hosts-file content generation ──────────────────────────────────────────
 
 def _build_hosts_block(ip_name_map):
@@ -169,8 +213,8 @@ def _build_cleanup_sed(ip_name_map, nodes_to_remove):
 
 
 def _regex_escape(text):
-    """Escape regex special characters in a string for sed patterns."""
-    special = r'\.^$*+?{}[]|()'
+    """Escape regex special characters and the sed delimiter for sed patterns."""
+    special = r'\.^$*+?{}[]|()/'
     return "".join(f"\\{c}" if c in special else c for c in text)
 
 
@@ -253,6 +297,14 @@ def run_module():
     nodes_to_remove = module.params["nodes_to_remove"]
     ssh_max_parallel = module.params["ssh_max_parallel"]
     ssh_connect_timeout = module.params["ssh_connect_timeout"]
+
+    errors = _validate_inputs(hosts, ip_name_map, nodes_to_remove)
+    if errors:
+        module.fail_json(
+            msg=f"Refusing to update /etc/hosts: {len(errors)} invalid input value(s): "
+                + "; ".join(errors),
+            invalid_entries=errors,
+        )
 
     result = {
         "changed": False,
