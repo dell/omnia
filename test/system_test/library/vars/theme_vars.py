@@ -201,6 +201,95 @@ THEMES: Dict[str, Dict] = {
             "debug_mode": ("build_stream", "", "debug_mode", "bool"),
         },
     },
+    "slurm_reboot": {
+        "title": "Slurm Ordered Reboot Verification",
+        "description": "Ordered Slurm cluster shutdown and power-on, then Slurm "
+                       "services, LDAP jobs, GPU jobs, MPI jobs, and IPoIB verification",
+        "profile": "slurm_reboot",
+        "cleanup_steps": (),
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
+        "fvt_domains": ("orchestrator",),
+        "credential_domains": ("orchestrator",),
+        "creds_suite": "orchestrator",
+        "stages": (
+            "reboot_cluster",
+            "verify_slurm_services",
+            "verify_slurm_jobs",
+            "verify_gpu_jobs",
+            "verify_mpi_ipoib",
+        ),
+        "soft_stages": (
+            "verify_slurm_jobs",
+            "verify_gpu_jobs",
+            "verify_mpi_ipoib",
+        ),
+        "stage_info": {
+            "reboot_cluster": (
+                "Ordered Cluster Reboot",
+                "Graceful shutdown (compute -> login/compiler -> controller), then "
+                "Redfish power-on (controller -> login/compiler -> compute) with "
+                "per-group cloud-init verification"),
+            "verify_slurm_services": (
+                "Slurm Services Verification",
+                "Slurm membership, scheduler, services, cross-node SSH, configless "
+                "mode, and configuration consistency on all node roles"),
+            "verify_slurm_jobs": (
+                "LDAP Job Verification",
+                "LDAP-owned Slurm jobs submitted from controller, login, and "
+                "login-compiler nodes with PAM access checks"),
+            "verify_gpu_jobs": (
+                "GPU Job Verification",
+                "GPU inventory, GPU job allocation, and bounded GPU memory stress "
+                "workload through Slurm"),
+            "verify_mpi_ipoib": (
+                "MPI and IPoIB Verification",
+                "OpenMPI installation and job, InfiniBand configuration and "
+                "connectivity, IPoIB peer mesh and Slurm NodeAddr"),
+        },
+        "fvt_settings": {},
+    },
+    "k8s_reboot": {
+        "title": "Kubernetes Ordered Reboot Verification",
+        "description": "Ordered Kubernetes cluster shutdown and power-on, then "
+                       "Kubernetes cluster health, storage, PowerScale, and "
+                       "telemetry verification",
+        "profile": "k8s_reboot",
+        "cleanup_steps": (),
+        "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
+        "fvt_domains": ("orchestrator", "telemetry"),
+        "credential_domains": ("orchestrator",),
+        "creds_suite": "orchestrator",
+        "stages": (
+            "reboot_cluster",
+            "verify_k8s_cluster",
+            "verify_k8s_storage",
+            "verify_telemetry",
+        ),
+        "soft_stages": (
+            "verify_k8s_storage",
+            "verify_telemetry",
+        ),
+        "stage_info": {
+            "reboot_cluster": (
+                "Ordered Cluster Reboot",
+                "Graceful shutdown (worker -> control-plane), then "
+                "Redfish power-on (control-plane -> worker) with "
+                "per-group cloud-init verification"),
+            "verify_k8s_cluster": (
+                "Kubernetes Cluster Verification",
+                "Node readiness, control-plane readiness, system pods, "
+                "etcd health, and virtual IP ownership"),
+            "verify_k8s_storage": (
+                "Kubernetes Storage Verification",
+                "NFS and CSI storage, default StorageClass, PowerScale "
+                "snapshot components and dynamic provisioning"),
+            "verify_telemetry": (
+                "Telemetry Verification",
+                "PowerScale telemetry deployment, metrics, logs, and "
+                "CSI driver health after reboot"),
+        },
+        "fvt_settings": {},
+    },
     "observability": {
         "title": "Observability End-to-End (iDRAC, LDMS)",
         "description": "Telemetry of a deployed cluster: the iDRAC and LDMS sources deployed "

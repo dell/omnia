@@ -1,0 +1,273 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Waivers for .github/scripts/compliance_gate.py.
+#
+# Every entry needs: scope (src|test|svt|pipeline), domain, check (checker check
+# name, or "*"), match (substring of one finding, or "*"), kind and reason.
+#   kind: false-positive  the checker is wrong; the code is acceptable.
+#   kind: known-debt      a real gap, accepted for now; remove the entry when fixed.
+# A failing check is waived only when every finding inside it is covered.
+# False positives count as passes in the adjusted score; known debt does not. The adjusted
+# score is held to compliance/baseline.json, so waived debt cannot grow.
+exceptions:
+  - scope: test
+    domain: build_stream
+    check: "Blocking security patterns"
+    match: "test_fail_closed.py:37"
+    kind: false-positive
+    reason: "CREDENTIALS is the file name \"build_stream_credentials.yml\", not a credential."
+  - scope: test
+    domain: build_stream
+    check: "Pytest feature markers"
+    match: "nft/others/test_dependency_rules.py"
+    kind: false-positive
+    reason: "nft/README.md documents nft/others as retained source-level tests outside nft_build_stream; the runner selects only registered cases."
+  - scope: test
+    domain: build_stream
+    check: "pytest.mark.order"
+    match: "nft/others/test_dependency_rules.py"
+    kind: false-positive
+    reason: "nft/README.md documents nft/others as retained source-level tests outside nft_build_stream; the runner selects only registered cases."
+  - scope: test
+    domain: build_stream
+    check: "TestLogger output"
+    match: "nft/others/test_dependency_rules.py"
+    kind: false-positive
+    reason: "nft/README.md documents nft/others as retained source-level tests outside nft_build_stream; the runner selects only registered cases."
+  - scope: test
+    domain: build_stream
+    check: "Registry lookup"
+    match: "nft/others/test_dependency_rules.py"
+    kind: false-positive
+    reason: "nft/README.md documents nft/others as retained source-level tests outside nft_build_stream; the runner selects only registered cases."
+  - scope: test
+    domain: image_build_manager
+    check: "Blocking security patterns"
+    match: "test_input_validation_fail_closed.py:33"
+    kind: false-positive
+    reason: "CREDENTIALS is the file name \"image_build_credentials.yml\", not a credential."
+  - scope: test
+    domain: repo_manager
+    check: "Blocking security patterns"
+    match: "test_error_message_redaction.py:37"
+    kind: false-positive
+    reason: "SECRET is a sentinel string the redaction test asserts is NOT leaked."
+  - scope: test
+    domain: utils
+    check: "Blocking security patterns"
+    match: "defaults.yml:89"
+    kind: false-positive
+    reason: "slurm_cleanup_confirm_token \"YES\" is a confirmation flag, not a secret."
+  - scope: test
+    domain: repo_manager
+    check: "Blocking security patterns"
+    match: "setup_env.sh"
+    kind: known-debt
+    reason: "setup_env.sh takes --password on argv and expands it in an unquoted heredoc; read it from stdin or a prompt."
+  - scope: test
+    domain: repo_manager
+    check: "Unique IDs"
+    match: "RM_FVT_CLEANUP_REPOS_E001"
+    kind: known-debt
+    reason: "RM_FVT_CLEANUP_REPOS_E001 is registered for two different test keys; allocate a new ID."
+  - scope: test
+    domain: repo_manager
+    check: "No hardcoded IDs"
+    match: "*"
+    kind: known-debt
+    reason: "NFT and FVT files pass literal IDs (for example \"RM_NFT_003\") to TestLogger instead of using TEST_CASES."
+  - scope: test
+    domain: utils
+    check: "Blocking security patterns"
+    match: "setup_env.sh"
+    kind: known-debt
+    reason: "setup_env.sh accepts a password and secret JSON in process arguments; read them from stdin or a prompt."
+  - scope: test
+    domain: utils
+    check: "Unique IDs"
+    match: "UTILS_FVT_COLLECT_NEG00"
+    kind: known-debt
+    reason: "UTILS_FVT_COLLECT_NEG001-003 are each registered for two differently titled tests."
+  - scope: test
+    domain: utils
+    check: "Credential artifacts"
+    match: "*"
+    kind: known-debt
+    reason: "test/utils/.gitignore ignores .test_creds.key but not test_creds.yml (required by test_automation.md section 3.3)."
+  - scope: src
+    domain: discovery
+    check: "samples/ directory exists"
+    match: "*"
+    kind: false-positive
+    reason: "The checker itself marks samples/ as optional."
+  - scope: src
+    domain: build_stream
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "Found /opt/omnia hardcoding"
+    kind: false-positive
+    reason: "Header line of the finding list; each listed file is waived separately."
+  - scope: src
+    domain: build_stream
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: ".gitlab-ci-deploy-child-template.yml"
+    kind: false-positive
+    reason: "Shell reads OMNIA_DATA_PATH first and only then defaults _PIN_DATA; same form the checker accepts for ${OMNIA_DATA_PATH:-/opt/omnia}."
+  - scope: src
+    domain: orchestrator
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "Found /opt/omnia hardcoding"
+    kind: false-positive
+    reason: "Header line of the finding list; each listed file is waived separately."
+  - scope: src
+    domain: orchestrator
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "input/storage_config.yml"
+    kind: false-positive
+    reason: "/opt/omnia/k8s_mount is the node-side NFS mount point, not an OIM data path."
+  - scope: src
+    domain: orchestrator
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "deploy_powerscale_csi.sh.j2"
+    kind: false-positive
+    reason: "Script runs on the Kubernetes client node and copies the CSI driver from the NFS mount to a node-local directory."
+  - scope: src
+    domain: orchestrator
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "plugins/"
+    kind: false-positive
+    reason: "OMNIA_DATA_PATH is read first; /opt/omnia is only the documented default used when the variable is unset or invalid."
+  - scope: src
+    domain: orchestrator
+    check: "Precheck verifies upstream contracts"
+    match: "repo_manager"
+    kind: false-positive
+    reason: "repo_status.yml is stat-checked in the orchestrator_setup role (Step 7), not in precheck_environment; the checker only looks at precheck roles."
+  - scope: src
+    domain: telemetry
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "Found /opt/omnia hardcoding"
+    kind: false-positive
+    reason: "Header line of the finding list; each listed file is waived separately."
+  - scope: src
+    domain: telemetry
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "input/telemetry_packages.yml"
+    kind: false-positive
+    reason: "/opt/omnia/k8s_mount is the node-side NFS mount point, not an OIM data path."
+  - scope: src
+    domain: telemetry
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "en_us_validation_msg.py"
+    kind: false-positive
+    reason: "The path appears only inside operator-facing example text."
+  - scope: src
+    domain: telemetry
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "plugins/"
+    kind: false-positive
+    reason: "OMNIA_DATA_PATH is read first; /opt/omnia is only the documented default used when the variable is unset or invalid."
+  - scope: src
+    domain: telemetry
+    check: "Precheck verifies upstream contracts"
+    match: "orchestrator"
+    kind: false-positive
+    reason: >-
+      The orchestrator inventory is stat-checked in the common role (load_telemetry_config.yml) and the run fails
+      with an actionable message when it is missing and telemetry_packages.yml sets no repo_url; the checker only
+      looks at precheck roles.
+  - scope: src
+    domain: repo_manager
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "Found /opt/omnia hardcoding"
+    kind: false-positive
+    reason: "Header line of the finding list; each listed file is waived separately."
+  - scope: src
+    domain: repo_manager
+    check: "No hardcoded /opt/omnia in runtime code"
+    match: "path_resolver.py"
+    kind: false-positive
+    reason: "OMNIA_DATA_PATH is read first; /opt/omnia is only the documented default used when the variable is unset or invalid."
+  - scope: src
+    domain: build_stream
+    check: "No executable cross-domain source coupling"
+    match: "direct references to other domain"
+    kind: false-positive
+    reason: "Header line of the finding list; each listed file is waived separately."
+  - scope: src
+    domain: build_stream
+    check: "No executable cross-domain source coupling"
+    match: "restart/ansible.cfg"
+    kind: false-positive
+    reason: "Build Stream drives other domains' playbooks by design (playbook_registry.py); restart.yml reuses the Orchestrator PXE stage."
+  - scope: src
+    domain: orchestrator
+    check: "No executable cross-domain source coupling"
+    match: "direct references to other domain"
+    kind: known-debt
+    reason: "Header line of the finding list; each listed file is waived separately."
+  - scope: src
+    domain: orchestrator
+    check: "No executable cross-domain source coupling"
+    match: "ansible.cfg"
+    kind: known-debt
+    reason: "roles_path lists build_stream/roles but no Orchestrator role uses it; remove the unused entry."
+  - scope: src
+    domain: orchestrator
+    check: "ib_ipv6_config"
+    match: "*"
+    kind: known-debt
+    reason: "Role has no README.md (Galaxy role requirement)."
+  - scope: src
+    domain: orchestrator
+    check: "README.md in every role"
+    match: "*"
+    kind: known-debt
+    reason: "ib_ipv6_config has no README.md."
+  - scope: src
+    domain: orchestrator
+    check: "Inline error messages deduction"
+    match: "*"
+    kind: known-debt
+    reason: "address_verifier.py appends two inline error strings (lines 650 and 653) instead of using the messages module."
+  - scope: src
+    domain: utils
+    check: "*"
+    match: "Missing: README.md"
+    kind: known-debt
+    reason: "OCI-ingest and artifact roles lack README.md (Galaxy role requirement)."
+  - scope: src
+    domain: utils
+    check: "README.md in every role"
+    match: "*"
+    kind: known-debt
+    reason: "11 of 28 roles have no README.md."
+  - scope: src
+    domain: utils
+    check: "*"
+    match: "Missing: EXAMPLES, RETURN"
+    kind: known-debt
+    reason: "oci_flatten_image and oci_select_boot_set lack EXAMPLES and RETURN (Galaxy import requirement)."
+  - scope: src
+    domain: utils
+    check: "EXAMPLES block"
+    match: "*"
+    kind: known-debt
+    reason: "2 of 9 modules lack EXAMPLES."
+  - scope: src
+    domain: utils
+    check: "RETURN block"
+    match: "*"
+    kind: known-debt
+    reason: "2 of 9 modules lack RETURN."
