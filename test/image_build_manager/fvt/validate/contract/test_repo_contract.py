@@ -270,7 +270,7 @@ def test_external_contract_repo_extra_fields(tmp_path):
     data = minimal_external_status(repositories=_repos(
         **{"10.0": {"x86_64": {"baseos": f"{_EXT}/baseos/"}}}))
     data["repositories"]["10.0"]["x86_64"]["baseos"].update(
-        priority=100, gpgcheck=True, sync_timestamp="2026-11-23T00:00:00Z")
+        priority=100, gpgcheck=True)
     r = _accept(_logger("external_contract_repo_extra_fields"), data, tmp_path,
                 ok="contract_producer_ignored_ok")
     assert r["repo_manager_repos_x86_64"][0]["base_url"] == f"{_EXT}/baseos/"
@@ -283,6 +283,10 @@ def test_external_contract_source_is_external():
     """Verify the repo_status.yml under test names repositories on another host.
 
     **Data source: live file** (requires a completed repo_manager run).
+
+    The success path needs a repo_status.yml produced by a separate Repo Manager
+    host. On a single-OIM box the repositories resolve to this OIM, so the check
+    correctly fails; a skip means no live file exists, not that nothing was checked.
     """
     tl = _logger("external_contract_source_is_external")
     config = load_test_config()
