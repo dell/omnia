@@ -68,16 +68,7 @@ DRY_RUN=true ...                       # a pipeline run that prints what it woul
 ```
 
 `pipeline_render.py --check` fails when `.gitlab-ci-cluster.yml` was edited by hand or a table in
-`pipeline_render.py` changed without `--write`. Run the unit tests of the helpers (they need no
-GitLab, no OIM and no network):
-
-```bash
-python3 -m pytest test/pipeline/ut
-```
-
-They cover the config parser and the trigger generation, the exact skip words, the failure model of
-the generated pipelines, the placeholder resolution of the inputs, the cleanup flags, the report
-settings, the summary rule and the redaction of the report logs. Try a change on a pipeline with
+`pipeline_render.py` changed without `--write`. Try a change on a pipeline with
 `DRY_RUN=true` (every job prints what it would run on the OIM and changes nothing) before a real
 run, and check the YAML with the CI lint of your GitLab (`POST /projects/:id/ci/lint`). Do not run
 the cleanup, the install or the NFS clearing against a live OIM to "test" them.

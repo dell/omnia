@@ -87,7 +87,6 @@ pipeline_triggers.py           Reads pipeline_config.yml and writes the trigger 
 setup_gitlab_project.py        Creates or updates the GitLab project, files and variables
 pipeline_render.py             Generates the four pipeline files (stages, rules, order)
 pipeline_ci.py                 The logic of every job (taken from the Omnia clone, see below)
-ut/                            Unit tests of the helpers (python3 -m pytest test/pipeline/ut)
 library/                       email_func (summary email, runs on the runner) and its vars
                                (not uploaded to GitLab: the jobs use the copy in the Omnia clone)
 docs/                          The guides listed above
