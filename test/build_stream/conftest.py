@@ -101,7 +101,7 @@ _FVT_SUITE_ORDER = {
         "deploy_automatic": 7, "deploy_manual": 8, "cadence": 9, "auto_cleanup": 10,
         "pipeline_cleanup": 11, "log_query": 12,
     },
-    "cleanup": {"": 0, "gitlab": 1, "build_stream": 2},
+    "cleanup": {"": 0, "gitlab": 1, "gitlab_external": 2, "build_stream": 3},
 }
 
 # Build test-function-name → TC ID map for summary table fallback.

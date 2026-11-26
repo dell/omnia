@@ -57,7 +57,8 @@ src/build_stream/
 │   ├── prepare_build_stream.yml         # Deploy Postgres + GitLab + BSM
 │   ├── setup_gitlab.yml                 # Configure GitLab CI/CD
 │   ├── cleanup_build_stream.yml         # Full domain cleanup
-│   └── cleanup_gitlab.yml               # GitLab-specific cleanup
+│   ├── cleanup_hosted_gitlab.yml        # Hosted GitLab CE host cleanup
+│   └── cleanup_external_gitlab.yml      # External (customer) GitLab API cleanup
 ├── roles/
 │   ├── credential_utility/              # Domain-specific credential management
 │   │   ├── tasks/
@@ -303,7 +304,7 @@ The cleanup flow is orchestrated by `cleanup_build_stream.yml` which calls domai
 ┌─────────────────────────────────────────────────────────┐
 │           cleanup_build_stream.yml                       │
 ├─────────────────────────────────────────────────────────┤
-│  Step 1: Cleanup GitLab (cleanup_gitlab.yml)            │
+│  Step 1: Cleanup GitLab (hosted or external by mode)    │
 │    ├── Stop GitLab services                             │
 │    ├── Remove GitLab packages                           │
 │    ├── Remove GitLab directories                        │
@@ -359,7 +360,8 @@ ansible-playbook playbooks/cleanup_build_stream.yml --skip-tags gitlab
 
 **After**: All BuildStream cleanup is self-contained in:
 - `build_stream/playbooks/cleanup_build_stream.yml`
-- `build_stream/playbooks/cleanup_gitlab.yml`
+- `build_stream/playbooks/cleanup_hosted_gitlab.yml`
+- `build_stream/playbooks/cleanup_external_gitlab.yml`
 - `build_stream/roles/cleanup_build_stream/`
 - `build_stream/roles/cleanup_gitlab/`
 

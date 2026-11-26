@@ -44,6 +44,22 @@
     oim_shared_path: "{{ omnia_data_path }}"
     cacheable: true
 
+# Resolve the GitLab mode (hosted/external) from the project config so the
+# cleanup flows can dispatch to the right GitLab cleanup playbook. Kept as a
+# cacheable localhost fact that import_playbook 'when' guards read via
+# hostvars['localhost'].gitlab_mode. Defaults to 'hosted' when the config is
+# absent or does not set it.
+- name: Peek gitlab_mode from build_stream_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/build_stream_config.yml"
+    name: _bss_config_peek
+  failed_when: false
+
+- name: Set gitlab_mode fact for cleanup dispatch
+  ansible.builtin.set_fact:
+    gitlab_mode: "{{ _bss_config_peek.gitlab_mode | default('hosted') }}"
+    cacheable: true
+
 - name: Verify the input project directory exists
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"

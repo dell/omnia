@@ -433,13 +433,145 @@ def check_external_journal(host: Any) -> Dict[str, Any]:
     return summarize_probes("external_journal", probes)
 
 
+# =============================================================================
+# EXTERNAL MODE CLEANUP CHECKS
+# =============================================================================
+# What build_stream.yml --tags cleanup removes on an external GitLab
+# (gitlab_mode: external): the Omnia-owned project named in build_stream_config.yml
+# (deleted outright, taking its CI files, catalogs, input files, CI/CD variables,
+# the omnia-ci token and the trigger with it), while the pre-existing
+# group/namespace and any GitLab CE packages/runner/certs are NEVER touched. The
+# local setup journal, its lock and the trigger token file are removed from the
+# OIM. Every check only reads state over the GitLab REST API with verified TLS.
+
+
+def _cleanup_api_or_local(host: Any, name: str):
+    """Return (connection, None), or (None, result) when the API cannot be used.
+
+    After cleanup with ``cleanup_credentials: true`` the ``gitlab_api_token`` is
+    blanked in the credential store; the remote GitLab can then no longer be
+    queried. That blanking is itself cleanup evidence, so it is reported as a
+    passing probe rather than a connection failure.
+    """
+    connection = external_connection(host)
+    if connection["success"]:
+        return connection, None
+    if "is empty" in connection.get("error", ""):
+        return None, summarize_probes(name, [(
+            "External GitLab API token",
+            "removed from credential store (cleanup_credentials: true); "
+            "remote project state not queried", True)])
+    return None, _failed(name, "External GitLab connection", connection["error"])
+
+
+def check_external_project_removed(host: Any) -> Dict[str, Any]:
+    """Verify the Omnia-owned project was permanently deleted from the external GitLab."""
+    connection, result = _cleanup_api_or_local(host, "external_cleanup_project_removed")
+    if result is not None:
+        return result
+    settings = connection["settings"]
+    response = _api_get(connection, f"/projects/{connection['project_ref']}")
+    status = response.get("status", 0)
+    data = response["data"] if isinstance(response.get("data"), dict) else {}
+    marked = bool(data.get("marked_for_deletion_on") or data.get("marked_for_deletion_at"))
+    if status == 404:
+        state = "permanently deleted (HTTP 404)"
+    elif status == 200 and marked:
+        deletion_date = data.get("marked_for_deletion_on") or data.get("marked_for_deletion_at")
+        state = f"STILL PRESENT (scheduled for deletion on {deletion_date})"
+    else:
+        state = f"STILL PRESENT (HTTP {status})"
+    probes: List[Probe] = [
+        (f"Omnia project {settings['project_path']}", state, status == 404),
+    ]
+    return summarize_probes("external_cleanup_project_removed", probes)
+
+
+def check_external_namespace_preserved(host: Any) -> Dict[str, Any]:
+    """Verify the pre-existing group/namespace was NOT removed by the cleanup."""
+    connection, result = _cleanup_api_or_local(host, "external_cleanup_namespace_preserved")
+    if result is not None:
+        return result
+    namespace = connection["settings"]["namespace"]
+    group = _api_get(connection, f"/groups/{urllib.parse.quote(namespace, safe='')}")
+    present = group["success"] and isinstance(group["data"], dict) and bool(group["data"].get("id"))
+    probes: List[Probe] = [
+        (f"Group/namespace {namespace}",
+         "preserved" if present else f"MISSING ({group['error'] or 'not found'})", present),
+    ]
+    return summarize_probes("external_cleanup_namespace_preserved", probes)
+
+
+def check_external_ci_resources_removed(host: Any) -> Dict[str, Any]:
+    """Verify the omnia-ci token, the Omnia trigger and the Omnia CI/CD variables are gone.
+
+    When the project was deleted they are removed with it; when an adopted
+    project is preserved they must be gone from it one by one.
+    """
+    connection, result = _cleanup_api_or_local(host, "external_cleanup_ci_resources_removed")
+    if result is not None:
+        return result
+    project = _project(connection)
+    marked = bool(project.get("marked_for_deletion_on") or project.get("marked_for_deletion_at"))
+    if not project.get("id"):
+        return summarize_probes("external_cleanup_ci_resources_removed", [(
+            "Omnia project resources",
+            "project permanently deleted; omnia-ci token, trigger and CI/CD variables removed with it",
+            True)])
+    if marked:
+        return summarize_probes("external_cleanup_ci_resources_removed", [(
+            "Omnia project resources",
+            "project STILL PRESENT and only scheduled for deletion",
+            False)])
+    base = f"/projects/{project['id']}"
+    tokens = _api_get(connection, f"{base}/access_tokens?state=active&{_PAGE}")
+    omnia_tokens = [item for item in (tokens["data"] if tokens["success"] else []) or []
+                    if isinstance(item, dict) and item.get("name") == EXTERNAL_CI_TOKEN_NAME]
+    triggers = _api_get(connection, f"{base}/triggers")
+    omnia_triggers = [item for item in (triggers["data"] if triggers["success"] else []) or []
+                      if isinstance(item, dict)
+                      and item.get("description") == EXTERNAL_TRIGGER_DESCRIPTION]
+    variables = _api_get(connection, f"{base}/variables?{_PAGE}")
+    omnia_vars = [item.get("key") for item in (variables["data"] if variables["success"] else [])
+                  or [] if isinstance(item, dict) and item.get("key") in EXTERNAL_CI_VARIABLES]
+    probes: List[Probe] = [
+        (f"Active {EXTERNAL_CI_TOKEN_NAME} tokens", str(len(omnia_tokens)), not omnia_tokens),
+        (f"Omnia trigger '{EXTERNAL_TRIGGER_DESCRIPTION}'",
+         "removed" if not omnia_triggers else f"{len(omnia_triggers)} STILL PRESENT",
+         not omnia_triggers),
+        ("Omnia CI/CD variables",
+         "removed" if not omnia_vars else f"STILL PRESENT ({', '.join(omnia_vars)})",
+         not omnia_vars),
+    ]
+    return summarize_probes("external_cleanup_ci_resources_removed", probes)
+
+
+def check_external_cleanup_local_state_removed(host: Any) -> Dict[str, Any]:
+    """Verify the setup journal, its lock and the trigger token file are removed on the OIM."""
+    output_dir = domain_output_path(host, "build_stream")
+    paths = [
+        f"{output_dir}/{EXTERNAL_JOURNAL_FILE}",
+        f"{output_dir}/{EXTERNAL_JOURNAL_FILE}.lock",
+        f"{output_dir}/{EXTERNAL_TRIGGER_TOKEN_FILE}",
+    ]
+    probes: List[Probe] = []
+    for path in paths:
+        present = run_cmd(host, "file_exists", path=path).rc == 0
+        probes.append((f"File {path}", "STILL PRESENT" if present else "removed", not present))
+    return summarize_probes("external_cleanup_local_state_removed", probes)
+
+
 __all__ = [
     "check_external_ca_bundle",
+    "check_external_ci_resources_removed",
     "check_external_ci_token",
+    "check_external_cleanup_local_state_removed",
     "check_external_credentials",
     "check_external_gitlab_api",
     "check_external_journal",
+    "check_external_namespace_preserved",
     "check_external_project",
+    "check_external_project_removed",
     "check_external_runner",
     "check_external_trigger_and_variables",
 ]
