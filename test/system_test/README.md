@@ -142,14 +142,14 @@ Two kinds of SVT test:
 | `image_build` | hard, **skipped by default** | `007`-`008` | `./omnia.sh -r image_build_manager --tags build`; `build verify` | |
 | `cluster_deploy` | hard, **skipped by default** | `009`-`013` | `./omnia.sh -r orchestrator --tags provision`, `--tags pxeboot`; provision, Kubernetes and Slurm cluster checks | |
 | `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false` (all telemetry sources and sinks; credentials kept) | none (the RUN step only) |
-| `observability_precheck` | hard | `018`-`021` | `./omnia.sh -r telemetry --tags precheck`, `--tags validate`; `precheck verify`, `validate verify` | every precheck check (`TEL_FVT_PRECHECK_V001`-`V004`), `TEL_FVT_VALIDATE_V001` |
+| `observability_precheck` | hard | `018`, `020`, `021` | `./omnia.sh -r telemetry --tags precheck` (playbook only, no FVT verify); `--tags validate`; `validate verify` | `TEL_FVT_VALIDATE_V001` |
 | `observability_deploy` | hard | `022` | `./omnia.sh -r telemetry` (validate, precheck, deploy) | none (the RUN step only) |
 | `observability_idrac` | soft, skipped while `idrac` is off | `024` | `deploy verify --suite sources --marker idrac` | every iDRAC check (`V010`-`V019`, `V112`, `V113`) |
 | `observability_ldms` | soft, skipped while `ldms` is off | `026` | `deploy verify --suite sources --marker ldms` | every LDMS check (`V020`-`V026`, `V028`, `V029`) |
-| `observability_powerscale` | soft, skipped while `powerscale` is off (`stages:` can turn it off) | `028` | `deploy verify --suite sources --marker powerscale` | every PowerScale check (`V030`-`V054`, `V114`, `V115`) |
-| `observability_ome` | soft, skipped while `ome` is off (`stages:` can turn it off) | `029` | `deploy verify --suite sources --marker ome` | every OME check (`V070`-`V088`) |
-| `observability_ufm` | soft, skipped while `ufm` is off (`stages:` can turn it off) | `030` | `deploy verify --suite sources --marker ufm` | every UFM check (`V060`-`V064`) |
-| `observability_sfm` | soft, skipped while `configure_sfm` is false (`stages:` can turn it off) | `031` | `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) |
+| `observability_powerscale` | soft, skipped while `powerscale` is off | `028` | `deploy verify --suite sources --marker powerscale` | every PowerScale check (`V030`-`V054`, `V114`, `V115`) |
+| `observability_ome` | soft, skipped while `ome` is off | `029` | `deploy verify --suite sources --marker ome` | every OME check (`V070`-`V088`) |
+| `observability_ufm` | soft, skipped while `ufm` is off | `030` | `deploy verify --suite sources --marker ufm` | every UFM check (`V060`-`V064`) |
+| `observability_sfm` | soft, skipped while `configure_sfm` is false | `031` | `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) |
 | `observability_sfm_vm_only` | soft, last, skipped while `configure_sfm` is false (`stages:` can turn it off) | `032`-`035` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false`; `--tags deploy_sinks -e victoria_metrics`; `--tags external_victoria`; `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) with only the VictoriaMetrics sink deployed |
 
 IDs are `SVT_OBSERVABILITY_<NNN>` (`015`-`017`, `023`, `025` and `027` are retired); FVT IDs `V0xx`/`V1xx` are
@@ -167,8 +167,8 @@ is true. SFM is not a telemetry source: its two stages are skipped while `config
 false. So
 the FVT "disabled state" checks (`V019`, `V039`, `V064`, `V088`) are not run by the SVT.
 Inside a stage that runs, a check whose channel is off (for example PowerScale logs) is still
-skipped by the FVT. `stages:` in `observability_test_config.yml` can also leave the
-PowerScale, OME, UFM and both SFM stages out (`false`), even with the source on.
+skipped by the FVT. The PowerScale, OME, UFM and both SFM stages have no toggle: they run
+whenever their source is on.
 
 `observability_sfm_vm_only` is the last stage. It runs the telemetry cleanup (credentials kept),
 deploys only the VictoriaMetrics sink (`deploy_sinks -e victoria_metrics`), generates the

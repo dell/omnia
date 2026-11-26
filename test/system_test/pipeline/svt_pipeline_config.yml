@@ -91,7 +91,7 @@ svt:
     observability_deploy: 2
     observability_idrac: 1
     observability_ldms: 1
-    # On by default; stages: of ../observability_test_config.yml can turn them off.
+    # Run whenever their source is on (user_inputs.yml telemetry); no stages: toggle.
     observability_powerscale: 1
     observability_ome: 1
     observability_ufm: 1

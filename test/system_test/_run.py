@@ -38,9 +38,10 @@ left out of 'all' by default: the theme runs on a deployed cluster), then
 observability_cleanup, observability_precheck, observability_deploy,
 observability_idrac, observability_ldms, then observability_powerscale,
 observability_ome, observability_ufm, observability_sfm and observability_sfm_vm_only
-(telemetry cleanup, only the VictoriaMetrics sink, then the SFM checks). Those five are
-on by default; the theme config's stages: block can turn them off, or
-observability_cleanup on. A source stage (observability_idrac ...
+(telemetry cleanup, only the VictoriaMetrics sink, then the SFM checks). The four source
+stages have no setting: they run when their source is on. observability_sfm_vm_only is on
+by default; the theme config's stages: block can turn it off, or observability_cleanup on.
+A source stage (observability_idrac ...
 observability_sfm_vm_only) is recorded as skipped, with the reason, while its source is
 off in the deployed telemetry_config.yml (configure_sfm for the SFM stages).
 

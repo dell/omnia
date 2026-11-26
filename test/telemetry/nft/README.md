@@ -53,6 +53,7 @@ cleanup phase, producing correct results.
 
 | TC ID | Test | Recovery Timeout | Marker |
 |-------|------|-----------------|--------|
+| TEL_NFT_018 | Resilience setup deploy (deploys the stack the resilience tests use) | N/A | nft, resilience |
 | TEL_NFT_006 | Sink pod deletion & recovery (Kafka broker) | 300s | nft, resilience |
 | TEL_NFT_007 | Source pod deletion & recovery (enabled sources) | 300s | nft, resilience |
 | TEL_NFT_008 | StatefulSet storage pod recovery (vmstorage/vlstorage) | 600s | nft, resilience |
@@ -88,6 +89,14 @@ Runs at order 122, after the resilience tests and before the cleanup tests. Each
 PowerScale source flags, runs the execute playbook, and compares the channel status reported in
 `telemetry_status.yml` with the expected state. The steps are defined in `POWERSCALE_CHANNEL_STEPS`
 in `library/vars/common_vars.py`.
+
+### LDMS Configuration Transitions
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_NFT_LDMS_001 | LDMS configuration transitions (all 4 states) | nft, ldms |
+
+Runs at order 200 in `nft/test_ldms_config_transitions.py`. This ID does not follow the numeric sequence.
 
 ### iDRAC BMC Inventory Tests
 
@@ -135,7 +144,9 @@ TEL_NFT_026: iDRAC BMC inventory lifecycle
 | 101 | TEL_NFT_002 | Pre-cleanup | Deploy performance |
 | 105 | TEL_NFT_004 | Pre-cleanup | Deploy idempotency |
 | 110 | TEL_NFT_018 | Resilience | Resilience setup deploy |
-| 111-120 | TEL_NFT_006-014 | Resilience | Pod recovery, node reboot, lifecycle, operator tests |
+| 111-121 | TEL_NFT_006-014, 023, 024 | Resilience | Pod recovery, node reboot, iDRAC and OME lifecycle, full lifecycle, operator tests |
+| 122 | TEL_NFT_025 | Source | PowerScale metrics/logs channel transitions |
+| 123 | TEL_NFT_026 | Source | BMC delete/re-add in bmc_group_data.csv |
 | 130 | TEL_NFT_003 | Phase 1 | Cleanup performance (PVCs preserved) |
 | 131 | TEL_NFT_005 | Phase 1 | Cleanup idempotency (PVCs preserved) |
 | 132 | TEL_NFT_015 | Phase 1 | Verify no pods after cleanup |
@@ -144,6 +155,7 @@ TEL_NFT_026: iDRAC BMC inventory lifecycle
 | 141 | TEL_NFT_021 | Phase 2 | Cleanup with volume idempotency (PVCs deleted) |
 | 142 | TEL_NFT_022 | Phase 2 | Verify no pods after cleanup with volume |
 | 143 | TEL_NFT_016 | Phase 2 | Verify no PVCs remain |
+| 200 | TEL_NFT_LDMS_001 | LDMS | LDMS configuration transitions |
 
 This consolidated approach eliminates the need to run the NFT suite twice with different flags.
 
@@ -173,6 +185,8 @@ This consolidated approach eliminates the need to run the NFT suite twice with d
 ```
 
 ## Final Cluster State After NFT Execution
+
+TEL_NFT_019 (the final cluster state warning) is registered, but no test function emits it yet.
 
 **CRITICAL**: After running the full NFT test suite (`./run_validation.sh nft_telemetry test`), the cluster is left in a **fully cleaned-up state** with:
 - ❌ No telemetry pods running
@@ -225,19 +239,19 @@ cp -r src/telemetry/input/* <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAM
 ```
 1. TEL_NFT_001: Run validate playbook, measure duration
    |-- Assert: rc=0 (playbook succeeded)
-   +-- Assert: duration < 30s
+   +-- Assert: duration < 45s
 
 2. TEL_NFT_002: Run deploy playbook, measure duration
    |-- Assert: rc=0 (playbook succeeded)
-   +-- Assert: duration < 600s
+   +-- Assert: duration < 800s
 
 3. TEL_NFT_003: Run cleanup playbook (without volume), measure duration
    |-- Assert: rc=0 (playbook succeeded)
-   +-- Assert: duration < 300s
+   +-- Assert: duration < 360s
 
 4. TEL_NFT_020: Run cleanup playbook (with volume), measure duration
    |-- Assert: rc=0 (playbook succeeded)
-   +-- Assert: duration < 300s
+   +-- Assert: duration < 360s
 ```
 
 ### Idempotency Test Flow

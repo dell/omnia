@@ -179,6 +179,7 @@ ensure syslog is configured before verifying log ingestion.
 | TEL_FVT_DEPLOY_V061 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
 | TEL_FVT_DEPLOY_V062 | Verify UFM credentials K8s secret exists | sanity + ufm |
 | TEL_FVT_DEPLOY_V063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
+| TEL_FVT_DEPLOY_V064 | Verify configured-disabled UFM state | sanity + ufm |
 
 Run only the UFM source verification:
 
@@ -396,11 +397,13 @@ See `test_playbook.py` and `status/test_cleanup_final.py` for implementation det
 | TC ID | Test | Tag |
 |-------|------|-----|
 | TEL_FVT_FULL_E001 | Deploy telemetry (full stack, no tags) | (none) |
+| TEL_FVT_FULL_PLAYBOOK_E001 | Deploy telemetry (complete playbook, no tags; alternate ID for the same run) | (none) |
 | TEL_FVT_PRECHECK_E001 | Deploy telemetry (--tags precheck) | precheck |
 | TEL_FVT_VALIDATE_E001 | Deploy telemetry (--tags validate) | validate |
 | TEL_FVT_DEPLOY_E001 | Deploy telemetry (--tags deploy) | deploy |
 | TEL_FVT_DEPLOY_SINKS_E001 | Deploy sinks only (--tags deploy_sinks) | deploy_sinks |
 | TEL_FVT_CLEANUP_E001 | Cleanup all (--tags cleanup) | cleanup |
+| TEL_FVT_CLEANUP_E002 | Deploy cleanup with credential and log preservation | cleanup |
 | TEL_FVT_CLEANUP_SINKS_E001 | Cleanup sinks only (--tags cleanup_sinks) | cleanup_sinks |
 | TEL_FVT_CLEANUP_IDRAC_E001 | Cleanup iDRAC (--tags cleanup_idrac) | cleanup_idrac |
 | TEL_FVT_CLEANUP_LDMS_E001 | Cleanup LDMS (--tags cleanup_ldms) | cleanup_ldms |

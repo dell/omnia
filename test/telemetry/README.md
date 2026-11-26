@@ -38,6 +38,9 @@ is non-empty, otherwise below `$OMNIA_DATA_PATH/telemetry`. Both flows require
 | `--creds-stdin` | Read only the OIM SSH password from standard input |
 | `--set-domain-creds` / `--update-domain-creds` | Interactively create or update playbook/runtime Telemetry credentials |
 | `--domain-creds-stdin` | Read a validated Telemetry credential JSON object from standard input |
+|| `--set-external-creds` | Prompt only for the OME/SFM appliance credentials that the enabled sources need (`test_creds.yml`); needs a terminal |
+|| `--debug` | Verbose pip output |
+|| `--help` | Show the complete command reference |
 
 `test_creds.yml` is the local Vault-encrypted test-access store. It may contain
 `oim_password` and the enabled OME/SFM fields. The separate runtime store is
@@ -420,6 +423,7 @@ test/telemetry/
 │   │   │   └── test_victorialogs.py
 │   │   └── sources/
 │   │       ├── test_idrac.py
+│   │       ├── test_install_mode.py
 │   │       ├── test_ldms.py
 │   │       ├── test_ome.py
 │   │       ├── test_powerscale.py
@@ -465,6 +469,12 @@ test/telemetry/
 │   ├── test_ome_lifecycle.py  # OME independent metrics/logs reconciliation, etc.
 │   ├── test_kafka_topic_lifecycle.py  # Topic-manifest cleanup, readiness gating
 │   ├── test_disabled_state_fvt.py  # Disabled workload detection, shared-sink health
+│   ├── test_input_validation_fail_closed.py  # validate_input fails closed on unknown or empty tags
+│   ├── test_log_permissions.py  # Restricted Ansible log directory/file permissions
+│   ├── test_idrac_bmc_inventory.py  # iDRAC MySQL <-> bmc_group_data.csv parity
+│   ├── test_project_name_validation.py  # project_name and vault/log path containment
+│   ├── test_ufm_lifecycle.py  # UFM reconciliation contracts (no TEL_UT ID yet)
+│   ├── test_vault_in_memory_read.py  # vault handling in input validation (no TEL_UT ID yet)
 │   ├── cleanup_sinks/         # Cleanup sink dependency checking and short-form syntax
 │   │   ├── test_cleanup_sinks_deps.py  # Dependency checking tests (V019-V035)
 │   │   ├── test_cleanup_sinks_shortform.py  # Short-form parameter tests (V036-V045)
@@ -474,7 +484,10 @@ test/telemetry/
 └── nft/                      # Non-Functional Tests
     ├── test_performance.py   # Performance thresholds (validate, deploy, cleanup)
     ├── test_idempotency.py   # Idempotency tests (deploy, cleanup)
-    └── test_resilience.py    # Resilience tests (pod recovery, reboot, lifecycle)
+    ├── test_resilience.py    # Resilience tests (pod recovery, reboot, lifecycle)
+    ├── test_powerscale_channels.py  # PowerScale metrics/logs channel transitions (TEL_NFT_025)
+    ├── test_idrac_bmc_inventory.py  # iDRAC BMC delete/re-add in bmc_group_data.csv (TEL_NFT_026)
+    └── test_ldms_config_transitions.py  # LDMS configuration transitions (TEL_NFT_LDMS_001)
 ```
 
 ## Test Case Summary
@@ -509,10 +522,12 @@ test/telemetry/
 | OME Lifecycle | 7 | ut |
 | Kafka Topic Lifecycle | 3 | ut |
 | Disabled-State FVT Helpers | 7 | ut |
-| Cleanup Sinks Dependency Checking | 17 | ut |
-| Cleanup Sinks Short-Form Parameters | 9 | ut |
-| Cleanup Sinks Parameter Normalization | 17 | ut |
-| **UT Total** | **113 tests / 113 reportable IDs** | |
+| Project Name and Path Validation | 5 | ut |
+| Input Validation Fail-Closed | 5 | ut |
+| Ansible Log Permissions | 1 | ut |
+| iDRAC BMC Inventory | 10 | ut |
+| Cleanup Sinks (dependency, short-form, normalization; IDs in test docstrings) | 42 | ut |
+| **UT Total** | **119 IDs (77 registered + 42 documented)** | |
 
 **Note**: Detailed cleanup_sinks dependency checking and short-form parameter tests have been moved from FVT to UT to provide faster, more granular testing. FVT cleanup now focuses on simple single-execution patterns with basic verification.
 
@@ -522,21 +537,24 @@ test/telemetry/
 |------|-----|--------|
 | Performance | 4 | nft + performance |
 | Idempotency | 7 | nft + idempotency |
-| Resilience | 10 | nft + resilience |
-| **NFT Total** | **21** | |
+| Resilience | 11 | nft + resilience |
+| Source channels, inventory and LDMS transitions | 3 | nft + source / ldms |
+| Resilience setup | 1 | nft + resilience |
+| **NFT Total** | **26 tests / 27 IDs** | TEL_NFT_019 is registered, but no test function uses it |
 
 NFT cleanup tests run in two phases: Phase 1 (without volume deletion,
 PVCs preserved) and Phase 2 (with volume deletion, all PVCs deleted).
-All 21 tests execute in a single `./run_validation.sh nft_telemetry test` run.
+All 26 NFT tests execute in a single `./run_validation.sh nft_telemetry test` run.
 
-### Grand Total: **274 tests / 264 reportable IDs**
+### Totals
 
 | Suite | Tests | Reportable IDs |
 |-------|-------|----------------|
 | FVT | 140 | 130 |
-| UT | 113 | 113 |
-| NFT | 21 | 21 |
-| **Total** | **274** | **264** |
+| UT | 119 IDs (77 registered + 42 documented) | 119 |
+| NFT | 26 | 27 |
+
+The FVT and UT figures were not re-counted by a test run; confirm them with `pytest --collect-only` before quoting them.
 
 Optional-source configuration determines which source-related cases
 run or skip in a particular environment.

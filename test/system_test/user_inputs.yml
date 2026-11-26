@@ -533,9 +533,10 @@ build_stream:
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # Used by the observability theme only (./setup_env.sh --theme observability):
-# iDRAC and LDMS are deployed and checked; the PowerScale, UFM and OME sources are off
-# by default (each needs its appliance). The stage of a source that is off here
-# (observability_idrac, _ldms, _powerscale, _ome, _ufm) is skipped automatically.
+# iDRAC, LDMS, PowerScale and OME (with its vector_ome bridge) are on by default; UFM is off.
+# PowerScale, OME and UFM need their appliance: set the source off here if it is not
+# available. The stage of a source that is off here (observability_idrac, _ldms,
+# _powerscale, _ome, _ufm) is skipped automatically.
 # The keys are those of telemetry_config.yml; a key not given keeps the shipped value
 # (the LDMS sampler plugins, ports, sink sizes ...). The BMC, MySQL, LDMS sampler,
 # PowerScale CSI and UFM passwords are credentials: ./setup_env.sh --theme
@@ -548,8 +549,7 @@ telemetry:
   # |   cluster_inventory   "" = the orchestrator inventory of the project     |
   # |   telemetry_sources   idrac and ldms metrics_enabled MANDATORY (true)    |
   # |   bmc_group_data_path "" = the orchestrator's bmc_group_data.csv         |
-  # | Optional sources (stage observability_<source> in                        |
-  # | observability_test_config.yml):                                          |
+  # | Optional sources (stage observability_<source> runs if its source is on) |
   # |   powerscale  needs the PowerScale CSI driver on the Kubernetes cluster  |
   # |               (omnia_config enable_powerscale_csi: true, above) and      |
   # |               csm_observability_values_file_path (absolute path of the   |
@@ -570,8 +570,8 @@ telemetry:
         metrics_enabled: true
         collection_targets: ["kafka"]
       powerscale:
-        metrics_enabled: false
-        logs_enabled: false
+        metrics_enabled: true
+        logs_enabled: true
         collection_targets: ["victoria_metrics", "victoria_logs"]
       ufm:
         metrics_enabled: false
@@ -581,8 +581,8 @@ telemetry:
         metrics_enabled: false
         logs_enabled: false
       ome:
-        metrics_enabled: false
-        logs_enabled: false
+        metrics_enabled: true
+        logs_enabled: true
         collection_targets: ["kafka"]
     telemetry_bridges:
       # Vector-LDMS: Kafka ldms topic -> VictoriaMetrics (TEL_FVT_DEPLOY_V029)
@@ -591,8 +591,8 @@ telemetry:
       # Vector-OME: Kafka ome.* topics -> VictoriaMetrics / VictoriaLogs; must be off
       # when the ome source is off
       vector_ome:
-        metrics_enabled: false
-        logs_enabled: false
+        metrics_enabled: true
+        logs_enabled: true
     idrac_telemetry_configurations:
       bmc_group_data_path: ""
     powerscale_configurations:

@@ -21,17 +21,17 @@
 # (block telemetry); credentials are never written here
 # (./setup_env.sh --theme observability --set-domain-creds).
 #
-# Source stages (observability_idrac, _ldms, _powerscale, _ome, _ufm, _sfm) are skipped
-# automatically, with the reason, while their source is off: telemetry_sources.<source>
-# with no metrics_enabled or logs_enabled true in the telemetry block of user_inputs.yml
-# (the deployed telemetry_config.yml), and configure_sfm false (below) for SFM.
-# PowerScale, OME, UFM and SFM (off in user_inputs.yml by default) need an external
+# The source stages (observability_idrac, _ldms, _powerscale, _ome, _ufm, _sfm) need no
+# setting here: each runs when its source is on and is skipped automatically, with the
+# reason, while it is off. A source is on when telemetry_sources.<source> has metrics_enabled
+# or logs_enabled true in the telemetry block of user_inputs.yml (the deployed
+# telemetry_config.yml); SFM follows configure_sfm (below), it is not a telemetry source.
+# PowerScale, OME (on by default in user_inputs.yml) and UFM (off) need an external
 # appliance; to check one:
-#   1. stages: below, keep the stage on;
-#   2. user_inputs.yml block telemetry: turn the source on (powerscale, ome + vector_ome,
+#   1. user_inputs.yml block telemetry: turn the source on (powerscale, ome + vector_ome,
 #      ufm) and give its configuration (csm_observability_values_file_path, ufm_endpoint).
-#      SFM is not a telemetry source: it only needs the VictoriaMetrics sink;
-#   3. OME and SFM only: configure_ome / configure_sfm and the appliance addresses
+#      SFM only needs the VictoriaMetrics sink;
+#   2. OME and SFM only: configure_ome / configure_sfm and the appliance addresses
 #      below, then, after ./setup_env.sh --configure wrote them into
 #      test/telemetry/test_config.yml, ./setup_env.sh --theme observability prompts for the
 #      OME and SFM appliance credentials (test_creds.yml) when they are on, in a terminal
@@ -95,20 +95,14 @@ report:
 # =============================================================================
 # STAGES  (on or off. A stage that is off is left out of 'all' and of the pipeline,
 #          and runs only when asked for by name: ./run_validation.sh svt_observability <stage>)
+# The source stages (idrac, ldms, powerscale, ome, ufm, sfm) are not listed: they follow
+# their source (see the top of this file).
 # =============================================================================
 stages:
   # observability_cleanup removes the iDRAC and LDMS telemetry of an earlier deployment
   # before the new one is deployed. Off by default: the deploy stage replaces the
   # telemetry on its own. true: 'all' and the pipeline run it.
   observability_cleanup: false
-  # The source stages after observability_ldms, on by default (also when a key is left
-  # out). Each runs every FVT check of its source (deploy verify --suite sources --marker
-  # <source>), and is skipped by itself while its source is off (see the top of this
-  # file). false: 'all' and the pipeline leave the stage out even with the source on.
-  observability_powerscale: true
-  observability_ome: true
-  observability_ufm: true
-  observability_sfm: true
   # observability_sfm_vm_only, the last stage, skipped while configure_sfm is false:
   # omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false, then --tags
   # deploy_sinks -e victoria_metrics (only the VictoriaMetrics sink), --tags

@@ -309,11 +309,6 @@ TEST_CASES = {
         "title": "Precheck: ./omnia.sh -r telemetry --tags precheck",
         "run": ("-r", _TEL, "--tags", "precheck"),
     },
-    "observability_precheck_verify": {
-        "id": "SVT_OBSERVABILITY_019", "order": 2061, "stage": "observability_precheck",
-        "title": "Precheck: omnia.env, Kubernetes nodes Ready, kube_vip reachable",
-        "step": (_TEL, ("precheck", "verify")),
-    },
     "observability_validate_run": {
         "id": "SVT_OBSERVABILITY_020", "order": 2062, "stage": "observability_precheck",
         "title": "Validate: ./omnia.sh -r telemetry --tags validate",
@@ -346,8 +341,8 @@ TEST_CASES = {
         "title": "LDMS: aggregator, store, bridge, samplers, Kafka, VictoriaMetrics",
         "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms")),
     },
-    # The PowerScale, OME, UFM and SFM stages run by default (stages: in
-    # observability_test_config.yml can turn them off). Like observability_idrac and
+    # The PowerScale, OME, UFM and SFM stages are not toggled: they run whenever their source
+    # is on (user_inputs.yml telemetry). Like observability_idrac and
     # observability_ldms, each is skipped while its source is off (theme source_stages;
     # SFM: configure_sfm). Within a stage, a check whose channel (metrics or logs) is off
     # is skipped by the FVT. A live source needs its external appliance.

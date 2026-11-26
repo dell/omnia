@@ -36,7 +36,7 @@ are masked with omnia_auto's redaction.
 import html
 import re
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from urllib.parse import quote
 
 # The same masking omnia_auto applies to its own HTML report.
@@ -86,6 +86,22 @@ def _counts(results: List[Dict[str, Any]]) -> Dict[str, int]:
 def _rate(counts: Dict[str, int]) -> float:
     executed = counts["Passed"] + counts["Failed"]
     return round(counts["Passed"] / executed * 100, 1) if executed else 0.0
+
+
+def _units(items: List[Dict[str, Any]]) -> Tuple[Dict[str, int], str]:
+    """Return the counts a stage's pass rate is based on, and what they count.
+
+    A stage with test cases is measured by them (the FVT results of its steps); a failed
+    step without results still counts as one failure. A stage of playbook steps only is
+    measured by its steps.
+    """
+    results = [result for item in items for result in item.get("results") or []]
+    if not results:
+        return _counts(items), "steps"
+    counts = _counts(results)
+    counts["Failed"] += sum(1 for item in items
+                            if not item.get("results") and item.get("status") == "Failed")
+    return counts, "test cases"
 
 
 def _bar(rate: float, any_run: bool) -> str:
@@ -182,29 +198,27 @@ def _cards(groups: List[Dict[str, Any]], meta: Dict[str, Any]) -> str:
     steps = _counts(items)
     duration = format_duration(sum(group["duration"] for group in groups))
     planned = len(meta.get("stages") or []) or len(groups)
-    scenarios = list(meta.get("scenario_stages") or [])
-    if scenarios:
-        ran = [group for group in groups
-               if group["stage"] in scenarios and group["status"] != "Skipped"]
-        steps_card = (f'<div class="card"><div class="label">Scenarios</div>'
-                      f'<div class="value">{len(ran)}</div>'
-                      f'<div class="sub">cleanup, deploy and the stages after it that ran</div></div>')
-    else:
-        steps_card = (f'<div class="card"><div class="label">SVT Steps</div>'
-                      f'<div class="value">{len(items)}</div>'
-                      f'<div class="sub">setup phases and stage tests</div></div>')
+    units = [_units(group["items"]) for group in groups]
+    passed = sum(counts["Passed"] for counts, _ in units)
+    executed = passed + sum(counts["Failed"] for counts, _ in units)
+    basis = " and ".join(sorted({label for _, label in units})) or "steps"
+    caption = f"{passed} of {executed} passed ({basis})" if executed else "nothing run yet"
+    rate = _rate({"Passed": passed, "Failed": executed - passed})
     return (
         '<div class="cards">'
         f'<div class="card"><div class="label">Stages</div><div class="value">{len(groups)}</div>'
         f'<div class="sub">of {planned} planned</div></div>'
-        f'{steps_card}'
+        f'<div class="card"><div class="label">SVT Steps</div><div class="value">{len(items)}</div>'
+        f'<div class="sub">setup phases and stage tests</div></div>'
         f'<div class="card passed clickable" onclick="filterBy(\'pass\')"><div class="label">Passed</div>'
-        f'<div class="value">{steps["Passed"]}</div></div>'
+        f'<div class="value">{steps["Passed"]}</div><div class="sub">steps</div></div>'
         f'<div class="card failed clickable" onclick="filterBy(\'fail\')"><div class="label">Failed</div>'
-        f'<div class="value">{steps["Failed"]}</div></div>'
+        f'<div class="value">{steps["Failed"]}</div><div class="sub">steps</div></div>'
         f'<div class="card skipped clickable" onclick="filterBy(\'skip\')"><div class="label">Skipped</div>'
-        f'<div class="value">{steps["Skipped"]}</div></div>'
-        f'<div class="card rate"><div class="label">Pass Rate</div><div class="value">{_rate(steps)}%</div></div>'
+        f'<div class="value">{steps["Skipped"]}</div><div class="sub">steps</div></div>'
+        f'<div class="card rate"><div class="label">Pass Rate</div>'
+        f'<div class="value">{rate}%</div>'
+        f'<div class="sub">{caption}</div></div>'
         f'<div class="card duration"><div class="label">Duration</div><div class="value">{duration}</div></div>'
         "</div>")
 
@@ -267,6 +281,10 @@ def _overview(theme: str, groups: List[Dict[str, Any]], planned: List[str]) -> s
     rows = ""
     for number, group in enumerate(groups, 1):
         steps = _counts(group["items"])
+        counts, basis = _units(group["items"])
+        executed = counts["Passed"] + counts["Failed"]
+        caption = (f'<div class="text-muted">{counts["Passed"]} of {executed} {basis} passed</div>'
+                   if executed else "")
         rows += (f'<tr><td><a href="#card-stage-{number}" onclick="openStage(\'stage-{number}\')">'
                  f'{_e(_heading(theme, group, number))}</a></td>'
                  f'<td class="center">{_badge(group["status"])}</td>'
@@ -274,7 +292,7 @@ def _overview(theme: str, groups: List[Dict[str, Any]], planned: List[str]) -> s
                  f'<td class="center td-pass">{steps["Passed"]}</td>'
                  f'<td class="center td-fail">{steps["Failed"]}</td>'
                  f'<td class="center td-skip">{steps["Skipped"]}</td>'
-                 f'<td>{_bar(_rate(steps), bool(steps["Passed"] + steps["Failed"]))}</td>'
+                 f'<td>{_bar(_rate(counts), bool(executed))}{caption}</td>'
                  f'<td class="center">{format_duration(group["duration"])}</td>'
                  f'<td>{_e(group["started_at"])}</td></tr>')
     done = {group["stage"] for group in groups}

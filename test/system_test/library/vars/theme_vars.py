@@ -335,22 +335,11 @@ THEMES: Dict[str, Dict] = {
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
         "default_skip_stages": ("initialization", "prepare_base", "repo_sync", "image_build",
                                 "cluster_deploy"),
-        # The stages the report counts as scenarios: cleanup (when enabled), then the deploy
-        # stage and the stages after it that ran. Precheck is a gate, not a scenario.
-        "scenario_stages": ("observability_cleanup", "observability_deploy",
-                            "observability_idrac", "observability_ldms",
-                            "observability_powerscale", "observability_ome",
-                            "observability_ufm", "observability_sfm",
-                            "observability_sfm_vm_only"),
         # Stages <theme>_test_config.yml stages: turns on or off. Off by default, unless listed
-        # in optional_stages_on: the PowerScale, OME, UFM and SFM stages are on by default
-        # (and still skipped while their source is off, see source_stages).
-        "optional_stages": ("observability_cleanup", "observability_powerscale",
-                            "observability_ome", "observability_ufm", "observability_sfm",
-                            "observability_sfm_vm_only"),
-        "optional_stages_on": ("observability_powerscale", "observability_ome",
-                               "observability_ufm", "observability_sfm",
-                               "observability_sfm_vm_only"),
+        # in optional_stages_on. The source stages (idrac, ldms, powerscale, ome, ufm, sfm) are
+        # not optional: they run whenever their source is on (see source_stages).
+        "optional_stages": ("observability_cleanup", "observability_sfm_vm_only"),
+        "optional_stages_on": ("observability_sfm_vm_only",),
         # Stages that check one source: skipped (recorded with the reason, in 'all', by name
         # and in the pipeline) when it is off. ("source", <name>): telemetry_sources.<name>
         # of the deployed telemetry_config.yml (user_inputs.yml block telemetry) has neither
