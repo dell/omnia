@@ -777,4 +777,8 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "TC-FVT-017: Log query above log_query_rate_limit returns 429 with Retry-After",
     },
 
+    "deploy_full_playbook": {
+        "id": "BSM_FVT_FULL_PLAYBOOK_E001",
+        "title": "Deploy build_stream (complete playbook, no tags)",
+    },
 }
