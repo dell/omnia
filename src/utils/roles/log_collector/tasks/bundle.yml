@@ -294,6 +294,71 @@
     warning_count: "{{ warnings_list | length }}"
     warnings: "{{ warnings_list }}"
 
+- name: Check storage_config.yml exists on OIM
+  ansible.builtin.stat:
+    path: "{{ storage_config_file }}"
+  register: _storage_config_stat
+
+- name: Load storage_config.yml if present
+  ansible.builtin.include_vars:
+    file: "{{ storage_config_file }}"
+    name: _storage_config_data
+  when: _storage_config_stat.stat.exists
+
+- name: Resolve kafka_disk_mapping directory from nfs_k8s mount
+  ansible.builtin.set_fact:
+    _kafka_status_dir: >-
+      {{
+        (
+          _storage_config_data.mounts
+          | default([])
+          | selectattr('name', 'defined')
+          | selectattr('name', 'equalto', 'nfs_k8s')
+          | map(attribute='mount_point')
+          | list
+          | first
+        )
+        ~ '/kafka_disk_mapping'
+      }}
+  when:
+    - _storage_config_stat.stat.exists
+    - _storage_config_data is defined
+    - (_storage_config_data.mounts | default([]) | selectattr('name', 'defined') | selectattr('name', 'equalto', 'nfs_k8s') | list | length) > 0
+
+- name: Stat kafka_disk_mapping directory
+  ansible.builtin.stat:
+    path: "{{ _kafka_status_dir }}"
+  register: _kafka_status_dir_stat
+  when: _kafka_status_dir is defined
+
+- name: Find per-node status files in kafka_disk_mapping
+  ansible.builtin.find:
+    paths: "{{ _kafka_status_dir }}"
+    patterns: "status-*.json"
+    file_type: file
+  register: _found_nfs_status_files
+  when:
+    - _kafka_status_dir_stat is defined
+    - _kafka_status_dir_stat.stat.isdir | default(false)
+
+- name: Collect per-node status files into bundle workspace
+  when:
+    - _found_nfs_status_files is defined
+    - (_found_nfs_status_files.files | default([]) | length) > 0
+  block:
+    - name: Ensure local_storage_status directory exists
+      ansible.builtin.file:
+        path: "{{ log_root }}/k8s/local_storage_status"
+        state: directory
+        mode: "0755"
+
+    - name: Copy per-node status files to bundle workspace
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ log_root }}/k8s/local_storage_status/{{ item.path | basename }}"
+        mode: "0644"
+      loop: "{{ _found_nfs_status_files.files }}"
+
 - name: Move collected k8s/slurm folders into current run folder
   ansible.builtin.shell: |
     log_root={{ log_root | quote }}
