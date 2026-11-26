@@ -59,9 +59,9 @@
 #                   "noatime,nolock,rsize=1044480,wsize=1044480,nosharecache" (Kubernetes) or
 #                   "defaults,_netdev,rsize=1044480,wsize=1044480,nosharecache" (Slurm)
 #                   nosharecache makes the transfer size take effect even if the same
-#                   export is already mounted on the node. Over TCP the kernel rounds
-#                   rsize/wsize down to a multiple of 4096 (1044480 = 255 x 4096).
-#                   Instead of setting these options on the entry, set mount_params to
+#                   export is already mounted on the node. rsize/wsize set to 1 MiB - 4 KiB
+#                   (1044480) to stay below the 1 MiB threshold. Instead of setting these
+#                   options on the entry, set mount_params to
 #                   the powerscale_nfs profile below.
 #                   If specified, takes PRIORITY over mount_params profile
 #                   PowerScale CSI volumes are configured separately through
