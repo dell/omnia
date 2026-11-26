@@ -908,8 +908,12 @@ def bao_secret(name: str) -> Optional[str]:
     """Return the credential file text of OpenBao secret `name`, or None (names only in logs)."""
     server, role = _env("BAO_SERVER_URL").rstrip("/"), _env("BAO_AUTH_ROLE")
     jwt, path = _env("VAULT_ID_TOKEN"), _env("BAO_DATA_PATH").strip("/")
-    if not server.startswith("https://") and not server.startswith("http://"):
+    if not server:
         _say("ERROR: BAO_SERVER_URL is not set. HOW TO FIX: set the BAO_* CI/CD variables")
+        return None
+    if not server.startswith("https://"):
+        _say("ERROR: BAO_SERVER_URL must start with https://, the credentials are not sent in "
+             "clear text. HOW TO FIX: use the https URL of OpenBao, BAO_CA_CERT verifies its TLS")
         return None
     if not (jwt and role and path and SAFE_NAME.match(name)):
         _say("ERROR: VAULT_ID_TOKEN, BAO_AUTH_ROLE or BAO_DATA_PATH is missing")
