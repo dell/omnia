@@ -439,6 +439,23 @@ def failed_cleanups() -> List[str]:
             and name not in tolerated_jobs()]
 
 
+def missing_cleanup_markers() -> List[str]:
+    """Return the selected cleanups and cleanup tests that left no pass marker.
+
+    Skipped jobs (SKIP_STAGES) and tolerated ones are not required. A job that died before it could
+    report is missing here, which a status file saying ``failed`` alone would not show.
+    """
+    tolerated = tolerated_jobs()
+    missing: List[str] = []
+    for domain in CLEANUP_TAGS:
+        for name, group in (X):
+            if any(_skipped(word) for word in (domain, name, group)) or name in tolerated:
+                continue
+            if not os.path.isfile(f"{STATUS_DIR}/{name}.ok"):
+                missing.append(name)
+    return missing
+
+
 def require_cleanups_ok() -> None:
     """Fail when a cleanup failed, so nothing is installed or deployed after it.
 
@@ -590,7 +607,7 @@ def cleanup_verify(domain: str) -> int:
     rc = _stage_test_files(cluster, domain)
     if not rc:
         rc = _fvt(domain, "cleanup", "verify", extra, missing)
-    return rc
+    return _mark(f"test_cleanup_{domain}", rc)
 
 
 NFS_SOURCE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9.-]{0,252}):(/[A-Za-z0-9._/-]{0,250})$")
@@ -690,10 +707,12 @@ def cleanup_omnia() -> int:
     apply_cluster()
     require_ready()
     blocked = failed_cleanups()
+    blocked += [name for name in missing_cleanup_markers() if name not in blocked]
     if blocked and _env("DRY_RUN").lower() != "true":
-        _say(f"ERROR: {', '.join(blocked)} failed, so the Omnia cleanup was not run and the Omnia "
-             "venv is kept for the next try (the orchestrator ones empty the NFS shares)")
-        _record_error(f"{', '.join(blocked)} failed, so the Omnia cleanup was not run")
+        _say(f"ERROR: {', '.join(blocked)} failed or left no pass marker, so the Omnia cleanup was "
+             "not run and the Omnia venv is kept for the next try (the orchestrator ones empty the "
+             "NFS shares)")
+        _record_error(f"{', '.join(blocked)} did not pass, so the Omnia cleanup was not run")
         return 1
     return _mark("cleanup_omnia", _main_cleanup("exec"))
 
