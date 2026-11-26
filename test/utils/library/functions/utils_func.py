@@ -600,6 +600,104 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
         if temp_dir:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
+
+def validate_bundle_worker_pod_logs(host, tar_path: str) -> Dict[str, Any]:
+    """Validate log bundle contains worker pod log directories (ER-ORCH-011 NFR-4 L1).
+
+    Args:
+        host: Testinfra host object.
+        tar_path: Path to the tar.gz file.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "found_pod_logs": list,
+            "found_container_logs": list,
+            "error": str,
+        }
+    """
+    temp_dir = None
+    try:
+        temp_dir = tempfile.mkdtemp(prefix="log_bundle_pod_logs_")
+        extract_cmd = f"tar -tzf {tar_path}"
+        result = host.run(extract_cmd)
+
+        if result.rc != 0:
+            return {
+                "success": False,
+                "found_pod_logs": [],
+                "found_container_logs": [],
+                "error": f"Failed to list bundle contents: {result.stderr}",
+            }
+
+        lines = result.stdout.strip().split("\n") if result.stdout.strip() else []
+        pod_logs = [line for line in lines if "var/log/pods" in line]
+        container_logs = [line for line in lines if "var/log/containers" in line]
+
+        return {
+            "success": True,
+            "found_pod_logs": pod_logs,
+            "found_container_logs": container_logs,
+            "error": "",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "found_pod_logs": [],
+            "found_container_logs": [],
+            "error": str(exc),
+        }
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def validate_bundle_local_storage_status_files(host, tar_path: str) -> Dict[str, Any]:
+    """Validate log bundle contains per-node local storage status files (ER-ORCH-011 NFR-4 L3).
+
+    Args:
+        host: Testinfra host object.
+        tar_path: Path to the tar.gz file.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "status_files": list,
+            "error": str,
+        }
+    """
+    temp_dir = None
+    try:
+        temp_dir = tempfile.mkdtemp(prefix="log_bundle_status_")
+        list_cmd = f"tar -tzf {tar_path}"
+        result = host.run(list_cmd)
+
+        if result.rc != 0:
+            return {
+                "success": False,
+                "status_files": [],
+                "error": f"Failed to list bundle contents: {result.stderr}",
+            }
+
+        lines = result.stdout.strip().split("\n") if result.stdout.strip() else []
+        status_files = [line for line in lines if "status-" in line and line.endswith(".json")]
+
+        return {
+            "success": True,
+            "status_files": status_files,
+            "error": "",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "status_files": [],
+            "error": str(exc),
+        }
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 def validate_ini_inventory(host, path: str) -> Dict[str, Any]:
     """Validate INI inventory file format.
 

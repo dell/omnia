@@ -105,6 +105,53 @@
 - name: Collect k8s worker logs
   when: stage == 'k8s_worker'
   block:
+    - name: Stat k8s worker log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: k8s_worker_dir_stat
+      with_items: "{{ hostvars['localhost'].k8s_worker_log_dirs | default(k8s_worker_log_dirs, true) }}"
+
+    - name: Record missing k8s worker log directories
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: k8s_worker
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log directory '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
+      loop: "{{ k8s_worker_dir_stat.results }}"
+      when: not (item.stat.isdir | default(false))
+
+    - name: Find files under existing k8s worker log directories
+      ansible.builtin.find:
+        paths: "{{ item.item }}"
+        file_type: file
+        recurse: true
+      register: k8s_worker_found_files
+      when: item.stat.isdir | default(false)
+      with_items: "{{ k8s_worker_dir_stat.results }}"
+
+    - name: Fetch files from k8s worker log directories
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/k8s/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+        validate_checksum: "{{ item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
+      loop: "{{ k8s_worker_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
+      when: k8s_worker_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
+
     - name: Stat k8s worker log files
       ansible.builtin.stat:
         path: "{{ item }}"

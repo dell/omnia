@@ -41,25 +41,22 @@ def _load_validator_module(validators_dir):
     module_path = validators_dir / "collect_pxe_config_validator.py"
     assert module_path.exists(), f"validator module not found: {module_path}"
 
-    # Stub out ansible.module_utils.input_validation.messages so the module
-    # can be imported standalone, the same way other domain UT suites do.
-    fake_msg_module = types.ModuleType(
-        "ansible.module_utils.input_validation.messages"
-    )
+    # Map ansible.module_utils packages so validators and messages resolve
+    iv_dir = validators_dir.parent
+    msg_dir = iv_dir / "messages"
 
-    class _FakeMessages:  # pylint: disable=too-few-public-methods
-        pass
-
-    fake_msg_module.utils_messages = _FakeMessages()
+    iv_mod = types.ModuleType("ansible.module_utils.input_validation")
+    iv_mod.__path__ = [str(iv_dir)]
+    mu_mod = types.ModuleType("ansible.module_utils")
+    mu_mod.__path__ = [str(iv_dir.parent)]
+    msg_mod = types.ModuleType("ansible.module_utils.input_validation.messages")
+    msg_mod.__path__ = [str(msg_dir)]
 
     for name, mod in [
         ("ansible", types.ModuleType("ansible")),
-        ("ansible.module_utils", types.ModuleType("ansible.module_utils")),
-        (
-            "ansible.module_utils.input_validation",
-            types.ModuleType("ansible.module_utils.input_validation"),
-        ),
-        ("ansible.module_utils.input_validation.messages", fake_msg_module),
+        ("ansible.module_utils", mu_mod),
+        ("ansible.module_utils.input_validation", iv_mod),
+        ("ansible.module_utils.input_validation.messages", msg_mod),
     ]:
         sys.modules.setdefault(name, mod)
 
