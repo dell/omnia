@@ -133,30 +133,6 @@ sync_image_build_input: false
 cleanup_credentials: true
 
 # =============================================================================
-# EXTERNAL OIM (Phase 1 — External Repo Manager Validation)
-# =============================================================================
-# Connection details for the external OIM that runs Repo Manager.
-# When external_oim.ip is set, the contract suite can trigger a full
-# repo_manager run on this OIM, fetch the generated repo_status.yml,
-# and use it as the input contract for image_build_manager on this OIM.
-#
-# Credentials: external_oim_password goes in test_creds.yml (Ansible Vault).
-# Leave ip empty to skip remote repo_manager execution and use the
-# local repo_status.yml instead.
-external_oim:
-  ip: "10.40.8.160"
-  ssh_user: "root"
-  ssh_port: 22
-  # Path on the external OIM where the omnia source tree lives.
-  omnia_path: "/root/main/omnia"
-  # Repo Manager tags to run on the external OIM.
-  # "prepare,precheck,download,status" for a full run;
-  # "status" to regenerate repo_status.yml from existing Pulp content.
-  repo_manager_tags: "prepare,precheck,download,status"
-  # Project name on the external OIM (used to resolve the output path).
-  project_name: "project_default"
-
-# =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.

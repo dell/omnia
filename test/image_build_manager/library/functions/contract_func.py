@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""External repo_manager contract verification functions.
-
-Validates that repo_status.yml from an external source passes the
-image_build_manager consumer contract (JSON Schema + semantic checks)
-and parses correctly into consumer-required facts.
-"""
+"""External repo_manager contract checks: schema, semantics, parsing and source host."""
 
 import importlib.util
 import json
@@ -76,14 +71,7 @@ def _schema():
 
 
 def validate_repo_contract(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Run schema + semantic validation against a repo_status dict.
-
-    Args:
-        data: Parsed repo_status.yml content.
-
-    Returns:
-        Dict with keys: success (bool), details (str), errors (list).
-    """
+    """Run schema + semantic validation; return ``{success, details, errors}``."""
     errors = []
     _ENGINE.schema(data, _schema(), "repo_status.yml", errors, _LOGGER)
     if not errors:
@@ -103,15 +91,7 @@ def validate_repo_contract(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def parse_repo_status_external(path: str) -> Dict[str, Any]:
-    """Parse repo_status.yml from an external source.
-
-    Args:
-        path: Absolute path to the repo_status.yml file.
-
-    Returns:
-        Dict with keys: success (bool), details (str), error (str),
-        result (dict with parsed fields).
-    """
+    """Parse a repo_status.yml; return ``{success, details, error, result}``."""
     try:
         result = _PARSE.parse_repo_status(path)
         versions = result.get("cluster_os_versions", [])
@@ -137,14 +117,7 @@ def parse_repo_status_external(path: str) -> Dict[str, Any]:
 
 
 def minimal_external_status(**overrides) -> Dict[str, Any]:
-    """Return the smallest valid external repo_status.yml payload.
-
-    Args:
-        **overrides: Keys to override in the base payload.
-
-    Returns:
-        Dict representing a minimal valid repo_status.yml.
-    """
+    """Return the smallest valid external repo_status payload, with ``overrides`` applied."""
     base = {
         "overall_status": "success",
         "cluster_os_type": "rhel",
@@ -163,15 +136,7 @@ def minimal_external_status(**overrides) -> Dict[str, Any]:
 
 
 def write_status_fixture(tmp_path, data: Dict[str, Any]) -> str:
-    """Write a repo_status.yml fixture and return its path.
-
-    Args:
-        tmp_path: pytest tmp_path fixture.
-        data: repo_status content to write.
-
-    Returns:
-        Absolute path to the written file as a string.
-    """
+    """Write ``data`` as repo_status.yml under ``tmp_path`` and return its path."""
     path = tmp_path / "repo_status.yml"
     path.write_text(
         yaml.dump(data, default_flow_style=False), encoding="utf-8",
@@ -184,16 +149,7 @@ def load_sample_status(
     tmp_path=None,
     replacements: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, Any], str]:
-    """Load a bundled sample repo_status.yml.
-
-    Args:
-        name: Filename under samples/repo_manager_output/.
-        tmp_path: If replacements are needed, write to this temp dir.
-        replacements: String replacements to apply (e.g. Jinja vars).
-
-    Returns:
-        Tuple of (parsed data dict, file path string).
-    """
+    """Load a bundled sample; ``replacements`` (written to ``tmp_path``) fill its Jinja vars."""
     sample_path = _SAMPLE_DIR / name
     text = sample_path.read_text(encoding="utf-8")
 
@@ -284,21 +240,11 @@ def verify_external_source(
     data: Dict[str, Any], expected_host: str = "",
     skip_cert: bool = False,
 ) -> Dict[str, Any]:
-    """Check that a repo_status dict describes repositories on another host.
+    """Check that a repo_status dict names repositories on another host.
 
-    Fails when any repository host is this OIM, when ``expected_host`` is
-    set and any repository host differs from it, or when the certificate
-    named in the file does not cover the repository hosts.
-
-    Args:
-        data: Parsed repo_status.yml dict.
-        expected_host: Optional pinned host that all repos must match.
-        skip_cert: When True, skip the local certificate SAN check.
-            Use this for cross-OIM scenarios where the local cert belongs
-            to this OIM and cannot cover the external OIM's repos.
-
-    Returns:
-        Dict with keys: success, details, hosts, local, errors.
+    Fails when a repository host is this OIM, differs from ``expected_host``, or is not
+    covered by the file's certificate (``skip_cert`` skips that check for fetched files).
+    Returns ``{success, details, hosts, local, errors}``.
     """
     hosts = status_repo_hosts(data)
     local = local_addresses()

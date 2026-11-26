@@ -130,11 +130,6 @@ CLUSTER_VARIABLES = {
     ("svt", "clean_reinstall"): "SVT_CLEAN_REINSTALL",
     ("svt", "skip_stages"): "SVT_SKIP_STAGES",
     ("svt", "user_inputs"): "SVT_USER_INPUTS",
-    ("external_oim", "ip"): "SVT_EXTERNAL_OIM_IP",
-    ("external_oim", "ssh_user"): "SVT_EXTERNAL_OIM_USER",
-    ("external_oim", "ssh_port"): "SVT_EXTERNAL_OIM_SSH_PORT",
-    ("external_oim", "omnia_path"): "SVT_EXTERNAL_OMNIA_PATH",
-    ("external_oim", "project_name"): "SVT_EXTERNAL_PROJECT_NAME",
     ("", "themes"): "SVT_THEMES",
     ("", "secret_path"): "BAO_DATA_PATH",
 }
@@ -691,31 +686,7 @@ def _set_password(client: GitLabClient, project_id: int, cluster: str) -> None:
             print(f"  set {key} (protected{', masked' if masked else ''})")
             if not masked:
                 print("  WARNING: GitLab could not mask this value (masking rules); it is "
-                      "visible in the CI/CD variables page")
-            break
-    # Also set external OIM password if the cluster has external_oim configured
-    config = load_config(CONFIG_PATH)
-    cluster_block = (config.get("clusters") or {}).get(cluster) or {}
-    if cluster_block.get("external_oim"):
-        ext_key = f"{prefix(cluster)}_SVT_EXTERNAL_OIM_PASS"
-        ext_value = os.environ.get(ext_key) or getpass.getpass(
-            f"External OIM SSH password of {cluster} ({ext_key}): ")
-        if ext_value:
-            ext_payload = {"key": ext_key, "value": ext_value, "protected": True, "masked": True,
-                          "variable_type": "env_var"}
-            ext_exists = client._get(f"/projects/{project_id}/variables/{ext_key}").status_code == 200
-            for masked in (True, False):
-                ext_payload["masked"] = masked
-                response = (client._put(f"/projects/{project_id}/variables/{ext_key}", json=ext_payload)
-                            if ext_exists else client._post(f"/projects/{project_id}/variables/",
-                                                        json=ext_payload))
-                if response.status_code in (200, 201):
-                    print(f"  set {ext_key} (protected{', masked' if masked else ''})")
-                    if not masked:
-                        print("  WARNING: GitLab could not mask this value (masking rules); it is "
-                              "visible in the CI/CD variables page, but it is "
-                              "protected and never printed by the pipeline")
-                    break
+                      "protected and never printed by the pipeline")
             return
     raise SystemExit(f"could not set {key}: HTTP {response.status_code}")
 

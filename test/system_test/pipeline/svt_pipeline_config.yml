@@ -200,16 +200,6 @@ clusters:
     # secret_path of user_inputs.yml, e.g. "secret/data/omnia/oim1". Empty = the common
     # path.
     secret_path: ""
-    # External OIM for Phase 1: runs repo_manager on this OIM, fetches the generated
-    # repo_status.yml, and the current OIM runs image_build_manager using it.
-    # Only used by the external_contract theme. The password is set via --set-password
-    # and stored as <CLUSTER>_SVT_EXTERNAL_OIM_PASS (masked, protected).
-    external_oim:
-      ip: ""
-      ssh_user: "root"
-      ssh_port: 22
-      omnia_path: "/root/main/omnia"
-      project_name: "project_default"
   # Theme observability on a deployed cluster: uncomment and fill (target, omnia) like oim1.
   # Leave clean_reinstall and skip_stages empty for the theme defaults: no clean reinstall,
   # and prepare_base, repo_sync, image_build and cluster_deploy left out. skip_stages: "none"

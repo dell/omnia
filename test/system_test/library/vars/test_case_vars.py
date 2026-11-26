@@ -33,7 +33,6 @@ catalog_build (order 2000+): generated from the plan of the current run
 from .catalog_vars import CATALOG_PLAN, catalog_test_cases
 
 _BS = "build_stream"
-_IMG = "image_build_manager"
 _TEL = "telemetry"
 _SR = "orchestrator"
 _ORCH = "orchestrator"
@@ -472,50 +471,6 @@ TEST_CASES = {
         "title": "Renew Kubernetes bootstrap tokens",
         "step": (_ORCH, ("pxeboot", "verify", "--suite", "kubernetes_cluster",
                          "--marker", "token_renew")),
-    },
-    # ============================================================ theme external_contract
-    # contract_remote (runs repo_manager on OIM1, fetches contract) --
-    "external_contract_remote_exec": {
-        "id": "SVT_EXTERNAL_CONTRACT_001", "order": 4000, "stage": "contract_remote",
-        "title": "Remote: run repo_manager on OIM1, fetch contract and certificate",
-        "step": (_IMG, ("validate", "exec", "--suite", "contract_remote")),
-        "env": {
-            "SVT_EXTERNAL_OIM_IP": "",
-            "SVT_EXTERNAL_OIM_USER": "",
-            "SVT_EXTERNAL_OIM_SSH_PORT": "",
-            "SVT_EXTERNAL_OMNIA_PATH": "",
-            "SVT_EXTERNAL_PROJECT_NAME": "",
-            "SVT_EXTERNAL_OIM_PASS": "",
-        },
-    },
-    # contract_prepare -------------------------------------------
-    "external_contract_prepare_exec": {
-        "id": "SVT_EXTERNAL_CONTRACT_002", "order": 4010, "stage": "contract_prepare",
-        "title": "Prepare: image_build_manager --tags prepare (registry and MinIO)",
-        "step": (_IMG, ("prepare", "exec")),
-    },
-    "external_contract_prepare_verify": {
-        "id": "SVT_EXTERNAL_CONTRACT_003", "order": 4011, "stage": "contract_prepare",
-        "title": "Prepare: verification (registry, MinIO, S3 connectivity)",
-        "step": (_IMG, ("prepare", "verify")),
-    },
-    # contract_validate ------------------------------------------
-    "external_contract_validate_verify": {
-        "id": "SVT_EXTERNAL_CONTRACT_004", "order": 4020, "stage": "contract_validate",
-        "title": "Contract verification: schema, semantic, parse, extensibility (20 tests)",
-        "step": (_IMG, ("validate", "verify", "--suite", "contract")),
-    },
-    # contract_build (Phase 1 build + negative controls) ----------
-    "external_contract_build_exec": {
-        "id": "SVT_EXTERNAL_CONTRACT_005", "order": 4030, "stage": "contract_build",
-        "title": "Contract build: build images on OIM2 using fetched contract, "
-                 "plus negative controls",
-        "step": (_IMG, ("validate", "exec", "--suite", "contract")),
-        # Fail (not skip) live-file tests during SVT — the prerequisite
-        # (a completed contract_remote stage) must be met.
-        "env": {
-            "REQUIRE_LIVE_REPO_STATUS": "1",
-        },
     },
 }
 # ------------------------------------------------------ theme catalog_build

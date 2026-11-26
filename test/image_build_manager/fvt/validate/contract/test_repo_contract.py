@@ -12,40 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Image Build Validate — External repo_manager Contract Verification.
+"""Image Build Validate - external repo_manager contract verification.
 
-Validates that image_build_manager correctly consumes repo_status.yml when
-the repo_manager output is provided by an external source (a different OIM,
-a CI artifact, an operator-supplied file, or the internet fixture).  The
-consumer must work and pass regardless of which producer-owned metadata is
-present, which optional sections exist, or which extra fields the producer
-adds in future versions.
+image_build_manager must consume a repo_status.yml produced elsewhere (another
+OIM, a CI artifact, an operator file), whatever optional sections or extra
+producer fields it carries. Pipeline under test: JSON Schema, semantic
+validation, then parse_repo_status.
 
-Contract pipeline under test:
-  1. JSON Schema validation (repo_status.json)
-  2. Semantic validation (repo_status_validator.validate)
-  3. parse_repo_status — extracts consumer-required facts
-
-**Data-source breakdown (20 verification tests):**
-
-==========  =================  ==========================================
-Category    Tests              Data source
-==========  =================  ==========================================
-Synthetic   V005-V017, V020,   ``minimal_external_status()`` — hand-built
-fixtures    V021, V023, V024   dicts in ``contract_func.py``
-Bundled     V018, V019         ``load_sample_status()`` reading
-samples                        ``src/.../samples/repo_manager_output/``
-Live file   **V022**           ``live_status_path()`` → real repo_status
-==========  =================  ==========================================
-
-V022 is the only verification test that requires the live file.  When
-the file is absent, V022 **skips** by default (safe for dev-box runs)
-or **fails** when ``REQUIRE_LIVE_REPO_STATUS=1`` is set (CI / nightly).
-
-A report showing "20 passed, 0 skipped" confirms the live-file path was
-exercised.  A report with skips means the live-file tests were not run —
-the terminal summary surfaces this explicitly.
+Data sources (20 tests): synthetic dicts (V005-V017, V020, V021, V023, V024),
+bundled samples (V018, V019) and the live file (V022, the only test that needs
+a completed repo_manager run). V022 skips when the file is absent, or fails when
+REQUIRE_LIVE_REPO_STATUS=1 is set.
 """
 
 import os
@@ -68,34 +45,51 @@ from library.vars import TEST_CASES as TC
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
 _REQUIRE_LIVE = os.environ.get("REQUIRE_LIVE_REPO_STATUS", "") == "1"
+_EXT = "https://ext.example.com"
 
 
-# =========================================================================
-# Contract theme: external repo_manager output consumed by image_build_manager
-# =========================================================================
+def _logger(key):
+    """Return the TestLogger of the test case ``key``."""
+    return TestLogger(TC[key]["title"], TC[key]["id"])
+
+
+def _accept(tl, data, tmp_path=None, path=None, ok="contract_validation_ok", **fmt):
+    """Validate (and parse) a status dict, fail with the shared messages, return the parse."""
+    result = validate_repo_contract(data)
+    if result["success"] and tmp_path is not None:
+        path = write_status_fixture(tmp_path, data)
+    parse = parse_repo_status_external(path) if path else {"success": True, "result": {}}
+    if not result["success"]:
+        tl.failed(LOG["contract_validation_failed"], result["details"])
+        assert False, ASSERT["contract_failed"].format(errors=result["errors"])
+    if not parse["success"]:
+        tl.failed(LOG["contract_parse_failed"], parse["details"])
+        assert False, ASSERT["contract_parse_failed"].format(error=parse["error"])
+    tl.passed(LOG[ok].format(**fmt), result["details"])
+    return parse["result"]
+
+
+def _reject(tl, data, expect=None):
+    """Assert that the contract rejects ``data`` (optionally naming ``expect``)."""
+    result = validate_repo_contract(data)
+    if result["success"]:
+        tl.failed(LOG["contract_rejection_expected"])
+        assert False, ASSERT["contract_rejection_expected"]
+    tl.passed(LOG["contract_rejected_ok"], result["details"])
+    assert expect is None or any(expect in e for e in result["errors"])
+
+
+def _repos(**versions):
+    """Return a ``repositories`` mapping of ``{version: {arch: {name: url}}}``."""
+    return {ver: {arch: {name: {"url": url} for name, url in repos.items()}
+                  for arch, repos in arches.items()} for ver, arches in versions.items()}
 
 
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_external_contract_minimal(tmp_path):
     """Verify minimal external repo_status.yml passes full contract."""
-    tc = TC["external_contract_minimal"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status()
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    if not result["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(errors=result["errors"])
-
-    parse = parse_repo_status_external(path)
-    if not parse["success"]:
-        tl.failed(LOG["contract_parse_failed"], parse["details"])
-        assert False, ASSERT["contract_parse_failed"].format(error=parse["error"])
-
-    r = parse["result"]
-    tl.passed(LOG["contract_validation_ok"], result["details"])
+    r = _accept(_logger("external_contract_minimal"), minimal_external_status(), tmp_path)
     assert r["cluster_os_type"] == "rhel"
     assert r["cluster_os_versions"] == ["10.0"]
     assert r["repo_port"] == 443
@@ -106,58 +100,24 @@ def test_external_contract_minimal(tmp_path):
 @pytest.mark.order(11)
 def test_external_contract_multi_version(tmp_path):
     """Verify external status with two OS versions parses correctly."""
-    tc = TC["external_contract_multi_version"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={
-        "10.0": {"x86_64": {
-            "baseos": {"url": "https://ext.example.com/10.0/baseos/"},
-            "appstream": {"url": "https://ext.example.com/10.0/appstream/"},
-        }},
-        "10.2": {"x86_64": {
-            "baseos": {"url": "https://ext.example.com/10.2/baseos/"},
-        }},
-    })
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    r = parse["result"]
-    tl.passed(LOG["contract_validation_ok"], result["details"])
+    data = minimal_external_status(repositories=_repos(**{
+        "10.0": {"x86_64": {"baseos": f"{_EXT}/10.0/baseos/",
+                            "appstream": f"{_EXT}/10.0/appstream/"}},
+        "10.2": {"x86_64": {"baseos": f"{_EXT}/10.2/baseos/"}},
+    }))
+    r = _accept(_logger("external_contract_multi_version"), data, tmp_path)
     assert r["cluster_os_versions"] == ["10.0", "10.2"]
     names = {repo["name"] for repo in r["repo_manager_repos_x86_64"]}
-    assert "10_0_baseos" in names
-    assert "10_2_baseos" in names
+    assert {"10_0_baseos", "10_2_baseos"} <= names
 
 
 @pytest.mark.functional
 @pytest.mark.order(12)
 def test_external_contract_aarch64_only(tmp_path):
     """Verify external status with aarch64-only repos is valid."""
-    tc = TC["external_contract_aarch64_only"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={
-        "10.0": {"aarch64": {
-            "baseos": {"url": "https://ext.example.com/aarch64/baseos/"},
-        }},
-    })
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    r = parse["result"]
-    tl.passed(LOG["contract_validation_ok"], result["details"])
+    data = minimal_external_status(repositories=_repos(
+        **{"10.0": {"aarch64": {"baseos": f"{_EXT}/aarch64/baseos/"}}}))
+    r = _accept(_logger("external_contract_aarch64_only"), data, tmp_path)
     assert len(r["repo_manager_repos_x86_64"]) == 0
     assert len(r["repo_manager_repos_aarch64"]) == 1
 
@@ -166,75 +126,30 @@ def test_external_contract_aarch64_only(tmp_path):
 @pytest.mark.order(13)
 def test_external_contract_custom_port(tmp_path):
     """Verify explicit repo_manager.port propagates to consumer."""
-    tc = TC["external_contract_custom_port"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status()
-    data["repo_manager"] = {"port": 8443}
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    tl.passed(LOG["contract_port_ok"].format(port=8443), result["details"])
-    assert parse["result"]["repo_port"] == 8443
+    data = minimal_external_status(repo_manager={"port": 8443})
+    r = _accept(_logger("external_contract_custom_port"), data, tmp_path,
+                ok="contract_port_ok", port=8443)
+    assert r["repo_port"] == 8443
 
 
 @pytest.mark.functional
 @pytest.mark.order(14)
 def test_external_contract_url_port(tmp_path):
     """Verify port derived from URL when repo_manager section absent."""
-    tc = TC["external_contract_url_port"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={
-        "10.0": {"x86_64": {
-            "baseos": {"url": "https://repo.example.com:9443/baseos/"},
-        }},
-    })
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    tl.passed(LOG["contract_port_ok"].format(port=9443), result["details"])
-    assert parse["result"]["repo_port"] == 9443
+    data = minimal_external_status(repositories=_repos(
+        **{"10.0": {"x86_64": {"baseos": "https://repo.example.com:9443/baseos/"}}}))
+    r = _accept(_logger("external_contract_url_port"), data, tmp_path,
+                ok="contract_port_ok", port=9443)
+    assert r["repo_port"] == 9443
 
 
 @pytest.mark.sanity
 @pytest.mark.order(15)
 def test_external_contract_cert_path(tmp_path):
     """Verify certificate metadata propagates to consumer."""
-    tc = TC["external_contract_cert_path"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status()
-    data["repo_manager"] = {
-        "port": 2225,
-        "certificates": {
-            "server_crt": "/external/certs/ca-bundle.crt",
-            "certs_dir": "/external/certs",
-        },
-    }
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    r = parse["result"]
-    tl.passed(LOG["contract_cert_ok"], result["details"])
+    data = minimal_external_status(repo_manager={"port": 2225, "certificates": {
+        "server_crt": "/external/certs/ca-bundle.crt", "certs_dir": "/external/certs"}})
+    r = _accept(_logger("external_contract_cert_path"), data, tmp_path, ok="contract_cert_ok")
     assert r["repo_cert_path"] == "/external/certs/ca-bundle.crt"
     assert r["repo_port"] == 2225
 
@@ -243,82 +158,37 @@ def test_external_contract_cert_path(tmp_path):
 @pytest.mark.order(16)
 def test_external_contract_empty_cert(tmp_path):
     """Verify internet source with empty cert returns empty string."""
-    tc = TC["external_contract_empty_cert"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status()
-    data["repo_manager"] = {
-        "port": "",
-        "certificates": {"server_crt": "", "certs_dir": ""},
-    }
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    tl.passed(LOG["contract_validation_ok"], result["details"])
-    assert parse["result"]["repo_cert_path"] == ""
+    data = minimal_external_status(repo_manager={
+        "port": "", "certificates": {"server_crt": "", "certs_dir": ""}})
+    r = _accept(_logger("external_contract_empty_cert"), data, tmp_path)
+    assert r["repo_cert_path"] == ""
 
 
 @pytest.mark.functional
 @pytest.mark.order(17)
 def test_external_contract_producer_metadata_ignored(tmp_path):
     """Verify producer-owned fields are ignored by consumer."""
-    tc = TC["external_contract_producer_ignored"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status()
-    data["execution_contexts"] = [
-        {"context_id": "ext", "os_type": "rhel", "os_version": "10.0",
-         "architectures": ["x86_64"]},
-    ]
-    data["overall_status_by_version"] = {"10.0": "success"}
-    data["repo_config"] = "full"
-    data["file_repos"] = {"x86_64": {}}
-    data["registries"] = {}
-    data["future_producer_field"] = {"layout": "v3"}
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    tl.passed(LOG["contract_producer_ignored_ok"], result["details"])
-    assert parse["result"]["cluster_os_type"] == "rhel"
-    assert parse["result"]["cluster_os_versions"] == ["10.0"]
+    data = minimal_external_status(
+        execution_contexts=[{"context_id": "ext", "os_type": "rhel", "os_version": "10.0",
+                             "architectures": ["x86_64"]}],
+        overall_status_by_version={"10.0": "success"}, repo_config="full",
+        file_repos={"x86_64": {}}, registries={}, future_producer_field={"layout": "v3"})
+    r = _accept(_logger("external_contract_producer_ignored"), data, tmp_path,
+                ok="contract_producer_ignored_ok")
+    assert r["cluster_os_type"] == "rhel"
+    assert r["cluster_os_versions"] == ["10.0"]
 
 
 @pytest.mark.functional
 @pytest.mark.order(18)
 def test_external_contract_priority(tmp_path):
     """Verify priority values propagate from external source."""
-    tc = TC["external_contract_priority"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={
-        "10.0": {"x86_64": {
-            "baseos": {"url": "https://ext.example.com/baseos/", "priority": 50},
-            "custom": {"url": "https://ext.example.com/custom/", "priority": 100},
-        }},
-    })
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    repos = {r["name"]: r for r in parse["result"]["repo_manager_repos_x86_64"]}
-    tl.passed(LOG["contract_validation_ok"], result["details"])
+    data = minimal_external_status(repositories=_repos(**{"10.0": {"x86_64": {
+        "baseos": f"{_EXT}/baseos/", "custom": f"{_EXT}/custom/"}}}))
+    entries = data["repositories"]["10.0"]["x86_64"]
+    entries["baseos"]["priority"], entries["custom"]["priority"] = 50, 100
+    r = _accept(_logger("external_contract_priority"), data, tmp_path)
+    repos = {repo["name"]: repo for repo in r["repo_manager_repos_x86_64"]}
     assert repos["10_0_baseos"].get("priority") == "50"
     assert repos["10_0_custom"].get("priority") == "100"
 
@@ -327,79 +197,33 @@ def test_external_contract_priority(tmp_path):
 @pytest.mark.order(19)
 def test_external_contract_failed_status_rejected():
     """Verify external status with overall_status != success is rejected."""
-    tc = TC["external_contract_failed_rejected"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(overall_status="failed")
-
-    result = validate_repo_contract(data)
-
-    if result["success"]:
-        tl.failed(LOG["contract_rejection_expected"])
-        assert False, ASSERT["contract_rejection_expected"]
-
-    tl.passed(LOG["contract_rejected_ok"], result["details"])
-    assert any("success" in e for e in result["errors"])
+    _reject(_logger("external_contract_failed_rejected"),
+            minimal_external_status(overall_status="failed"), "success")
 
 
 @pytest.mark.sanity
 @pytest.mark.order(20)
 def test_external_contract_missing_repos_rejected():
     """Verify external status without repositories is rejected."""
-    tc = TC["external_contract_missing_repos"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = {"overall_status": "success", "cluster_os_type": "rhel"}
-
-    result = validate_repo_contract(data)
-
-    if result["success"]:
-        tl.failed(LOG["contract_rejection_expected"])
-        assert False, ASSERT["contract_rejection_expected"]
-
-    tl.passed(LOG["contract_rejected_ok"], result["details"])
-    assert any("repositories" in e for e in result["errors"])
+    _reject(_logger("external_contract_missing_repos"),
+            {"overall_status": "success", "cluster_os_type": "rhel"}, "repositories")
 
 
 @pytest.mark.functional
 @pytest.mark.order(21)
 def test_external_contract_empty_repos_rejected():
     """Verify external status with empty repositories is rejected."""
-    tc = TC["external_contract_empty_repos"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={})
-
-    result = validate_repo_contract(data)
-
-    if result["success"]:
-        tl.failed(LOG["contract_rejection_expected"])
-        assert False, ASSERT["contract_rejection_expected"]
-
-    tl.passed(LOG["contract_rejected_ok"], result["details"])
+    _reject(_logger("external_contract_empty_repos"), minimal_external_status(repositories={}))
 
 
 @pytest.mark.functional
 @pytest.mark.order(22)
 def test_external_contract_mixed_arch(tmp_path):
     """Verify mixed x86_64 + aarch64 builds separate repo lists."""
-    tc = TC["external_contract_mixed_arch"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={
-        "10.0": {
-            "x86_64": {"baseos": {"url": "https://ext.example.com/x86/baseos/"}},
-            "aarch64": {"baseos": {"url": "https://ext.example.com/arm/baseos/"}},
-        },
-    })
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    r = parse["result"]
-    tl.passed(LOG["contract_validation_ok"], result["details"])
+    data = minimal_external_status(repositories=_repos(**{"10.0": {
+        "x86_64": {"baseos": f"{_EXT}/x86/baseos/"},
+        "aarch64": {"baseos": f"{_EXT}/arm/baseos/"}}}))
+    r = _accept(_logger("external_contract_mixed_arch"), data, tmp_path)
     assert len(r["repo_manager_repos_x86_64"]) == 1
     assert len(r["repo_manager_repos_aarch64"]) == 1
 
@@ -408,20 +232,9 @@ def test_external_contract_mixed_arch(tmp_path):
 @pytest.mark.order(23)
 def test_external_contract_internet_sample():
     """Verify bundled internet sample passes full contract pipeline."""
-    tc = TC["external_contract_internet_sample"]
-    tl = TestLogger(tc["title"], tc["id"])
     data, path = load_sample_status("repo_status_internet.yml")
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    r = parse["result"]
-    tl.passed(LOG["contract_sample_ok"].format(sample="internet"), result["details"])
+    r = _accept(_logger("external_contract_internet_sample"), data, path=path,
+                ok="contract_sample_ok", sample="internet")
     assert r["cluster_os_versions"] == ["10.0", "10.2"]
     assert r["repo_port"] == 443
     assert len(r["repo_manager_repos_x86_64"]) >= 4
@@ -431,23 +244,11 @@ def test_external_contract_internet_sample():
 @pytest.mark.order(24)
 def test_external_contract_pulp_sample(tmp_path):
     """Verify bundled Pulp sample (Jinja-rendered) passes full pipeline."""
-    tc = TC["external_contract_pulp_sample"]
-    tl = TestLogger(tc["title"], tc["id"])
     data, path = load_sample_status(
         "repo_status.yml", tmp_path=tmp_path,
-        replacements={"{{ admin_nic_ip }}": "192.0.2.10"},
-    )
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    r = parse["result"]
-    tl.passed(LOG["contract_sample_ok"].format(sample="pulp"), result["details"])
+        replacements={"{{ admin_nic_ip }}": "192.0.2.10"})
+    r = _accept(_logger("external_contract_pulp_sample"), data, path=path,
+                ok="contract_sample_ok", sample="pulp")
     assert r["cluster_os_versions"] == ["10.0", "10.2"]
     assert r["repo_port"] == 2225
     assert r["repo_cert_path"] != ""
@@ -457,48 +258,22 @@ def test_external_contract_pulp_sample(tmp_path):
 @pytest.mark.order(25)
 def test_external_contract_additional_properties():
     """Verify schema allows additional top-level properties."""
-    tc = TC["external_contract_additional_props"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status()
-    data["custom_external_metadata"] = {"source": "ci-pipeline", "build_id": 12345}
-
-    result = validate_repo_contract(data)
-
-    if not result["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(errors=result["errors"])
-
-    tl.passed(LOG["contract_producer_ignored_ok"], result["details"])
+    data = minimal_external_status(
+        custom_external_metadata={"source": "ci-pipeline", "build_id": 12345})
+    _accept(_logger("external_contract_additional_props"), data, ok="contract_producer_ignored_ok")
 
 
 @pytest.mark.functional
 @pytest.mark.order(26)
 def test_external_contract_repo_extra_fields(tmp_path):
     """Verify repo entries may carry additional producer metadata."""
-    tc = TC["external_contract_repo_extra_fields"]
-    tl = TestLogger(tc["title"], tc["id"])
-    data = minimal_external_status(repositories={
-        "10.0": {"x86_64": {"baseos": {
-            "url": "https://ext.example.com/baseos/",
-            "priority": 100,
-            "gpgcheck": True,
-            "sync_timestamp": "2026-11-23T00:00:00Z",
-        }}},
-    })
-    path = write_status_fixture(tmp_path, data)
-
-    result = validate_repo_contract(data)
-    parse = parse_repo_status_external(path)
-
-    if not result["success"] or not parse["success"]:
-        tl.failed(LOG["contract_validation_failed"], result["details"])
-        assert False, ASSERT["contract_failed"].format(
-            errors=result.get("errors") or parse.get("error"))
-
-    tl.passed(LOG["contract_producer_ignored_ok"], result["details"])
-    assert parse["result"]["repo_manager_repos_x86_64"][0]["base_url"] == (
-        "https://ext.example.com/baseos/"
-    )
+    data = minimal_external_status(repositories=_repos(
+        **{"10.0": {"x86_64": {"baseos": f"{_EXT}/baseos/"}}}))
+    data["repositories"]["10.0"]["x86_64"]["baseos"].update(
+        priority=100, gpgcheck=True, sync_timestamp="2026-11-23T00:00:00Z")
+    r = _accept(_logger("external_contract_repo_extra_fields"), data, tmp_path,
+                ok="contract_producer_ignored_ok")
+    assert r["repo_manager_repos_x86_64"][0]["base_url"] == f"{_EXT}/baseos/"
 
 
 @pytest.mark.functional
@@ -509,15 +284,12 @@ def test_external_contract_source_is_external():
 
     **Data source: live file** (requires a completed repo_manager run).
     """
-    tc = TC["external_contract_source_is_external"]
-    tl = TestLogger(tc["title"], tc["id"])
+    tl = _logger("external_contract_source_is_external")
     config = load_test_config()
     path = live_status_path(config.get("repo_manager_output_path", ""))
     if not os.path.isfile(path):
-        msg = (
-            f"Live repo_status.yml not found at {path}"
-            + (" [REQUIRE_LIVE_REPO_STATUS=1]" if _REQUIRE_LIVE else "")
-        )
+        msg = f"Live repo_status.yml not found at {path}" + (
+            " [REQUIRE_LIVE_REPO_STATUS=1]" if _REQUIRE_LIVE else "")
         if _REQUIRE_LIVE:
             tl.failed(msg, msg)
             pytest.fail(msg)
@@ -539,17 +311,16 @@ def test_external_contract_source_is_external():
 @pytest.mark.order(28)
 def test_external_contract_local_source_rejected():
     """Verify a repo_status.yml whose repositories are on this OIM is rejected."""
-    tc = TC["external_contract_local_source_rejected"]
-    tl = TestLogger(tc["title"], tc["id"])
+    tl = _logger("external_contract_local_source_rejected")
     local_ip = next(a for a in sorted(local_addresses())
                     if a.count(".") == 3 and not a.startswith("127."))
-    data = minimal_external_status(repositories={
-        "10.0": {"x86_64": {"baseos": {"url": f"https://{local_ip}:2225/baseos/"}}},
-    })
+    data = minimal_external_status(repositories=_repos(
+        **{"10.0": {"x86_64": {"baseos": f"https://{local_ip}:2225/baseos/"}}}))
 
     result = verify_external_source(data)
-    tl.passed(LOG["contract_rejected_ok"], result["details"]) if not result["success"] \
-        else tl.failed(LOG["contract_rejection_expected"], result["details"])
+    (tl.failed if result["success"] else tl.passed)(
+        LOG["contract_rejection_expected" if result["success"] else "contract_rejected_ok"],
+        result["details"])
     assert not result["success"] and local_ip in result["details"], (
         ASSERT["contract_rejection_expected"])
 
@@ -558,15 +329,13 @@ def test_external_contract_local_source_rejected():
 @pytest.mark.order(29)
 def test_external_contract_host_pin_mismatch():
     """Verify external_repo_host rejects a repo_status on any other host."""
-    tc = TC["external_contract_host_pin_mismatch"]
-    tl = TestLogger(tc["title"], tc["id"])
+    tl = _logger("external_contract_host_pin_mismatch")
     data = minimal_external_status()
 
     accepted = verify_external_source(data, "repo.external.example.com")
     rejected = verify_external_source(data, "other.example.com")
     ok = accepted["success"] and not rejected["success"]
-    if ok:
-        tl.passed(LOG["contract_rejected_ok"], rejected["details"])
-    else:
-        tl.failed(LOG["contract_rejection_expected"], rejected["details"])
+    (tl.passed if ok else tl.failed)(
+        LOG["contract_rejected_ok" if ok else "contract_rejection_expected"],
+        rejected["details"])
     assert ok, ASSERT["contract_rejection_expected"]

@@ -95,26 +95,6 @@ from .validation_func import (
     ConfigValidationError,
 )
 
-# --- Contract verification (external repo_manager) ---
-from .contract_func import (
-    validate_repo_contract,
-    parse_repo_status_external,
-    minimal_external_status,
-    write_status_fixture,
-    load_sample_status,
-    verify_external_source,
-    status_repo_hosts,
-    live_status_path,
-)
-
-# --- External OIM interaction (Phase 1) ---
-from .contract_remote_func import (
-    external_oim_config,
-    run_remote_repo_manager,
-    fetch_repo_status,
-    verify_remote_oim_ready,
-)
-
 # --- Non-functional security (file permissions / ownership) ---
 from .security_func import (
     check_file_permissions,
@@ -194,13 +174,5 @@ __all__ = [
     "validate_all",
     "ConfigValidationError",
     "check_file_permissions",
-    "validate_repo_contract",
-    "parse_repo_status_external",
-    "minimal_external_status",
-    "write_status_fixture",
-    "load_sample_status",
-    "verify_external_source",
-    "status_repo_hosts",
-    "live_status_path",
     "run_playbook",
 ]
