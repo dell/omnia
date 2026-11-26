@@ -20,6 +20,8 @@
 """Ansible-side pattern-safety check against the shared vectors (TC-UT-018)."""
 
 import importlib.util
+import re
+import time
 from pathlib import Path
 
 import pytest
@@ -52,6 +54,17 @@ def _vectors() -> dict:
 
 
 CHECK = _load_check()
+ADVERSARIAL_LINES = ("a" * 10000, "1" * 10000, "ab" * 5000, " " * 10000)
+
+
+@pytest.mark.parametrize("case", _vectors()["accepted"], ids=lambda case: case["pattern"][:40])
+def test_accepted_vectors_finish_on_adversarial_lines(case):
+    """GIVEN a shared accepted vector THEN 10,000-character adversarial lines finish in 2 s."""
+    compiled = re.compile(case["pattern"])
+    started = time.monotonic()
+    for line in ADVERSARIAL_LINES:
+        compiled.sub("x", line)
+    assert time.monotonic() - started < 2.0
 
 
 @pytest.mark.parametrize("case", _vectors()["accepted"], ids=lambda case: case["pattern"][:40])

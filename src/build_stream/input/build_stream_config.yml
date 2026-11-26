@@ -282,9 +282,12 @@ log_ci_preview_lines: 50
 #   with ***REDACTED***.
 #     id: lowercase, starts with a letter, 2 to 41 characters of a-z, 0-9 and
 #         "-". It must not reuse the id of a built-in or baseline rule.
-#     pattern: 256 characters at most, and it must compile. It must not contain
+#     pattern: 256 characters at most, and it must compile. It must not have
 #         unbounded quantifiers (*, +, {n,}), group references (\1, (?P=name)),
-#         or a quantified group that contains a quantifier.
+#         a quantified group that contains a quantifier or an alternation
+#         (write (?:a|b){1,9} as [ab]{1,9}), more than 4096 match paths (the
+#         quantifier ranges multiplied; \d{1,100}\d{1,100} has 10000), a match
+#         on an empty string, or a match on the ***REDACTED*** marker itself.
 #
 # Configuration validation rejects unsafe entries and names the rule id. At
 # start, an invalid entry is skipped and the built-in rules still apply.
