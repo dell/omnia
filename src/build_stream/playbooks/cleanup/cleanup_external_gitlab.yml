@@ -74,12 +74,24 @@
         file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
       failed_when: false
 
+    - name: Require an explicit GitLab mode for external cleanup
+      ansible.builtin.assert:
+        that:
+          - gitlab_mode | default('') in ['hosted', 'external']
+        fail_msg: >-
+          External GitLab cleanup requires gitlab_mode to be explicitly set to
+          'hosted' or 'external' in build_stream_config.yml. No cleanup was run.
+
+    - name: Record whether external cleanup applies to the configured mode
+      ansible.builtin.set_fact:
+        gitlab_cleanup_mode_matches: "{{ gitlab_mode == 'external' }}"
+
     # Safety guard: this playbook is for external mode only. If the project is
     # configured for hosted GitLab, do nothing here. (In the mode-dispatched
     # flows this play is skipped at import time; this covers a direct standalone
     # invocation.)
     - name: Stop external cleanup when the project is configured for hosted GitLab
-      when: (gitlab_mode | default('hosted')) != 'external'
+      when: not gitlab_cleanup_mode_matches | bool
       block:
         - name: Warn that external cleanup does not apply to hosted GitLab
           ansible.builtin.debug:
@@ -133,10 +145,12 @@
       ansible.builtin.fail:
         msg: "{{ gitlab_cleanup_credentials_required_fail_msg }}"
       when:
-        - not gitlab_cleanup_credentials_available
+        - hostvars.localhost.gitlab_cleanup_mode_matches | default(false) | bool
+        - not (gitlab_cleanup_credentials_available | default(false) | bool)
         - gitlab_cleanup_strict | default(false) | bool
 
     - name: Run the external GitLab cleanup
       ansible.builtin.include_role:
         name: cleanup_gitlab
         tasks_from: cleanup_external.yml
+      when: hostvars.localhost.gitlab_cleanup_mode_matches | default(false) | bool

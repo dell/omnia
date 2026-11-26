@@ -34,6 +34,7 @@
         _ecl_journal_reliable: false
         _ecl_journal_issue: ""
         _ecl_project_created: false
+        _ecl_project_deleted: false
         _ecl_api_failures: 0
 
     - name: Read the setup journal
@@ -173,6 +174,7 @@
                 status_code: [200, 404]
               register: _ecl_project_scheduled
               failed_when: false
+              when: (_ecl_project_delete.status | default(0)) in [200, 202, 204]
               no_log: true
 
             - name: Permanently delete the scheduled project
@@ -207,21 +209,27 @@
               until: (_ecl_project_absent.status | default(0)) == 404
               retries: 10
               delay: 2
+              when: (_ecl_project_delete.status | default(0)) in [200, 202, 204]
               no_log: true
 
             - name: Record the project deletion result
               ansible.builtin.set_fact:
-                _ecl_api_failures: "{{ 0 if (_ecl_project_absent.status | default(0)) == 404 else 1 }}"
+                _ecl_project_deleted: >-
+                  {{ (_ecl_project_delete.status | default(0)) == 404
+                     or (_ecl_project_absent.status | default(0)) == 404 }}
                 _ecl_results: >-
                   {{ _ecl_results + ['project permanently deleted (with its files, variables, token and trigger): '
-                     ~ ('yes' if (_ecl_project_absent.status | default(0)) == 404 else 'FAILED')] }}
+                     ~ ('yes' if ((_ecl_project_delete.status | default(0)) == 404
+                                  or (_ecl_project_absent.status | default(0)) == 404)
+                        else 'no; falling back to Omnia resource cleanup (HTTP '
+                             ~ (_ecl_project_delete.status | default(0) | string) ~ ')')] }}
 
         # ── Case B: not Omnia-owned (adopted / ownership unproven) → surgical ─
         # The project is NOT deleted (it is a customer project, or ownership
         # could not be proven). Only the resources Omnia created inside it are
         # removed, one by one.
         - name: Remove only the Omnia-owned resources from the project
-          when: not (_ecl_delete_project | bool)
+          when: not (_ecl_project_deleted | bool)
           block:
             - name: Remove Omnia-owned CI/CD variables (customer variables are preserved)
               ansible.builtin.uri:
@@ -355,7 +363,7 @@
     - name: Decide whether the local ownership evidence can be removed
       ansible.builtin.set_fact:
         _ecl_remote_clean: >-
-          {{ (_ecl_journal_reliable or (_ecl_delete_project | default(false) | bool))
+          {{ ((_ecl_project_deleted | bool) or (_ecl_journal_reliable | bool))
              and (_ecl_results | length > 0) and (_ecl_api_failures | int == 0) }}
 
     - name: Keep the local ownership evidence until remote cleanup has fully succeeded
@@ -385,8 +393,9 @@
         msg:
           - "External GitLab cleanup finished for {{ _ecl_url | default('n/a', true) }}."
           - >-
-            Project: {{ 'PERMANENTLY DELETED (Omnia-owned catalog project)' if _ecl_delete_project | default(false) | bool
-            else 'PRESERVED (customer-owned; only Omnia resources removed)' }}.
+            Project: {{ 'PERMANENTLY DELETED (Omnia-owned catalog project)' if _ecl_project_deleted | default(false) | bool
+            else ('PRESERVED (delete unavailable; Omnia resources removed)' if _ecl_delete_project | default(false) | bool
+                  else 'PRESERVED (customer-owned; only Omnia resources removed)') }}.
           - "Group/namespace: PRESERVED (operator prerequisite)."
           - "GitLab CE / runner / tokens / certs: not applicable in external mode (never touched)."
           - "{{ _ecl_results | default([]) }}"

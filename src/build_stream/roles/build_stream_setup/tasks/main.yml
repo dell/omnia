@@ -47,8 +47,12 @@
 # Resolve the GitLab mode (hosted/external) from the project config so the
 # cleanup flows can dispatch to the right GitLab cleanup playbook. Kept as a
 # cacheable localhost fact that import_playbook 'when' guards read via
-# hostvars['localhost'].gitlab_mode. Defaults to 'hosted' when the config is
-# absent or does not set it.
+# hostvars['localhost'].gitlab_mode. An unreadable or incomplete config leaves
+# the mode empty so GitLab cleanup fails closed.
+- name: Initialise GitLab mode configuration
+  ansible.builtin.set_fact:
+    _bss_config_peek: {}
+
 - name: Peek gitlab_mode from build_stream_config.yml
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/build_stream_config.yml"
@@ -57,8 +61,20 @@
 
 - name: Set gitlab_mode fact for cleanup dispatch
   ansible.builtin.set_fact:
-    gitlab_mode: "{{ _bss_config_peek.gitlab_mode | default('hosted') }}"
+    gitlab_mode: "{{ _bss_config_peek.gitlab_mode | default('') }}"
     cacheable: true
+
+- name: Require an explicit GitLab mode for GitLab cleanup dispatch
+  ansible.builtin.assert:
+    that:
+      - gitlab_mode in ['hosted', 'external']
+    fail_msg: >-
+      GitLab cleanup requires gitlab_mode to be explicitly set to 'hosted' or
+      'external' in build_stream_config.yml. No GitLab or combined cleanup was run.
+  when: >-
+    provided_tags | default([])
+    | intersect(['cleanup', 'cleanup_hosted_gitlab', 'cleanup_external_gitlab'])
+    | length > 0
 
 - name: Verify the input project directory exists
   ansible.builtin.stat:

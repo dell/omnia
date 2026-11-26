@@ -155,7 +155,7 @@
 # BuildStream (which deletes the credentials GitLab cleanup depends on).
 - name: Cleanup hosted GitLab deployment
   ansible.builtin.import_playbook: cleanup/cleanup_hosted_gitlab.yml
-  when: (hostvars['localhost']['gitlab_mode'] | default('hosted')) == 'hosted'
+  when: hostvars['localhost']['gitlab_mode'] == 'hosted'
   tags:
     - never
     - cleanup
@@ -163,7 +163,7 @@
 
 - name: Cleanup external GitLab integration
   ansible.builtin.import_playbook: cleanup/cleanup_external_gitlab.yml
-  when: (hostvars['localhost']['gitlab_mode'] | default('hosted')) == 'external'
+  when: hostvars['localhost']['gitlab_mode'] == 'external'
   tags:
     - never
     - cleanup

@@ -52,11 +52,12 @@ PLAYBOOK = """---
 class FakeGitLab:
     """Minimal GitLab API recording every request; behaviour is configurable per test."""
 
-    def __init__(self, fail_variable_delete=False, project_description=""):
+    def __init__(self, fail_variable_delete=False, project_description="", project_delete_status=202):
         self.requests = []
         self.raw_requests = []
         self.fail_variable_delete = fail_variable_delete
         self.project_description = project_description
+        self.project_delete_status = project_delete_status
         self.project_scheduled = False
         self.project_deleted = False
         outer = self
@@ -98,8 +99,9 @@ class FakeGitLab:
                         outer.project_deleted = True
                         return self._reply(204)
                     if self.command == "DELETE":
-                        outer.project_scheduled = True
-                        return self._reply(202)
+                        if outer.project_delete_status in (200, 202, 204):
+                            outer.project_scheduled = True
+                        return self._reply(outer.project_delete_status)
                 if self.command == "DELETE" and "/variables/" in path:
                     return self._reply(500 if outer.fail_variable_delete else 204)
                 return self._reply(204 if self.command == "DELETE" else 200)
@@ -222,6 +224,18 @@ class TestProjectOwnership:
             assert "project permanently deleted" in out
             assert "PERMANENTLY DELETED (Omnia-owned catalog project)" in out
             assert not journal_path.exists(), "ownership evidence is removed after a clean project delete"
+
+    def test_maintainer_falls_back_to_owned_resource_cleanup(self, tmp_path):
+        journal = valid_journal(project("created"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_delete_status=403) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert gitlab.requests.count(("DELETE", "/api/v4/projects/1")) == 1
+            assert not gitlab.project_deleted
+            assert "BSM_API_URL" in gitlab.deleted_variables()
+            assert "falling back to Omnia resource cleanup (HTTP 403)" in out
+            assert "PRESERVED (delete unavailable; Omnia resources removed)" in out
+            assert not journal_path.exists()
 
     def test_adopted_project_without_marker_is_never_deleted(self, tmp_path):
         # An adopted project whose live description carries no Omnia marker is
