@@ -107,7 +107,7 @@
     - name: Remove comment lines from temp mapping file
       ansible.builtin.lineinfile:
         path: "{{ _secure_validate_mapping.path }}"
-        regexp: '\s*#'
+        regexp: '^\s*#'
         state: absent
 
     - name: Normalize Kubernetes primary control-plane membership

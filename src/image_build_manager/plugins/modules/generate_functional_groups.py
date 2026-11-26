@@ -128,7 +128,10 @@ def parse_csv(filename, module):
 
     try:
         with open(filename, newline="", encoding="utf-8") as f:
-            cleaned_lines = [line.strip() for line in f if line.strip()]
+            cleaned_lines = [
+                line.strip() for line in f
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
             header = cleaned_lines[0].split(",")
             expected_columns = len(header)
             valid_lines = [

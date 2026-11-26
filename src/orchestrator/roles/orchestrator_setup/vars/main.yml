@@ -187,3 +187,10 @@ service_k8s_catalog_context_fail_msg: >-
   The catalog's service Kubernetes functional layers must reference exactly
   one complete baseos group and the supported x86_64 architecture. Correct
   the service_kube_* layers before rerunning Orchestrator.
+
+pxe_mapping_effective_dir: "{{ orchestrator_data_path }}/.tmp"
+pxe_mapping_effective_target_path: "{{ pxe_mapping_effective_dir }}/pxe_mapping_effective.csv"
+pxe_mapping_effective_fail_msg: >-
+  Failed to build the effective PXE mapping (comments removed) from
+  {{ pxe_mapping_file_path | default('') }}. Verify the file is readable and
+  that {{ pxe_mapping_effective_dir }} is writable.

@@ -145,11 +145,15 @@ fields describe desired configuration and may change independently.
 | Change functional group | XNAME retained | Reconcile SMD membership, metadata, and boot configuration |
 | Change admin or BMC IP | XNAME retained | Rediscover the interface after ownership validation |
 | Replace admin or BMC NIC | XNAME retained | Remove the component-owned stale interface and discover the new MAC |
-| Remove a row | Existing SMD identity retained | No automatic identity deletion |
+| Remove a row, or comment it out with `#` | Node leaves the desired set | Next `provision`/`execute` deletes its SMD groups, interfaces, components, endpoints, and Hardware Inventory record; the XNAME is freed |
+| Comment out a row before first provisioning | Row ignored | Nothing is registered in SMD |
+| Uncomment a previously removed row | Treated as new hardware | A new XNAME is allocated |
 | Change Service Tag | Treated as different hardware | Allocate or bootstrap another identity; corrections require a controlled identity update |
 
-Retaining identity for an absent row prevents temporary inventory omissions
-from silently releasing an XNAME for reuse.
+A row that is absent or commented out is an explicit removal. Because the XNAME
+is released, comment a node out only when it is meant to leave the cluster.
+Blank lines and lines starting with `#` are ignored by validation and by every
+Orchestrator reader of the PXE mapping.
 
 ## 8. Metadata Reconciliation
 

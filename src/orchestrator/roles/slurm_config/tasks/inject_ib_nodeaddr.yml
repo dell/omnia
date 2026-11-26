@@ -49,8 +49,8 @@
         addr_mode = '{{ hostvars['localhost']['ib_network_addr_mode'] | default('') }}'.strip()
         result = {}
         has_ipv6 = False
-        with open('{{ hostvars['localhost']['pxe_mapping_file_path'] }}') as f:
-            reader = csv.DictReader(f)
+        with open('{{ hostvars['localhost']['pxe_mapping_effective_path'] | default(hostvars['localhost']['pxe_mapping_file_path']) }}') as f:
+            reader = csv.DictReader(l for l in f if l.strip() and not l.lstrip().startswith('#'))
             for row in reader:
                 hostname = row.get('HOSTNAME', '').strip()
                 if not hostname:

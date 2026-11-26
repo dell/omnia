@@ -31,7 +31,7 @@
 
 # --- Step 1: Read current inventory from pxe_mapping_file.csv ---
 - name: Read PXE mapping file
-  community.general.read_csv:
+  pxe_mapping_read:
     path: "{{ input_dir }}/pxe_mapping_file.csv"
   register: bsm_pxe_csv_data
 

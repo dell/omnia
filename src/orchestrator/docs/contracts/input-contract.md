@@ -75,6 +75,13 @@ the feature flags derived by the latest catalog-backed lifecycle phase.
 | `IB_NIC_NAME` | string | No | InfiniBand NIC FQDD |
 | `IB_IP` | string | No | InfiniBand IP |
 
+Blank lines and lines whose first non-blank character is `#` are ignored by
+every Orchestrator reader, so a node can be commented out. A commented-out row
+is treated exactly like a deleted row: it is never registered when commented
+before first provisioning, and for a node already in SMD the next `provision`
+or `execute` run deletes its SMD records (see `hardware-identity-mapping.md`).
+At least one uncommented data row must remain.
+
 The header must contain these exact 11 uppercase column names in the order
 shown, including `IB_NIC_NAME` and `IB_IP`. Optional values remain present as
 empty CSV cells. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP` values are

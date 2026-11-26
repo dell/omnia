@@ -21,8 +21,8 @@
     host_mount_map: {}
 
 - name: Read PXE mapping file
-  community.general.read_csv:
-    path: "{{ pxe_mapping_file_path }}"
+  pxe_mapping_read:
+    path: "{{ hostvars['localhost']['pxe_mapping_effective_path'] | default(pxe_mapping_file_path) }}"
   register: pxe_mapping_data
   no_log: true
   when: pxe_mapping_file_path is defined and pxe_mapping_file_path | length > 0
