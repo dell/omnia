@@ -105,7 +105,7 @@ DOMAIN_STEPS = {
     "repo_manager": ("precheck", "prepare", "execute", "status"),
     "image_build_manager": ("validate", "prepare", "build"),
     "discovery": ("precheck", "validate", "execute"),
-    "orchestrator": ("precheck", "prepare", "provision"),
+    "orchestrator": ("precheck", "prepare", "provision", "pxeboot"),
     "telemetry": ("precheck", "validate", "deploy"),
     "build_stream": ("",),
     "utils": ("collect", "backup_oim_logs"),

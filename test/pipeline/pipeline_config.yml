@@ -195,7 +195,7 @@ cluster1:
   #     repo_manager: precheck,prepare,execute,status
   #     image_build_manager: validate,prepare,build
   #     discovery: precheck,validate,execute
-  #     orchestrator: precheck,prepare,provision
+  #     orchestrator: precheck,prepare,provision,pxeboot
   #     telemetry: precheck,validate,deploy
   # Build stream and utils pipelines: ansible tags of the domain playbook, as before.
   deploy_tags:
