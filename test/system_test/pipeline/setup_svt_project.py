@@ -130,6 +130,11 @@ CLUSTER_VARIABLES = {
     ("svt", "clean_reinstall"): "SVT_CLEAN_REINSTALL",
     ("svt", "skip_stages"): "SVT_SKIP_STAGES",
     ("svt", "user_inputs"): "SVT_USER_INPUTS",
+    ("external_oim", "ip"): "SVT_EXTERNAL_OIM_IP",
+    ("external_oim", "ssh_user"): "SVT_EXTERNAL_OIM_USER",
+    ("external_oim", "ssh_port"): "SVT_EXTERNAL_OIM_SSH_PORT",
+    ("external_oim", "omnia_path"): "SVT_EXTERNAL_OMNIA_PATH",
+    ("external_oim", "project_name"): "SVT_EXTERNAL_PROJECT_NAME",
     ("", "themes"): "SVT_THEMES",
     ("", "secret_path"): "BAO_DATA_PATH",
 }
@@ -666,10 +671,11 @@ def _commit(client: GitLabClient, project_id: int, branch: str,
         print(f"  committed {action['file_path']}")
 
 
-def _set_password(client: GitLabClient, project_id: int, cluster: str) -> None:
-    """Store a cluster's OIM SSH password as a masked, protected variable (never printed)."""
-    key = f"{prefix(cluster)}_{OIM_LOGIN_VAR}"
-    value = os.environ.get(key) or getpass.getpass(f"OIM SSH password of {cluster} ({key}): ")
+def _set_password(client: GitLabClient, project_id: int, cluster: str,
+                  suffix: str = OIM_LOGIN_VAR, label: str = "OIM") -> None:
+    """Store a cluster's OIM (or external OIM) SSH password as a masked, protected variable."""
+    key = f"{prefix(cluster)}_{suffix}"
+    value = os.environ.get(key) or getpass.getpass(f"{label} SSH password of {cluster} ({key}): ")
     if not value:
         print(f"  {key} not set (use {prefix(cluster)}_SVT_SSH_KEY, a file variable, instead)")
         return
@@ -755,6 +761,8 @@ def apply(args: argparse.Namespace, config: Dict[str, Any], config_path: Path) -
     if args.create or args.set_password:
         for cluster in config["clusters"]:
             _set_password(client, project_id, cluster)
+            if (config["clusters"][cluster] or {}).get("external_oim"):
+                _set_password(client, project_id, cluster, "SVT_EXTERNAL_OIM_PASS", "External")
     if args.scan_host_keys:
         _store_host_keys(client, project_id, config)
     if args.bao_cacert:

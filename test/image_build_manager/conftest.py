@@ -194,6 +194,8 @@ def pytest_configure(config):
         "security": "Security verification (permissions, credentials)",
         "live_file": ("Needs the real repo_status.yml of a repo_manager run; skipped when "
                       "absent unless REQUIRE_LIVE_REPO_STATUS=1"),
+        "phase1": ("External contract: run repo_manager on an external OIM, fetch its "
+                   "contract, build images on this OIM"),
     }
         
     for name, desc in markers.items():

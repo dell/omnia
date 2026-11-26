@@ -328,15 +328,32 @@ TEST_LOG_MSGS = {
     "contract_rejected_ok": "External contract: invalid status correctly rejected",
     "contract_rejection_expected": "External contract: expected rejection but validation passed",
     "contract_sample_ok": "External contract: bundled {sample} sample passes full pipeline",
-
-
+    "contract_deploy_ok": (
+        "Playbook passed with external repo_status (duration={duration:.1f}s, path={path})"
+    ),
+    "contract_deploy_failed": (
+        "Playbook failed with external repo_status (rc={rc}, duration={duration:.1f}s)"
+    ),
     # Phase 1: remote repo_manager
-
-
-
+    "contract_remote_oim_ready": "External OIM ready: {details}",
+    "contract_remote_oim_failed": "External OIM not ready: {error}",
+    "contract_remote_repo_manager_started": (
+        "Running repo_manager on external OIM {ip} (tags={tags})"
+    ),
+    "contract_remote_repo_manager_ok": (
+        "repo_manager completed on external OIM (duration={duration:.1f}s)"
+    ),
+    "contract_remote_repo_manager_failed": (
+        "repo_manager failed on external OIM (rc={rc}, duration={duration:.1f}s)"
+    ),
+    "contract_remote_fetch_ok": "Fetched repo_status.yml from {ip}:{remote_path} -> {local_path}",
+    "contract_remote_fetch_failed": "Failed to fetch repo_status.yml from external OIM: {error}",
     "contract_external_source_ok": "repo_status source is external: {details}",
     "contract_external_source_failed": "repo_status source is NOT external: {details}",
-
+    "contract_negative_ok": "Playbook rejected the staged repo_status at '{task}' naming '{text}'",
+    "contract_negative_failed": (
+        "Playbook did not reject the staged repo_status as expected (rc={rc})"
+    ),
 
     # cleanup_images
     "cleanup_images_s3_ok": (
@@ -643,9 +660,91 @@ TEST_ASSERT_MSGS = {
         "\u255a" + _BORDER + "\u255d\n"
     ),
 
+    "contract_path_not_consumed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 STAGED repo_status.yml WAS NOT CONSUMED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected 'Repo manager output: {path}' in the playbook output\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify -e repo_manager_output_path is honoured by image_build_setup\n"
+        "\u2551   2. Check the playbook output above for the path it used\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
 
+    "contract_negative_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL CONTRACT NEGATIVE CONTROL FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Expected the playbook to fail at: {task}\n"
+        "\u2551 Expected the output to name: {text}\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551 Staged repo_status: {path}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. If the playbook passed, it ignored the staged file\n"
+        "\u2551   2. Otherwise read the failing task in the output above\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
 
+    "contract_deploy_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL CONTRACT DEPLOY FAILED\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Playbook: {playbook}\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551 Duration: {duration:.1f}s\n"
+        "\u2551 External repo_status: {path}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check the playbook output above\n"
+        "\u2551   2. Verify the external repo_status.yml has reachable URLs\n"
+        "\u2551   3. Verify the certificate path exists on the OIM\n"
+        "\u2551   4. Check logs: ls {log_path}\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
 
+    # Phase 1: remote repo_manager assertions
+    "contract_remote_oim_not_ready": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 EXTERNAL OIM IS NOT READY\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Verify the external OIM IP in test_config.yml (external_oim.ip)\n"
+        "\u2551   2. Verify SSH credentials in test_creds.yml (external_oim_password)\n"
+        "\u2551   3. Verify Omnia source and venv exist on the external OIM\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "contract_remote_repo_manager_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 REPO MANAGER FAILED ON EXTERNAL OIM\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 External OIM: {ip}\n"
+        "\u2551 Tags: {tags}\n"
+        "\u2551 Exit code: {rc}\n"
+        "\u2551 Duration: {duration:.1f}s\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. SSH to {ip} and check repo_manager logs\n"
+        "\u2551   2. Verify Pulp is running on the external OIM\n"
+        "\u2551   3. Try running repo_manager manually on {ip}\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "contract_remote_fetch_failed": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 FAILED TO FETCH repo_status.yml FROM EXTERNAL OIM\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 External OIM: {ip}\n"
+        "\u2551 Remote path: {remote_path}\n"
+        "\u2551 Error: {error}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. SSH to {ip} and check if {remote_path} exists\n"
+        "\u2551   2. Verify repo_manager completed successfully\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
 }
 
 # =============================================================================
