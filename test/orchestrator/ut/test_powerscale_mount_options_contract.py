@@ -109,10 +109,10 @@ def _render(mount_options):
 @pytest.mark.parametrize(
     "mount_options",
     [
-        "rsize=946176,wsize=946176,nosharecache",
+        "rsize=1044480,wsize=1044480,nosharecache",
         "rsize=524288,wsize=524288",
         "rsize=1,wsize=1048575",
-        " rsize = 946176 , wsize = 946176 ",
+        " rsize = 1044480 , wsize = 1044480 ",
         "nosharecache,hard",
         "",
         None,
@@ -126,15 +126,15 @@ def test_valid_transfer_sizes_pass(mount_options):
 @pytest.mark.parametrize(
     ("mount_options", "option", "value"),
     [
-        ("rsize=0,wsize=946176", "rsize", "0"),
-        ("rsize=946176,wsize=0", "wsize", "0"),
-        ("rsize=1048576,wsize=946176", "rsize", "1048576"),
-        ("rsize=946176,wsize=2097152", "wsize", "2097152"),
-        ("rsize=abc,wsize=946176", "rsize", "abc"),
-        ("rsize=946176,wsize=-1", "wsize", "-1"),
-        ("rsize=1.5,wsize=946176", "rsize", "1.5"),
-        ("rsize=,wsize=946176", "rsize", ""),
-        ("rsize,wsize=946176", "rsize", ""),
+        ("rsize=0,wsize=1044480", "rsize", "0"),
+        ("rsize=1044480,wsize=0", "wsize", "0"),
+        ("rsize=1048576,wsize=1044480", "rsize", "1048576"),
+        ("rsize=1044480,wsize=2097152", "wsize", "2097152"),
+        ("rsize=abc,wsize=1044480", "rsize", "abc"),
+        ("rsize=1044480,wsize=-1", "wsize", "-1"),
+        ("rsize=1.5,wsize=1044480", "rsize", "1.5"),
+        ("rsize=,wsize=1044480", "rsize", ""),
+        ("rsize,wsize=1044480", "rsize", ""),
     ],
 )
 def test_invalid_transfer_sizes_are_rejected(mount_options, option, value):
@@ -156,13 +156,13 @@ def test_both_invalid_sizes_are_reported():
 @pytest.mark.parametrize(
     ("mount_options", "is_valid"),
     [
-        ("rsize=946176,wsize=946176,nosharecache", True),
+        ("rsize=1044480,wsize=1044480,nosharecache", True),
         ("nosharecache", True),
         ("", True),
-        ("rsize=946176", False),
-        ("wsize=946176,nosharecache", False),
-        ("rsize=946176,wsize=946176 nosharecache", False),
-        ("rsize=946176;wsize=946176", False),
+        ("rsize=1044480", False),
+        ("wsize=1044480,nosharecache", False),
+        ("rsize=1044480,wsize=1044480 nosharecache", False),
+        ("rsize=1044480;wsize=1044480", False),
     ],
 )
 def test_schema_requires_rsize_wsize_pair(mount_options, is_valid):
@@ -187,8 +187,8 @@ def test_template_renders_default_mount_options():
     """ORCH_UT_185: The role default renders to nfsmount.conf global options."""
     assert _render(_default_mount_options()) == [
         HEADER,
-        "rsize=946176",
-        "wsize=946176",
+        "rsize=1044480",
+        "wsize=1044480",
         "Sharecache=False",
     ]
 
