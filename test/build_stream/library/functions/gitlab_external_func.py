@@ -449,18 +449,20 @@ def _cleanup_api_or_local(host: Any, name: str):
     """Return (connection, None), or (None, result) when the API cannot be used.
 
     After cleanup with ``cleanup_credentials: true`` the ``gitlab_api_token`` is
-    blanked in the credential store; the remote GitLab can then no longer be
-    queried. That blanking is itself cleanup evidence, so it is reported as a
-    passing probe rather than a connection failure.
+    blanked in the credential store, so the remote GitLab can no longer be
+    queried. Blanking credentials is local evidence, not evidence of remote
+    state, so the check is returned as ``skipped`` (unverified) instead of
+    passed; the caller must skip the test rather than report a pass.
     """
     connection = external_connection(host)
     if connection["success"]:
         return connection, None
     if "is empty" in connection.get("error", ""):
-        return None, summarize_probes(name, [(
-            "External GitLab API token",
-            "removed from credential store (cleanup_credentials: true); "
-            "remote project state not queried", True)])
+        reason = ("gitlab_api_token was removed from the credential store "
+                  "(cleanup_credentials: true); remote GitLab state cannot be verified")
+        result = summarize_probes(name, [("Remote GitLab state", f"UNVERIFIED ({reason})", True)])
+        result.update(skipped=True, skip_reason=reason)
+        return None, result
     return None, _failed(name, "External GitLab connection", connection["error"])
 
 

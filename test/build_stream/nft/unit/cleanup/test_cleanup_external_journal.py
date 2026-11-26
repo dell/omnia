@@ -33,6 +33,7 @@ SRC = Path(__file__).resolve().parents[5] / "src" / "build_stream"
 ROLES = SRC / "roles"
 ANSIBLE = shutil.which("ansible-playbook")
 CREATED_BSM_CLIENT_KEYS = {"BSM_CLIENT_ID", "BSM_CLIENT_SECRET"}
+OMNIA_MARKER = "Omnia BuildStream catalog (managed-by:omnia-buildstream)."
 
 pytestmark = pytest.mark.skipif(ANSIBLE is None, reason="ansible-playbook is not installed")
 
@@ -248,17 +249,39 @@ class TestProjectOwnership:
             assert "BSM_API_URL" in gitlab.deleted_variables()
             assert "PRESERVED (customer-owned" in out
 
-    def test_marked_project_is_deleted_even_without_journal(self, tmp_path):
-        # When the journal is unreadable but the live project still carries the
-        # Omnia ownership marker, the project is the Omnia-managed catalog
-        # project and is deleted outright.
-        marker = "Omnia BuildStream catalog (managed-by:omnia-buildstream)."
-        with FakeGitLab(project_description=marker) as gitlab:
-            result, out, journal_path = run_cleanup(tmp_path, gitlab, raw_journal="{broken")
+    def test_created_project_with_marker_is_deleted(self, tmp_path):
+        journal = valid_journal(project("created"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, _ = run_cleanup(tmp_path, gitlab, journal)
             assert result.returncode == 0, out
             assert gitlab.requests.count(("DELETE", "/api/v4/projects/1")) == 2
             assert gitlab.project_deleted
             assert "PERMANENTLY DELETED (Omnia-owned catalog project)" in out
+
+    def test_adopted_project_with_marker_is_never_deleted(self, tmp_path):
+        # The normal adoption state: the customer project already carries the
+        # Omnia marker (adoption requires it) and the journal records "adopted".
+        journal = valid_journal(project("adopted"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert not [r for r in gitlab.requests if r[0] == "DELETE" and r[1] == "/api/v4/projects/1"]
+            assert not gitlab.project_deleted
+            assert gitlab.deleted_variables() >= {"BSM_API_URL"}
+            assert "PRESERVED (customer-owned" in out
+            assert not journal_path.exists()
+
+    @pytest.mark.parametrize("raw_journal", [None, "{broken"])
+    def test_marked_project_without_reliable_journal_is_preserved(self, tmp_path, raw_journal):
+        # The marker alone never authorizes deleting the project: with a missing
+        # or corrupt journal nothing is deleted and ownership evidence is kept.
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, raw_journal=raw_journal)
+            assert result.returncode == 0, out
+            assert not [r for r in gitlab.requests if r[0] == "DELETE"]
+            assert not gitlab.project_deleted
+            assert "Remote cleanup complete: False" in out
+            assert journal_path.exists() == (raw_journal is not None)
 
 
 class TestUnreliableJournal:

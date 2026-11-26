@@ -16,14 +16,18 @@
 Cleanup External GitLab — customer-managed GitLab (gitlab_mode: external).
 
 What build_stream.yml --tags cleanup removes on an external GitLab (ER-BSM-003):
-the Omnia-owned project named in build_stream_config.yml is deleted outright
-(taking its CI templates, sample catalogs, input files, CI/CD variables, the
-omnia-ci access token and the pipeline trigger with it); the local setup
-journal, its lock and the trigger token file are removed from the OIM. What it
-must NOT touch: the pre-existing group/namespace, and any GitLab CE packages,
-runner, tokens or certificates (those exist only in hosted mode).
+the project Omnia created (recorded as "created" in the setup journal) is
+deleted outright, taking its CI templates, sample catalogs, input files, CI/CD
+variables, the omnia-ci access token and the pipeline trigger with it. A
+project Omnia only adopted is preserved, so this suite assumes the deployment
+under test created its project. The local setup journal, its lock and the
+trigger token file are removed from the OIM. What it must NOT touch: the
+pre-existing group/namespace, and any GitLab CE packages, runner, tokens or
+certificates (those exist only in hosted mode).
 
-Every check only reads state over the GitLab REST API with verified TLS. The
+Every remote check only reads state over the GitLab REST API with verified TLS.
+When cleanup ran with cleanup_credentials=true the API token is blanked, so the
+remote checks are skipped as unverified rather than reported as passed. The
 suite is skipped when the input file selects gitlab_mode: hosted.
 """
 
@@ -46,6 +50,8 @@ pytestmark = pytest.mark.external_only
 def _verify(case_key, result):
     """Report one external GitLab cleanup check and assert it passed."""
     tc = TC[case_key]
+    if result.get("skipped"):
+        pytest.skip(f"{tc['title']} not verified: {result['skip_reason']}")
     tl = TestLogger(tc["title"], tc["id"])
     report_check(tl, result)
     assert result["success"], f"{tc['title']} failed: {failure_summary(result)}"

@@ -264,13 +264,6 @@ gitlab_cleanup_find_roots:
   - /root
   - /home
 
-# External GitLab: the ownership marker Omnia stamps in the project description
-# when it creates or adopts the BuildStream catalog project (must match
-# external_gitlab role's external_gitlab_project_marker). A live project that
-# carries this marker is provably Omnia-owned, so external cleanup may delete it
-# even when the setup journal is missing or corrupt.
-external_gitlab_project_marker: "managed-by:omnia-buildstream"
-
 # External GitLab: CI/CD variables Omnia normally writes. Listed for manual review only
 # when the setup journal cannot prove which of them Omnia created.
 cleanup_external_variable_review_keys:

@@ -113,36 +113,14 @@
                   | map(attribute='name') | list) if _ecl_journal_reliable else [] }}
           no_log: true
 
-        # Confirm the configured project is provably Omnia-owned before deleting
-        # it: the live project description must carry the Omnia ownership marker.
-        # This lets cleanup delete the project the operator named in
-        # build_stream_config.yml (which holds the Omnia CI files) even when the
-        # setup journal is missing or corrupt, while never touching a project
-        # that is not marked as Omnia-managed.
-        - name: Look up the configured project to confirm Omnia ownership
-          ansible.builtin.uri:
-            url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}"
-            method: GET
-            headers: "{{ _ecl_headers }}"
-            ca_path: "{{ _ecl_ca | default(omit, true) }}"
-            validate_certs: true
-            status_code: [200, 404]
-          register: _ecl_project_lookup
-          failed_when: false
-          no_log: true
-
+        # The project itself may be deleted ONLY when a reliable setup journal
+        # records that Omnia CREATED it. The ownership marker is not proof of
+        # creation: Omnia also adopts customer projects that already carry it, so
+        # an adopted project, or any project when the journal is missing or
+        # corrupt, is preserved and only journal-proven resources are removed.
         - name: Decide whether the project itself may be deleted
           ansible.builtin.set_fact:
-            # Delete the project when the journal proves Omnia created it, OR the
-            # live project still carries the Omnia ownership marker (proving it is
-            # the Omnia-managed catalog project named in the config).
-            _ecl_project_marker_owned: >-
-              {{ (_ecl_project_lookup.status | default(0)) == 200
-                 and (external_gitlab_project_marker in (_ecl_project_lookup.json.description | default('', true))) }}
-            _ecl_delete_project: >-
-              {{ (_ecl_project_created | bool)
-                 or ((_ecl_project_lookup.status | default(0)) == 200
-                     and (external_gitlab_project_marker in (_ecl_project_lookup.json.description | default('', true)))) }}
+            _ecl_delete_project: "{{ (_ecl_journal_reliable | bool) and (_ecl_project_created | bool) }}"
 
         # ── Case A: the project is Omnia-owned → delete it outright ─────────
         # Deleting the project removes, in one call, every file Omnia pushed
