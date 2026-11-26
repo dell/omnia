@@ -284,9 +284,7 @@ def live_status_path(custom: str = "") -> str:
     """Return the repo_status.yml path under test (custom override or default)."""
     if custom:
         return custom
+    data_path = os.environ.get("OMNIA_DATA_PATH") or _env_values().get("OMNIA_DATA_PATH", "")
     return os.path.join(
-        os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"),
-        "repo_manager", "output",
-        os.environ.get("OMNIA_PROJECT_NAME", "project_default"),
-        "repo_status.yml",
-    )
+        data_path, "repo_manager", "output",
+        os.environ.get("OMNIA_PROJECT_NAME", "project_default"), "repo_status.yml")
