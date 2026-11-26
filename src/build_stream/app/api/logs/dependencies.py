@@ -27,7 +27,7 @@ import yaml
 from fastapi import Depends, HTTPException, status
 
 from api.dependencies import get_job_repo, get_stage_repo, verify_token
-from api.logging_utils import log_secure_info
+from api.logging_utils import get_policy_redaction_service, log_secure_info
 from api.logs.limiter import (
     ConcurrencyLimiter,
     ConcurrencyLimitExceededError,
@@ -36,7 +36,6 @@ from api.logs.limiter import (
 )
 from common.config import LogQueryConfig, load_config, load_log_query_inputs
 from core.logs.redaction import RedactionService
-from core.logs.redaction_policy import load_policy
 from infra.logs.filesystem_adapter import FileSystemLogAdapter
 from orchestrator.cleanup.retention_config import build_stream_config_path
 from orchestrator.logs.use_cases import (
@@ -81,22 +80,15 @@ def get_log_file_service() -> FileSystemLogAdapter:
     return FileSystemLogAdapter(Path(get_log_query_config().log_root))
 
 
-@lru_cache(maxsize=1)
 def get_redaction_service() -> RedactionService:
     """Provide the shared redaction service built from the redaction policy.
+
+    It is the same instance that sanitizes audit logs.
 
     Raises:
         RedactionPolicyError: The baseline policy is missing or invalid.
     """
-    try:
-        config_path = build_stream_config_path()
-    except ValueError:
-        log_secure_info("error", "Invalid OMNIA_PROJECT_NAME; redaction additions ignored")
-        config_path = None
-    policy = load_policy(config_path)
-    for message in policy.operator_errors:
-        log_secure_info("error", message)
-    return RedactionService(policy.secret_rules, policy.identifier_rules)
+    return get_policy_redaction_service()
 
 
 @lru_cache(maxsize=1)

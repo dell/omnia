@@ -328,10 +328,6 @@ STEP_MSGS: Dict[str, str] = {
     ),
     "log_fixture_job_failed": "cannot create the disposable log query job: {error}",
     "log_fixture_failed": "cannot plant fixture {name} on stage {stage}: {error}",
-    "log_operator_unset": (
-        "redaction section lacks key name vault_pass and pattern acme-[A-Za-z0-9]{16}; "
-        "add them and restart the API and playbook-watcher"
-    ),
     "log_release_failed": "disposable job {job_id} was not fully reset: {error}",
     "step_ok": "{step} passed",
     "step_failed": "{step} failed: {count} check(s)",

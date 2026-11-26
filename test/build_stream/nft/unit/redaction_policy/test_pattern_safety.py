@@ -19,6 +19,8 @@
 
 """Pattern-safety check against the shared vectors (TC-UT-018)."""
 
+import re
+import time
 from pathlib import Path
 
 import pytest
@@ -31,6 +33,18 @@ pytestmark = pytest.mark.unit
 VECTORS_PATH = Path(__file__).with_name("pattern_safety_vectors.yml")
 with VECTORS_PATH.open(encoding="utf-8") as handle:
     VECTORS = yaml.safe_load(handle)
+
+ADVERSARIAL_LINES = ("a" * 10000, "1" * 10000, "ab" * 5000, " " * 10000)
+
+
+@pytest.mark.parametrize("case", VECTORS["accepted"], ids=lambda case: case["pattern"][:40])
+def test_accepted_vectors_finish_on_adversarial_lines(case):
+    """Every accepted vector redacts 10,000-character adversarial lines within 2 seconds."""
+    compiled = re.compile(case["pattern"])
+    started = time.monotonic()
+    for line in ADVERSARIAL_LINES:
+        compiled.sub("x", line)
+    assert time.monotonic() - started < 2.0
 
 
 @pytest.mark.parametrize("case", VECTORS["accepted"], ids=lambda case: case["pattern"][:40])

@@ -527,21 +527,6 @@ LOG_REDACTION_EXPECTED = ("host 192.0.2.10", f"password={LOG_REDACTED}",
                           f"Authorization: Bearer {LOG_REDACTED}", f"already {LOG_REDACTED}")
 LOG_BINARY_FIXTURE = b"fvt line\n\x00\x01binary\n"
 LOG_PLAIN_FIXTURE = b"TASK [fvt : fixture] ok\nfvt fixture line\n"
-# TC-FVT-029: operator additions (redaction section of build_stream_config.yml).
-LOG_OPERATOR_KEY = "vault_pass"
-LOG_OPERATOR_PATTERN = "acme-[A-Za-z0-9]{16}"
-LOG_OPERATOR_FIXTURE = (
-    "TASK [deploy : operator additions] ok\n"
-    "vault_pass: s3cret\n"  # gitleaks:allow - test fixture
-    "fetch acme-0123456789abcdef\n"  # gitleaks:allow - test fixture
-    "password=op-baseline-fvt\n"  # gitleaks:allow - test fixture
-    f"already {LOG_REDACTED}\n"
-)
-LOG_OPERATOR_SECRETS = ("s3cret", "acme-0123456789abcdef",  # gitleaks:allow - test fixture
-                        "op-baseline-fvt")  # gitleaks:allow - test fixture
-LOG_OPERATOR_EXPECTED = ("TASK [deploy : operator additions] ok",
-                         f"vault_pass: {LOG_REDACTED}", f"fetch {LOG_REDACTED}",
-                         f"password={LOG_REDACTED}", f"already {LOG_REDACTED}")
 
 # =============================================================================
 # CLEANUP

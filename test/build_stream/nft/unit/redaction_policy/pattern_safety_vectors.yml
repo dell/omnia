@@ -19,8 +19,8 @@
 accepted:
   - pattern: 'acme-[A-Za-z0-9]{16}'
   - pattern: '[*+]{3}x'
-  - pattern: '[]*]{2}'
-  - pattern: 'a{,5}'
+  - pattern: '[]x]{2}'
+  - pattern: 'xa{,5}'
   - pattern: 'a{1,5}?'
   - pattern: 'a{'
   - pattern: 'a{x}'
@@ -29,6 +29,10 @@ accepted:
   - pattern: '(?i)token-[a-z]{4}'
   - pattern: '\d{1,3}\.(?:\d{1,3}\.){2}\d{1,3}'
     allow_nested: true
+  - pattern: '(?:x|y){1,40}z'
+  - pattern: '(?:glpat|glrt)-[A-Z]{8,16}'
+  - pattern: '(?i)vault_pass\s{0,3}[:=]\s{0,3}[^\s]{1,256}'
+  - pattern: '\d{1,64}\d{1,64}x'
 rejected:
   - pattern: ''
     reason: empty
@@ -69,3 +73,29 @@ rejected:
     reason: unbounded-quantifier
   - pattern: "(?x:a # [\n)a+"
     reason: unbounded-quantifier
+  - pattern: '(?:a|aa){1,40}b'
+    reason: quantified-alternation
+  - pattern: '(a|a){1,40}b'
+    reason: quantified-alternation
+  - pattern: '(?:ab|a){1,20}c'
+    reason: quantified-alternation
+  - pattern: '(?:\d|\d\d){1,8}x'
+    reason: quantified-alternation
+  - pattern: '(?:ab|cd){2}'
+    reason: quantified-alternation
+  - pattern: '\d{1,200}\d{1,200}x'
+    reason: too-complex
+  - pattern: '(?i)vault_pass\s{0,3}[:=]\s{0,4}[^\s]{1,256}'
+    reason: too-complex
+  - pattern: '(?:glpat|glrt|gldt)-[A-Z]{1,2048}'
+    reason: too-complex
+  - pattern: 'a{,5}'
+    reason: matches-empty
+  - pattern: '(?=a)'
+    reason: matches-empty
+  - pattern: '\b'
+    reason: matches-empty
+  - pattern: '[]*]{2}'
+    reason: matches-marker
+  - pattern: 'REDACTED'
+    reason: matches-marker

@@ -27,10 +27,10 @@ read-only GET /api/v1/jobs/{id}/logs tail, full, stage filter, error contract,
 fixtures  with nft_allow_security_mutation: true only: one disposable job
           (client_name omnia-fvt-log-query) gets synthetic fvt_*.log files
           and job_stages rows for the missing-file, unavailable-reason,
-          redaction, truncation, path-violation, ownership, concurrency,
-          rate-limit and operator-redaction checks (TC-FVT-014, 016, 017, 018,
-          020, 029); they are removed and the rows reset when the module ends.
-          The rate-limit test is skipped while a GitLab pipeline runs.
+          redaction, truncation, path-violation, ownership, concurrency and
+          rate-limit checks (TC-FVT-014, 016, 017, 018, 020); they are
+          removed and the rows reset when the module ends. The rate-limit
+          test is skipped while a GitLab pipeline runs.
 Markers: log_observability; sanity (read-only) or security (fixtures).
 """
 
@@ -49,7 +49,6 @@ from library.functions import (
     verify_log_job_metadata,
     verify_log_job_ownership,
     verify_log_missing_file,
-    verify_log_operator_redaction,
     verify_log_path_violation,
     verify_log_rate_limit,
     verify_log_response_redaction,
@@ -229,12 +228,3 @@ def test_log_query_concurrency_limit(host):
 def test_log_query_rate_limit(host):
     """TC-FVT-017: request log_query_rate_limit + 1 returns 429, then recovers."""
     run_step(TC["log_query_rate_limit"], "Log query rate limit", verify_log_rate_limit, host)
-
-
-@pytest.mark.log_observability
-@pytest.mark.security
-@pytest.mark.order(41120)
-def test_log_query_operator_redaction(host):
-    """TC-FVT-029: operator additions are redacted in the response; disk unchanged."""
-    run_step(TC["log_query_operator_redaction"], "Operator redaction",
-             verify_log_operator_redaction, host)

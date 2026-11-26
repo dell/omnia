@@ -212,4 +212,3 @@ def test_baseline_error_is_not_masked_by_operator_section(tmp_path):
     path = _baseline(tmp_path, lambda doc: doc["secret_patterns"][0].update(pattern="Zq9.*"))
     with pytest.raises(RedactionPolicyError):
         load_policy(_config(tmp_path, _section(additional_secret_key_names=["x"])), path)
-

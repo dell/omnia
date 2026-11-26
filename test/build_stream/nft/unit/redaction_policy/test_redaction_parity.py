@@ -165,4 +165,3 @@ def test_baseline_streaming_redaction_matches_legacy(legacy, policy):
         assert policy.redact_stream_line(line, policy_state) == (
             legacy.redact_stream_line(line, legacy_state)
         )
-
