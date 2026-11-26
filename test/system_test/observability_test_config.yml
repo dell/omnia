@@ -109,3 +109,10 @@ stages:
   observability_ome: true
   observability_ufm: true
   observability_sfm: true
+  # observability_sfm_vm_only, the last stage, skipped while configure_sfm is false:
+  # omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false, then --tags
+  # deploy_sinks -e victoria_metrics (only the VictoriaMetrics sink), --tags
+  # external_victoria (a new connection export), and the SFM checks. It REMOVES the
+  # deployed telemetry and leaves only VictoriaMetrics; the next observability_deploy
+  # restores the rest. false: 'all' and the pipeline leave it out.
+  observability_sfm_vm_only: true

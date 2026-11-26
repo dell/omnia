@@ -96,6 +96,8 @@ svt:
     observability_ome: 1
     observability_ufm: 1
     observability_sfm: 1
+    # Telemetry cleanup, VictoriaMetrics sink deploy, export and the SFM checks.
+    observability_sfm_vm_only: 2
     # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
     # own entry.
     catalog_stage: 3

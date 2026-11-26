@@ -96,12 +96,14 @@ OMNIA_RUN_TAGS: Dict[str, Tuple[str, ...]] = {
     "repo_manager": ("execute",),
     "image_build_manager": ("build",),
     "orchestrator": ("provision", "pxeboot"),
-    "telemetry": ("precheck", "validate", "cleanup"),
+    "telemetry": ("precheck", "validate", "cleanup", "deploy_sinks", "external_victoria"),
 }
-# Extra variables a RUN step may pass with -e (exact "key=value" text, per domain).
-# telemetry cleanup keeps the stored credentials, so the next deploy reuses them.
+# Extra variables a RUN step may pass with -e (exact text, per domain): "key=value", or a
+# sink name, which omnia.sh turns into the sinks list of deploy_sinks / cleanup_sinks.
+# telemetry cleanup keeps the stored credentials, so the next deploy reuses them;
+# deploy_sinks -e victoria_metrics deploys only the VictoriaMetrics sink.
 OMNIA_RUN_VARS: Dict[str, Tuple[str, ...]] = {
-    "telemetry": ("cleanup_credentials=false",),
+    "telemetry": ("cleanup_credentials=false", "victoria_metrics"),
 }
 OMNIA_PREPARE_BASE = ("--prepare-base",)
 
@@ -320,10 +322,11 @@ THEMES: Dict[str, Dict] = {
         "stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy",
                    "observability_cleanup", "observability_precheck", "observability_deploy",
                    "observability_idrac", "observability_ldms", "observability_powerscale",
-                   "observability_ome", "observability_ufm", "observability_sfm"),
+                   "observability_ome", "observability_ufm", "observability_sfm",
+                   "observability_sfm_vm_only"),
         "soft_stages": ("observability_cleanup", "observability_idrac", "observability_ldms",
                         "observability_powerscale", "observability_ome", "observability_ufm",
-                        "observability_sfm"),
+                        "observability_sfm", "observability_sfm_vm_only"),
         # Default: an already deployed cluster. ./run_validation.sh svt_observability all and
         # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
@@ -334,14 +337,17 @@ THEMES: Dict[str, Dict] = {
         "scenario_stages": ("observability_cleanup", "observability_deploy",
                             "observability_idrac", "observability_ldms",
                             "observability_powerscale", "observability_ome",
-                            "observability_ufm", "observability_sfm"),
+                            "observability_ufm", "observability_sfm",
+                            "observability_sfm_vm_only"),
         # Stages <theme>_test_config.yml stages: turns on or off. Off by default, unless listed
         # in optional_stages_on: the PowerScale, OME, UFM and SFM stages are on by default
         # (and still skipped while their source is off, see source_stages).
         "optional_stages": ("observability_cleanup", "observability_powerscale",
-                            "observability_ome", "observability_ufm", "observability_sfm"),
+                            "observability_ome", "observability_ufm", "observability_sfm",
+                            "observability_sfm_vm_only"),
         "optional_stages_on": ("observability_powerscale", "observability_ome",
-                               "observability_ufm", "observability_sfm"),
+                               "observability_ufm", "observability_sfm",
+                               "observability_sfm_vm_only"),
         # Stages that check one source: skipped (recorded with the reason, in 'all', by name
         # and in the pipeline) when it is off. ("source", <name>): telemetry_sources.<name>
         # of the deployed telemetry_config.yml (user_inputs.yml block telemetry) has neither
@@ -354,6 +360,7 @@ THEMES: Dict[str, Dict] = {
             "observability_ome": ("source", "ome"),
             "observability_ufm": ("source", "ufm"),
             "observability_sfm": ("setting", "telemetry", "configure_sfm"),
+            "observability_sfm_vm_only": ("setting", "telemetry", "configure_sfm"),
         },
         "default_clean_reinstall": False,
         # omnia.sh -r <domain> RUN steps allowed in this theme (OMNIA_RUN_TAGS).
@@ -409,6 +416,12 @@ THEMES: Dict[str, Dict] = {
                 "SFM Telemetry",
                 "VictoriaMetrics workloads and services, then (configure_sfm) the SFM switch "
                 "path, Remote Write and SFM metrics in VictoriaMetrics"),
+            "observability_sfm_vm_only": (
+                "SFM with VictoriaMetrics Only",
+                "Telemetry cleanup (credentials kept), then only the VictoriaMetrics sink "
+                "(deploy_sinks -e victoria_metrics), a new external Victoria export, and "
+                "the SFM checks: SFM metrics reach VictoriaMetrics without the other sinks "
+                "and sources"),
         },
         # kind: bool; host (IP or host name, "" = not set); port (1-65535).
         "fvt_settings": {
