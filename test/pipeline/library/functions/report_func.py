@@ -79,7 +79,7 @@ def redact_log(text: str) -> str:
 def render_log(text: str, limit: int = MAX_LOG_CHARS, head: int = LOG_HEAD_CHARS) -> str:
     """Return the escaped log with the error, warning and ok lines marked."""
     rows: List[str] = []
-    for line in redact_log(trim_log(clean_log(text), limit, head)).split("\n"):
+    for line in trim_log(redact_log(clean_log(text)), limit, head).split("\n"):
         cls = _line_class(line)
         escaped = html.escape(line)
         rows.append(f'<span class="{cls}">{escaped}</span>' if cls else escaped)

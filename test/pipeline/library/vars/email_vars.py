@@ -36,4 +36,6 @@ STATUS_STYLES = {
 UNKNOWN_STYLE = ("NOT RUN", "#6c757d")
 
 # Verdict -> banner colour.
+# GitLab job statuses that make the verdict FAILED (a timeout is a failed job with a failure reason).
+FAILED_STATUSES = ("failed", "canceled", "canceling")
 VERDICT_COLORS = {"PASSED": "#198754", "FAILED": "#dc3545", "UNKNOWN": "#6c757d"}
