@@ -683,7 +683,7 @@ encrypted runtime pair with `./setup_env.sh --set-domain-creds`.
 ## Reports
 
 Generated in the configured `report_path` (tracked default
-`/opt/omnia/reports`):
+`/automation`):
 
 | File | Format |
 |------|--------|

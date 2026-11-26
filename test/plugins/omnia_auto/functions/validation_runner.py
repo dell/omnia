@@ -33,7 +33,9 @@ from typing import Dict, List, Optional, Sequence, Union
 import yaml
 
 from .formatting_func import Colors, _render_summary
-from ..vars.validation_vars import COMMANDS
+from ..vars.validation_vars import (
+    ANSIBLE_VERBOSITY_ENV, COMMANDS, FULL_PLAYBOOK_FILE,
+)
 
 # Regex for safe identifiers from config YAML (no shell metacharacters)
 _SAFE_IDENT_RE = re.compile(r"^[a-zA-Z0-9_\-./]+$")
@@ -415,6 +417,7 @@ class ValidationRunner:
             _err(f"Supported: {', '.join(COMMANDS)}")
             return 1
 
+        self._apply_ansible_verbosity(opts)
         if tag and not os.path.isdir(
             os.path.join(self.fvt_dir, tag),
         ):
@@ -489,6 +492,7 @@ class ValidationRunner:
         except ValueError as exc:
             _err(str(exc))
             return 2
+        self._apply_ansible_verbosity(opts)
         if opts["suite"]:
             _err("--suite is supported only for a tagged FVT run")
             return 2
@@ -505,6 +509,13 @@ class ValidationRunner:
     # -----------------------------------------------------------------
 
     @staticmethod
+    def _apply_ansible_verbosity(opts: Dict[str, str]) -> None:
+        """Move ``--ansible-verbosity`` out of the options into the environment."""
+        level = opts.pop("ansible_verbosity", "")
+        if level:
+            os.environ[ANSIBLE_VERBOSITY_ENV] = level
+
+    @staticmethod
     def _parse_options(
         args: List[str],
     ) -> Dict[str, str]:
@@ -515,7 +526,7 @@ class ValidationRunner:
         """
         opts: Dict[str, str] = {
             "suite": "", "marker": "", "verbose": "",
-            "debug": "",
+            "debug": "", "ansible_verbosity": "",
         }
         i = 0
         while i < len(args):
@@ -538,6 +549,15 @@ class ValidationRunner:
                 opts["debug"] = "true"
                 opts["verbose"] = "-vvs"
                 i += 1
+            elif args[i] == "--ansible-verbosity":
+                if i + 1 >= len(args) or args[i + 1] not in (
+                    "0", "1", "2", "3", "4",
+                ):
+                    raise ValueError(
+                        "--ansible-verbosity requires a value from 0 to 4"
+                    )
+                opts["ansible_verbosity"] = args[i + 1]
+                i += 2
             else:
                 raise ValueError(f"Unknown option: {args[i]}")
         return opts
@@ -586,7 +606,26 @@ class ValidationRunner:
     def _run_exec(
         self, tag: str, suite: str, marker: str, verbose: str,
     ) -> int:
-        """Run playbook execution only."""
+        """Run playbook execution only.
+
+        Without a tag, a domain that has ``fvt/test_playbook.py`` runs its complete playbook
+        (no ``--tags``); otherwise the configured lifecycle tags run in order.
+        """
+        full_playbook = os.path.join(self.fvt_dir, FULL_PLAYBOOK_FILE)
+        if not tag and not suite and os.path.isfile(full_playbook):
+            os.environ["OMNIA_COMMAND_TYPE"] = "exec"
+            marker_args = "-m deploy"
+            if marker:
+                marker_args += f" --marker {marker}"
+            _info("Executing the complete playbook (no --tags)...")
+            rc = self._invoke_pytest_with_summary(
+                full_playbook, marker_args, verbose,
+            )
+            if rc == 0:
+                _ok("Playbook execution completed.")
+            else:
+                _fail("Playbook execution failed.")
+            return rc
         if not tag and self._all_exec_tags:
             try:
                 selected_marker = self._canonical_marker(
@@ -656,32 +695,49 @@ class ValidationRunner:
 
     def _run_verify(
         self, tag: str, suite: str,
-        marker: str, verbose: str,
+        marker: str, verbose: str, aggregate: bool = False,
     ) -> int:
-        """Run verification tests only."""
+        """Run verification tests only.
+
+        Without a tag, a domain that has ``fvt/test_playbook.py`` verifies every suite of every
+        tag that is not explicit-only (one run per tag, in tag order); any other domain with
+        lifecycle tags verifies those in lifecycle order. ``aggregate`` applies the aggregate
+        marker exclusions (negative, destructive) to a single tag of that run.
+        """
         os.environ["OMNIA_COMMAND_TYPE"] = "verify"
         if not tag and self._all_exec_tags:
             selected_marker = marker or self._all_exec_marker
+            every_suite = os.path.isfile(
+                os.path.join(self.fvt_dir, FULL_PLAYBOOK_FILE),
+            )
             try:
                 available_tags = self._get_fvt_tags()
-                selected_tags = [
-                    _canonical_choice(
-                        str(verify_tag), available_tags, "all-verify tag",
-                    )
-                    for verify_tag in self._all_exec_tags
-                ]
+                if every_suite:
+                    selected_tags = [
+                        name for name in available_tags
+                        if name not in self._exclude_tags
+                    ]
+                    selected_marker = marker
+                else:
+                    selected_tags = [
+                        _canonical_choice(
+                            str(verify_tag), available_tags,
+                            "all-verify tag",
+                        )
+                        for verify_tag in self._all_exec_tags
+                    ]
             except ValueError as exc:
                 _err(str(exc))
                 return 2
-            _info("Running verification in lifecycle order...")
+            _info("Running verification of every suite in tag order...")
             for verify_tag in selected_tags:
                 rc = self._run_verify(
-                    verify_tag, "", selected_marker, verbose,
+                    verify_tag, "", selected_marker, verbose, every_suite,
                 )
                 if rc != 0:
-                    _fail(f"Lifecycle verification failed at {verify_tag}.")
+                    _fail(f"Verification failed at {verify_tag}.")
                     return rc
-            _ok("Lifecycle verification completed.")
+            _ok("Verification completed.")
             return 0
 
         test_paths = self._build_verify_paths(tag, suite)
@@ -694,7 +750,7 @@ class ValidationRunner:
             _err("No eligible FVT directories were found; refusing broad pytest discovery")
             return 2
         marker_expression = "not deploy"
-        if not tag:
+        if not tag or aggregate:
             try:
                 excluded_markers = [
                     _canonical_choice(
@@ -735,7 +791,12 @@ class ValidationRunner:
         self, tag: str, suite: str,
         marker: str, verbose: str,
     ) -> int:
-        """Run exec + verify (full flow)."""
+        """Run exec + verify (full flow).
+
+        With a tag: that tag's exec, then its verify. Without a tag, a domain that has
+        ``fvt/test_playbook.py`` runs its complete playbook, then every verify suite; any other
+        domain runs its lifecycle tags, each followed by its verify.
+        """
         failed = 0
         fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",
@@ -744,7 +805,12 @@ class ValidationRunner:
         os.environ["OMNIA_SUPPRESS_SUMMARY"] = "true"
         os.environ["OMNIA_RESULTS_FILE"] = results_file
 
-        lifecycle_tags = [tag] if tag else self._all_exec_tags
+        if tag:
+            lifecycle_tags = [tag]
+        elif os.path.isfile(os.path.join(self.fvt_dir, FULL_PLAYBOOK_FILE)):
+            lifecycle_tags = []
+        else:
+            lifecycle_tags = self._all_exec_tags
         lifecycle_marker = marker
         if not tag and lifecycle_tags and not lifecycle_marker:
             lifecycle_marker = self._all_exec_marker
@@ -1564,6 +1630,7 @@ class ValidationRunner:
         print("  --marker <expr>   Filter by marker")
         print("  -v, --verbose     Increase verbosity")
         print("  --debug           Full debug (-vvs)")
+        print("  --ansible-verbosity <0-4>  Ansible verbosity of every playbook")
         print()
         self._print_suite_exec_owner_help()
         f = self.cat_fvt

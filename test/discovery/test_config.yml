@@ -37,7 +37,7 @@ sync_discovery_input: false
 
 # Report output path (no spaces allowed)
 # Falls back to OMNIA_DATA_PATH/reports if not set
-report_path: /opt/omnia/reports
+report_path: /automation
 
 # Report file name (no spaces, only letters/numbers/underscores/hyphens)
 report_name: discovery_test_report

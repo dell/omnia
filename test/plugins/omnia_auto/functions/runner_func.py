@@ -36,14 +36,14 @@ import signal
 import subprocess
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .host_func import (
     load_test_config,
     load_test_credentials,
     is_local_execution,
 )
-from .formatting_func import TestLogger, Colors, Symbols
+from .formatting_func import TestLogger, Colors, Symbols, set_last_playbook_output
 from .process_security import (
     descriptor_tuple,
     scrubbed_subprocess_environment,
@@ -55,6 +55,7 @@ from ._ssh_options import (
     validate_ssh_port,
 )
 from ..vars.common_vars import get_setting, get_module_root
+from ..vars.validation_vars import ANSIBLE_VERBOSITY_ENV
 from ..messages.runner_msgs import (
     RUNNER_LOG_MSGS,
     RUNNER_ASSERT_MSGS,
@@ -120,9 +121,13 @@ def run_playbook(
     except (OSError, RuntimeError, ValueError) as exc:
         return _fail(playbook, 0.0, str(exc))
 
-    v = verbosity if verbosity is not None else get_setting(
-        "default_verbosity", 1,
-    )
+    env_level = os.environ.get(ANSIBLE_VERBOSITY_ENV, "").strip()
+    if verbosity is not None:
+        v = verbosity
+    elif env_level:
+        v = int(env_level) if env_level.isdigit() else env_level
+    else:
+        v = get_setting("default_verbosity", 1)
     t = timeout if timeout is not None else get_setting(
         "default_timeout", 7200,
     )
@@ -196,16 +201,16 @@ def run_playbook(
     log.check(RUNNER_LOG_MSGS["streaming_output"])
 
     if local_mode:
-        return _stream_cmd(
+        return _keep_output(_stream_cmd(
             cmd, playbook, t, tag, config, playbook_workdir,
-        )
+        ))
 
     try:
         with sshpass_pipe(oim_auth) as auth_fd:
             cmd = _ssh_argv(
                 ansible_cmd, config, credentials, auth_fd=auth_fd,
             )
-            return _stream_cmd(
+            return _keep_output(_stream_cmd(
                 cmd,
                 playbook,
                 t,
@@ -213,9 +218,15 @@ def run_playbook(
                 config,
                 playbook_workdir,
                 pass_fds=descriptor_tuple(auth_fd),
-            )
+            ))
     except (OSError, ValueError) as exc:
         return _fail(playbook, 0.0, str(exc))
+
+
+def _keep_output(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Hand the playbook output to the report of the running test; return the result."""
+    set_last_playbook_output(str(result.get("output") or ""))
+    return result
 
 
 # =====================================================================
@@ -549,3 +560,31 @@ def _cleanup_process(process: Any) -> None:
                 stream.close()
             except OSError:
                 pass
+
+
+def run_full_playbook_test(
+    log: TestLogger,
+    run_playbook_fn: Callable[..., Dict[str, Any]],
+    playbook: str,
+) -> None:
+    """Run the complete ``playbook`` without ``--tags`` and assert that it succeeded.
+
+    Every domain's ``fvt/test_playbook.py`` creates its own ``TestLogger`` and calls this with its
+    ``run_playbook`` wrapper, so the playbook name, working directory and defaults stay the
+    domain's. The log lines and the failure message are the ones :func:`run_playbook` already
+    produces.
+
+    Args:
+        log: The test's logger (``TestLogger(title, tc_id)``).
+        run_playbook_fn: The domain's ``run_playbook`` wrapper (called without arguments).
+        playbook: Playbook file name, for the log line.
+    """
+    log.check(RUNNER_LOG_MSGS["starting_playbook"].format(playbook=playbook, tag="none"))
+    result = run_playbook_fn()
+    stats = {"rc": result["rc"], "duration": result["duration"]}
+    if result["success"]:
+        log.passed(RUNNER_LOG_MSGS["playbook_completed"].format(**stats))
+    else:
+        log.failed(RUNNER_LOG_MSGS["playbook_failed"].format(**stats), result.get("error", ""))
+    assert result["success"], result.get("error") or RUNNER_LOG_MSGS["playbook_failed"].format(
+        **stats)
