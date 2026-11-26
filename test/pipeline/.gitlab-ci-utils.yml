@@ -28,7 +28,7 @@
 #
 # A failed stage stops the pipeline (the later stages are skipped); a failed test does not.
 # summary fails the pipeline when any job failed and sends the report. The test run writes the
-# pipeline's one report, <report_path>/<pipeline id>_omnia_pipeline_report.html.
+# pipeline's one report, <report_path>/<pipeline id>_omnia_fvt_pipeline_report.html.
 # SKIP_STAGES: comma or space separated words, matched exactly: a stage name or test.
 
 workflow:
@@ -367,7 +367,7 @@ summary:
       if recipients and server and sender:
           message = EmailMessage()
           message["From"], message["To"] = sender, ", ".join(recipients)
-          message["Subject"] = ("Omnia Pipeline [" + cluster + "] " + mode + " - FAILED ("
+          message["Subject"] = ("Omnia FVT Pipeline [" + cluster + "] " + mode + " - FAILED ("
                                 + ", ".join(n for n, _, _ in failed) + ")")
           message.set_content("\n".join(lines))
           port = int(os.environ.get("SMTP_PORT", "25") or 25)

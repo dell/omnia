@@ -173,7 +173,7 @@ def build_message(*, sender: str, recipients: Sequence[str], info: Dict[str, str
         "<table role='presentation' width='680' cellpadding='0' cellspacing='0' "
         "style='max-width:680px;margin:0 auto;background:#fff;border:1px solid #dee2e6'>"
         f"<tr><td style='background:{color};color:#fff;padding:16px 20px'>"
-        "<div style='font-size:12px;opacity:.85'>Omnia Pipeline</div>"
+        "<div style='font-size:12px;opacity:.85'>Omnia FVT Pipeline</div>"
         f"<div style='font-size:20px;font-weight:bold'>{esc(cluster or 'cluster')}: {verdict}"
         "</div></td></tr><tr><td style='padding:16px 20px'>"
         f"<table cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%'>"
@@ -184,7 +184,7 @@ def build_message(*, sender: str, recipients: Sequence[str], info: Dict[str, str
         f"<p style='margin:16px 0 0;font-size:12px;color:#6c757d'>{footer}</p>"
         "</td></tr></table></body></html>")
     text = "\n".join([
-        f"Omnia Pipeline [{cluster}] {info.get('mode', '')}: {verdict}", "",
+        f"Omnia FVT Pipeline [{cluster}] {info.get('mode', '')}: {verdict}", "",
         f"Repository: {base or repo or '-'}", f"Branch:     {branch or '-'}  {branch_url}".rstrip(),
         f"Commit:     {commit[:12] or 'not checked out'}  {commit_url}".rstrip(),
         f"Pipeline:   {pipeline_url}", "",
@@ -196,7 +196,7 @@ def build_message(*, sender: str, recipients: Sequence[str], info: Dict[str, str
     message = MIMEMultipart("mixed")
     message["From"], message["To"] = sender, ", ".join(recipients)
     names = f" ({', '.join(n for n, _ in failed)})" if failed else ""
-    message["Subject"] = (f"Omnia Pipeline [{cluster}] {info.get('mode', '')} - {verdict}{names}")
+    message["Subject"] = (f"Omnia FVT Pipeline [{cluster}] {info.get('mode', '')} - {verdict}{names}")
     alternative = MIMEMultipart("alternative")
     alternative.attach(MIMEText(text, "plain", "utf-8"))
     alternative.attach(MIMEText(body, "html", "utf-8"))

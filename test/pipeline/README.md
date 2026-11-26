@@ -69,7 +69,7 @@ the pipeline when any job failed. To run again, start a new pipeline: each pipel
 and with it its own report.
 
 **One report.** Every test run of a pipeline writes into one report,
-`/automation/<pipeline id>_omnia_pipeline_report.html` (and `.json`) on the OIM, one suite per run:
+`/automation/<pipeline id>_omnia_fvt_pipeline_report.html` (and `.json`) on the OIM, one suite per run:
 `telemetry_cleanup`, `utils_cleanup`, `telemetry`, ... `initialization` sets `run_id`, `report_name`
 and `report_path` in every module's `test_config.yml`; the values you set there are replaced.
 

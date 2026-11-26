@@ -88,7 +88,7 @@ pipeline ([CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md)); the same rules apply:
   included.
 - `SKIP_STAGES` is a comma or space separated list of words that must match exactly: a stage name
   or the group `test`.
-- Every test run writes into the pipeline's one report, `<report_path>/<pipeline id>_omnia_pipeline_report.html`
+- Every test run writes into the pipeline's one report, `<report_path>/<pipeline id>_omnia_fvt_pipeline_report.html`
   (`/automation` by default). `initialization` sets `run_id`, `report_name` and `report_path` in
   every module's `test_config.yml`.
 

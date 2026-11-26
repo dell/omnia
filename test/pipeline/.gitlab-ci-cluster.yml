@@ -1199,7 +1199,7 @@ summary:
       if recipients and server and sender:
           message = EmailMessage()
           message["From"], message["To"] = sender, ", ".join(recipients)
-          message["Subject"] = ("Omnia Pipeline [" + cluster + "] " + mode + " - FAILED ("
+          message["Subject"] = ("Omnia FVT Pipeline [" + cluster + "] " + mode + " - FAILED ("
                                 + ", ".join(n for n, _, _ in failed) + ")")
           message.set_content("\n".join(lines))
           port = int(os.environ.get("SMTP_PORT", "25") or 25)

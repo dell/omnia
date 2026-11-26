@@ -97,7 +97,7 @@ COMMIT_FILE = "actual_commit_sha.txt"
 REPORT_DIR = "pipeline_reports"
 REPORTS_DEFAULT = "/automation"
 REPORTS_KEEP_DAYS = 30
-REPORT_NAME = "omnia_pipeline_report"
+REPORT_NAME = "omnia_fvt_pipeline_report"
 TEST_MODULES = ("main", "repo_manager", "image_build_manager", "discovery", "orchestrator",
                 "telemetry", "utils", "build_stream")
 SAFE_TEST_CMD = re.compile(r"^\./run_validation\.sh [A-Za-z0-9_./ =:,@-]{1,200}$")

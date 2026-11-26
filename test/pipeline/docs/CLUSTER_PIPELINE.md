@@ -312,11 +312,11 @@ job token cannot read logs). Without it, each stage uses the output its own job 
 `pipeline_job_logs/` (the output of the helper, without GitLab's own `$ command` lines).
 
 **One test report for the whole pipeline.** Right after the clone, the `initialization` stage sets
-`run_id` (the pipeline id), `report_name` (`omnia_pipeline_report`) and `report_path`
+`run_id` (the pipeline id), `report_name` (`omnia_fvt_pipeline_report`) and `report_path`
 (`TEST_REPORTS_PATH`, default `/automation`, created with mode 750) in the `test_config.yml` of
 every module of the clone; every later FVT run sets the same three values again after the cluster's
 test config is copied. All runs therefore write into one report,
-`<report_path>/<pipeline id>_omnia_pipeline_report.html` and `.json`, and its suite breakdown has one
+`<report_path>/<pipeline id>_omnia_fvt_pipeline_report.html` and `.json`, and its suite breakdown has one
 suite per run: `<domain>_<tag>` for a tag (`telemetry_cleanup`, `utils_cleanup`,
 `build_stream_cleanup`, ...) and `<domain>` for a run without a tag (`telemetry`). The suite that
 ran last is at the top; the layout of the report is unchanged. The folder is outside `/opt/omnia`,

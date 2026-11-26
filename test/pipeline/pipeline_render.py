@@ -126,7 +126,7 @@ INTRO_BUILD_STREAM = """
 # Every cleanup and every cleanup test runs; if one failed nothing is installed and the pipeline
 # goes to summary. A failed prepare_base or build_stream stops the pipeline; a failed test does
 # not stop the next stage. summary fails the pipeline when any job failed and sends the report.
-# Reports of all test runs are one file, <report_path>/<pipeline id>_omnia_pipeline_report.html.
+# Reports of all test runs are one file, <report_path>/<pipeline id>_omnia_fvt_pipeline_report.html.
 #
 # SKIP_STAGES: comma or space separated words, matched exactly: a domain (repo_manager, ...), a
 # stage name (prepare_base, test_orchestrator, ...) or the groups cleanup, test_cleanup, deploy, test.
@@ -149,7 +149,7 @@ INTRO_UTILS = """
 #
 # A failed stage stops the pipeline (the later stages are skipped); a failed test does not.
 # summary fails the pipeline when any job failed and sends the report. The test run writes the
-# pipeline's one report, <report_path>/<pipeline id>_omnia_pipeline_report.html.
+# pipeline's one report, <report_path>/<pipeline id>_omnia_fvt_pipeline_report.html.
 # SKIP_STAGES: comma or space separated words, matched exactly: a stage name or test.
 """
 def _variables(kind: str):
@@ -326,7 +326,7 @@ server, sender = os.environ.get("SMTP_SERVER", ""), os.environ.get("EMAIL_SENDER
 if recipients and server and sender:
     message = EmailMessage()
     message["From"], message["To"] = sender, ", ".join(recipients)
-    message["Subject"] = ("Omnia Pipeline [" + cluster + "] " + mode + " - FAILED ("
+    message["Subject"] = ("Omnia FVT Pipeline [" + cluster + "] " + mode + " - FAILED ("
                           + ", ".join(n for n, _, _ in failed) + ")")
     message.set_content("\n".join(lines))
     port = int(os.environ.get("SMTP_PORT", "25") or 25)

@@ -26,7 +26,7 @@ Layout:
   itself (4 MB by default).
 - A plain-text version with the same facts.
 
-Subject: `Omnia Pipeline [<cluster>] <mode> - <VERDICT> (<failed jobs>)`.
+Subject: `Omnia FVT Pipeline [<cluster>] <mode> - <VERDICT> (<failed jobs>)`.
 
 A mail that cannot be sent is reported in the job log with an error banner; it does not change the
 result of the pipeline.

@@ -206,14 +206,14 @@ def build_report(info: Mapping[str, str], jobs: Sequence[Job], logs: Mapping[str
     stages_html = "".join(_stage_html(i, job, logs.get(job["name"], ""), reasons.get(job["name"], ""),
                                       log_limit, log_head)
                           for i, job in enumerate(ordered, 1))
-    title = f"Omnia Pipeline {info.get('cluster', '')}".strip()
+    title = f"Omnia FVT Pipeline {info.get('cluster', '')}".strip()
     theme_script = (f"<script>try{{var t=localStorage.getItem('{THEME_KEY}')||(window.matchMedia&&"
                     "matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');"
                     "document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>")
     return (f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f"<title>{html.escape(title)}</title>{theme_script}<style>{CSS}</style></head><body>"
-            f'<div class="header"><div><h1>Omnia Pipeline Report</h1><div class="sub">'
+            f'<div class="header"><div><h1>Omnia FVT Pipeline Report</h1><div class="sub">'
             f"{html.escape(info.get('cluster', ''))} &middot; pipeline "
             f"{link(info.get('pipeline_url', ''), '#' + str(info.get('pipeline_id', '-')))}</div></div>"
             f'<div><span class="verdict {vclass}">{verdict}</span> '
