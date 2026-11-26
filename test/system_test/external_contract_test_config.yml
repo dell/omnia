@@ -23,47 +23,6 @@
 # test/<suite>/test_config.yml, so these values override the suites' own ones.
 # A change here needs ./setup_env.sh --configure (a new run).
 # =============================================================================
-
-# =============================================================================
-# CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'
-#           unless --yes)
-# =============================================================================
-# Removes the previous installation with each suite's own cleanup FVT, in this
-# order: build_stream, telemetry, orchestrator, discovery, image_build_manager,
-# repo_manager, then main (omnia.sh --cleanup). Every flag below is written
-# into that suite's test/<suite>/test_config.yml, so each cleanup FVT runs with
-# the value set here.
-#   enabled: true | false (default: true). false skips that suite's cleanup.
-#   The other keys are the suite's own flags; see test/<suite>/test_config.yml
-#   for their meaning.
-cleanup:
-  build_stream:
-    enabled: true
-    postgres_backup: false
-    cleanup_credentials: true
-  telemetry:
-    enabled: true
-    delete_sinks_volume: true
-    cleanup_credentials: true
-    cleanup_logs: true
-  orchestrator:
-    enabled: true
-    cleanup_credentials: true
-    cleanup_slurm: true
-    cleanup_k8s: true
-    cleanup_benchmark_tools: true
-  discovery:
-    enabled: true
-  image_build_manager:
-    enabled: true
-    cleanup_credentials: true
-  repo_manager:
-    enabled: true
-    cleanup_credentials: true
-  main:
-    enabled: true
-    cleanup_all: true
-
 # =============================================================================
 # REPORT  (one folder and one SVT report per run)
 # =============================================================================
