@@ -43,6 +43,7 @@ from omnia_auto import (
     get_last_detail_fields,
     encrypt_test_credentials,
     build_report_name,
+    report_module_name,
     log,
     add_session_result,
     print_summary_table,
@@ -314,6 +315,7 @@ def _init_report(session, config):
                 module_name = part
                 break
 
+    module_name = report_module_name("build_stream", module_name)
     configured_id = str(config.get("run_id") or "").strip()
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id

@@ -12,7 +12,7 @@
 | `project_name` | string | Yes | `project_default` | Omnia project name on target |
 | `sync_discovery_input` | bool | No | `true` | Sync dataset input to target |
 | `shared_path` | string | No | `/opt/omnia/discovery` | Domain data path |
-| `report_path` | string | No | `/opt/omnia/reports` | Report output directory |
+| `report_path` | string | No | `/automation` | Report output directory |
 | `report_name` | string | No | `discovery_test_report` | Report file name |
 | `report_id` | string | No | `""` | Auto-generated if empty |
 
