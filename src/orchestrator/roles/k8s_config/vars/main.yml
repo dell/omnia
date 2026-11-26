@@ -144,3 +144,38 @@ repo_status_vars_fail_msg: >-
   URLs for the service Kubernetes OS version and architecture. Ensure
   repo_manager_output_path is correct and rerun Repo Manager with the active
   catalog before rerunning Orchestrator.
+
+# ---------------------------------------------------------------------------
+# TopoLVM — FR-3.1, FR-3.2 (ER-ORCH-011-topolvm-kafka-storageclass)
+# ---------------------------------------------------------------------------
+# Chart: topolvm-chart-v17.3.0 (application 0.42.0); image digest-pinned (NFR-3).
+topolvm_chart_package: "topolvm-17.3.0"
+topolvm_chart_sha256: "d51eb34db2e676f21a6e5a814bc8cc7ed41cd0f6505fab92956f06155f2d65ac"
+# image reference used in the Helm values template (digest pins the exact image, NFR-3)
+topolvm_image_ref: "0.42.0@sha256:719ab11d974af827d12ab148ca9c070babcb21980b8c7f30497c6bde81cdce4b"
+topolvm_namespace: "topolvm-system"
+
+# Kafka StorageClass name — shared contract with Telemetry (HLD §8)
+kafka_storageclass_name: "omnia-kafka-local"
+# Node label applied by cloud-init after disk ok (HLD §6.4; same key as Telemetry
+# placement). TopoLVM lvmd and node pods select on it. The volume group comes
+# from the declared purpose: kafka entry, not from a fixed var.
+kafka_node_label_key: "omnia.dell.com/kafka-storage"
+
+# Staging directory on the shared NFS share (k8s_client_mount_path must be set)
+topolvm_nfs_stage_dir: "{{ k8s_client_mount_path }}/topolvm"
+
+# Failure messages
+topolvm_missing_artefact_msg: >-
+  TopoLVM artefacts are missing from the offline repository. The chart package
+  "{{ topolvm_chart_package }}" must be published by Repo Manager under the
+  tarball base URL before Orchestrator can install TopoLVM (FR-3.1).
+  Rerun Repo Manager to publish the TopoLVM chart and then rerun Orchestrator.
+
+# Download failed for a reason other than a missing artefact (network, TLS or
+# checksum mismatch). Names the real error instead of "missing" (FR-3.1).
+topolvm_download_failed_msg: >-
+  TopoLVM chart "{{ topolvm_chart_package }}" could not be downloaded from the
+  Repo Manager offline repository at {{ topolvm_chart_url }}. Error: {{ topolvm_chart_download.msg | default('unknown') }}.
+  Check the path from Orchestrator to Repo Manager, and that the published
+  chart matches the pinned sha256 in topolvm_chart_sha256.

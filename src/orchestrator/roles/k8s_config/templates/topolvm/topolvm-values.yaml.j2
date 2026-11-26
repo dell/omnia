@@ -1,0 +1,35 @@
+{# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+   Licensed under the Apache License, Version 2.0 #}
+{# Helm values for TopoLVM chart topolvm-chart-v17.3.0 (application 0.42.0).
+   _vg        : declared purpose: kafka volume_group (the device class)
+   _img_ref   : image reference with digest (e.g. 0.42.0@sha256:<digest>)
+   _label_key : Kafka node label; lvmd and node pods run only on labelled nodes
+   NFR-3: image pinned by digest. cert-manager is not deployed, and the pod
+   mutating webhook is disabled, so the chart needs no webhook TLS secret. #}
+cert-manager:
+  enabled: false
+webhook:
+  certManager: false
+  podMutatingWebhook:
+    enabled: false
+# Image is pulled through the node containerd registry mirror (ghcr.io -> Pulp),
+# so no direct internet access is needed (NFR-5). Chart 17.3.0 reads
+# image.reference (tag and/or digest), not image.tag: keep this key.
+image:
+  repository: "ghcr.io/topolvm/topolvm-with-sidecar"
+  reference: "{{ _img_ref }}"
+  pullPolicy: IfNotPresent
+lvmd:
+  managed: true
+  socketName: /run/topolvm/lvmd.sock
+  deviceClasses:
+    - name: "{{ _vg }}"
+      volume-group: "{{ _vg }}"
+      default: true
+      spare-gb: 10
+  nodeSelector:
+    {{ _label_key }}: "true"
+node:
+  nodeSelector:
+    {{ _label_key }}: "true"
+storageClasses: []

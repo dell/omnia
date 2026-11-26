@@ -1,0 +1,156 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# install_topolvm.yml — Stage the TopoLVM chart on the shared NFS share and
+# render the Helm values + StorageClass manifests so the control-plane cloud-init
+# can install them without reaching the internet.
+#
+# Called from create_k8s_config_nfs.yml when at least one purpose: kafka entry
+# is declared in storage_config.yml (FR-3.1).
+#
+# Prerequisites: k8s_client_mount_path must already be set.
+
+# ---------------------------------------------------------------------------
+# 0. Take the device class and StorageClass mount options from the declared
+#    purpose: kafka entry. cloud-init creates the volume group named by that
+#    entry (vgcreate), so TopoLVM must use the same name (FR-3.1, FR-3.2).
+#    TopoLVM has one device class, so every Kafka entry must name one VG.
+# ---------------------------------------------------------------------------
+- name: Resolve the declared Kafka volume group and mount options
+  ansible.builtin.set_fact:
+    _topolvm_vg_names: "{{ _kafka_disk_entries | map(attribute='volume_group') | unique | list }}"
+
+- name: Validate a single declared Kafka volume group
+  ansible.builtin.assert:
+    that:
+      - _topolvm_vg_names | length == 1
+      - _topolvm_vg_names[0] is string and _topolvm_vg_names[0] | length > 0
+    fail_msg: >-
+      All purpose: kafka entries must name the same volume_group (TopoLVM uses one
+      device class). Declared: {{ _topolvm_vg_names | join(', ') }}
+    quiet: true
+
+- name: Set TopoLVM device class and StorageClass mount options
+  ansible.builtin.set_fact:
+    _topolvm_vg: "{{ _topolvm_vg_names[0] }}"
+    _topolvm_mount_options: >-
+      {{ (_kafka_disk_entries[0].mount_options | default('')).split(',')
+         | map('trim') | reject('equalto', '') | list }}
+
+# ---------------------------------------------------------------------------
+# 1. Fail early if the TopoLVM artefacts are absent from the offline repository
+#    (FR-3.1 "deployment fails before installing TopoLVM and names the missing
+#    artefact and Repo Manager").
+# ---------------------------------------------------------------------------
+- name: Resolve TopoLVM tarball URL from repo_status
+  ansible.builtin.set_fact:
+    topolvm_chart_url: >-
+      {{ offline_tarball_path | regex_replace('/$', '') }}/{{ topolvm_chart_package }}/{{ topolvm_chart_package }}.tar.gz
+
+- name: Verify TopoLVM chart URL is a valid HTTP(S) URL
+  ansible.builtin.assert:
+    that:
+      - topolvm_chart_url is match('^https?://')
+    fail_msg: >-
+      {{ topolvm_missing_artefact_msg }}
+    quiet: true
+
+# ---------------------------------------------------------------------------
+# 2. Create the TopoLVM staging directory on the NFS share
+# ---------------------------------------------------------------------------
+- name: Create topolvm staging directory on NFS share
+  ansible.builtin.file:
+    path: "{{ topolvm_nfs_stage_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ---------------------------------------------------------------------------
+# 3. Download and verify the chart tarball
+# ---------------------------------------------------------------------------
+- name: Download TopoLVM Helm chart from offline repository
+  block:
+    - name: Fetch TopoLVM chart tarball and verify checksum
+      ansible.builtin.get_url:
+        url: "{{ topolvm_chart_url }}"
+        dest: "{{ topolvm_nfs_stage_dir }}/{{ topolvm_chart_package }}.tar.gz"
+        mode: "0644"
+        checksum: "sha256:{{ topolvm_chart_sha256 }}"
+      register: topolvm_chart_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: topolvm_chart_download is succeeded
+  rescue:
+    # FR-3.1: stop before TopoLVM is installed. A 404 means the artefact is not
+    # published, so name it and Repo Manager. Any other failure (network, TLS,
+    # checksum mismatch) gets its own message with the real error.
+    - name: Fail when the TopoLVM chart is not published in Repo Manager (HTTP 404)
+      when: topolvm_chart_download.status_code | default(0) | int == 404
+      ansible.builtin.fail:
+        msg: "{{ topolvm_missing_artefact_msg }}"
+
+    - name: Fail when the TopoLVM chart download fails for another reason
+      when: topolvm_chart_download.status_code | default(0) | int != 404
+      ansible.builtin.fail:
+        msg: "{{ topolvm_download_failed_msg }}"
+
+# ---------------------------------------------------------------------------
+# 4. Render the Helm values file from the Jinja2 template
+# ---------------------------------------------------------------------------
+- name: Render TopoLVM Helm values file
+  ansible.builtin.template:
+    src: topolvm/topolvm-values.yaml.j2
+    dest: "{{ topolvm_nfs_stage_dir }}/topolvm-values.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _vg: "{{ _topolvm_vg }}"
+    _img_ref: "{{ topolvm_image_ref }}"
+    _label_key: "{{ kafka_node_label_key }}"
+
+# ---------------------------------------------------------------------------
+# 5. Render the StorageClass manifest from the Jinja2 template
+# ---------------------------------------------------------------------------
+- name: Render Kafka StorageClass manifest
+  ansible.builtin.template:
+    src: topolvm/omnia-kafka-local-sc.yaml.j2
+    dest: "{{ topolvm_nfs_stage_dir }}/omnia-kafka-local-sc.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    _sc_name: "{{ kafka_storageclass_name }}"
+    _vg: "{{ _topolvm_vg }}"
+    _mount_opts: "{{ _topolvm_mount_options }}"
+
+# ---------------------------------------------------------------------------
+# 6. Render the control-plane install script from the Jinja2 template.
+#    The control-plane first node runs this script from NFS during cloud-init
+#    post-kubeadm to install TopoLVM and create the StorageClass without
+#    reaching the internet (air-gapped, FR-3 NFR-5).
+# ---------------------------------------------------------------------------
+- name: Render TopoLVM install script for control-plane cloud-init
+  ansible.builtin.template:
+    src: topolvm/install-topolvm.sh.j2
+    dest: "{{ topolvm_nfs_stage_dir }}/install-topolvm.sh"
+    owner: root
+    group: root
+    mode: "0755"
+  vars:
+    _stage_dir: "{{ topolvm_nfs_stage_dir }}"
+    _ns: "{{ topolvm_namespace }}"
+    _chart_pkg: "{{ topolvm_chart_package }}"
+    _sc_name: "{{ kafka_storageclass_name }}"
