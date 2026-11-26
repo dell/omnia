@@ -30,6 +30,7 @@ FVT_TAGS: list[str] = [
     "prepare",
     "provision",
     "pxeboot",
+    "reboot",
     "cleanup",
 ]
 
@@ -103,6 +104,7 @@ SUITES: dict[str, list[str]] = {
     "provision": [
         "openchami",
     ],
+    "reboot": [],
     "pxeboot": [
         "connectivity",
         "cloudinit",
@@ -139,6 +141,7 @@ SUITES: dict[str, list[str]] = {
         "kubernetes",
         "artifacts",
         "credentials",
+        "nfs_shares",
     ],
 }
 

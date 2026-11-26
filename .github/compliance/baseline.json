@@ -1,0 +1,28 @@
+{
+  "pipeline": {
+    "pipeline": 100.0
+  },
+  "src": {
+    "build_stream": 100.0,
+    "discovery": 100.0,
+    "image_build_manager": 100.0,
+    "main": 100.0,
+    "orchestrator": 94.44,
+    "repo_manager": 100.0,
+    "telemetry": 100.0,
+    "utils": 95.51
+  },
+  "svt": {
+    "svt": 100.0
+  },
+  "test": {
+    "build_stream": 96.67,
+    "discovery": 100.0,
+    "image_build_manager": 92.5,
+    "main": 100.0,
+    "orchestrator": 83.33,
+    "repo_manager": 75.83,
+    "telemetry": 96.67,
+    "utils": 79.32
+  }
+}

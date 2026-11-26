@@ -1825,6 +1825,17 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify IB addresses assigned on each node match ib_addr_mode",
         "component": "IPoIB mode address assignment",
     },
+    # ── Ordered reboot scenarios (V900 series) ─────────────────────────
+    "slurm_ordered_reboot": {
+        "id": "ORCH_FVT_PXEBOOT_V900",
+        "title": "Verify ordered Slurm cluster shutdown and power-on",
+        "component": "Slurm ordered cluster reboot",
+    },
+    "k8s_ordered_reboot": {
+        "id": "ORCH_FVT_PXEBOOT_V901",
+        "title": "Verify ordered Kubernetes cluster shutdown and power-on",
+        "component": "Kubernetes ordered cluster reboot",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1855,6 +1866,22 @@ CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
     "cleanup_credentials": {
         "id": "ORCH_FVT_CLEANUP_V006",
         "title": "Verify cleanup credential policy",
+    },
+    "cleanup_nfs_slurm": {
+        "id": "ORCH_FVT_CLEANUP_V007",
+        "title": "Empty the Slurm NFS share when cleanup_slurm is true",
+    },
+    "cleanup_nfs_k8s": {
+        "id": "ORCH_FVT_CLEANUP_V008",
+        "title": "Empty the Kubernetes NFS share when cleanup_k8s is true",
+    },
+    "cleanup_nfs_slurm_detached": {
+        "id": "ORCH_FVT_CLEANUP_V009",
+        "title": "Verify the Slurm NFS share is unmounted and not in fstab",
+    },
+    "cleanup_nfs_k8s_detached": {
+        "id": "ORCH_FVT_CLEANUP_V010",
+        "title": "Verify the Kubernetes NFS share is unmounted and not in fstab",
     },
 }
 
@@ -1996,6 +2023,8 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "vast_storage": 42100,
         "kubernetes_recovery": 42200,
         "slurm_recovery": 42300,
+        "slurm_ordered_reboot": 42350,
+        "k8s_ordered_reboot": 42360,
         "slurm_lifecycle": 42400,
         "ipoib_network": 42500,
         "ipoib_resilience": 42600,
