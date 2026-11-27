@@ -95,7 +95,7 @@ in `test_creds.yml` are required. SSH host keys must already be trusted.
 
 | Field | Required | Description | Template value |
 |-------|----------|-------------|----------------|
-| `delete_sinks_volume` | No | Deletes Kafka/VictoriaMetrics/VictoriaLogs PVCs during cleanup. Overrides `cleanup_credentials` and `cleanup_logs` when `true`. | `false` |
+| `delete_sinks_volume` | No | Deletes Kafka/VictoriaMetrics/VictoriaLogs PVCs during cleanup. Overrides `cleanup_credentials` and `cleanup_logs` when `true`. | `true` |
 | `cleanup_credentials` | No | Removes telemetry credential artifacts during cleanup. | `false` |
 | `cleanup_logs` | No | Removes the telemetry log directory during cleanup. | `false` |
 

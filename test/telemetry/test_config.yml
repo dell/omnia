@@ -98,7 +98,7 @@ sync_telemetry_input: false
 #   true  - delete Kafka, VictoriaMetrics, VictoriaLogs PVCs during cleanup
 #   false - preserve sink PVCs (source PVCs are always deleted)
 # Default: false
-delete_sinks_volume: false
+delete_sinks_volume: true
 
 # cleanup_credentials:
 #   true  - remove telemetry_credentials.yml and its vault key
