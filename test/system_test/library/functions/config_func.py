@@ -22,7 +22,8 @@ generator (the rest of the suite's file stays exactly as it was):
 * the ``cleanup`` block (whitelisted keys, booleans only);
 * the theme block (``build_stream:`` catalog, cadence_catalog,
   allow_pipeline_cancel, debug_mode; ``observability:`` configure_ome, ome_ip,
-  configure_sfm, sfm_api_ip ...), mapped by THEMES[theme]["fvt_settings"];
+  configure_sfm, sfm_api_ip ...), mapped by THEMES[theme]["fvt_settings"], plus the
+  theme's fixed_fvt_settings and derived_fvt_settings;
 * the report settings of the run (the FVT results go to <run folder>/fvt/).
 """
 
@@ -202,17 +203,26 @@ def _check_setting(kind: str, value: Any, where: str, path: str) -> Any:
 
 
 def _load_theme_block(theme: str, block: Any, path: str) -> Dict[str, Any]:
-    """Return the checked theme block (only the keys given; the FVT default stays otherwise)."""
+    """Return the checked theme block (only the keys given; the FVT default stays otherwise),
+    plus the theme's fixed_fvt_settings and derived_fvt_settings (the value of the setting
+    they follow, when that one is given). The theme config cannot set those two kinds."""
     if not isinstance(block, dict):
         raise ConfigError(CONFIG_MSGS["not_mapping"].format(path=path, where=theme))
     allowed = THEMES[theme]["fvt_settings"]
-    unknown = sorted(set(block) - set(allowed))
+    fixed = THEMES[theme].get("fixed_fvt_settings") or {}
+    derived = THEMES[theme].get("derived_fvt_settings") or {}
+    settable = [key for key in allowed if key not in fixed and key not in derived]
+    unknown = sorted(set(block) - set(settable))
     if unknown:
         raise ConfigError(CONFIG_MSGS["unknown_key"].format(
             path=path, names=", ".join(f"{theme}.{key}" for key in unknown),
-            known=", ".join(allowed)))
-    return {key: _check_setting(allowed[key][3], value, f"{theme}.{key}", path)
-            for key, value in block.items()}
+            known=", ".join(settable)))
+    settings = {key: _check_setting(allowed[key][3], value, f"{theme}.{key}", path)
+                for key, value in block.items()}
+    settings.update(fixed)
+    settings.update({key: settings[source] for key, source in derived.items()
+                     if source in settings})
+    return settings
 
 
 def _load_report_block(block: Any, path: str) -> Dict[str, str]:

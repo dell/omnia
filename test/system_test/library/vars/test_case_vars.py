@@ -295,9 +295,38 @@ TEST_CASES = {
         "step": ("orchestrator", ("pxeboot", "verify", "--suite", "slurm_cluster",
                                   "--marker", "sanity")),
     },
+    # ---------------------------------------------- stage observability_sfm_vm_only
+    # First observability stage, skipped while configure_sfm is false: SFM must deliver its
+    # metrics with only the VictoriaMetrics sink deployed. It leaves telemetry in that
+    # reduced state; observability_cleanup and observability_deploy, next, bring up the
+    # full telemetry. The cleanup keeps the telemetry output folder, so the external
+    # Victoria export is generated again (new vminsert/vmselect addresses and CA) before
+    # the SFM checks, which would otherwise reuse the old one.
+    "observability_sfm_vm_only_cleanup_run": {
+        "id": "SVT_OBSERVABILITY_032", "order": 2045, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags cleanup "
+                 "-e cleanup_credentials=false",
+        "run": ("-r", _TEL, "--tags", "cleanup", "-e", "cleanup_credentials=false"),
+    },
+    "observability_sfm_vm_only_sinks_run": {
+        "id": "SVT_OBSERVABILITY_033", "order": 2046, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags deploy_sinks "
+                 "-e victoria_metrics",
+        "run": ("-r", _TEL, "--tags", "deploy_sinks", "-e", "victoria_metrics"),
+    },
+    "observability_sfm_vm_only_export_run": {
+        "id": "SVT_OBSERVABILITY_034", "order": 2047, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags external_victoria",
+        "run": ("-r", _TEL, "--tags", "external_victoria"),
+    },
+    "observability_sfm_vm_only_verify": {
+        "id": "SVT_OBSERVABILITY_035", "order": 2048, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: SFM metrics in VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "sfm")),
+    },
     # -------------------------------------------------- stage observability_cleanup
-    # The telemetry of an earlier deployment (all sources and sinks); soft, and off by
-    # default (stages: in observability_test_config.yml). Credentials are kept.
+    # All telemetry sources and sinks deployed before (by an earlier run or by
+    # observability_sfm_vm_only); hard, always runs. Credentials are kept.
     "observability_cleanup_run": {
         "id": "SVT_OBSERVABILITY_014", "order": 2050, "stage": "observability_cleanup",
         "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false",
@@ -376,34 +405,6 @@ TEST_CASES = {
     "observability_sfm_verify": {
         "id": "SVT_OBSERVABILITY_031", "order": 2130, "stage": "observability_sfm",
         "title": "SFM: VictoriaMetrics services, switch path, Remote Write, VictoriaMetrics",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "sfm")),
-    },
-    # ---------------------------------------------- stage observability_sfm_vm_only
-    # Last stage, skipped while configure_sfm is false: SFM must deliver its metrics with
-    # only the VictoriaMetrics sink deployed. It leaves telemetry in that reduced state (the
-    # next observability_deploy restores it). The cleanup keeps the telemetry output folder,
-    # so the external Victoria export is generated again (new vminsert/vmselect addresses
-    # and CA) before the SFM checks, which would otherwise reuse the old one.
-    "observability_sfm_vm_only_cleanup_run": {
-        "id": "SVT_OBSERVABILITY_032", "order": 2140, "stage": "observability_sfm_vm_only",
-        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags cleanup "
-                 "-e cleanup_credentials=false",
-        "run": ("-r", _TEL, "--tags", "cleanup", "-e", "cleanup_credentials=false"),
-    },
-    "observability_sfm_vm_only_sinks_run": {
-        "id": "SVT_OBSERVABILITY_033", "order": 2141, "stage": "observability_sfm_vm_only",
-        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags deploy_sinks "
-                 "-e victoria_metrics",
-        "run": ("-r", _TEL, "--tags", "deploy_sinks", "-e", "victoria_metrics"),
-    },
-    "observability_sfm_vm_only_export_run": {
-        "id": "SVT_OBSERVABILITY_034", "order": 2142, "stage": "observability_sfm_vm_only",
-        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags external_victoria",
-        "run": ("-r", _TEL, "--tags", "external_victoria"),
-    },
-    "observability_sfm_vm_only_verify": {
-        "id": "SVT_OBSERVABILITY_035", "order": 2143, "stage": "observability_sfm_vm_only",
-        "title": "SFM, VictoriaMetrics only: SFM metrics in VictoriaMetrics",
         "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "sfm")),
     },
     # ============================================================ theme cluster_lifecycle

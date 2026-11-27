@@ -325,15 +325,17 @@ THEMES: Dict[str, Dict] = {
         "cleanup_when_deployed": ("telemetry", "discovery"),
         # Cluster stages first (repo_manager -> image_build_manager -> orchestrator, the order
         # omnia.sh recommends), then observability last: telemetry needs the Kubernetes and
-        # Slurm nodes the orchestrator brings up.
+        # Slurm nodes the orchestrator brings up. observability_sfm_vm_only runs first and
+        # leaves only VictoriaMetrics; observability_cleanup (hard, always runs) then removes
+        # it and the deploy stage brings up the full telemetry for the source stages.
         "stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy",
-                   "observability_cleanup", "observability_precheck", "observability_deploy",
-                   "observability_idrac", "observability_ldms", "observability_powerscale",
-                   "observability_ome", "observability_ufm", "observability_sfm",
-                   "observability_sfm_vm_only"),
-        "soft_stages": ("observability_cleanup", "observability_idrac", "observability_ldms",
-                        "observability_powerscale", "observability_ome", "observability_ufm",
-                        "observability_sfm", "observability_sfm_vm_only"),
+                   "observability_sfm_vm_only", "observability_cleanup",
+                   "observability_precheck", "observability_deploy", "observability_idrac",
+                   "observability_ldms", "observability_powerscale", "observability_ome",
+                   "observability_ufm", "observability_sfm"),
+        "soft_stages": ("observability_sfm_vm_only", "observability_idrac",
+                        "observability_ldms", "observability_powerscale", "observability_ome",
+                        "observability_ufm", "observability_sfm"),
         # Default: an already deployed cluster. ./run_validation.sh svt_observability all and
         # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
@@ -341,8 +343,9 @@ THEMES: Dict[str, Dict] = {
                                 "cluster_deploy"),
         # Stages <theme>_test_config.yml stages: turns on or off. Off by default, unless listed
         # in optional_stages_on. The source stages (idrac, ldms, powerscale, ome, ufm, sfm) are
-        # not optional: they run whenever their source is on (see source_stages).
-        "optional_stages": ("observability_cleanup", "observability_sfm_vm_only"),
+        # not optional: they run whenever their source is on (see source_stages);
+        # observability_cleanup always runs.
+        "optional_stages": ("observability_sfm_vm_only",),
         "optional_stages_on": ("observability_sfm_vm_only",),
         # Stages that check one source: skipped (recorded with the reason, in 'all', by name
         # and in the pipeline) when it is off. ("source", <name>): telemetry_sources.<name>
@@ -376,9 +379,15 @@ THEMES: Dict[str, Dict] = {
                 "Cluster Deploy",
                 "omnia.sh -r orchestrator provision and PXE boot: Kubernetes and Slurm nodes "
                 "up"),
+            "observability_sfm_vm_only": (
+                "SFM with VictoriaMetrics Only",
+                "Telemetry cleanup (credentials kept), then only the VictoriaMetrics sink "
+                "(deploy_sinks -e victoria_metrics), a new external Victoria export, and "
+                "the SFM checks: SFM metrics reach VictoriaMetrics without the other sinks "
+                "and sources"),
             "observability_cleanup": (
                 "Observability Cleanup",
-                "The telemetry sources and sinks of an earlier deployment removed "
+                "The telemetry sources and sinks deployed before removed "
                 "(omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false)"),
             "observability_precheck": (
                 "Observability Precheck",
@@ -412,12 +421,6 @@ THEMES: Dict[str, Dict] = {
                 "SFM Telemetry",
                 "VictoriaMetrics workloads and services, then (configure_sfm) the SFM switch "
                 "path, Remote Write and SFM metrics in VictoriaMetrics"),
-            "observability_sfm_vm_only": (
-                "SFM with VictoriaMetrics Only",
-                "Telemetry cleanup (credentials kept), then only the VictoriaMetrics sink "
-                "(deploy_sinks -e victoria_metrics), a new external Victoria export, and "
-                "the SFM checks: SFM metrics reach VictoriaMetrics without the other sinks "
-                "and sources"),
         },
         # kind: bool; host (IP or host name, "" = not set); port (1-65535).
         "fvt_settings": {
@@ -434,6 +437,13 @@ THEMES: Dict[str, Dict] = {
             "force_external_victoria_playbook": ("telemetry", "",
                                                  "force_external_victoria_playbook", "bool"),
         },
+        # fvt_settings the theme config does not set. Fixed: the deployed telemetry inputs
+        # are the ones ./setup_env.sh installs, so the FVT never pushes a dataset. Derived:
+        # the value of another setting (the OME client certificates and the external Victoria
+        # export are made again whenever OME or SFM is configured).
+        "fixed_fvt_settings": {"sync_telemetry_input": False},
+        "derived_fvt_settings": {"force_external_kafka_playbook": "configure_ome",
+                                 "force_external_victoria_playbook": "configure_sfm"},
     },
     "catalog_build": {
         "title": "Catalog Build",

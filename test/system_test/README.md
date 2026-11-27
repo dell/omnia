@@ -113,10 +113,10 @@ The tests are data in [`library/vars/test_case_vars.py`](library/vars/test_case_
 
 Telemetry (observability) of a **deployed** cluster: the enabled sources are deployed
 with the product command `./omnia.sh -r telemetry`, then checked with the telemetry FVT
-tests selected by suite and marker. By default only iDRAC and LDMS are on (`telemetry`
-block of `user_inputs.yml`). Every source stage (`observability_idrac` to
-`observability_sfm_vm_only`) is **skipped automatically while its source is off**, with the
-reason in the log and the report, so with the default inputs the PowerScale, OME, UFM and both
+tests selected by suite and marker. By default iDRAC, LDMS, PowerScale and OME are on
+(`telemetry` block of `user_inputs.yml`). Every source stage (`observability_sfm_vm_only`,
+`observability_idrac` to `observability_sfm`) is **skipped automatically while its source is
+off**, with the reason in the log and the report, so with the default inputs the UFM and both
 SFM stages are skipped. A live PowerScale, OME, UFM or SFM source needs its external appliance (see
 [the source stages](#source-stages-skipped-while-the-source-is-off)).
 
@@ -142,7 +142,8 @@ Two kinds of SVT test:
 | `repo_sync` | hard, **skipped by default** | `005`-`006` | `./omnia.sh -r repo_manager --tags execute`; `execute verify` | |
 | `image_build` | hard, **skipped by default** | `007`-`008` | `./omnia.sh -r image_build_manager --tags build`; `build verify` | |
 | `cluster_deploy` | hard, **skipped by default** | `009`-`013` | `./omnia.sh -r orchestrator --tags provision`, `--tags pxeboot`; provision, Kubernetes and Slurm cluster checks | |
-| `observability_cleanup` | soft, **off by default** (`stages:` in `observability_test_config.yml`) | `014` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false` (all telemetry sources and sinks; credentials kept) | none (the RUN step only) |
+| `observability_sfm_vm_only` | soft, skipped while `configure_sfm` is false (`stages:` can turn it off) | `032`-`035` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false`; `--tags deploy_sinks -e victoria_metrics`; `--tags external_victoria`; `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) with only the VictoriaMetrics sink deployed |
+| `observability_cleanup` | hard, always runs | `014` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false` (all telemetry sources and sinks; credentials kept) | none (the RUN step only) |
 | `observability_precheck` | hard | `018`, `020`, `021` | `./omnia.sh -r telemetry --tags precheck` (playbook only, no FVT verify); `--tags validate`; `validate verify` | `TEL_FVT_VALIDATE_V001` |
 | `observability_deploy` | hard | `022` | `./omnia.sh -r telemetry` (validate, precheck, deploy) | none (the RUN step only) |
 | `observability_idrac` | soft, skipped while `idrac` is off | `024` | `deploy verify --suite sources --marker idrac` | every iDRAC check (`V010`-`V019`, `V112`, `V113`) |
@@ -151,7 +152,6 @@ Two kinds of SVT test:
 | `observability_ome` | soft, skipped while `ome` is off | `029` | `deploy verify --suite sources --marker ome` | every OME check (`V070`-`V088`) |
 | `observability_ufm` | soft, skipped while `ufm` is off | `030` | `deploy verify --suite sources --marker ufm` | every UFM check (`V060`-`V064`) |
 | `observability_sfm` | soft, skipped while `configure_sfm` is false | `031` | `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) |
-| `observability_sfm_vm_only` | soft, last, skipped while `configure_sfm` is false (`stages:` can turn it off) | `032`-`035` | `./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false`; `--tags deploy_sinks -e victoria_metrics`; `--tags external_victoria`; `deploy verify --suite sources --marker sfm` | every SFM check (`V100`-`V104`) with only the VictoriaMetrics sink deployed |
 
 IDs are `SVT_OBSERVABILITY_<NNN>` (`015`-`017`, `023`, `025` and `027` are retired); FVT IDs `V0xx`/`V1xx` are
 `TEL_FVT_DEPLOY_V0xx`. `V008` (all telemetry pods) and `V110` (install mode) are not in
@@ -171,12 +171,13 @@ Inside a stage that runs, a check whose channel is off (for example PowerScale l
 skipped by the FVT. The PowerScale, OME, UFM and both SFM stages have no toggle: they run
 whenever their source is on.
 
-`observability_sfm_vm_only` is the last stage. It runs the telemetry cleanup (credentials kept),
-deploys only the VictoriaMetrics sink (`deploy_sinks -e victoria_metrics`), generates the
-external Victoria export again (the cleanup keeps the `output` folder, so the old export would
-point at the removed sink), then runs the SFM checks. It **removes the deployed telemetry** and
-leaves only VictoriaMetrics; the next `observability_deploy` restores the rest. Within the stage a
-step is skipped once an earlier one failed.
+`observability_sfm_vm_only` is the first observability stage. It runs the telemetry cleanup
+(credentials kept), deploys only the VictoriaMetrics sink (`deploy_sinks -e victoria_metrics`),
+generates the external Victoria export again (the cleanup keeps the `output` folder, so the old
+export would point at the removed sink), then runs the SFM checks. It **removes the deployed
+telemetry** and leaves only VictoriaMetrics; `observability_cleanup` (hard, always runs) and
+`observability_deploy`, which follow, bring up the full telemetry for the source stages. Within
+the stage a step is skipped once an earlier one failed.
 
 To check a live source:
 
@@ -200,10 +201,12 @@ credentials.
 
 **Defaults** (theme data): `./run_validation.sh svt_observability all` leaves out
 `initialization`, `prepare_base`, `repo_sync`, `image_build` and `cluster_deploy`
-(`--skip-stages none` runs them), and every stage that is off under `stages:` in the config
-(`observability_cleanup` by default; all recorded as skipped;
-a single stage runs with `./run_validation.sh
-svt_observability <stage>`), and `./setup_env.sh` cleans nothing without `--force`. In the
+(`--skip-stages none` runs them), and `observability_sfm_vm_only` when `stages:` in the
+config turns it off (all recorded as skipped; a single stage runs with `./run_validation.sh
+svt_observability <stage>`), and `./setup_env.sh` cleans nothing without `--force`.
+`observability_cleanup` always runs. The SVT sets `sync_telemetry_input: false`, and
+`force_external_kafka_playbook` / `force_external_victoria_playbook` to the value of
+`configure_ome` / `configure_sfm`; the config does not set them. In the
 pipeline, an empty `skip_stages` and `clean_reinstall` of the cluster block give the same
 defaults (`skip_stages: "none"` runs every stage). The telemetry credential store
 (`telemetry_credentials.yml`: BMC, MySQL and LDMS sampler) is written by

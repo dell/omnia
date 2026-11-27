@@ -17,7 +17,7 @@
 # =============================================================================
 # Read by ./setup_env.sh --theme observability and by
 # ./run_validation.sh svt_observability. The cluster values (IPs, names) and the
-# telemetry sources (iDRAC and LDMS on, the others off) are in user_inputs.yml
+# telemetry sources (iDRAC, LDMS, PowerScale and OME on by default) are in user_inputs.yml
 # (block telemetry); credentials are never written here
 # (./setup_env.sh --theme observability --set-domain-creds).
 #
@@ -46,16 +46,20 @@
 # leaves out prepare_base, repo_sync, image_build and cluster_deploy
 # (--skip-stages none runs them), and ./setup_env.sh does no cleanup unless
 # --force. The pipeline does the same (skip_stages and clean_reinstall of the
-# cluster block empty).
+# cluster block empty). Then: observability_sfm_vm_only (below), observability_cleanup
+# (always runs, hard: omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false),
+# observability_precheck, observability_deploy and the source stages.
+#
+# Set by the SVT, not here: sync_telemetry_input is always false (the FVT does not push
+# a dataset), force_external_kafka_playbook follows configure_ome and
+# force_external_victoria_playbook follows configure_sfm. The report goes to
+# test/system_test/reports/<run id>/svt_observability_report.
 # =============================================================================
 
 # =============================================================================
 # OBSERVABILITY  (written into test/telemetry/test_config.yml)
 # =============================================================================
 observability:
-  # sync_telemetry_input: false keeps the deployed telemetry inputs (the ones
-  #   ./setup_env.sh installs from user_inputs.yml); the FVT does not push a dataset.
-  sync_telemetry_input: false
   # configure_ome: true lets stage observability_ome configure the OME appliance (TLS
   #   certificates, Kafka forwarder) and check the OME data in Kafka, VictoriaMetrics and
   #   VictoriaLogs; it needs ome_ip and the OME credentials. false: only the Vector-OME
@@ -63,13 +67,10 @@ observability:
   configure_ome: false
   # ome_ip: IP or host name of the OME REST API ("" = not set).
   ome_ip: ""
-  # force_external_kafka_playbook: true re-runs the external_kafka_connect playbook (new
-  #   OME client certificates) even when they exist.
-  force_external_kafka_playbook: false
   # configure_sfm: true lets stage observability_sfm configure the SFM appliance (CA
   #   import, Remote Write to VictoriaMetrics, Prometheus pod /etc/hosts) and check the SFM
   #   metrics; it needs sfm_api_ip, sfm_ssh_ip and the SFM credentials. false: every SFM
-  #   check is skipped.
+  #   check, and stage observability_sfm_vm_only, is skipped.
   configure_sfm: false
   # sfm_api_ip / sfm_api_port: SFM REST API; sfm_ssh_ip / sfm_ssh_port: SFM SSH console
   #   (its host key must be in known_hosts of this OIM).
@@ -77,36 +78,19 @@ observability:
   sfm_api_port: 443
   sfm_ssh_ip: ""
   sfm_ssh_port: 22
-  # force_external_victoria_playbook: true re-runs the external_victoria playbook and
-  #   imports the SFM certificate again even when the target is healthy.
-  force_external_victoria_playbook: false
-
-# =============================================================================
-# REPORT  (one folder and one SVT report per run)
-# =============================================================================
-report:
-  # report_path: parent of the run folders ("" = test/system_test/reports).
-  report_path: ""
-  # report_name: file name without extension ("" = svt_observability_report).
-  report_name: ""
-  # run_id: "" = a new svt-<UTC time> at every ./setup_env.sh --configure.
-  run_id: ""
 
 # =============================================================================
 # STAGES  (on or off. A stage that is off is left out of 'all' and of the pipeline,
 #          and runs only when asked for by name: ./run_validation.sh svt_observability <stage>)
 # The source stages (idrac, ldms, powerscale, ome, ufm, sfm) are not listed: they follow
-# their source (see the top of this file).
+# their source (see the top of this file). observability_cleanup always runs.
 # =============================================================================
 stages:
-  # observability_cleanup removes the iDRAC and LDMS telemetry of an earlier deployment
-  # before the new one is deployed. Off by default: the deploy stage replaces the
-  # telemetry on its own. true: 'all' and the pipeline run it.
-  observability_cleanup: false
-  # observability_sfm_vm_only, the last stage, skipped while configure_sfm is false:
-  # omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false, then --tags
-  # deploy_sinks -e victoria_metrics (only the VictoriaMetrics sink), --tags
+  # observability_sfm_vm_only, the first observability stage, skipped while configure_sfm
+  # is false: omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false, then
+  # --tags deploy_sinks -e victoria_metrics (only the VictoriaMetrics sink), --tags
   # external_victoria (a new connection export), and the SFM checks. It REMOVES the
-  # deployed telemetry and leaves only VictoriaMetrics; the next observability_deploy
-  # restores the rest. false: 'all' and the pipeline leave it out.
+  # deployed telemetry and leaves only VictoriaMetrics; observability_cleanup and
+  # observability_deploy, which run next, bring up the full telemetry again.
+  # false: 'all' and the pipeline leave it out.
   observability_sfm_vm_only: true
