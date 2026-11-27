@@ -11,6 +11,7 @@ import pytest
 
 from omnia_auto import run_on_host
 from library.functions import TestLogger
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import CMDS
 
 
@@ -22,9 +23,8 @@ PULP_STATUS_THRESHOLD = 10.0
 @pytest.mark.order(1)
 def test_pulp_status_response_time(host):
     """RM_NFT_002: The local Pulp health command completes promptly."""
-    test_log = TestLogger(
-        "NFT: Pulp status response time", "RM_NFT_002"
-    )
+    tc = TC["nft_pulp_status_response_time"]
+    test_log = TestLogger(tc["title"], tc["id"])
     started = monotonic()
     result = run_on_host(host, CMDS["pulp_status"])
     duration = monotonic() - started

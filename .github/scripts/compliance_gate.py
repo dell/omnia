@@ -323,7 +323,8 @@ def pipeline_profile():
     """Structural profile for test/pipeline."""
     base = ROOT / "test" / "pipeline"
     issues = []
-    required = ["README.md", "pipeline_config.yml", "send_email.py", "setup_gitlab_project.py", "docs/README.md"]
+    required = ["README.md", "pipeline_config.yml", "pipeline_ci.py", "pipeline_render.py",
+                "pipeline_triggers.py", "setup_gitlab_project.py", "docs/README.md"]
     check_files(base, required, issues)
     py_hygiene(base, issues)
     cfg = base / "pipeline_config.yml"
@@ -423,10 +424,16 @@ def change_summary(files):
     return [f"{name}: {count} file(s)" for name, count in sorted(areas.items())]
 
 
+def commit_line():
+    """Return the line that names the PR commit this comment was made for ('' outside a PR)."""
+    sha = os.environ.get("HEAD_SHA", "").strip()
+    return f"Checked commit: `{sha[:7]}`" if re.fullmatch(r"[0-9a-f]{7,40}", sha) else ""
+
+
 def render_no_domain_comment(files):
     """Render the PR comment used when the PR changes no src, test, SVT or pipeline domain."""
     lines = [COMMENT_MARKER, "## Compliance Gate", "",
-             "**Result: no domain changes found**", "",
+             "**Result: no domain changes found**", "", *([commit_line(), ""] if commit_line() else []),
              "- [x] Nothing to check: this PR does not change any `src/<domain>`, `test/<domain>`, "
              "SVT (`test/system_test`) or pipeline (`test/pipeline`) path.", ""]
     summary = change_summary(files)
@@ -445,6 +452,8 @@ def render_comment(results, baseline, errors, skipped, reason):
     lines = [COMMENT_MARKER, "## Compliance Gate", "",
              f"**Result: {len(ordered) - len(failed)} passed, {len(failed)} not passed** "
              f"({len(ordered)} domain scope(s) checked; unchanged domains are skipped)", ""]
+    if commit_line():
+        lines += [commit_line(), ""]
     if skipped:
         lines += [f"Not checked ({reason}): " + ", ".join(f"{s}/{d}" for s, d in sorted(skipped)), ""]
     for res in ordered:

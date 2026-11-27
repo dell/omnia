@@ -550,7 +550,8 @@ def cleanup_playbook_vars(cluster: str, domain: str) -> List[str]:
 
     The same variables the FVT cleanup of the domain passes, from the cluster's test_config.yml
     (defaults of the suites when absent): orchestrator and build_stream pass every flag
-    explicitly, the others only what differs from the playbook default.
+    explicitly, the others only what differs from the playbook default. The telemetry cleanup
+    deletes the sink volumes (``Delete_sinks_volume=true``) unless the test_config.yml says false.
     """
     def flag(key: str, default: bool, block: str = "") -> bool:
         return _test_setting(cluster, domain, key, default, block)
@@ -565,7 +566,7 @@ def cleanup_playbook_vars(cluster: str, domain: str) -> List[str]:
         return [f"postgres_backup={text(flag('postgres_backup', False, 'cleanup'))}",
                 f"cleanup_credentials={text(flag('cleanup_credentials', True, 'cleanup'))}"]
     if domain == "telemetry":
-        found = ["Delete_sinks_volume=true"] if flag("delete_sinks_volume", False) else []
+        found = ["Delete_sinks_volume=true"] if flag("delete_sinks_volume", True) else []
         found += [f"{k}=false" for k in ("cleanup_credentials", "cleanup_logs")
                   if not flag(k, True)]
         return found

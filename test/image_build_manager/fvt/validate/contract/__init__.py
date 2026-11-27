@@ -16,5 +16,7 @@
 
 Verification tests (V005-V024): synthetic fixtures, bundled samples and one live-file
 check (V022). V022 skips when repo_status.yml is absent, or fails when
-REQUIRE_LIVE_REPO_STATUS=1 is set, so a green run cannot hide an unchecked live file.
+REQUIRE_LIVE_REPO_STATUS=1 is set, so a green run cannot hide an unchecked live file. It also
+skips when every repository host is this OIM and no external source is pinned
+(external_repo_host in test_config.yml) or required (REQUIRE_EXTERNAL_REPO=1).
 """

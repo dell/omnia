@@ -9,6 +9,7 @@ import pytest
 
 from omnia_auto import run_on_host
 from library.functions import TestLogger
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     INPUT_FILES,
     _get_base_path,
@@ -27,9 +28,8 @@ def _mode_is_private(mode):
 @pytest.mark.order(1)
 def test_credentials_are_encrypted_and_private(host):
     """RM_NFT_003: Credentials are vaulted and credential files are private."""
-    test_log = TestLogger(
-        "NFT: encrypted private credentials", "RM_NFT_003"
-    )
+    tc = TC["nft_encrypted_private_credentials"]
+    test_log = TestLogger(tc["title"], tc["id"])
     input_path = _get_input_path()
     credential_path = f"{input_path}/{INPUT_FILES['repo_manager_credentials']}"
     key_path = f"{input_path}/.repo_manager_config_credentials_key"
@@ -66,9 +66,8 @@ def test_credentials_are_encrypted_and_private(host):
 @pytest.mark.order(2)
 def test_private_keys_and_log_directories_are_restricted(host):
     """RM_NFT_004: Pulp private keys and Repo Manager logs deny public access."""
-    test_log = TestLogger(
-        "NFT: private keys and log permissions", "RM_NFT_004"
-    )
+    tc = TC["nft_private_keys_and_logs"]
+    test_log = TestLogger(tc["title"], tc["id"])
     protected_paths = [
         f"{_get_pulp_certs_dir()}/pulp_webserver.key",
         f"{_get_pulp_certs_dir()}/token_private_key.pem",
@@ -98,9 +97,8 @@ def test_private_keys_and_log_directories_are_restricted(host):
 @pytest.mark.order(3)
 def test_pulp_tls_certificate_is_current(host):
     """RM_NFT_005: The Pulp TLS certificate remains valid for at least one day."""
-    test_log = TestLogger(
-        "NFT: Pulp TLS certificate validity", "RM_NFT_005"
-    )
+    tc = TC["nft_pulp_tls_validity"]
+    test_log = TestLogger(tc["title"], tc["id"])
     certificate_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
     result = run_on_host(
         host,

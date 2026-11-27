@@ -148,6 +148,7 @@ UT_TEST_CASE_IDS = {
             66: "test_playbook_wrapper_uses_supported_verbosity_keyword",
             67: "test_pytest_entrypoint_can_import_shared_ut_loader",
             68: "test_pytest_reporting_hooks_are_defined_once",
+            339: "test_repo_sync_is_explicit_only",
             69: "test_runner_entrypoint_dependencies_are_importable",
             70: "test_selected_suite_is_forwarded_to_execution",
             71: "test_shell_entrypoint_prefers_the_local_virtual_environment",

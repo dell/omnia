@@ -71,24 +71,6 @@ exceptions:
     kind: false-positive
     reason: "slurm_cleanup_confirm_token \"YES\" is a confirmation flag, not a secret."
   - scope: test
-    domain: repo_manager
-    check: "Blocking security patterns"
-    match: "setup_env.sh"
-    kind: known-debt
-    reason: "setup_env.sh takes --password on argv and expands it in an unquoted heredoc; read it from stdin or a prompt."
-  - scope: test
-    domain: repo_manager
-    check: "Unique IDs"
-    match: "RM_FVT_CLEANUP_REPOS_E001"
-    kind: known-debt
-    reason: "RM_FVT_CLEANUP_REPOS_E001 is registered for two different test keys; allocate a new ID."
-  - scope: test
-    domain: repo_manager
-    check: "No hardcoded IDs"
-    match: "*"
-    kind: known-debt
-    reason: "NFT and FVT files pass literal IDs (for example \"RM_NFT_003\") to TestLogger instead of using TEST_CASES."
-  - scope: test
     domain: utils
     check: "Blocking security patterns"
     match: "setup_env.sh"
@@ -100,12 +82,6 @@ exceptions:
     match: "UTILS_FVT_COLLECT_NEG00"
     kind: known-debt
     reason: "UTILS_FVT_COLLECT_NEG001-003 are each registered for two differently titled tests."
-  - scope: test
-    domain: utils
-    check: "Credential artifacts"
-    match: "*"
-    kind: known-debt
-    reason: "test/utils/.gitignore ignores .test_creds.key but not test_creds.yml (required by test_automation.md section 3.3)."
   - scope: src
     domain: discovery
     check: "samples/ directory exists"

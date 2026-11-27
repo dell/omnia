@@ -26,6 +26,7 @@ from ..vars.pxeboot_vars import (
     SLURM_COMPILER_PREFIX,
     SLURM_COMPUTE_PREFIX,
     SLURM_CONTROL_PREFIX,
+    SLURM_JOB_READY_STATES,
     SLURM_PREFIXES,
     SLURM_SUBMISSION_PREFIXES,
 )
@@ -297,6 +298,48 @@ def ensure_source_mpi(host, rows) -> Tuple[bool, str]:
     return True, ""
 
 
+def compute_not_ready_reason(readiness: dict) -> str:
+    """Return why a mapped compute node cannot run a targeted job soon ('' when it can).
+
+    A job pinned with --nodelist to a down, drained, unknown or unlisted node stays PENDING
+    (ReqNodeNotAvail), so such a node is reported instead of being submitted to.
+    """
+    states = {item.strip() for item in readiness["state"].split(",") if item.strip()}
+    availability = {item.strip() for item in readiness["availability"].split(",") if item.strip()}
+    if states <= set(SLURM_JOB_READY_STATES) and availability == {"up"}:
+        return ""
+    return f"state={readiness['state']}, availability={readiness['availability']}"
+
+
+def not_ready_computes(host, control, compute_rows) -> list:
+    """Return one line per mapped compute that Slurm cannot use now, with Slurm's reason.
+
+    The line names the node, its state and, when Slurm gives one, the reason ("Not responding").
+    An empty list means every node can take a targeted job.
+    """
+    problems = {}
+    for item in mapped_compute_readiness(host, control, compute_rows):
+        reason = compute_not_ready_reason(item)
+        if reason:
+            problems[item["row"]["HOSTNAME"]] = reason
+    if not problems:
+        return []
+    detail = {}
+    result = remote_command(
+        host, control, PXEBOOT_COMMANDS["slurm_node_reasons"] % ",".join(problems)
+    )
+    if result.rc == 0:
+        for line in result.stdout.splitlines():
+            name, _, text = line.partition("|")
+            text = re.sub(r"\s+", " ", text).strip()
+            if name.strip() and text and text.lower() != "none":
+                detail[name.strip().split(".", 1)[0]] = text
+    return [
+        f"{name} ({reason}" + (f", reason: {detail[name]}" if name in detail else "") + ")"
+        for name, reason in problems.items()
+    ]
+
+
 def mapped_compute_readiness(host, control, compute_rows):
     """Return normalized scheduler readiness for every mapped compute."""
     scheduler = remote_command(
@@ -312,7 +355,8 @@ def mapped_compute_readiness(host, control, compute_rows):
         if len(parts) != 4 or not parts[0]:
             continue
         node = parts[0].split(".", 1)[0]
-        state = parts[2].lower().split("+", 1)[0].rstrip("*~#$@!%^")
+        # "*" (not responding) is kept: an "idle*" node cannot take a job, so it is not idle.
+        state = parts[2].lower().split("+", 1)[0].rstrip("~#$@!%^")
         availability = parts[3].lower()
         node_states.setdefault(node, []).append((state, availability))
     readiness = []

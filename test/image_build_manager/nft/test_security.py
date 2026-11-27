@@ -20,9 +20,8 @@ credential-bearing files to root-only access (0600, root:root). A future
 accidental revert to a world-readable mode will fail one of these cases.
 
 Cases:
-  IMGBM_NFT_SECURITY_001 — /etc/containers/systemd/minio.container 0600 root:root
-  IMGBM_NFT_SECURITY_002 — /root/.s3cfg 0600 root:root
-  IMGBM_NFT_SECURITY_003 — no *.container under /etc/containers/systemd/ is o+r
+  IMGBM_NFT_005 — /etc/containers/systemd/minio.container 0600 root:root
+  IMGBM_NFT_006 — /root/.s3cfg 0600 root:root
 """
 
 import pytest

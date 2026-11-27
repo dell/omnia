@@ -77,6 +77,7 @@ REPO_MANAGER_TEST_CLEANUP_REPO=x86_64_rhel_10.0_test_repo \
 | (no tag) | Complete `repo_manager.yml` without `--tags`: `fvt/test_playbook.py`, run with `./run_validation.sh fvt_repo_manager exec` |
 | `cleanup` | Cleanup Pulp server and verify removal; the credential store follows `cleanup_credentials` in `test_config.yml` (`false` keeps it) |
 | `cleanup_repos` | Explicitly selected exact repository cleanup and state invalidation |
+| `repo_sync` | Explicitly selected exact-mirror maintenance playbook (`repo_sync.yml`): `./run_validation.sh fvt_repo_manager repo_sync test` runs it and checks its result; the default `test` and `verify` leave it out |
 | `policy` | Test repository policy configurations |
 | `user_registry` | Test user registry configuration and validation |
 | `catalog` | Run one explicitly selected catalog operation suite |

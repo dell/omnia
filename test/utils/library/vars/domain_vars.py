@@ -56,6 +56,8 @@ MARKERS: List[str] = [
     "x86_64",
     "aarch64",
     "oci_image_ingest",
+    "cleanup",
+    "destructive",
 ]
 
 # =====================================================================
