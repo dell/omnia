@@ -24,23 +24,29 @@
 #   ansible-playbook build_stream.yml --tags prepare         # Deploy Postgres + BSM + watcher only
 #   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
 #   ansible-playbook build_stream.yml --tags build           # prepare + execute
-#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup: GitLab THEN BuildStream (+ credentials)
-#   ansible-playbook build_stream.yml --tags cleanup_gitlab          # GitLab-only cleanup
-#   ansible-playbook build_stream.yml --tags cleanup_build_stream    # BuildStream-only cleanup (warns + 20s pause first)
+#   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup: GitLab (by mode) THEN BuildStream (+ credentials)
+#   ansible-playbook build_stream.yml --tags cleanup_hosted_gitlab    # Hosted GitLab-only cleanup (remote GitLab CE host)
+#   ansible-playbook build_stream.yml --tags cleanup_external_gitlab  # External GitLab-only cleanup (customer GitLab, API)
+#   ansible-playbook build_stream.yml --tags cleanup_build_stream     # BuildStream-only cleanup (warns + 20s pause first)
 #   ansible-playbook build_stream.yml --tags cleanup -e cleanup_credentials=false  # Cleanup, preserve credentials
 #
 # Tags (mutually exclusive — pick ONE):
-#   (none)               — Default flow: setup + validate + credentials + prepare + execute
-#   precheck             — Environment precheck (containers + credentials present) — no credentials
-#   validate             — Validate build_stream_config.yml only (skips credentials)
-#   credentials          — Collect/update BS auth, postgres, GitLab credentials only (no prepare/execute)
-#   prepare              — Deploy Postgres + BSM container + watcher service (with credentials)
-#   execute              — Deploy GitLab CE + CI/CD configuration (with credentials)
-#   build                — Alias: runs prepare + execute (full deploy, with credentials)
-#   cleanup              — Full domain cleanup: GitLab FIRST, then BSM + Postgres + credentials
-#   cleanup_gitlab       — GitLab-only cleanup (remote gitlab_server); does NOT touch BuildStream
-#   cleanup_build_stream — BuildStream-only cleanup (BSM + Postgres + credentials). Warns and pauses
-#                          20s first because it deletes credentials needed for later GitLab cleanup.
+#   (none)                 — Default flow: setup + validate + credentials + prepare + execute
+#   precheck               — Environment precheck (containers + credentials present) — no credentials
+#   validate               — Validate build_stream_config.yml only (skips credentials)
+#   credentials            — Collect/update BS auth, postgres, GitLab credentials only (no prepare/execute)
+#   prepare                — Deploy Postgres + BSM container + watcher service (with credentials)
+#   execute                — Deploy GitLab CE + CI/CD configuration (with credentials)
+#   build                  — Alias: runs prepare + execute (full deploy, with credentials)
+#   cleanup                — Full domain cleanup: GitLab FIRST (hosted OR external by gitlab_mode),
+#                            then BSM + Postgres + credentials
+#   cleanup_hosted_gitlab  — Hosted GitLab-only cleanup (remote gitlab_server: GitLab CE packages,
+#                            runner, tokens, certs, dirs). Runs only when gitlab_mode is hosted.
+#   cleanup_external_gitlab— External GitLab-only cleanup (customer GitLab over the API: the
+#                            Omnia-created project and its resources only). Runs only when
+#                            gitlab_mode is external. Never touches GitLab CE/runner/certs.
+#   cleanup_build_stream   — BuildStream-only cleanup (BSM + Postgres + credentials). Warns and pauses
+#                            20s first because it deletes credentials needed for later GitLab cleanup.
 #
 # Internal steps (always):
 #   Step 0: Setup — load project config, input/output dirs, OIM metadata
@@ -65,7 +71,7 @@
   ansible.builtin.import_playbook: validate/validate_build_stream_config.yml
   when: >-
     (hostvars['localhost']['provided_tags'] | default([])
-     | intersect(['precheck', 'cleanup', 'cleanup_gitlab', 'cleanup_build_stream'])
+     | intersect(['precheck', 'cleanup', 'cleanup_hosted_gitlab', 'cleanup_external_gitlab', 'cleanup_build_stream'])
      | length) == 0
   tags:
     - always
@@ -120,25 +126,48 @@
     - build
 
 # =========================================================================
-# FLOW: cleanup / cleanup_gitlab / cleanup_build_stream (all opt-in)
+# FLOW: cleanup / cleanup_hosted_gitlab / cleanup_external_gitlab /
+#       cleanup_build_stream (all opt-in)
 #
-#   --tags cleanup              → GitLab cleanup FIRST, then BuildStream cleanup.
-#                                 GitLab must finish before BuildStream deletes the
-#                                 credentials GitLab cleanup depends on. No pause.
-#   --tags cleanup_gitlab       → GitLab-only cleanup (remote gitlab_server).
-#   --tags cleanup_build_stream → BuildStream-only cleanup. The wrapper shows a
-#                                 warning + 20s pause (GitLab will NOT be cleaned).
+#   --tags cleanup                 → GitLab cleanup FIRST (hosted OR external by
+#                                    gitlab_mode), then BuildStream cleanup. GitLab
+#                                    must finish before BuildStream deletes the
+#                                    credentials GitLab cleanup depends on. No pause.
+#   --tags cleanup_hosted_gitlab   → Hosted GitLab-only cleanup (remote gitlab_server).
+#                                    Runs only when gitlab_mode is hosted.
+#   --tags cleanup_external_gitlab → External GitLab-only cleanup (customer GitLab API).
+#                                    Runs only when gitlab_mode is external.
+#   --tags cleanup_build_stream    → BuildStream-only cleanup. The wrapper shows a
+#                                    warning + 20s pause (GitLab will NOT be cleaned).
 #
 # Import order matters: GitLab is imported before BuildStream so the combined
 # 'cleanup' tag always runs GitLab first. The pause lives inside
 # cleanup_build_stream.yml and is suppressed when the 'cleanup' tag is active.
 # =========================================================================
-- name: Cleanup GitLab deployment
-  ansible.builtin.import_playbook: cleanup/cleanup_gitlab.yml
+# GitLab cleanup is dispatched by gitlab_mode (read from build_stream_config.yml
+# by build_stream_setup into hostvars['localhost'].gitlab_mode). Only one of the
+# two runs:
+#   hosted   → cleanup_hosted_gitlab.yml   (remote GitLab CE host: packages,
+#              runner, tokens, certs, dirs, OAuth — everything Omnia installed)
+#   external → cleanup_external_gitlab.yml (customer GitLab over the API: the
+#              Omnia-created project and its resources only; never CE/runner/certs)
+# The combined 'cleanup' tag runs the matching GitLab cleanup FIRST, then
+# BuildStream (which deletes the credentials GitLab cleanup depends on).
+- name: Cleanup hosted GitLab deployment
+  ansible.builtin.import_playbook: cleanup/cleanup_hosted_gitlab.yml
+  when: hostvars['localhost']['gitlab_mode'] == 'hosted'
   tags:
     - never
     - cleanup
-    - cleanup_gitlab
+    - cleanup_hosted_gitlab
+
+- name: Cleanup external GitLab integration
+  ansible.builtin.import_playbook: cleanup/cleanup_external_gitlab.yml
+  when: hostvars['localhost']['gitlab_mode'] == 'external'
+  tags:
+    - never
+    - cleanup
+    - cleanup_external_gitlab
 
 - name: Cleanup BuildStream infrastructure
   ansible.builtin.import_playbook: cleanup/cleanup_build_stream.yml

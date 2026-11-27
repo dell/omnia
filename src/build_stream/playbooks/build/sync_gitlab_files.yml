@@ -59,6 +59,14 @@
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/build_stream_config.yml"
 
+    - name: Require an explicit GitLab mode
+      ansible.builtin.assert:
+        that:
+          - gitlab_mode | default('') in ['hosted', 'external']
+        fail_msg: >-
+          sync_gitlab_files.yml requires gitlab_mode to be explicitly set to
+          'hosted' or 'external' in build_stream_config.yml.
+
     # This playbook reaches the Omnia-installed GitLab over SSH. In external
     # mode there is no such host: the build_stream execute step pushes changed
     # CI templates and input files over the GitLab API (unchanged files are skipped).
@@ -68,7 +76,7 @@
           sync_gitlab_files.yml supports gitlab_mode: hosted only. For an external GitLab
           run: ansible-playbook build_stream.yml --tags execute
           (it pushes changed CI templates and input files through the GitLab API).
-      when: (gitlab_mode | default('hosted')) == 'external'
+      when: (gitlab_mode | default('')) == 'external'
 
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost

@@ -16,6 +16,26 @@
 # Removes only Omnia-owned resources. The project, customer variables and the
 # operator's runner are never touched. Each step tolerates API failures and the
 # summary reports every result.
+- name: Check whether external GitLab ownership state exists
+  ansible.builtin.stat:
+    path: "{{ hostvars['localhost']['output_project_dir'] }}/external_gitlab_journal.json"
+  register: _ecl_journal_stat
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Report that external GitLab cleanup is already complete
+  ansible.builtin.debug:
+    msg: >-
+      External GitLab setup journal is not present. There is no Omnia ownership
+      state to clean; external GitLab cleanup is already complete.
+  when: not _ecl_journal_stat.stat.exists
+  run_once: true
+
+- name: End external GitLab cleanup when the setup journal is absent
+  ansible.builtin.meta: end_role
+  when: not _ecl_journal_stat.stat.exists
+
 - name: Clean up the external GitLab integration
   delegate_to: localhost
   connection: local
@@ -30,8 +50,11 @@
         _ecl_results: []
         _ecl_resources: []
         _ecl_project_id: "{{ gitlab_project_id | default('') | string }}"
+        _ecl_branch: "{{ gitlab_default_branch | default('main') }}"
         _ecl_journal_reliable: false
         _ecl_journal_issue: ""
+        _ecl_project_created: false
+        _ecl_project_deleted: false
         _ecl_api_failures: 0
 
     - name: Read the setup journal
@@ -50,6 +73,12 @@
             _ecl_journal_reliable: true
             _ecl_resources: "{{ _ecl_journal.resources }}"
             _ecl_project_id: "{{ _ecl_journal.project_id | default(_ecl_project_id) | string }}"
+            # Omnia owns the project outright only when the journal proves it
+            # CREATED (not merely adopted) the project. An adopted project is a
+            # customer project and must never be deleted.
+            _ecl_project_created: >-
+              {{ (_ecl_journal.resources | selectattr('type', 'equalto', 'project')
+                  | selectattr('action', 'equalto', 'created') | list | length) > 0 }}
           when:
             - _ecl_journal is mapping
             - _ecl_journal.schema_version | default(0) == 1
@@ -90,87 +119,230 @@
             _ecl_variable_keys: >-
               {{ (_ecl_resources | selectattr('type', 'equalto', 'variable') | selectattr('action', 'equalto', 'created')
                   | map(attribute='key') | list + ['BSM_CLIENT_ID', 'BSM_CLIENT_SECRET']) if _ecl_journal_reliable else [] }}
+            _ecl_file_entries: >-
+              {%- set out = [] -%}
+              {%- if _ecl_journal_reliable -%}
+              {%- for p in (_ecl_resources | selectattr('type', 'equalto', 'file')
+                            | selectattr('action', 'equalto', 'created') | map(attribute='name') | list) -%}
+              {%- set _ = out.append({'path': p}) -%}
+              {%- endfor -%}
+              {%- endif -%}
+              {{ out }}
+            _ecl_protected_branches: >-
+              {{ (_ecl_resources | selectattr('type', 'equalto', 'branch_protection') | selectattr('action', 'equalto', 'created')
+                  | map(attribute='name') | list) if _ecl_journal_reliable else [] }}
           no_log: true
 
-        - name: Remove Omnia-owned CI/CD variables (customer variables are preserved)
-          ansible.builtin.uri:
-            url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/variables/{{ item }}"
-            method: DELETE
-            headers: "{{ _ecl_headers }}"
-            ca_path: "{{ _ecl_ca | default(omit, true) }}"
-            validate_certs: true
-            status_code: [200, 204, 404]
-          register: _ecl_var_results
-          failed_when: false
-          loop: "{{ _ecl_variable_keys }}"
-          no_log: true
-
-        - name: List active project access tokens
-          ansible.builtin.uri:
-            url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/access_tokens?state=active&per_page=100"
-            method: GET
-            headers: "{{ _ecl_headers }}"
-            ca_path: "{{ _ecl_ca | default(omit, true) }}"
-            validate_certs: true
-            status_code: [200]
-          register: _ecl_tokens
-          failed_when: false
-          no_log: true
-
-        - name: Revoke the omnia-ci project access token(s)
-          ansible.builtin.uri:
-            url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/access_tokens/{{ item }}"
-            method: DELETE
-            headers: "{{ _ecl_headers }}"
-            ca_path: "{{ _ecl_ca | default(omit, true) }}"
-            validate_certs: true
-            status_code: [204, 404]
-          register: _ecl_token_results
-          failed_when: false
-          loop: "{{ (_ecl_tokens.json | default([]) | selectattr('name', 'equalto', 'omnia-ci') | map(attribute='id') | list) }}"
-          no_log: true
-
-        - name: List pipeline triggers
-          ansible.builtin.uri:
-            url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/triggers"
-            method: GET
-            headers: "{{ _ecl_headers }}"
-            ca_path: "{{ _ecl_ca | default(omit, true) }}"
-            validate_certs: true
-            status_code: [200]
-          register: _ecl_triggers
-          failed_when: false
-          no_log: true
-
-        - name: Delete the Omnia pipeline trigger (unless it pre-existed Omnia)
-          ansible.builtin.uri:
-            url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/triggers/{{ item }}"
-            method: DELETE
-            headers: "{{ _ecl_headers }}"
-            ca_path: "{{ _ecl_ca | default(omit, true) }}"
-            validate_certs: true
-            status_code: [200, 204, 404]
-          register: _ecl_trigger_results
-          failed_when: false
-          loop: >-
-            {{ _ecl_triggers.json | default([]) | selectattr('description', 'equalto', 'Omnia Software Catalog Webhook')
-               | map(attribute='id') | reject('in', _ecl_resources | selectattr('type', 'equalto', 'trigger')
-               | selectattr('action', 'equalto', 'adopted') | map(attribute='id') | map('int') | list) | list }}
-          no_log: true
-
-        - name: Record the API cleanup results
+        # The project itself may be deleted ONLY when a reliable setup journal
+        # records that Omnia CREATED it. The ownership marker is not proof of
+        # creation: Omnia also adopts customer projects that already carry it, so
+        # an adopted project, or any project when the journal is missing or
+        # corrupt, is preserved and only journal-proven resources are removed.
+        - name: Decide whether the project itself may be deleted
           ansible.builtin.set_fact:
-            _ecl_api_failures: >-
-              {{ (_ecl_var_results.results | default([]) | rejectattr('status', 'in', [200, 204, 404]) | list | length)
-                 + (_ecl_token_results.results | default([]) | rejectattr('status', 'in', [204, 404]) | list | length)
-                 + (_ecl_trigger_results.results | default([]) | rejectattr('status', 'in', [200, 204, 404]) | list | length)
-                 + (0 if _ecl_tokens.status | default(0) == 200 else 1)
-                 + (0 if _ecl_triggers.status | default(0) == 200 else 1) }}
-            _ecl_results: >-
-              {{ _ecl_results
-                 + ['variables removed: ' ~ (_ecl_var_results.results | default([]) | selectattr('status', 'in', [200, 204]) | list | length)]
-                 + ['access tokens revoked: ' ~ (_ecl_token_results.results | default([]) | selectattr('status', 'equalto', 204) | list | length)]
-                 + ['triggers deleted: ' ~ (_ecl_trigger_results.results | default([]) | selectattr('status', 'in', [200, 204]) | list | length)] }}
+            _ecl_delete_project: "{{ (_ecl_journal_reliable | bool) and (_ecl_project_created | bool) }}"
+
+        # ── Case A: the project is Omnia-owned → delete it outright ─────────
+        # Deleting the project removes, in one call, every file Omnia pushed
+        # (CI templates, input files, omnia.env, sample catalogs), the Omnia
+        # CI/CD variables, the omnia-ci access token, the pipeline trigger and
+        # the branch protection. The pre-existing group/namespace is untouched.
+        - name: Delete the Omnia BuildStream project
+          when: _ecl_delete_project | bool
+          block:
+            - name: Delete the project through the GitLab API
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}"
+                method: DELETE
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200, 202, 204, 404]
+              register: _ecl_project_delete
+              failed_when: false
+              no_log: true
+
+            - name: Look up the project after the deletion request
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}"
+                method: GET
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200, 404]
+              register: _ecl_project_scheduled
+              failed_when: false
+              when: (_ecl_project_delete.status | default(0)) in [200, 202, 204]
+              no_log: true
+
+            - name: Permanently delete the scheduled project
+              ansible.builtin.uri:
+                url: >-
+                  {{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}?permanently_remove=true&full_path={{
+                  _ecl_project_scheduled.json.path_with_namespace | urlencode }}
+                method: DELETE
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200, 202, 204, 404]
+              register: _ecl_project_permanent_delete
+              failed_when: false
+              when:
+                - (_ecl_project_scheduled.status | default(0)) == 200
+                - _ecl_project_scheduled.json.marked_for_deletion_on | default(
+                    _ecl_project_scheduled.json.marked_for_deletion_at | default(''), true) | length > 0
+                - _ecl_project_scheduled.json.path_with_namespace | default('') | length > 0
+              no_log: true
+
+            - name: Wait for the project to be permanently removed
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}"
+                method: GET
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200, 404]
+              register: _ecl_project_absent
+              failed_when: false
+              until: (_ecl_project_absent.status | default(0)) == 404
+              retries: 10
+              delay: 2
+              when: (_ecl_project_delete.status | default(0)) in [200, 202, 204]
+              no_log: true
+
+            - name: Record the project deletion result
+              ansible.builtin.set_fact:
+                _ecl_project_deleted: >-
+                  {{ (_ecl_project_delete.status | default(0)) == 404
+                     or (_ecl_project_absent.status | default(0)) == 404 }}
+                _ecl_results: >-
+                  {{ _ecl_results + ['project permanently deleted (with its files, variables, token and trigger): '
+                     ~ ('yes' if ((_ecl_project_delete.status | default(0)) == 404
+                                  or (_ecl_project_absent.status | default(0)) == 404)
+                        else 'no; falling back to Omnia resource cleanup (HTTP '
+                             ~ (_ecl_project_delete.status | default(0) | string) ~ ')')] }}
+
+        # ── Case B: not Omnia-owned (adopted / ownership unproven) → surgical ─
+        # The project is NOT deleted (it is a customer project, or ownership
+        # could not be proven). Only the resources Omnia created inside it are
+        # removed, one by one.
+        - name: Remove only the Omnia-owned resources from the project
+          when: not (_ecl_project_deleted | bool)
+          block:
+            - name: Remove Omnia-owned CI/CD variables (customer variables are preserved)
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/variables/{{ item }}"
+                method: DELETE
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200, 204, 404]
+              register: _ecl_var_results
+              failed_when: false
+              loop: "{{ _ecl_variable_keys }}"
+              no_log: true
+
+            - name: List active project access tokens
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/access_tokens?state=active&per_page=100"
+                method: GET
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200]
+              register: _ecl_tokens
+              failed_when: false
+              no_log: true
+
+            - name: Revoke the omnia-ci project access token(s)
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/access_tokens/{{ item }}"
+                method: DELETE
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [204, 404]
+              register: _ecl_token_results
+              failed_when: false
+              loop: "{{ (_ecl_tokens.json | default([]) | selectattr('name', 'equalto', 'omnia-ci') | map(attribute='id') | list) }}"
+              no_log: true
+
+            - name: List pipeline triggers
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/triggers"
+                method: GET
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200]
+              register: _ecl_triggers
+              failed_when: false
+              no_log: true
+
+            - name: Delete the Omnia pipeline trigger (unless it pre-existed Omnia)
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/triggers/{{ item }}"
+                method: DELETE
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [200, 204, 404]
+              register: _ecl_trigger_results
+              failed_when: false
+              loop: >-
+                {{ _ecl_triggers.json | default([]) | selectattr('description', 'equalto', 'Omnia Software Catalog Webhook')
+                   | map(attribute='id') | reject('in', _ecl_resources | selectattr('type', 'equalto', 'trigger')
+                   | selectattr('action', 'equalto', 'adopted') | map(attribute='id') | map('int') | list) | list }}
+              no_log: true
+
+            # Remove the CI templates, input files, omnia.env and sample
+            # catalogs Omnia pushed (one delete commit). Only files the journal
+            # proves Omnia created are removed; customer files are preserved.
+            - name: Remove the files Omnia pushed to the adopted project
+              gitlab_repo_sync:
+                url: "{{ _ecl_url }}"
+                token: "{{ gitlab_api_token }}"
+                project_id: "{{ _ecl_project_id }}"
+                branch: "{{ _ecl_branch }}"
+                ca_cert_path: "{{ _ecl_ca }}"
+                commit_message: "Remove Omnia BuildStream files on cleanup"
+                state: absent
+                files: "{{ _ecl_file_entries }}"
+              register: _ecl_file_delete
+              failed_when: false
+              when: _ecl_file_entries | length > 0
+              no_log: true
+
+            - name: Remove the default-branch protection Omnia created
+              ansible.builtin.uri:
+                url: "{{ _ecl_url }}/api/v4/projects/{{ _ecl_project_id }}/protected_branches/{{ item | urlencode }}"
+                method: DELETE
+                headers: "{{ _ecl_headers }}"
+                ca_path: "{{ _ecl_ca | default(omit, true) }}"
+                validate_certs: true
+                status_code: [204, 404]
+              register: _ecl_branch_results
+              failed_when: false
+              loop: "{{ _ecl_protected_branches }}"
+              no_log: true
+
+            - name: Record the API cleanup results
+              ansible.builtin.set_fact:
+                _ecl_api_failures: >-
+                  {{ (_ecl_var_results.results | default([]) | rejectattr('status', 'in', [200, 204, 404]) | list | length)
+                     + (_ecl_token_results.results | default([]) | rejectattr('status', 'in', [204, 404]) | list | length)
+                     + (_ecl_trigger_results.results | default([]) | rejectattr('status', 'in', [200, 204, 404]) | list | length)
+                     + (_ecl_branch_results.results | default([]) | rejectattr('status', 'in', [204, 404]) | list | length)
+                     + (0 if _ecl_tokens.status | default(0) == 200 else 1)
+                     + (0 if _ecl_triggers.status | default(0) == 200 else 1)
+                     + (1 if (_ecl_file_delete.failed | default(false)) else 0) }}
+                _ecl_results: >-
+                  {{ _ecl_results
+                     + ['variables removed: ' ~ (_ecl_var_results.results | default([]) | selectattr('status', 'in', [200, 204]) | list | length)]
+                     + ['access tokens revoked: ' ~ (_ecl_token_results.results | default([]) | selectattr('status', 'equalto', 204) | list | length)]
+                     + ['triggers deleted: ' ~ (_ecl_trigger_results.results | default([]) | selectattr('status', 'in', [200, 204]) | list | length)]
+                     + ['files removed: ' ~ (_ecl_file_delete.deleted | default([]) | length)]
+                     + ['branch protections removed: ' ~ (_ecl_branch_results.results | default([]) | selectattr('status', 'equalto', 204) | list | length)] }}
 
         - name: Warn about remote resources that could not be cleaned up
           ansible.builtin.debug:
@@ -188,7 +360,9 @@
 
     - name: Decide whether the local ownership evidence can be removed
       ansible.builtin.set_fact:
-        _ecl_remote_clean: "{{ _ecl_journal_reliable and (_ecl_results | length > 0) and (_ecl_api_failures | int == 0) }}"
+        _ecl_remote_clean: >-
+          {{ ((_ecl_project_deleted | bool) or (_ecl_journal_reliable | bool))
+             and (_ecl_results | length > 0) and (_ecl_api_failures | int == 0) }}
 
     - name: Keep the local ownership evidence until remote cleanup has fully succeeded
       ansible.builtin.debug:
@@ -215,7 +389,12 @@
     - name: Display the external GitLab cleanup summary
       ansible.builtin.debug:
         msg:
-          - "External GitLab cleanup finished for {{ _ecl_url | default('n/a', true) }} (project NOT deleted)."
-          - "Runner: operator-managed, nothing to unregister."
+          - "External GitLab cleanup finished for {{ _ecl_url | default('n/a', true) }}."
+          - >-
+            Project: {{ 'PERMANENTLY DELETED (Omnia-owned catalog project)' if _ecl_project_deleted | default(false) | bool
+            else ('PRESERVED (delete unavailable; Omnia resources removed)' if _ecl_delete_project | default(false) | bool
+                  else 'PRESERVED (customer-owned; only Omnia resources removed)') }}.
+          - "Group/namespace: PRESERVED (operator prerequisite)."
+          - "GitLab CE / runner / tokens / certs: not applicable in external mode (never touched)."
           - "{{ _ecl_results | default([]) }}"
           - "Remote cleanup complete: {{ _ecl_remote_clean | bool }}"
