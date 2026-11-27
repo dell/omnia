@@ -64,7 +64,7 @@ on the OIM.
 
 The script will:
 - ✅ Create the GitLab project
-- ✅ Upload pipeline files (`.gitlab-ci.yml`, `.gitlab-ci-cluster.yml`, `pipeline_ci.py`, `library/`)
+- ✅ Upload pipeline files (the generated `.gitlab-ci*.yml` files, `pipeline_triggers.py` and `pipeline_config.yml`; `pipeline_ci.py` and `library/` are not uploaded: the jobs take them from the Omnia clone on the OIM)
 - ✅ Upload input file templates
 - ✅ Create CI/CD variables from your config
 
