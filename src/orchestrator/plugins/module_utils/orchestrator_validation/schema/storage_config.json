@@ -421,12 +421,50 @@
         },
         "disk_identity": {
           "$ref": "#/definitions/diskIdentity"
+        },
+        "enabled": {
+          "type": "boolean"
         }
       },
       "required": [
-        "node",
-        "disk_id"
+        "node"
       ],
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": false
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "disk_id"
+              ]
+            },
+            {
+              "required": [
+                "disk_type"
+              ]
+            },
+            {
+              "required": [
+                "disk_identity"
+              ]
+            }
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "disk_id"
+        ]
+      },
       "additionalProperties": false
     },
     "localStorage": {

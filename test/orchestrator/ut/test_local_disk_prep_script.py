@@ -640,3 +640,57 @@ def test_label_step_applies_to_kafka_only(cluster):
 
     assert result.returncode == 2
     assert cluster.api_calls() == []
+
+
+def _write_disabled_map(node: Sandbox, purpose: str = "kafka") -> None:
+    entry = "kafka_disk" if purpose == "kafka" else "etcd_disk"
+    row = {"node": NODE, "entry": entry, "purpose": purpose, "disk_id": "",
+           "disk_identity": "serial", "disk_type": "nvme", "model": None, "enabled": False}
+    node.map_file.write_text(json.dumps({"checksum": "x", "rows": [row]}), encoding="utf-8")
+
+
+@pytest.mark.parametrize("reboot", [False, True], ids=["fresh", "reboot"])
+def test_disabled_kafka_row_changes_no_disk_and_reports_disabled(node, reboot):
+    """ORCH_UT_475: A row with enabled false exits 0, writes status disabled and runs no disk command."""
+    node.set_disks(NVME_1)
+    (node.root / "pvvg").write_text("omnia-kafka-vg\n", encoding="utf-8")
+    _write_disabled_map(node)
+
+    result = node.run(*node.args("kafka"), reboot=reboot)
+
+    assert result.returncode == 0, result.stdout
+    assert "DONE (disabled)" in result.stdout
+    assert node.calls() == []
+    assert node.status()["result"] == "disabled"
+    assert "ERROR" not in result.stdout
+
+
+def test_disabled_etcd_row_fails_closed(node):
+    """ORCH_UT_476: A disabled row for etcd is refused; etcd must have its disk."""
+    node.set_disks(BOSS)
+    _write_disabled_map(node, purpose="etcd")
+
+    _failed(node, node.run(*node.args("etcd")), "is disabled, which is allowed only for purpose kafka")
+
+
+def test_enabled_true_row_is_prepared_normally(node):
+    """ORCH_UT_477: A row with enabled true (or no enabled key) is prepared as before."""
+    node.set_disks(NVME_1)
+    row = {"node": NODE, "entry": "kafka_disk", "purpose": "kafka", "disk_id": "",
+           "disk_identity": "serial", "disk_type": "nvme", "model": None, "enabled": True}
+    node.map_file.write_text(json.dumps({"checksum": "x", "rows": [row]}), encoding="utf-8")
+
+    result = node.run(*node.args("kafka"))
+
+    assert result.returncode == 0, result.stdout
+    assert "vgcreate omnia-kafka-vg /dev/nvme0n1" in node.calls()
+    assert node.status()["result"] == "ok"
+
+
+def test_label_is_removed_when_the_status_is_disabled(cluster):
+    """ORCH_UT_478: A disabled node never carries the Kafka label."""
+    cluster.set_labels({LABEL_KEY: "true"})
+    cluster.status("disabled")
+
+    assert cluster.run().returncode == 0
+    assert cluster.label() == "absent"

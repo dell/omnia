@@ -315,6 +315,11 @@ mount_params:
 #   - model:         Disk model string, or null
 #   - node_overrides: Per-node disk selection. Each item: node, disk_id (serial or WWN),
 #                     and optionally disk_type and disk_identity. node must be in the group
+#                     kafka only: a node without the disk is declared with enabled: false and
+#                     no disk fields. node may then be one IP or a "start_ip-end_ip" range
+#                     (at most 256 addresses). The node joins Kubernetes, reports status
+#                     "disabled", changes no disk and never gets the Kafka label.
+#                     A node may be covered by only one node_overrides item.
 #
 # Purpose-specific fields:
 #   - etcd: fs_type (required). Filesystem created on the disk
@@ -337,3 +342,8 @@ mount_params:
 #     disk_identity: "serial"
 #     volume_group: "omnia-kafka-vg"
 #     mount_options: "noatime,nodiratime"
+#     node_overrides:
+#       - node: "10.60.0.104"
+#         disk_id: "S4EVNX0R901234"
+#       - node: "10.60.0.106-10.60.0.120"   # workers without a Kafka disk
+#         enabled: false

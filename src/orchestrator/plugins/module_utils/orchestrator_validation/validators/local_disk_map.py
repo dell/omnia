@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import glob
 import hashlib
+import ipaddress
 import json
 import os
 from datetime import datetime, timezone
@@ -28,6 +29,60 @@ MAP_FILE_NAME = "disk-map.approved.json"
 STATUS_FILE_PATTERN = "status-*.json"
 NFS_MOUNT_NAME = "nfs_k8s"
 MAP_SUBDIRECTORY = "kafka_disk_mapping"
+MAX_RANGE_SIZE = 256
+
+
+def is_disabled(override: Any) -> bool:
+    """Return True for a node_overrides entry that sets ``enabled: false``."""
+    return isinstance(override, dict) and override.get("enabled") is False
+
+
+def parse_node_range(value: str) -> tuple[int, int] | None:
+    """Parse a ``start_ip-end_ip`` node_overrides value.
+
+    Args:
+        value: The node_overrides ``node`` value.
+
+    Returns:
+        ``(start, end)`` as integers for a range, or None when the value names
+        one node (contains no ``-``).
+
+    Raises:
+        ValueError: When the value contains ``-`` but is not a valid IPv4 range
+            of at most MAX_RANGE_SIZE addresses with start <= end.
+    """
+    if "-" not in value:
+        return None
+    start_text, _, end_text = value.partition("-")
+    try:
+        start = ipaddress.IPv4Address(start_text.strip())
+        end = ipaddress.IPv4Address(end_text.strip())
+    except ipaddress.AddressValueError as exc:
+        raise ValueError("start and end must be IPv4 addresses") from exc
+    if int(start) > int(end):
+        raise ValueError("start is after end")
+    if int(end) - int(start) + 1 > MAX_RANGE_SIZE:
+        raise ValueError(f"more than {MAX_RANGE_SIZE} addresses")
+    return int(start), int(end)
+
+
+def override_covers(override: dict[str, Any], node: str) -> bool:
+    """Return True when a node_overrides entry (one IP or a range) covers node.
+
+    A malformed range covers no node; the validator reports it.
+    """
+    value = str(override.get("node", ""))
+    try:
+        bounds = parse_node_range(value)
+    except ValueError:
+        return False
+    if bounds is None:
+        return value == node
+    try:
+        address = int(ipaddress.IPv4Address(node))
+    except ipaddress.AddressValueError:
+        return False
+    return bounds[0] <= address <= bounds[1]
 
 
 def resolve_map_dir(storage_data: dict[str, Any]) -> str:
@@ -75,6 +130,11 @@ def build_map_rows(
     node fills it at cloud-init time by matching the selector against its actual
     disks.
 
+    A node covered by a node_overrides entry with ``enabled: false`` (one IP or
+    a ``start_ip-end_ip`` range) gets a row with ``"enabled": false``; its
+    cloud-init reports status ``disabled`` and changes no disk. Ranges are
+    expanded here so each node still reads one concrete row.
+
     The map carries no row state. Each node reports the result in its own status
     file (FR-2.7).
 
@@ -108,10 +168,15 @@ def build_map_rows(
                 if grp.startswith(prefix):
                     entry_groups.add(grp)
 
-        # Build an override index keyed by node name
+        # Build an override index keyed by node name; disabled entries may be ranges
         override_index: dict[str, dict[str, Any]] = {}
+        disabled_overrides: list[dict[str, Any]] = []
         for override in entry.get("node_overrides", []):
-            if isinstance(override, dict) and override.get("node"):
+            if not isinstance(override, dict) or not override.get("node"):
+                continue
+            if is_disabled(override):
+                disabled_overrides.append(override)
+            else:
                 override_index[str(override["node"])] = override
 
         # Nodes that belong to this entry's groups
@@ -122,6 +187,18 @@ def build_map_rows(
         ]
 
         for node in sorted(entry_nodes):
+            if any(override_covers(item, node) for item in disabled_overrides):
+                rows.append({
+                    "node": node,
+                    "entry": name,
+                    "purpose": purpose,
+                    "disk_id": "",
+                    "disk_identity": disk_identity,
+                    "disk_type": disk_type,
+                    "model": model,
+                    "enabled": False,
+                })
+                continue
             override = override_index.get(node)
             if override:
                 row_disk_id = str(override.get("disk_id", ""))
@@ -226,7 +303,7 @@ def write_node_status(
         node: Node writing its own status.
         entry: local_storage entry name.
         purpose: Entry purpose, ``etcd`` or ``kafka``.
-        result: ``ok`` or ``failed``.
+        result: ``ok``, ``failed`` or ``disabled``.
         reason: Reason text, empty on success.
         action: Next operator action, empty on success.
 

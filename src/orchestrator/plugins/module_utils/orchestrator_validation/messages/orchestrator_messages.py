@@ -1151,6 +1151,48 @@ def local_storage_node_duplicate_msg(node: str, entries: list[str], purpose: str
     )
 
 
+def local_storage_disabled_etcd_msg(entry: str, node: str) -> str:
+    """Return a node_overrides 'enabled: false' used on an etcd entry."""
+    return (
+        f"storage_config.yml: node_overrides '{node}' in '{entry}' sets enabled: false, "
+        "which is allowed only for purpose 'kafka'; a control-plane node declared for "
+        "etcd must have its etcd disk."
+    )
+
+
+def local_storage_range_not_disabled_msg(entry: str, node: str) -> str:
+    """Return an IP range used in a node_overrides entry that is not enabled: false."""
+    return (
+        f"storage_config.yml: node_overrides '{node}' in '{entry}' is an IP range; "
+        "ranges are allowed only with enabled: false. Name each disk_id override by "
+        "its node IP."
+    )
+
+
+def local_storage_bad_range_msg(entry: str, node: str, reason: str) -> str:
+    """Return a malformed node_overrides IP range."""
+    return (
+        f"storage_config.yml: node_overrides '{node}' in '{entry}' is not a valid IP "
+        f"range ({reason}). Use 'start_ip-end_ip', for example '10.60.0.106-10.60.0.120'."
+    )
+
+
+def local_storage_range_no_match_msg(entry: str, node: str, prefixes: list[str]) -> str:
+    """Return a node_overrides IP range that covers no mapped node of the entry's group."""
+    return (
+        f"storage_config.yml: node_overrides '{node}' in '{entry}' matches no node "
+        f"of group '{', '.join(prefixes)}' in the PXE mapping file."
+    )
+
+
+def local_storage_override_conflict_msg(entry: str, node: str, overrides: list[str]) -> str:
+    """Return a node that more than one node_overrides entry covers."""
+    return (
+        f"storage_config.yml: node '{node}' in '{entry}' is covered by more than one "
+        f"node_overrides entry ({', '.join(overrides)}); each node may have one override."
+    )
+
+
 def local_storage_entry_suffix_msg(name: str) -> str:
     """Return the suffix that names the local_storage entry a schema error belongs to."""
     return f"(local_storage entry '{name}')"

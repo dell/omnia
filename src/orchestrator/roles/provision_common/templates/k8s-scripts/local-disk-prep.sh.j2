@@ -230,6 +230,18 @@ ROW_TYPE=$(row disk_type); ROW_MODEL=$(row model); ROW_PURPOSE=$(row purpose)
 [ "$ROW_PURPOSE" = "$PURPOSE" ] \
     || fail "map row for '$ENTRY' has purpose '$ROW_PURPOSE', expected '$PURPOSE'; no disk changed." \
             "Rewrite the map from the OIM."
+# node_overrides enabled: false — the operator declared this node without the disk.
+# No disk is read or changed; status 'disabled' keeps the Kafka label off the node.
+ROW_ENABLED=$(jq -r 'if .[0].enabled == false then "false" else "true" end' <<<"$ROWS")
+if [ "$ROW_ENABLED" = "false" ]; then
+    [ "$PURPOSE" = "kafka" ] \
+        || fail "map row for '$ENTRY' is disabled, which is allowed only for purpose kafka; no disk changed." \
+                "Remove enabled: false from the etcd node_overrides and rewrite the map."
+    write_status disabled "local storage disabled for this node (node_overrides enabled: false)" ""
+    echo "$(ts) [OK] node=$NODE entry=$ENTRY: disabled by node_overrides; no disk read or changed."
+    echo "$(ts) [OK] ===== DONE (disabled) ====="
+    exit 0
+fi
 [ -z "$ROW_IDENTITY" ] || DISK_IDENTITY="$ROW_IDENTITY"
 [ -z "$ROW_TYPE" ] || DISK_TYPE="$ROW_TYPE"
 [ -z "$ROW_MODEL" ] || MODEL="$ROW_MODEL"
