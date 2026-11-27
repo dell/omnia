@@ -29,6 +29,13 @@
 #           verification. disable.yml only scales existing K8s resources
 #           to zero, so it needs none of the above.
 #   Play 2 (compute nodes): Configure LDMS sampler in parallel (enable only).
+#   Play 3 (kube_vip): Record nodes whose sampler could not be configured as
+#           skipped LDMS nodes (reported in telemetry_status.yml) instead of
+#           failing the run (enable only).
+#
+# Slurm node problems never fail the run: unhealthy or unreachable nodes are
+# skipped and reported, and LDMS is only skipped as a whole when no Slurm
+# control node can provide the munge key.
 #
 # VictoriaMetrics/VictoriaLogs are not deployed here: LDMS never lists them
 # as a direct collection target, so they are deployed centrally in the
@@ -112,3 +119,18 @@
         name: deploy_ldms
         tasks_from: configure_ldms_sampler_node
       when: hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled'] | default(false) | bool
+
+# =============================================================================
+# Play 3: Record LDMS Sampler Results (enable only)
+# =============================================================================
+- name: Record LDMS Sampler Results
+  hosts: kube_vip_group
+  gather_facts: false
+  tasks:
+    - name: Record nodes whose LDMS sampler could not be configured
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: record_sampler_results
+      when:
+        - ldms_metrics_enabled | default(false) | bool
+        - groups['ldms_deploy_reachable'] | default([]) | length > 0

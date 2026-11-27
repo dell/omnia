@@ -112,46 +112,41 @@ ldms_error_messages:
                 ansible_host: 172.10.0.22
     ════════════════════════════════════════════════════════════════════════
 
-  slurmctld_not_running: |
-    ════════════════════════════════════════════════════════════════════════
-    LDMS VALIDATION FAILED: slurmctld not running on control node
-    ════════════════════════════════════════════════════════════════════════
-    Node: {{ node_name }} ({{ node_ip }})
-    Service: slurmctld
-    Status: {{ service_status }}
+# Per-node Slurm findings are non-fatal: the node is skipped for LDMS, a
+# warning is shown, and the run pauses for the same duration as the iDRAC
+# invalid-BMC warning (deploy_idrac_telemetry waiting_time_30).
+ldms_warning_pause_seconds: 30
 
-    LDMS requires slurmctld to be running on all Slurm control nodes.
-
-    Action required:
-      1. Start slurmctld service:
-         systemctl start slurmctld
-      2. Enable slurmctld to start on boot:
-         systemctl enable slurmctld
-      3. Verify service status:
-         systemctl status slurmctld
+ldms_warning_messages:
+  precheck_nodes_skipped: |
     ════════════════════════════════════════════════════════════════════════
-
-  slurmd_not_running: |
+    [WARNING] LDMS will skip {{ skipped_nodes | map(attribute='node') | unique | list | length }} Slurm node(s)
     ════════════════════════════════════════════════════════════════════════
-    LDMS VALIDATION FAILED: slurmd not running on compute nodes
-    ════════════════════════════════════════════════════════════════════════
-    LDMS requires slurmd to be running on all Slurm compute nodes.
-
-    Failed nodes ({{ failed_count }}/{{ total_count }}):
-    {% for node in failed_nodes %}
-      - {{ node.key }} ({{ node.value.ansible_host }})
+    The following Slurm node(s) failed LDMS prerequisite checks:
+    {% for entry in skipped_nodes %}
+      - {{ entry.node }} ({{ entry.ip }}): {{ entry.reason }} — {{ entry.detail }}
     {% endfor %}
 
-    Action required for each failed node:
-      1. Start slurmd service:
-         systemctl start slurmd
-      2. Enable slurmd to start on boot:
-         systemctl enable slurmd
-      3. Verify service status:
-         systemctl status slurmd
-      4. Check Slurm configuration:
-         scontrol show node <nodename>
+    The LDMS sampler will not be deployed on these node(s) in this run.
+    LDMS continues on all healthy Slurm nodes, and all other telemetry
+    sources and sinks are deployed normally.
+    {% if usable_control_nodes | length == 0 %}
+
+    No Slurm control node is reachable, so the munge key required by the
+    LDMS aggregator cannot be read. LDMS (aggregator, store and Vector-LDMS
+    bridge) will be skipped in this run.
+    {% endif %}
+
+    Action required:
+      - ssh_unreachable    : verify power, network, SSH service and port 22 access
+      - slurmd_inactive    : systemctl enable --now slurmd; scontrol show node <node>
+      - slurmctld_inactive : systemctl enable --now slurmctld
+    After fixing, re-run telemetry.yml; the node(s) are added to LDMS automatically.
     ════════════════════════════════════════════════════════════════════════
+
+  pause_prompt: |
+    [WARNING] Some Slurm nodes failed LDMS prerequisite checks. Kindly address the issues mentioned above and re-execute telemetry.yml.
+    LDMS telemetry won't be enabled on these nodes in this run; all other telemetry deployment continues.
 
 ldms_success_messages:
   inventory_summary: |

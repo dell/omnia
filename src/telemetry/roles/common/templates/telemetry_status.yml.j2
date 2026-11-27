@@ -102,6 +102,11 @@ bridges:
 {% if _status_type | default('deploy') == 'deploy' %}
 deploy_unreachable_nodes:
   ldms: {{ _deploy_unreachable_nodes.ldms | default([]) | to_json }}
+
+deploy_skipped_nodes:
+  ldms: {{ (_deploy_skipped_node_details | default({})).ldms | default([]) | to_json }}
+
+deploy_warnings: {{ _deploy_warnings | default([]) | to_json }}
 {% endif %}
 
 {% if _status_type | default('deploy') == 'cleanup' %}

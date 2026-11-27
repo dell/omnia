@@ -40,6 +40,33 @@
           ((_deploy_unreachable_nodes | default({})).ldms | default([]))
           | unique | sort
         }}
+    _deploy_skipped_node_details:
+      ldms: >-
+        {{
+          ((_deploy_skipped_node_details | default({})).ldms | default([]))
+          | unique | sort(attribute='node')
+        }}
+    _ldms_deploy_skip_reason: "{{ _ldms_deploy_skip_reason | default('') | trim }}"
+
+# Non-fatal warnings: the affected LDMS nodes (or LDMS as a whole, when no
+# Slurm control node can provide the munge key) were skipped on purpose and
+# all other components were still deployed.
+- name: Build deployment warnings
+  ansible.builtin.set_fact:
+    _deploy_warnings: >-
+      {{
+        (
+          ['LDMS skipped: ' ~ _ldms_deploy_skip_reason]
+          if (_ldms_deploy_skip_reason | length) > 0 else []
+        )
+        + (
+          ['LDMS sampler skipped on ' ~ (_deploy_unreachable_nodes.ldms | length)
+           ~ ' Slurm node(s); fix them and re-run telemetry.yml to add them to LDMS']
+          if (_deploy_unreachable_nodes.ldms | length) > 0
+             and (_ldms_deploy_skip_reason | length) == 0
+          else []
+        )
+      }}
 
 # -- Aggregate deployment results from Phase 4 hostvars ----------------------
 - name: Aggregate sink deployment results
@@ -134,6 +161,19 @@
           else 'none'
         }}
       - "======================================================"
+
+- name: Display LDMS skipped node details
+  ansible.builtin.debug:
+    msg: "{{ _ldms_skip_lines }}"
+  vars:
+    _ldms_skip_lines: >-
+      {%- set lines = ['WARNING (non-fatal): ' ~ (_deploy_warnings | join('; '))] -%}
+      {%- for entry in _deploy_skipped_node_details.ldms -%}
+      {%- set _ = lines.append('  - ' ~ entry.node ~ ' (' ~ (entry.ip | default(entry.node)) ~ '): '
+            ~ (entry.reason | default('unknown')) ~ ' — ' ~ (entry.detail | default(''))) -%}
+      {%- endfor -%}
+      {{ lines }}
+  when: _deploy_warnings | length > 0
 
 - name: Fail playbook if deployment has failures
   ansible.builtin.fail:

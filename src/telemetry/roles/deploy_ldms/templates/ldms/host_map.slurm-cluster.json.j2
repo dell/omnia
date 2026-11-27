@@ -1,7 +1,10 @@
 [
 {# Build the aggregator map from the same deduplicated, reachable inventory used
-   by sampler deployment. Group membership is retained only for LDMS subroles. #}
-{% set deploy_hosts = (_ldms_deploy_reachable_hosts | default([])) | unique | sort %}
+   by sampler deployment. Group membership is retained only for LDMS subroles.
+   When no sampler node is deployable, _ldms_host_map_hosts falls back to all
+   LDMS inventory nodes so the aggregator still gets a valid configuration
+   (see build_deployment_inventory.yml). #}
+{% set deploy_hosts = (_ldms_host_map_hosts | default(_ldms_deploy_reachable_hosts | default([]))) | unique | sort %}
 {% for host_name in deploy_hosts %}
 {% if host_name in (groups['slurm_control_node'] | default([])) %}
 {% set ldms_subrole = 'Control' %}

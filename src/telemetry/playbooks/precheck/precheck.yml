@@ -52,6 +52,9 @@
 #          - slurmctld running on all slurm_control_node hosts
 #          - slurmd running on all slurm_node hosts
 #          — only when ldms.metrics_enabled = true
+#          Per-node reachability/service failures are warnings, not errors:
+#          the node is skipped for LDMS (reported in telemetry_status.yml)
+#          and all other telemetry deployment continues.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -144,6 +147,9 @@
           {{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled
           | default(false) | bool }}
         _ps_enabled: "{{ _ps_metrics_enabled or _ps_logs_enabled }}"
+        _ldms_skipped_count: >-
+          {{ hostvars['localhost']['ldms_precheck_skipped_nodes'] | default([])
+          | map(attribute='node') | unique | list | length }}
       ansible.builtin.debug:
         msg:
           - "════════════════════════════════════════════════════════════"
@@ -155,5 +161,6 @@
           - "  Pod health       : ✓  All pods Running/Succeeded"
           - "{% if _ps_enabled %}  PowerScale       : ⊘ Privilege check skipped (SSH not available){% endif %}"
           - "{% if _ps_enabled %}WARNING: Ensure PowerScale user has required privileges{% endif %}"
+          - "{% if _ldms_skipped_count | int > 0 %}  LDMS Slurm nodes : ⚠  {{ _ldms_skipped_count }} node(s) will be skipped (see warning above){% endif %}"
           - "  Cluster is ready for telemetry deployment."
           - "════════════════════════════════════════════════════════════"

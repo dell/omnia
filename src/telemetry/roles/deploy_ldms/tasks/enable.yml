@@ -70,7 +70,10 @@
 # Wrapped in block/always to guarantee the secure munge key temp file is
 # removed even if a downstream task fails (CWE-377 remediation).
 
+# Skipped (with a warning already shown by build_deployment_inventory.yml)
+# only when no Slurm control node can provide the munge key.
 - name: Deploy LDMS aggregator with secure munge key handling
+  when: not (_ldms_deploy_skip | default(false) | bool)
   block:
     # ---- Aggregator authentication (delegate to Slurm control node) ----
 

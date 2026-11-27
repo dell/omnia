@@ -1,0 +1,86 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# deploy_ldms — Record LDMS sampler results
+# =============================================================================
+# Runs once on kube_vip_group after the sampler play. Every node in
+# ldms_deploy_reachable whose sampler was not configured (task failure
+# rescued in configure_ldms_sampler_node.yml, or SSH lost mid-run) is added
+# to the skipped LDMS nodes reported in the final telemetry status, with a
+# reason, instead of failing the run.
+# =============================================================================
+
+- name: Collect LDMS sampler nodes that were not configured
+  ansible.builtin.set_fact:
+    _ldms_sampler_skipped_details: >-
+      {%- set issues = [] -%}
+      {%- for host in groups['ldms_deploy_reachable'] | default([]) -%}
+      {%- set result = hostvars[host]['_ldms_sampler_result'] | default({
+            'status': 'failed',
+            'detail': 'LDMS sampler configuration did not complete'
+          }) -%}
+      {%- if result.status != 'configured' -%}
+      {%- set _ = issues.append({
+            'node': host,
+            'ip': hostvars[host].ansible_host | default(host),
+            'reason': 'ssh_unreachable' if result.status == 'unreachable' else 'sampler_config_failed',
+            'detail': result.detail
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ issues }}
+
+- name: Publish LDMS sampler failures to the final status
+  vars:
+    _current_deploy_unreachable_nodes: >-
+      {{ hostvars['localhost']['_deploy_unreachable_nodes'] | default({'ldms': []}, true) }}
+    _current_deploy_skipped_node_details: >-
+      {{ hostvars['localhost']['_deploy_skipped_node_details'] | default({'ldms': []}, true) }}
+  ansible.builtin.set_fact:
+    _deploy_unreachable_nodes: >-
+      {{
+        _current_deploy_unreachable_nodes
+        | combine({
+            'ldms': (
+              (_current_deploy_unreachable_nodes.ldms | default([]))
+              + (_ldms_sampler_skipped_details | map(attribute='node') | list)
+            ) | unique | sort
+          })
+      }}
+    _deploy_skipped_node_details: >-
+      {{
+        _current_deploy_skipped_node_details
+        | combine({
+            'ldms': (
+              (_current_deploy_skipped_node_details.ldms | default([]))
+              + _ldms_sampler_skipped_details
+            ) | unique | list
+          })
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: _ldms_sampler_skipped_details | length > 0
+
+- name: Warn about LDMS sampler nodes that could not be configured
+  ansible.builtin.debug:
+    msg: "{{ ldms_sampler_nodes_failed_msg }}"
+  when: _ldms_sampler_skipped_details | length > 0
+
+- name: Warning for user to fix LDMS sampler failures
+  ansible.builtin.pause:
+    seconds: "{{ ldms_warning_pause_seconds }}"
+    prompt: "{{ ldms_warning_pause_prompt }}"
+  when: _ldms_sampler_skipped_details | length > 0
