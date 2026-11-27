@@ -27,7 +27,7 @@ import yaml
 from fastapi import Depends, HTTPException, status
 
 from api.dependencies import get_job_repo, get_stage_repo, verify_token
-from api.logging_utils import log_secure_info
+from api.logging_utils import get_policy_redaction_service, log_secure_info
 from api.logs.limiter import (
     ConcurrencyLimiter,
     ConcurrencyLimitExceededError,
@@ -80,10 +80,15 @@ def get_log_file_service() -> FileSystemLogAdapter:
     return FileSystemLogAdapter(Path(get_log_query_config().log_root))
 
 
-@lru_cache(maxsize=1)
 def get_redaction_service() -> RedactionService:
-    """Provide the shared redaction service."""
-    return RedactionService()
+    """Provide the shared redaction service built from the redaction policy.
+
+    It is the same instance that sanitizes audit logs.
+
+    Raises:
+        RedactionPolicyError: The baseline policy is missing or invalid.
+    """
+    return get_policy_redaction_service()
 
 
 @lru_cache(maxsize=1)
