@@ -53,36 +53,8 @@
 
 - name: Package and push OCI images
   block:
-    - name: Create the private directory for the session regctl configuration
-      ansible.builtin.tempfile:
-        state: directory
-        path: "{{ ext_oci_secret_root }}"
-        prefix: ".ext_oci_"
-      register: _ext_oci_tmpdir
-
-    - name: Build the session regctl host entries
-      ansible.builtin.set_fact:
-        _ext_oci_regctl_hosts: >-
-          {{ {} | combine({
-               (registry_host ~ ':5000'): {'hostname': registry_host ~ ':5000', 'tls': 'disabled'},
-               _ext_oci_host_ref: {
-                 'hostname': _ext_oci_host_ref,
-                 'tls': _ext_oci_tls,
-                 'user': hostvars['localhost']['oci_registry_username'],
-                 'pass': hostvars['localhost']['oci_registry_password']
-               }}) }}
-      no_log: true
-
-    - name: Write the session regctl configuration (mode 0600, never on a command line)
-      ansible.builtin.copy:
-        content: "{{ {'hosts': _ext_oci_regctl_hosts} | to_nice_json }}"
-        dest: "{{ _ext_oci_tmpdir.path }}/regctl.json"
-        mode: "0600"
-      no_log: true
-
-    - name: Set the session regctl configuration path
-      ansible.builtin.set_fact:
-        _ext_oci_regctl_config: "{{ _ext_oci_tmpdir.path }}/regctl.json"
+    - name: Write the session regctl configuration
+      ansible.builtin.include_tasks: write_session_regctl_config.yml
 
     - name: Package and push each functional group image
       ansible.builtin.include_tasks: publish_oci_image.yml

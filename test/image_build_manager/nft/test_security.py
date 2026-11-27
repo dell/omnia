@@ -16,7 +16,7 @@
 Image Build Manager — Non-Functional Security Tests.
 
 Regression guards for the CWE-732 / CWE-522 hardening that restricts
-credential-bearing files to root-only access (0600, root:root). A future
+secret-bearing files to root-only access (0600, root:root). A future
 accidental revert to a world-readable mode will fail one of these cases.
 
 Cases:

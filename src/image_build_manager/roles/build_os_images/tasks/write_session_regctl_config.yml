@@ -1,0 +1,60 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6, CG-CRYPTO-001.5, CG-LOGGING-001.2, CG-SECRETS-001.5
+# ****
+
+---
+# write_session_regctl_config.yml — session regctl configuration for the external push.
+# Included by publish_oci_images.yml and by the registry probe. Writes the registry
+# credentials to a memory-backed 0600 file and sets _ext_oci_regctl_config. The
+# caller removes _ext_oci_tmpdir in its always section.
+
+- name: Create the private directory for the session regctl configuration
+  ansible.builtin.tempfile:
+    state: directory
+    path: "{{ ext_oci_secret_root }}"
+    prefix: ".ext_oci_"
+  register: _ext_oci_tmpdir
+
+- name: Read the custom CA certificate for the session regctl configuration
+  ansible.builtin.set_fact:
+    _ext_oci_cacert: >-
+      {{ lookup('ansible.builtin.file', ext_oci_registry.ca_cert_path)
+         if (ext_oci_registry.ca_cert_path | default('', true) | length) > 0 else '' }}
+
+- name: Build the session regctl host entries
+  ansible.builtin.set_fact:
+    _ext_oci_regctl_hosts: >-
+      {{ {} | combine({
+           (registry_host ~ ':5000'): {'hostname': registry_host ~ ':5000', 'tls': 'disabled'},
+           _ext_oci_host_ref: {
+             'hostname': _ext_oci_host_ref,
+             'tls': _ext_oci_tls,
+             'user': hostvars['localhost']['oci_registry_username'],
+             'pass': hostvars['localhost']['oci_registry_password']
+           } | combine({'regcert': _ext_oci_cacert} if (_ext_oci_cacert | length) > 0 else {})}) }}
+  no_log: true
+
+- name: Write the session regctl configuration (mode 0600, never on a command line)
+  ansible.builtin.copy:
+    content: "{{ {'hosts': _ext_oci_regctl_hosts} | to_nice_json }}"
+    dest: "{{ _ext_oci_tmpdir.path }}/regctl.json"
+    mode: "0600"
+  no_log: true
+
+- name: Set the session regctl configuration path
+  ansible.builtin.set_fact:
+    _ext_oci_regctl_config: "{{ _ext_oci_tmpdir.path }}/regctl.json"

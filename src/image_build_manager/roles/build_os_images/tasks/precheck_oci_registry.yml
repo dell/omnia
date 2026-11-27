@@ -25,90 +25,11 @@
 # no_log; failures are classified from the registered HTTP status so no
 # message ever contains a credential.
 
-- name: Resolve external OCI registry addressing
-  ansible.builtin.set_fact:
-    _ext_oci_protocol: "{{ ext_oci_registry.registry_protocol }}"
-    _ext_oci_host: "{{ ext_oci_registry.registry_hostname }}"
-    _ext_oci_port: >-
-      {{ ext_oci_registry.registry_port
-         | default(ext_oci_default_ports[ext_oci_registry.registry_protocol], true) | int }}
-    _ext_oci_namespace: "{{ ext_oci_registry.namespace_name }}"
-    _ext_oci_tls: >-
-      {{ 'disabled' if ext_oci_registry.registry_protocol == 'http'
-         else ('enabled' if (ext_oci_registry.tls_verify | default(true)) | bool else 'insecure') }}
+- name: Check the external OCI registry endpoint and credentials
+  ansible.builtin.include_tasks: check_oci_registry_endpoint.yml
 
-- name: Build external OCI registry endpoint and reference host
-  ansible.builtin.set_fact:
-    _ext_oci_base_url: "{{ _ext_oci_protocol }}://{{ _ext_oci_host }}:{{ _ext_oci_port }}"
-    _ext_oci_host_ref: >-
-      {{ _ext_oci_host }}{{ '' if (_ext_oci_port | int) == ext_oci_default_ports[_ext_oci_protocol]
-         else ':' ~ _ext_oci_port }}
-
-- name: Check which external OCI registry credentials are set
-  ansible.builtin.set_fact:
-    _ext_oci_username_set: >-
-      {{ (hostvars['localhost']['oci_registry_username'] | default('') | string | length) > 0 }}
-    _ext_oci_password_set: >-
-      {{ (hostvars['localhost']['oci_registry_password'] | default('') | string | length) > 0 }}
-  no_log: true
-
-- name: Fail when an external OCI registry credential is missing
-  ansible.builtin.fail:
-    msg: "{{ ext_oci_credentials_missing_msg }}"
-  when: not ((_ext_oci_username_set | bool) and (_ext_oci_password_set | bool))
-
-- name: Check registry endpoint and credentials (Registry V2 API)
-  ansible.builtin.uri:
-    url: "{{ _ext_oci_base_url }}/v2/"
-    url_username: "{{ hostvars['localhost']['oci_registry_username'] }}"
-    url_password: "{{ hostvars['localhost']['oci_registry_password'] }}"
-    force_basic_auth: true
-    validate_certs: "{{ _ext_oci_tls == 'enabled' }}"
-    timeout: "{{ ext_oci_connect_timeout }}"
-    status_code: [200, 401, 403]
-  register: _ext_oci_v2_check
-  failed_when: false
-  no_log: true
-
-- name: Fail on TLS verification error
-  ansible.builtin.fail:
-    msg: "{{ ext_oci_tls_fail_msg }}"
-  when:
-    - _ext_oci_v2_check.status | default(-1) == -1
-    - (_ext_oci_v2_check.msg | default('')) is search('(?i)certificate|ssl')
-
-- name: Fail when the registry is unreachable
-  ansible.builtin.fail:
-    msg: "{{ ext_oci_connectivity_fail_msg }}"
-  when: _ext_oci_v2_check.status | default(-1) == -1
-
-- name: Fail on authentication error
-  ansible.builtin.fail:
-    msg: "{{ ext_oci_auth_fail_msg }}"
-  when: _ext_oci_v2_check.status in [401, 403]
-
-- name: Fail on unexpected registry status
-  ansible.builtin.fail:
-    msg: "{{ ext_oci_unexpected_fail_msg }}"
-  when: _ext_oci_v2_check.status != 200
-
-- name: Check Harbor project (namespace) access
-  ansible.builtin.uri:
-    url: "{{ _ext_oci_base_url }}/api/v2.0/projects/{{ _ext_oci_namespace }}"
-    url_username: "{{ hostvars['localhost']['oci_registry_username'] }}"
-    url_password: "{{ hostvars['localhost']['oci_registry_password'] }}"
-    force_basic_auth: true
-    validate_certs: "{{ _ext_oci_tls == 'enabled' }}"
-    timeout: "{{ ext_oci_connect_timeout }}"
-    status_code: [200, 401, 403, 404]
-  register: _ext_oci_ns_check
-  failed_when: false
-  no_log: true
-
-- name: Fail when the Harbor project is not accessible
-  ansible.builtin.fail:
-    msg: "{{ ext_oci_namespace_fail_msg }}"
-  when: _ext_oci_ns_check.status | default(-1) != 200
+- name: Check the external OCI registry project
+  ansible.builtin.include_tasks: check_harbor_project.yml
 
 - name: Report external OCI registry precheck result
   ansible.builtin.debug:

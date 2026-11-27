@@ -1,0 +1,90 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6, CG-CRYPTO-001.5, CG-LOGGING-001.2, CG-SECRETS-001.5
+# ****
+
+---
+# check_oci_registry_endpoint.yml — external OCI registry addressing, credential presence,
+# and the Registry V2 TLS and authentication check. Included by precheck_oci_registry.yml and by
+# the registry probe that verifies TLS and credential behaviour without a Harbor API.
+
+- name: Resolve external OCI registry addressing
+  ansible.builtin.set_fact:
+    _ext_oci_protocol: "{{ ext_oci_registry.registry_protocol }}"
+    _ext_oci_host: "{{ ext_oci_registry.registry_hostname }}"
+    _ext_oci_port: >-
+      {{ ext_oci_registry.registry_port
+         | default(ext_oci_default_ports[ext_oci_registry.registry_protocol], true) | int }}
+    _ext_oci_namespace: "{{ ext_oci_registry.namespace_name }}"
+    _ext_oci_tls: >-
+      {{ 'disabled' if ext_oci_registry.registry_protocol == 'http'
+         else ('enabled' if (ext_oci_registry.tls_verify | default(true)) | bool else 'insecure') }}
+
+- name: Build external OCI registry endpoint and reference host
+  ansible.builtin.set_fact:
+    _ext_oci_base_url: "{{ _ext_oci_protocol }}://{{ _ext_oci_host }}:{{ _ext_oci_port }}"
+    _ext_oci_host_ref: >-
+      {{ _ext_oci_host }}{{ '' if (_ext_oci_port | int) == ext_oci_default_ports[_ext_oci_protocol]
+         else ':' ~ _ext_oci_port }}
+
+- name: Check which external OCI registry credentials are set
+  ansible.builtin.set_fact:
+    _ext_oci_username_set: >-
+      {{ (hostvars['localhost']['oci_registry_username'] | default('') | string | length) > 0 }}
+    _ext_oci_password_set: >-
+      {{ (hostvars['localhost']['oci_registry_password'] | default('') | string | length) > 0 }}
+  no_log: true
+
+- name: Fail when an external OCI registry credential is missing
+  ansible.builtin.fail:
+    msg: "{{ ext_oci_credentials_missing_msg }}"
+  when: not ((_ext_oci_username_set | bool) and (_ext_oci_password_set | bool))
+
+- name: Check registry endpoint and credentials (Registry V2 API)
+  ansible.builtin.uri:
+    url: "{{ _ext_oci_base_url }}/v2/"
+    url_username: "{{ hostvars['localhost']['oci_registry_username'] }}"
+    url_password: "{{ hostvars['localhost']['oci_registry_password'] }}"
+    force_basic_auth: true
+    validate_certs: "{{ _ext_oci_tls == 'enabled' }}"
+    ca_path: "{{ ext_oci_registry.ca_cert_path | default(omit, true) }}"
+    timeout: "{{ ext_oci_connect_timeout }}"
+    status_code: [200, 401, 403]
+  register: _ext_oci_v2_check
+  failed_when: false
+  no_log: true
+
+- name: Fail on TLS verification error
+  ansible.builtin.fail:
+    msg: "{{ ext_oci_tls_fail_msg }}"
+  when:
+    - _ext_oci_v2_check.status | default(-1) == -1
+    - (_ext_oci_v2_check.msg | default('')) is search('(?i)certificate|ssl')
+
+- name: Fail when the registry is unreachable
+  ansible.builtin.fail:
+    msg: "{{ ext_oci_connectivity_fail_msg }}"
+  when: _ext_oci_v2_check.status | default(-1) == -1
+
+- name: Fail on authentication error
+  ansible.builtin.fail:
+    msg: "{{ ext_oci_auth_fail_msg }}"
+  when: _ext_oci_v2_check.status in [401, 403]
+
+- name: Fail on unexpected registry status
+  ansible.builtin.fail:
+    msg: "{{ ext_oci_unexpected_fail_msg }}"
+  when: _ext_oci_v2_check.status != 200
