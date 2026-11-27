@@ -190,6 +190,12 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         for tag in lifecycle:
             self.assertTrue(_has_deploy_test(TEST_ROOT / "fvt" / tag), tag)
 
+    def test_repo_sync_is_explicit_only(self):
+        """RM_UT_339: repo_sync needs its own playbook run, so no default run selects it."""
+        self.assertIn("repo_sync", _literal_assignment("EXCLUDE_TAGS"))
+        self.assertNotIn("repo_sync", _literal_assignment("ALL_EXEC_TAGS"))
+        self.assertTrue((TEST_ROOT / "fvt" / "repo_sync").is_dir())
+
     def test_lifecycle_scenarios_call_the_intended_public_tags(self):
         """Scenario names resolve to the intended Repo Manager playbook tags."""
         expected = {

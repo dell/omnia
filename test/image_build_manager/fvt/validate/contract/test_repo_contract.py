@@ -21,8 +21,10 @@ validation, then parse_repo_status.
 
 Data sources (20 tests): synthetic dicts (V005-V017, V020, V021, V023, V024),
 bundled samples (V018, V019) and the live file (V022, the only test that needs
-a completed repo_manager run). V022 skips when the file is absent, or fails when
-REQUIRE_LIVE_REPO_STATUS=1 is set.
+a completed repo_manager run). V022 checks the external contract only when an external
+repository source is in use (external_repo_host in test_config.yml, or REQUIRE_EXTERNAL_REPO=1) and
+skips otherwise; it then skips when the file is absent, or fails when REQUIRE_LIVE_REPO_STATUS=1
+is set.
 """
 
 import os
@@ -45,6 +47,7 @@ from library.vars import TEST_CASES as TC
 from library.messages import TEST_LOG_MSGS as LOG, TEST_ASSERT_MSGS as ASSERT
 
 _REQUIRE_LIVE = os.environ.get("REQUIRE_LIVE_REPO_STATUS", "") == "1"
+_REQUIRE_EXTERNAL = os.environ.get("REQUIRE_EXTERNAL_REPO", "") == "1"
 _EXT = "https://ext.example.com"
 
 
@@ -285,11 +288,20 @@ def test_external_contract_source_is_external():
     **Data source: live file** (requires a completed repo_manager run).
 
     The success path needs a repo_status.yml produced by a separate Repo Manager
-    host. On a single-OIM box the repositories resolve to this OIM, so the check
-    correctly fails; a skip means no live file exists, not that nothing was checked.
+    host. The external source is optional: with the local repo_manager the repositories
+    resolve to this OIM, so the test applies only when ``external_repo_host`` is set in
+    test_config.yml (or REQUIRE_EXTERNAL_REPO=1) and skips otherwise. Once it applies, a
+    live file that names this OIM fails; a skip for a missing live file means nothing was
+    checked.
     """
     tl = _logger("external_contract_source_is_external")
     config = load_test_config()
+    if not str(config.get("external_repo_host", "")).strip() and not _REQUIRE_EXTERNAL:
+        msg = ("External repository source is not in use: external_repo_host is not set in "
+               "test_config.yml (set it, or REQUIRE_EXTERNAL_REPO=1, to check that the live "
+               "file names an external host)")
+        tl.skipped(msg)
+        pytest.skip(msg)
     path = live_status_path(config.get("repo_manager_output_path", ""))
     if not os.path.isfile(path):
         msg = f"Live repo_status.yml not found at {path}" + (

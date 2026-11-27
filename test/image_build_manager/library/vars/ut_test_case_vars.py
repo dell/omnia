@@ -348,6 +348,14 @@ UT_TEST_CASE_IDS = {
             161: "test_uncollected_template_values_are_not_errors",
         },
     ),
+    **_module_cases(
+        "test_external_contract_live_source.py",
+        {
+            165: "test_external_check_skips_without_an_external_source",
+            166: "test_external_check_fails_when_an_external_host_is_set_and_not_used",
+            167: "test_external_check_runs_without_a_host_when_required",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

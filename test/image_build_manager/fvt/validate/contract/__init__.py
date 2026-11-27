@@ -15,6 +15,8 @@
 """Image Build Validate - external repo_manager contract suite.
 
 Verification tests (V005-V024): synthetic fixtures, bundled samples and one live-file
-check (V022). V022 skips when repo_status.yml is absent, or fails when
-REQUIRE_LIVE_REPO_STATUS=1 is set, so a green run cannot hide an unchecked live file.
+check (V022). V022 applies only when an external repository source is in use
+(external_repo_host in test_config.yml, or REQUIRE_EXTERNAL_REPO=1); it then skips when
+repo_status.yml is absent, or fails when REQUIRE_LIVE_REPO_STATUS=1 is set, so a green run cannot
+hide an unchecked live file.
 """

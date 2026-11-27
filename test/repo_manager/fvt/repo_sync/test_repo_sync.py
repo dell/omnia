@@ -116,8 +116,13 @@ def _repository_snapshot(host):
 
 
 def _status(host):
-    """Return the exact-mirror result contract."""
-    return _read_yaml(host, f"{_get_output_path()}/repo_resync_status.yml")
+    """Return the exact-mirror result contract (written by an explicit run of repo_sync.yml)."""
+    path = f"{_get_output_path()}/repo_resync_status.yml"
+    assert host.file(path).exists, (
+        f"Required file does not exist: {path}. repo_sync.yml has not been run; run "
+        "./run_validation.sh fvt_repo_manager repo_sync test"
+    )
+    return _read_yaml(host, path)
 
 
 @pytest.mark.deploy

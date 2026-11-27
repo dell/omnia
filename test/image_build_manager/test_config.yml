@@ -89,6 +89,17 @@ clone_path: "/omnia"
 dataset: ""
 
 # =============================================================================
+# EXTERNAL REPOSITORY SOURCE
+# =============================================================================
+# Host of an external Repo Manager that serves the repositories of repo_status.yml.
+# Leave empty (default) when the local repo_manager on the OIM serves them. When set,
+# the external-contract check of the live repo_status.yml (IMGBM_FVT_VALIDATE_V022)
+# runs and requires every repository host to be this host and not this OIM; when
+# empty it is skipped with the reason. REQUIRE_EXTERNAL_REPO=1 runs it without a host
+# (the hosts must then only differ from this OIM).
+external_repo_host: ""
+
+# =============================================================================
 # SYNC — REPO MANAGER OUTPUT
 # =============================================================================
 # When true, pushes repo_manager_output/ from the selected local source to the

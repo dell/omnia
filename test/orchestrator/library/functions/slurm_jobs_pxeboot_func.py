@@ -33,6 +33,8 @@ from ..vars.pxeboot_vars import (
     SLURM_CONCURRENT_JOB_COMMAND,
     SLURM_CONTROL_PREFIX,
     SLURM_DRAIN_REASON,
+    SLURM_JOB_KILL_GRACE_SECONDS,
+    SLURM_JOB_START_SECONDS,
     SLURM_JOB_TIMEOUT_SECONDS,
     SLURM_LOGIN_PREFIX,
     SLURM_TEST_JOB_COMMAND,
@@ -44,6 +46,7 @@ from ._pxeboot_helpers import (
     runtime_result,
 )
 from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
+from ._workload_helpers import not_ready_computes as _not_ready_computes
 from ._workload_helpers import mapped_compute_readiness as _mapped_compute_readiness
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import require_functional as _require_functional
@@ -1251,10 +1254,23 @@ def check_slurm_drain_queue_recovery(host) -> Dict[str, Any]:
                 pass
 
 
+def _openmpi_failure(result) -> str:
+    """Return the reason an OpenMPI job did not pass, one line."""
+    if result.rc == 124:
+        return (
+            f"srun did not finish within {SLURM_JOB_TIMEOUT_SECONDS + SLURM_JOB_KILL_GRACE_SECONDS}"
+            " s; the job was cancelled"
+        )
+    return re.sub(
+        r"\s+", " ", (result.stderr or result.stdout or f"command rc={result.rc}").strip()
+    )
+
+
 def check_slurm_openmpi_job(host) -> Dict[str, Any]:
     """Compile and run an MPI program through Slurm's PMIx launcher."""
     summary = "Slurm OpenMPI job"
     workspace = ""
+    job_name = ""
     control = None
     try:
         gated = _require_functional(summary)
@@ -1267,6 +1283,13 @@ def check_slurm_openmpi_job(host) -> Dict[str, Any]:
         if not computes:
             return _skip(summary, "No mapped Slurm compute node is available")
         targets = computes[: min(2, len(computes))]
+        # A job pinned to a node that Slurm cannot use waits in the queue for ever, so the
+        # nodes are checked first and the test fails at once, naming the node and the reason.
+        unavailable = _not_ready_computes(host, control, targets)
+        if unavailable:
+            raise RuntimeError(
+                "Slurm cannot run the job on: " + "; ".join(unavailable)
+            )
 
         # Discover OpenMPI toolchain; install from source on non-OFED nodes.
         source_install_attempted = False
@@ -1366,8 +1389,17 @@ def check_slurm_openmpi_job(host) -> Dict[str, Any]:
             host,
             control,
             PXEBOOT_COMMANDS["openmpi_compile"]
-            % (targets[0]["HOSTNAME"], shlex.quote(compile_script)),
+            % (
+                SLURM_JOB_TIMEOUT_SECONDS,
+                SLURM_JOB_START_SECONDS,
+                targets[0]["HOSTNAME"],
+                shlex.quote(compile_script),
+            ),
         )
+        if compile_result.rc == 124:
+            raise RuntimeError(
+                f"OpenMPI compilation did not finish within {SLURM_JOB_TIMEOUT_SECONDS} s"
+            )
         if compile_result.rc != 0:
             raise RuntimeError(
                 "OpenMPI compilation failed: "
@@ -1383,11 +1415,16 @@ def check_slurm_openmpi_job(host) -> Dict[str, Any]:
             f"ALL,PATH={mpi_bin}:/usr/bin:/bin,"
             f"LD_LIBRARY_PATH={mpi_libraries},PMIX_MCA_gds=hash"
         )
+        job_name = f"omnia_fvt_mpi_{secrets.token_hex(4)}"
         result = remote_command(
             host,
             control,
             PXEBOOT_COMMANDS["openmpi_job"]
             % (
+                SLURM_JOB_TIMEOUT_SECONDS + SLURM_JOB_KILL_GRACE_SECONDS,
+                job_name,
+                SLURM_JOB_START_SECONDS,
+                max(1, -(-SLURM_JOB_TIMEOUT_SECONDS // 60)),
                 len(targets),
                 len(targets),
                 node_list,
@@ -1434,17 +1471,18 @@ def check_slurm_openmpi_job(host) -> Dict[str, Any]:
                 ("Observed nodes", ", ".join(sorted(observed_nodes)) or "none"),
                 ("Standard error", stderr or "none"),
             ],
-            re.sub(
-                r"\s+",
-                " ",
-                (result.stderr or result.stdout or f"command rc={result.rc}").strip(),
-            )[:500]
-            if not ok
-            else "",
+            _openmpi_failure(result)[:500] if not ok else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
     finally:
+        if control is not None and job_name:
+            try:
+                remote_command(
+                    host, control, PXEBOOT_COMMANDS["slurm_cancel_job_name"] % job_name
+                )
+            except (OSError, RuntimeError, TypeError, ValueError):
+                pass
         if (
             control is not None
             and workspace.startswith("/")
