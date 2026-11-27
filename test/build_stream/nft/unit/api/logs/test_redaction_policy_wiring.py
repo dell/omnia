@@ -115,14 +115,14 @@ def test_audit_logs_use_the_policy(config, log_base):
     logging_utils.create_job_log_file("job-1")
     message = f"key {ACME} password=hunter2 bearer {JWT}"  # gitleaks:allow
     logging_utils.log_secure_info("info", f"{message} from 10.1.2.3 by a@b.example", job_id="job-1")
-    logging_utils.log_auth_info("info", f"client key {ACME} from 10.1.2.3")
+    logging_utils.log_auth_info("info", f"client key {ACME} password=hunter2 from 10.1.2.3")  # gitleaks:allow
     job_text = (log_base / "job-1" / "job-1.log").read_text(encoding="utf-8")
     event_text = (log_base / "events.log").read_text(encoding="utf-8")
     for value in (ACME, "hunter2", JWT, "10.1.2.3", "a@b.example"):
         assert value not in job_text and value not in event_text
     assert "key ***REDACTED*** password=***REDACTED***" in job_text  # gitleaks:allow
     assert "<REDACTED_IP>" in job_text and "<REDACTED_EMAIL>" in job_text
-    assert "client key ***REDACTED*** from <REDACTED_IP>" in event_text
+    assert "client key ***REDACTED*** password=***REDACTED*** from <REDACTED_IP>" in event_text  # gitleaks:allow
 
 
 def test_broken_baseline_withholds_audit_lines(broken_baseline, log_base):

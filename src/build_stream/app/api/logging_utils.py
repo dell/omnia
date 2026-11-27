@@ -252,15 +252,7 @@ def log_auth_info(
     # Only allow safe characters in event log messages
     if not isinstance(message, str):
         message = str(message)
-    
-    # Checkmarx: Remove any potential sensitive patterns before processing
-    # This provides defense-in-depth beyond _sanitize_message()
-    forbidden_patterns = ['password', 'passwd', 'secret', 'token', 'api_key', 'credential']
-    for pattern in forbidden_patterns:
-        if pattern.lower() in message.lower():
-            # Replace with generic placeholder
-            message = re.sub(re.escape(pattern), '<REDACTED>', message, flags=re.IGNORECASE)
-    
+
     logger = logging.getLogger(__name__)
 
     log_message = message
