@@ -21,6 +21,9 @@
 # Variables Set:
 #   - pulp_server_ip: Pulp server IP address (from config or admin NIC env var)
 #   - pulp_server_port: Pulp server port
+#   - pulp_server_hostname: Optional DNS hostname for dual-stack support
+#   - pulp_server_ipv6: Optional IPv6 address for native IPv6 Podman binding
+#   - pulp_endpoint_authority: Hostname when set, otherwise IP (used in URLs)
 #   - pulp_protocol: Always https (internal compatibility fact)
 #   - admin_nic_ip: Alias for pulp_server_ip (backward compatibility)
 #   - oim_admin_ip: Alias for pulp_server_ip (OIM SSH connection)
@@ -71,11 +74,13 @@
       - endpoint_config is mapping
       - >-
         (endpoint_config.keys() |
-         difference(['pulp_server_ip', 'pulp_server_port']) |
+         difference(['pulp_server_ip', 'pulp_server_port', 'pulp_server_hostname', 'pulp_server_ipv6']) |
          length) == 0
       - >-
         (endpoint_config.pulp_server_ip is defined and
          endpoint_config.pulp_server_ip | length > 0) or
+        (endpoint_config.pulp_server_hostname is defined and
+         endpoint_config.pulp_server_hostname | length > 0) or
         (admin_nic_ip is defined and admin_nic_ip | length > 0)
       - endpoint_config.pulp_server_port is defined
       - endpoint_config.pulp_server_port is integer
@@ -85,6 +90,13 @@
       {{ pulp_validation_validate_endpoint_configuration_contract_msg }}
     quiet: true
 
+- name: Resolve system hostname and IPv6 fallbacks from environment
+  ansible.builtin.set_fact:
+    _env_oim_hostname: >-
+      {{ lookup('ansible.builtin.env', 'SYSTEM_OIM_HOSTNAME') | default('', true) }}
+    _env_admin_ipv6: >-
+      {{ lookup('ansible.builtin.env', 'SYSTEM_ADMIN_NIC_IPV6') | default('', true) }}
+
 - name: Set Pulp endpoint variables from config or environment
   ansible.builtin.set_fact:
     pulp_server_ip: >-
@@ -93,14 +105,32 @@
             endpoint_config.pulp_server_ip | length > 0
          else admin_nic_ip }}
     pulp_server_port: "{{ endpoint_config.pulp_server_port | int }}"
+    pulp_server_hostname: >-
+      {{ endpoint_config.pulp_server_hostname | default('') if
+         endpoint_config.pulp_server_hostname is defined and
+         endpoint_config.pulp_server_hostname | default('') | length > 0
+         else _env_oim_hostname }}
+    pulp_server_ipv6: >-
+      {{ endpoint_config.pulp_server_ipv6 | default('') if
+         endpoint_config.pulp_server_ipv6 is defined and
+         endpoint_config.pulp_server_ipv6 | default('') | length > 0
+         else _env_admin_ipv6 }}
     pulp_protocol: "https"
+    cacheable: true
+
+- name: Set Pulp endpoint authority for dual-stack URL construction
+  ansible.builtin.set_fact:
+    pulp_endpoint_authority: >-
+      {{ pulp_server_hostname
+         if pulp_server_hostname | default('') | length > 0
+         else pulp_server_ip }}
     cacheable: true
 
 - name: Set derived Pulp HTTPS endpoint URLs
   ansible.builtin.set_fact:
-    pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+    pulp_base_url: "https://{{ pulp_endpoint_authority }}:{{ pulp_server_port }}"
     pulp_status_url: >-
-      https://{{ pulp_server_ip }}:{{ pulp_server_port }}/pulp/api/v3/status/
+      https://{{ pulp_endpoint_authority }}:{{ pulp_server_port }}/pulp/api/v3/status/
     cacheable: true
 
 - name: Validate Pulp endpoint IP belongs to this host
@@ -110,7 +140,9 @@
     fail_msg: >-
       {{ pulp_validation_validate_pulp_endpoint_ip_belongs_to_this_host_msg }}
     quiet: true
-  when: ansible_all_ipv4_addresses is defined
+  when:
+    - ansible_all_ipv4_addresses is defined
+    - pulp_server_hostname | default('') | length == 0
 
 - name: Set backward compatibility variables
   ansible.builtin.set_fact:
@@ -122,6 +154,9 @@
   ansible.builtin.debug:
     msg:
       - "Pulp Server IP: {{ pulp_server_ip }}"
+      - "Pulp Server IPv6: {{ pulp_server_ipv6 | default('(not set)') }}"
+      - "Pulp Server Hostname: {{ pulp_server_hostname | default('(not set)') }}"
+      - "Pulp Endpoint Authority: {{ pulp_endpoint_authority }}"
       - "Pulp Server Port: {{ pulp_server_port }}"
       - "Pulp Protocol: HTTPS (required)"
     verbosity: 1

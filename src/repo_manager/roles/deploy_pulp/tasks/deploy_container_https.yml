@@ -79,6 +79,51 @@
          else 'started' }}
     enabled: true
 
+- name: Deploy IPv6 socat proxy for dual-stack Pulp access
+  when: pulp_server_ipv6 | default('') | length > 0
+  block:
+    - name: Ensure socat is installed for IPv6 proxy
+      ansible.builtin.package:
+        name: socat
+        state: present
+
+    - name: Render Pulp IPv6 proxy systemd service
+      ansible.builtin.template:
+        src: pulp_ipv6_proxy.service.j2
+        dest: /etc/systemd/system/pulp-ipv6-proxy.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload pulp systemd
+
+    - name: Flush handlers for IPv6 proxy unit reload
+      ansible.builtin.meta: flush_handlers
+
+    - name: Start and enable Pulp IPv6 proxy
+      ansible.builtin.systemd_service:
+        name: pulp-ipv6-proxy.service
+        state: started
+        enabled: true
+
+- name: Remove IPv6 socat proxy when dual-stack is disabled
+  when: pulp_server_ipv6 | default('') | length == 0
+  block:
+    - name: Stop and disable Pulp IPv6 proxy if present
+      ansible.builtin.systemd_service:
+        name: pulp-ipv6-proxy.service
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove Pulp IPv6 proxy unit file
+      ansible.builtin.file:
+        path: /etc/systemd/system/pulp-ipv6-proxy.service
+        state: absent
+      notify: reload pulp systemd
+
+    - name: Flush handlers for IPv6 proxy removal reload
+      ansible.builtin.meta: flush_handlers
+
 - name: Wait for the Pulp HTTPS API
   ansible.builtin.uri:
     url: "{{ pulp_status_url }}"

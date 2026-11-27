@@ -71,9 +71,16 @@ description:
     - Marks status failed when catalog-required RPM distributions are missing
 options:
     pulp_server_ip:
-        description: Pulp server IP address
+        description: Pulp server IP address (used as fallback when pulp_server_hostname is not set)
         required: true
         type: str
+    pulp_server_hostname:
+        description: >-
+            Optional DNS hostname for dual-stack support. When set, all generated
+            repository URLs use this hostname instead of pulp_server_ip.
+        required: false
+        type: str
+        default: ''
     pulp_server_port:
         description: Pulp server port
         required: true
@@ -306,8 +313,14 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
     def __init__(self, module):
         self.module = module
         self.pulp_server_ip = module.params['pulp_server_ip']
+        self.pulp_server_hostname = module.params.get('pulp_server_hostname', '')
         self.pulp_server_port = module.params['pulp_server_port']
         self.pulp_protocol = 'https'
+        # Use hostname for URLs when available (dual-stack support), fall back to IP
+        self.pulp_endpoint_authority = (
+            self.pulp_server_hostname if self.pulp_server_hostname
+            else self.pulp_server_ip
+        )
         self.cluster_os_type = module.params['cluster_os_type']
         self.cluster_os_version = module.params['cluster_os_version']
         self.architectures = module.params['architectures']
@@ -329,7 +342,7 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         }]
         self.execution_results = module.params.get('execution_results') or []
 
-        self.base_url = f"{self.pulp_protocol}://{self.pulp_server_ip}:{self.pulp_server_port}"
+        self.base_url = f"{self.pulp_protocol}://{self.pulp_endpoint_authority}:{self.pulp_server_port}"
         self.rpm_distributions = []
         self.file_distributions = []
         self.python_distributions = []
@@ -930,6 +943,7 @@ def main():
     module = AnsibleModule(
         argument_spec={
             'pulp_server_ip': {'type': 'str', 'required': True},
+            'pulp_server_hostname': {'type': 'str', 'default': ''},
             'pulp_server_port': {'type': 'int', 'required': True},
             'cluster_os_type': {'type': 'str', 'required': True},
             'cluster_os_version': {'type': 'str', 'required': True},

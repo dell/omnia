@@ -25,9 +25,23 @@
 # Pulp server port
 pulp_server_port: 2225
 
+# Optional Pulp server hostname for dual-stack (IPv4 + IPv6) support.
+# When set, all Pulp URLs (CONTENT_ORIGIN, CLI, health checks) use this
+# hostname instead of an IP address. DNS must resolve this name from both
+# the OIM and all provisioned nodes. The TLS certificate will include this
+# hostname as a Subject Alternative Name.
+# pulp_server_hostname: "oim1.example.cluster"
+
 # Optional Pulp server IP. When omitted, Repo Manager uses the validated
-# SYSTEM_ADMIN_NIC_IPV4 value.
+# SYSTEM_ADMIN_NIC_IPV4 value. This IP is always used for the Podman
+# container bind address (PublishPort) regardless of pulp_server_hostname.
 # pulp_server_ip: "192.0.2.10"
+
+# Optional IPv6 address for native IPv6 connectivity to the Pulp container.
+# When set, Podman binds the Pulp port on both the IPv4 and IPv6 addresses,
+# and the TLS certificate includes this IPv6 address as an IP SAN.
+# The address must be assigned to the admin NIC on the OIM.
+# pulp_server_ipv6: "fd00::150"
 
 # HTTPS is mandatory. Certificate paths are derived automatically from
 # REPO_MANAGER_DATA_PATH or OMNIA_DATA_PATH and must not be configured here.

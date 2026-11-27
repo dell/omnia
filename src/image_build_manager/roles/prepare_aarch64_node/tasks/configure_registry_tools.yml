@@ -60,9 +60,8 @@
 - name: Compute aarch64 registry host
   ansible.builtin.set_fact:
     _aarch64_registry_host: >-
-      {{ hostvars['localhost']['admin_nic_ip']
-         if hostvars['localhost']['standalone_mode'] | default(false) | bool
-         else hostvars['localhost']['oim_hostname'] }}
+      {{ hostvars['localhost']['oim_hostname']
+         | default(hostvars['localhost']['host_name'] + '.' + hostvars['localhost']['domain_name']) }}
 
 - name: Configure regctl to use HTTP for local registry
   ansible.builtin.command: "{{ regctl_bin_path | quote }} registry set --tls disabled {{ _aarch64_registry_host | quote }}:5000"

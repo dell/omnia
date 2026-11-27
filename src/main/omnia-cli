@@ -149,7 +149,7 @@ declare -A INPUT_FILE_LEVEL=(
 
 declare -A INPUT_FILE_DESCRIPTIONS=(
     [repo_manager/repo_manager_config.yml]="Review repository policy, every selected OS/architecture URL, caching, priorities, and private registries."
-    [repo_manager/repo_manager_endpoint_config.yml]="Review the Pulp HTTPS port and optional advertised IP; the IP defaults to SYSTEM_ADMIN_NIC_IPV4."
+    [repo_manager/repo_manager_endpoint_config.yml]="Review the Pulp HTTPS port, optional hostname (dual-stack), optional IPv6 address, and optional advertised IP; the IP defaults to SYSTEM_ADMIN_NIC_IPV4."
     [repo_manager/repo_manager_config_credentials.yml]="Created and Vault-encrypted by the repo_manager run when repository or registry authentication is needed."
     [image_build_manager/image_build_config.yml]="Review repo_manager output path, S3 provider/endpoint, build engine, package source, build controls, and optional ARM host."
     [image_build_manager/package_groups.yml]="Required in config mode; in catalog mode the staged file is still schema-validated when present."
@@ -210,6 +210,7 @@ load_env() {
         local _pre_hostname="${SYSTEM_HOSTNAME:-}"
         local _pre_domain="${SYSTEM_DOMAIN_NAME:-}"
         local _pre_admin_ip="${SYSTEM_ADMIN_NIC_IPV4:-}"
+        local _pre_admin_ipv6="${SYSTEM_ADMIN_NIC_IPV6:-}"
         set -a
         # shellcheck disable=SC1090
         . "$system_env"
@@ -221,6 +222,7 @@ load_env() {
         [ -n "$_pre_hostname" ] && SYSTEM_HOSTNAME="$_pre_hostname"
         [ -n "$_pre_domain" ] && SYSTEM_DOMAIN_NAME="$_pre_domain"
         [ -n "$_pre_admin_ip" ] && SYSTEM_ADMIN_NIC_IPV4="$_pre_admin_ip"
+        [ -n "$_pre_admin_ipv6" ] && SYSTEM_ADMIN_NIC_IPV6="$_pre_admin_ipv6"
     fi
 
     # Apply defaults for optional variables
@@ -230,9 +232,12 @@ load_env() {
     SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME:-oim}"
     SYSTEM_DOMAIN_NAME="${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
     SYSTEM_ADMIN_NIC_IPV4="${SYSTEM_ADMIN_NIC_IPV4:-}"
+    SYSTEM_ADMIN_NIC_IPV6="${SYSTEM_ADMIN_NIC_IPV6:-}"
+    SYSTEM_OIM_HOSTNAME="${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}"
 
     export OMNIA_DATA_PATH OMNIA_PROJECT_NAME OMNIA_VENV_PATH
     export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME SYSTEM_ADMIN_NIC_IPV4
+    export SYSTEM_ADMIN_NIC_IPV6 SYSTEM_OIM_HOSTNAME
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1770,6 +1775,8 @@ ENVIRONMENT:
     OMNIA_DATA_PATH        Root data directory (default: /opt/omnia)
     OMNIA_PROJECT_NAME     Project name (default: project_default)
     SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (used by some domain checks)
+    SYSTEM_ADMIN_NIC_IPV6  Admin NIC IPv6 (optional, enables dual-stack)
+    SYSTEM_OIM_HOSTNAME    Derived FQDN (SYSTEM_HOSTNAME.SYSTEM_DOMAIN_NAME)
     OMNIA_VENV_PATH        Python venv path (default: /opt/omnia/venv)
     OMNIA_ANSIBLE_LOG_PATH Ansible log root (default: /var/log/omnia)
     *_DATA_PATH            Optional per-domain data-root overrides from omnia.env

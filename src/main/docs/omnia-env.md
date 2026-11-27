@@ -14,12 +14,19 @@ read its exported values.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `SYSTEM_ADMIN_NIC_IPV6` | Admin NIC IPv6 address for dual-stack support. When set, services bind to both IPv4 and IPv6. | _(unset)_ |
 | `OMNIA_DATA_PATH` | Root data directory for all Omnia persistent data | `/opt/omnia` |
 | `OMNIA_PROJECT_NAME` | Project name — maps to input/output subdirectories | `project_default` |
 | `SYSTEM_HOSTNAME` | Short hostname of the OIM host (NOT FQDN) | `oim` |
 | `SYSTEM_DOMAIN_NAME` | Domain name of the OIM host | `omnia.cluster` |
 | `OMNIA_VENV_PATH` | Path to the shared Python virtual environment | `/opt/omnia/venv` |
 | `CATALOG_FILE_PATH` | Active catalog JSON used by Repo Manager and catalog-mode image builds | `${OMNIA_DATA_PATH}/catalog/catalog_rhel.json` |
+
+## Derived Variables (Computed Automatically)
+
+| Variable | Description | Derived From |
+|----------|-------------|--------------|
+| `SYSTEM_OIM_HOSTNAME` | FQDN of the OIM host, used for service URLs and TLS certificates | `${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}` |
 
 ## Component Override Variables
 
@@ -63,6 +70,10 @@ Each component stores data under `$OMNIA_DATA_PATH/<component>/`. Override these
 # Admin NIC IP address of the OIM host.
 # This is the IP used for Pulp, S3, container registry, and provisioning.
 SYSTEM_ADMIN_NIC_IPV4=172.16.107.254
+
+# Optional: Admin NIC IPv6 address for dual-stack support.
+# When set, services bind to both IPv4 and IPv6 addresses.
+# SYSTEM_ADMIN_NIC_IPV6=fd00::150
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
 # │ OPTIONAL — Defaults work for most deployments                            │
@@ -194,7 +205,7 @@ file, not only `CATALOG_FILE_PATH`.
 
 ## Validation
 
-`omnia.sh --setup-venv` validates that required variables (e.g., `SYSTEM_ADMIN_NIC_IPV4`) are set in the environment after sourcing. If validation fails, the script exits with an error indicating which variables are missing.
+`omnia.sh --setup-venv` validates that required variables (e.g., `SYSTEM_ADMIN_NIC_IPV4`) are set in the environment after sourcing. When `SYSTEM_ADMIN_NIC_IPV6` is set, it also validates that the IPv6 address is assigned to a local interface. If validation fails, the script exits with an error indicating which variables are missing or invalid.
 
 ## Multi-Project Deployments
 

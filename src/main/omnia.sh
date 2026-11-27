@@ -90,6 +90,7 @@ readonly LIFECYCLE_PHASES=(
 # values removed from a config cannot leak in from a previously sourced shell.
 readonly OMNIA_ENV_VARIABLES=(
     SYSTEM_ADMIN_NIC_IPV4
+    SYSTEM_ADMIN_NIC_IPV6
     OMNIA_DATA_PATH
     OMNIA_PROJECT_NAME
     SYSTEM_HOSTNAME
@@ -155,8 +156,14 @@ load_env() {
         fi
     done
 
+    # Derive the OIM FQDN from hostname and domain for dual-stack URL construction.
+    # Downstream domains use this as the canonical service hostname in URLs,
+    # TLS certificates, and DNS records instead of raw IP addresses.
+    SYSTEM_OIM_HOSTNAME="${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}"
+
     export OMNIA_DATA_PATH OMNIA_PROJECT_NAME OMNIA_VENV_PATH
-    export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME
+    export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME SYSTEM_OIM_HOSTNAME
+    export SYSTEM_ADMIN_NIC_IPV6="${SYSTEM_ADMIN_NIC_IPV6:-}"
 }
 
 validate_env() {
@@ -235,6 +242,31 @@ validate_env() {
         fi
     fi
 
+    # --- Validate admin IPv6 is assigned to a local interface (when set) ---
+    if [ -n "${SYSTEM_ADMIN_NIC_IPV6:-}" ]; then
+        local all_ipv6
+        all_ipv6="$(ip -6 addr show scope global 2>/dev/null | grep -oP '(?<=inet6\s)[0-9a-fA-F:]+' || true)"
+        if [ -n "$all_ipv6" ]; then
+            local ipv6_found=false
+            for ip in $all_ipv6; do
+                if [ "$ip" = "$SYSTEM_ADMIN_NIC_IPV6" ]; then
+                    ipv6_found=true
+                    break
+                fi
+            done
+            if [ "$ipv6_found" = false ]; then
+                echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV6 (${SYSTEM_ADMIN_NIC_IPV6}) is not assigned to any local interface${NC}"
+                echo -e "${YELLOW}  Available IPv6 addresses: ${all_ipv6}${NC}"
+                echo -e "${YELLOW}  Fix: update SYSTEM_ADMIN_NIC_IPV6 in ${env_file}, or remove it to disable dual-stack${NC}"
+                errors=$((errors + 1))
+            fi
+        else
+            echo -e "${RED}ERROR: SYSTEM_ADMIN_NIC_IPV6 is set but no global IPv6 addresses found on any interface${NC}"
+            echo -e "${YELLOW}  Add an IPv6 address to the admin NIC, or remove SYSTEM_ADMIN_NIC_IPV6 from ${env_file}${NC}"
+            errors=$((errors + 1))
+        fi
+    fi
+
     if [ "$errors" -gt 0 ]; then
         echo -e "${RED}Environment validation failed with ${errors} error(s)${NC}"
         exit 1
@@ -243,8 +275,11 @@ validate_env() {
     echo -e "${GREEN}Environment validated:${NC}"
     echo -e "  Hostname:    ${SYSTEM_HOSTNAME} (actual: ${actual_hostname})"
     echo -e "  Domain:      ${SYSTEM_DOMAIN_NAME}${actual_domain:+ (actual: ${actual_domain})}"
-    echo -e "  FQDN:        ${SYSTEM_HOSTNAME}.${SYSTEM_DOMAIN_NAME}"
-    echo -e "  Admin IP:    ${SYSTEM_ADMIN_NIC_IPV4} (verified on interface)"
+    echo -e "  FQDN:        ${SYSTEM_OIM_HOSTNAME}"
+    echo -e "  Admin IPv4:  ${SYSTEM_ADMIN_NIC_IPV4} (verified on interface)"
+    if [ -n "${SYSTEM_ADMIN_NIC_IPV6:-}" ]; then
+        echo -e "  Admin IPv6:  ${SYSTEM_ADMIN_NIC_IPV6} (verified on interface)"
+    fi
     echo -e "  Data path:   ${OMNIA_DATA_PATH}"
     echo -e "  Project:     ${OMNIA_PROJECT_NAME}"
     if [ "$warnings" -gt 0 ]; then
@@ -397,8 +432,9 @@ install_system_env() {
 #
 
 if [ -f ${quoted_system_env_file} ]; then
-    unset SYSTEM_ADMIN_NIC_IPV4 OMNIA_DATA_PATH OMNIA_PROJECT_NAME \
-        SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME OMNIA_VENV_PATH OMNIA_VERSION \
+    unset SYSTEM_ADMIN_NIC_IPV4 SYSTEM_ADMIN_NIC_IPV6 OMNIA_DATA_PATH \
+        OMNIA_PROJECT_NAME SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME \
+        SYSTEM_OIM_HOSTNAME OMNIA_VENV_PATH OMNIA_VERSION \
         CATALOG_FILE_PATH IMAGE_BUILD_MANAGER_DATA_PATH REPO_MANAGER_DATA_PATH \
         DISCOVERY_DATA_PATH ORCHESTRATOR_DATA_PATH TELEMETRY_DATA_PATH \
         BUILD_STREAM_DATA_PATH
@@ -408,6 +444,7 @@ if [ -f ${quoted_system_env_file} ]; then
     fi
     set -a
     . ${quoted_system_env_file}
+    SYSTEM_OIM_HOSTNAME="\${SYSTEM_HOSTNAME:-oim}.\${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
     if [ "\$_omnia_allexport_was_set" = false ]; then
         set +a
     fi
@@ -529,8 +566,9 @@ setup_venv() {
 #
 
 if [ -f /etc/omnia/omnia.env ]; then
-    unset SYSTEM_ADMIN_NIC_IPV4 OMNIA_DATA_PATH OMNIA_PROJECT_NAME \
-        SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME OMNIA_VENV_PATH OMNIA_VERSION \
+    unset SYSTEM_ADMIN_NIC_IPV4 SYSTEM_ADMIN_NIC_IPV6 OMNIA_DATA_PATH \
+        OMNIA_PROJECT_NAME SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME \
+        SYSTEM_OIM_HOSTNAME OMNIA_VENV_PATH OMNIA_VERSION \
         CATALOG_FILE_PATH IMAGE_BUILD_MANAGER_DATA_PATH REPO_MANAGER_DATA_PATH \
         DISCOVERY_DATA_PATH ORCHESTRATOR_DATA_PATH TELEMETRY_DATA_PATH \
         BUILD_STREAM_DATA_PATH
@@ -540,6 +578,7 @@ if [ -f /etc/omnia/omnia.env ]; then
     fi
     set -a
     . /etc/omnia/omnia.env
+    SYSTEM_OIM_HOSTNAME="${SYSTEM_HOSTNAME:-oim}.${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
     if [ "$_omnia_allexport_was_set" = false ]; then
         set +a
     fi
@@ -2172,10 +2211,12 @@ SYSTEM ENVIRONMENT:
 
   Variables:
     SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (REQUIRED)
+    SYSTEM_ADMIN_NIC_IPV6  Admin NIC IPv6 (optional, enables dual-stack)
     OMNIA_DATA_PATH        Root data directory (default: /opt/omnia)
     OMNIA_PROJECT_NAME     Project name (default: project_default)
     SYSTEM_HOSTNAME        OIM hostname (default: oim)
     SYSTEM_DOMAIN_NAME     Domain name (default: omnia.cluster)
+    SYSTEM_OIM_HOSTNAME    Derived FQDN (SYSTEM_HOSTNAME.SYSTEM_DOMAIN_NAME)
     OMNIA_VENV_PATH        Python venv path (default: /opt/omnia/venv)
 
 EXAMPLES:

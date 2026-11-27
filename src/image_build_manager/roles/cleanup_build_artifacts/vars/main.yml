@@ -32,6 +32,8 @@ minio_s3_work_dir: "{{ shared_path }}/s3"
 minio_cleanup_directories:
   - "{{ minio_s3_data_dir }}"
   - "{{ minio_s3_work_dir }}"
+minio_ipv6_proxy_service: "minio-ipv6-proxy"
+minio_ipv6_proxy_file: "/etc/systemd/system/minio-ipv6-proxy.service"
 minio_firewall_ports:
   - 9000/tcp
   - 9001/tcp

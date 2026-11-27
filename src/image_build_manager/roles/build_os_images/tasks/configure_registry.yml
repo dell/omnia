@@ -22,13 +22,13 @@
 # Outputs (set as facts):
 #   registry_host — IP (standalone) or FQDN for the local OCI registry
 
-- name: Compute registry host (use admin_nic_ip for standalone mode)
+- name: Compute registry host (use OIM hostname for service access)
   vars:
     _node: "{{ host_name }}"
     _domain: "{{ domain_name }}"
     _fqdn: "{{ _node if _node.endswith('.' + _domain) else _node + '.' + _domain }}"
   ansible.builtin.set_fact:
-    registry_host: "{{ hostvars['localhost']['admin_nic_ip'] if hostvars['localhost']['standalone_mode'] | default(false) else _fqdn }}"
+    registry_host: "{{ hostvars['localhost']['oim_hostname'] | default(_fqdn) }}"
 
 - name: Verify regctl binary is installed
   ansible.builtin.stat:

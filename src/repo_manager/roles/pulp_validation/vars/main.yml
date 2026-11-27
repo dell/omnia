@@ -25,12 +25,15 @@
 # observational only and must not replace the configured consumer endpoint.
 # pulp_protocol: always https
 # pulp_server_ip: optional endpoint config value or SYSTEM_ADMIN_NIC_IPV4
+# pulp_server_hostname: optional DNS hostname for dual-stack support
+# pulp_server_ipv6: optional IPv6 address for native IPv6 Podman binding
+# pulp_endpoint_authority: hostname when set, otherwise IP (used in URLs)
 # pulp_server_port: required endpoint config value
 pulp_status_url: >-
-  {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port
+  {{ pulp_protocol }}://{{ pulp_endpoint_authority | default(pulp_server_ip) }}:{{ pulp_server_port
   }}/pulp/api/v3/status/
 pulp_registry_url: >-
-  {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port }}/v2/
+  {{ pulp_protocol }}://{{ pulp_endpoint_authority | default(pulp_server_ip) }}:{{ pulp_server_port }}/v2/
 
 # Endpoint verification settings
 validation_endpoint_retries: 3
@@ -44,7 +47,7 @@ pulp_status_fail_msg: >-
   Pulp endpoint is not up. Status code: {{ result.status }}
 pulp_content_origin_fail_msg: >-
   Pulp status does not publish the configured HTTPS content origin
-  {{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_server_port }}.
+  {{ pulp_protocol }}://{{ pulp_endpoint_authority | default(pulp_server_ip) }}:{{ pulp_server_port }}.
 pulp_registry_status_fail_msg: >-
   Pulp API is reachable, but its OCI registry endpoint /v2/ is not healthy.
   Run the Pulp deployment playbook and inspect the Pulp container logs.
@@ -59,14 +62,15 @@ pulp_container_fail_msg: >-
 # FAILURE AND ASSERTION MESSAGES
 # =============================================================================
 pulp_validation_validate_endpoint_configuration_contract_msg: >-
-  Invalid repo_manager_endpoint_config.yml. Only pulp_server_ip (optional)
-  and pulp_server_port (required integer from 1 to 65535) are supported.
-  pulp_server_ip must be provided either in the file or through
-  SYSTEM_ADMIN_NIC_IPV4.
-
+  Invalid repo_manager_endpoint_config.yml. Only pulp_server_ip (optional),
+  pulp_server_hostname (optional), pulp_server_ipv6 (optional), and
+  pulp_server_port (required integer from 1 to 65535) are supported.
+  Either pulp_server_ip, pulp_server_hostname, or SYSTEM_ADMIN_NIC_IPV4
+  must provide the endpoint.
 
 pulp_validation_validate_pulp_endpoint_ip_belongs_to_this_host_msg: >-
   Pulp endpoint IP {{ pulp_server_ip }} is not assigned to this host.
-  Set pulp_server_ip in repo_manager_endpoint_config.yml or correct
-  SYSTEM_ADMIN_NIC_IPV4. Available IPv4 addresses:
+  Set pulp_server_ip or pulp_server_hostname in
+  repo_manager_endpoint_config.yml, or correct SYSTEM_ADMIN_NIC_IPV4.
+  Available IPv4 addresses:
   {{ ansible_all_ipv4_addresses | join(', ') }}.

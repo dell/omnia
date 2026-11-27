@@ -38,7 +38,7 @@ overall_status: "success"
 image_build_type: "image-thrillhouse"
 
 s3_configurations:
-  endpoint_url: "http://10.20.0.1:9000"
+  endpoint_url: "http://omniacp.omnia.test:9000"
   bucket: "boot-images"
 
 functional_group_images:
@@ -89,7 +89,7 @@ engine from the `-imgth` artifact suffix. Other manifests must be regenerated.
 
 | Provider | Behavior |
 |----------|----------|
-| MinIO | Auto-detected: `http://<admin_nic_ip>:9000` |
+| MinIO | Auto-detected: `http://<oim_hostname>:9000` |
 | PowerScale | Uses `endpoint_url` from config |
 
 ---

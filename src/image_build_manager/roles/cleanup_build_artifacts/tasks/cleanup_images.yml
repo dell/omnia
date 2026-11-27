@@ -126,10 +126,9 @@
     - name: Compute registry host for image cleanup
       ansible.builtin.set_fact:
         _cleanup_registry_host: >-
-          {{ hostvars['localhost']['admin_nic_ip']
-             if hostvars['localhost']['standalone_mode'] | default(false)
-             else (hostvars['localhost']['host_name'] | default('localhost')) + '.'
-                  + (hostvars['localhost']['domain_name'] | default('omnia.cluster')) }}
+          {{ hostvars['localhost']['oim_hostname']
+             | default((hostvars['localhost']['host_name'] | default('localhost')) + '.'
+                       + (hostvars['localhost']['domain_name'] | default('omnia.cluster'))) }}
 
     - name: List registry repositories
       ansible.builtin.command:

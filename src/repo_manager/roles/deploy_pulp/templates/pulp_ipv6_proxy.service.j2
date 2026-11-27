@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# socat proxy: forwards IPv6 Pulp traffic to the IPv4 Podman listener.
+# Podman/netavark does not create IPv6 DNAT rules for host-bound PublishPort
+# addresses, so this service bridges the gap by accepting connections on the
+# IPv6 address and forwarding them to the IPv4 address where Podman's DNAT
+# chain delivers traffic into the container.
+[Unit]
+Description=Pulp IPv6 to IPv4 socat proxy ({{ pulp_server_ipv6 }}:{{ pulp_server_port }})
+After=network-online.target {{ pulp_container_name }}.service
+Requires={{ pulp_container_name }}.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat \
+  TCP6-LISTEN:{{ pulp_server_port }},bind=[{{ pulp_server_ipv6 }}],reuseaddr,fork \
+  TCP4:{{ pulp_server_ip }}:{{ pulp_server_port }}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

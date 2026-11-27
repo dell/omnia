@@ -75,6 +75,6 @@
       ansible.builtin.debug:
         msg:
           - "========== DEPLOYMENT COMPLETE =========="
-          - "Pulp endpoint: https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+          - "Pulp endpoint: https://{{ pulp_endpoint_authority | default(pulp_server_ip) }}:{{ pulp_server_port }}"
           - "Systemd service: {{ pulp_container_name }}.service (enabled)"
           - "========================================="

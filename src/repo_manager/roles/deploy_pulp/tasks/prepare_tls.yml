@@ -50,6 +50,23 @@
   failed_when: false
   when: _pulp_tls_files.results[0].stat.exists
 
+- name: Check existing certificate hostname identity
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkhost
+      - "{{ pulp_server_hostname }}"
+      - -noout
+      - -in
+      - "{{ pulp_server_crt }}"
+  register: _pulp_cert_hostname_identity
+  changed_when: false
+  failed_when: false
+  when:
+    - _pulp_tls_files.results[0].stat.exists
+    - pulp_server_hostname | default('') | length > 0
+
 - name: Check existing certificate trust purposes
   ansible.builtin.command:
     argv:
@@ -94,7 +111,9 @@
          (_pulp_cert_public_key.rc | default(1)) == 0 and
          (_pulp_private_public_key.rc | default(1)) == 0 and
          (_pulp_cert_public_key.stdout | default('')) ==
-         (_pulp_private_public_key.stdout | default('')) }}
+         (_pulp_private_public_key.stdout | default('')) and
+         (pulp_server_hostname | default('') | length == 0 or
+          (_pulp_cert_hostname_identity.rc | default(1)) == 0) }}
 
 - name: Generate Pulp TLS private key
   community.crypto.openssl_privatekey:
@@ -110,7 +129,7 @@
   community.crypto.openssl_csr:
     path: "{{ pulp_server_csr }}"
     privatekey_path: "{{ pulp_server_key }}"
-    common_name: "{{ pulp_server_ip }}"
+    common_name: "{{ pulp_server_hostname if pulp_server_hostname | default('') | length > 0 else pulp_server_ip }}"
     subject_alt_name: "{{ cert_subject_alt_names }}"
     use_common_name_for_san: false
     basic_constraints:

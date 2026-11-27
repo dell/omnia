@@ -97,7 +97,7 @@
       ansible.builtin.command:
         cmd: >-
           /usr/local/bin/regctl registry set --tls disabled
-          {{ hostvars['localhost']['admin_nic_ip'] }}:{{ registry_port }}
+          {{ hostvars['localhost']['oim_hostname'] }}:{{ registry_port }}
       changed_when: true
 
     - name: Verify regctl config

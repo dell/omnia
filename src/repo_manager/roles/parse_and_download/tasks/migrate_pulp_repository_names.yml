@@ -29,7 +29,7 @@
     base_path: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     dry_run: false
     log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
-    pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+    pulp_base_url: "https://{{ pulp_endpoint_authority | default(pulp_server_ip) }}:{{ pulp_server_port }}"
     repo_file_path: "{{ pulp_repo_file_path }}"
     pulp_ssl_ca_cert: "{{ pulp_server_crt }}"
   environment:

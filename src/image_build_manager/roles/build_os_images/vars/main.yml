@@ -30,6 +30,7 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
 shared_path: "{{ hostvars['localhost']['shared_path'] }}"
+oim_hostname: "{{ hostvars['localhost']['oim_hostname'] | default(hostvars['localhost']['host_name'] + '.' + hostvars['localhost']['domain_name']) }}"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 
 # Build timing and controls — single source of truth from image_build_config.yml

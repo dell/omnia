@@ -36,9 +36,8 @@
   ansible.builtin.set_fact:
     oim_pxe_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
     oim_hostname: >-
-      {{ hostvars['localhost']['host_name']
-         if hostvars['localhost']['host_name'].endswith('.' + hostvars['localhost']['domain_name'])
-         else hostvars['localhost']['host_name'] + '.' + hostvars['localhost']['domain_name'] }}
+      {{ hostvars['localhost']['oim_hostname']
+         | default(hostvars['localhost']['host_name'] + '.' + hostvars['localhost']['domain_name']) }}
     cacheable: true
 
 - name: Ensure aarch64 openchami directory exists on localhost
