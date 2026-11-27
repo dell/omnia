@@ -127,3 +127,8 @@ aarch64_ssh_user: "root"
 #   namespace_name: "hpc-images"
 #   auth_type: "basic"
 #   tls_verify: true
+#   ca_cert_path: "/etc/pki/tls/certs/registry-ca.pem"
+#   tag_policy: "overwrite"
+#   retry_count: 2
+#   timeout_seconds: 300
+# delete_local_registry_images_after_build: false

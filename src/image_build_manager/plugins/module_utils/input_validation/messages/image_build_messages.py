@@ -74,6 +74,20 @@ def external_oci_hostname_invalid_msg(hostname):
     )
 
 
+def external_oci_ca_cert_invalid_msg(ca_cert_path):
+    """Returns message when the CA bundle is missing or not a readable file."""
+    return (
+        f"image_build_config: external_oci_registry.ca_cert_path "
+        f"'{ca_cert_path}' must be an existing, readable file."
+    )
+
+
+EXTERNAL_OCI_NOT_RETAINED_WARN_MSG = (
+    "image_build_config: delete_local_registry_images_after_build is true "
+    "without external_oci_registry: the OCI image is not retained after this run."
+)
+
+
 # =============================================================================
 # BUILD IMAGE SETTINGS MESSAGES
 # =============================================================================

@@ -176,6 +176,81 @@ def test_hostname_rejects_empty_labels(valid_config):
     assert any("registry_hostname" in error for error in errors)
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("retry_count", 6),
+        ("retry_count", -1),
+        ("retry_count", "2"),
+        ("timeout_seconds", 29),
+        ("timeout_seconds", 3601),
+        ("timeout_seconds", "300"),
+        ("tag_policy", "skip_if_same_digest"),
+        ("tag_policy", "always"),
+        ("ca_cert_path", ""),
+        ("ca_cert_path", "relative/registry-ca.pem"),
+    ],
+)
+def test_external_registry_field_level_limits_reject_invalid_values(valid_config, field, value):
+    valid_config["external_oci_registry"][field] = value
+    assert _validate(valid_config, "image_build_config.json"), (field, value)
+
+
+def test_external_registry_field_level_limits_accept_documented_values(valid_config, tmp_path):
+    ca_file = tmp_path / "registry-ca.pem"
+    ca_file.write_text("-----BEGIN CERTIFICATE-----\n", encoding="utf-8")
+    section = valid_config["external_oci_registry"]
+    for values in (
+        {
+            "ca_cert_path": str(ca_file),
+            "tag_policy": "fail_if_exists",
+            "retry_count": 5,
+            "timeout_seconds": 3600,
+        },
+        {"tag_policy": "overwrite", "retry_count": 0, "timeout_seconds": 30},
+    ):
+        section.update(values)
+        assert _validate(valid_config, "image_build_config.json") == [], values
+        assert CONFIG_VALIDATOR.validate(valid_config) == [], values
+
+
+def test_ca_cert_path_must_be_an_existing_readable_file(valid_config, tmp_path):
+    section = valid_config["external_oci_registry"]
+    section["ca_cert_path"] = str(tmp_path / "missing-ca.pem")
+    assert any("ca_cert_path" in error for error in CONFIG_VALIDATOR.validate(valid_config))
+    section["ca_cert_path"] = str(tmp_path)
+    assert any("ca_cert_path" in error for error in CONFIG_VALIDATOR.validate(valid_config)), (
+        "a directory is not a CA bundle"
+    )
+
+
+@pytest.mark.parametrize("value", ["sometimes", "true", 1])
+def test_cleanup_flag_rejects_non_boolean_values(valid_config, value):
+    valid_config["delete_local_registry_images_after_build"] = value
+    assert _validate(valid_config, "image_build_config.json"), value
+
+
+def test_cleanup_flag_is_optional_and_accepts_a_boolean(valid_config):
+    assert _validate(valid_config, "image_build_config.json") == []
+    valid_config["delete_local_registry_images_after_build"] = True
+    assert _validate(valid_config, "image_build_config.json") == []
+    assert CONFIG_VALIDATOR.validate(valid_config) == []
+
+
+def test_cleanup_flag_without_harbor_warns_that_images_are_not_retained(valid_config, caplog):
+    without = {k: v for k, v in valid_config.items() if k != "external_oci_registry"}
+    without["delete_local_registry_images_after_build"] = True
+    with caplog.at_level(logging.WARNING):
+        errors = CONFIG_VALIDATOR.validate(without, LOGGER)
+    assert errors == []
+    assert "the OCI image is not retained after this run" in caplog.text
+    caplog.clear()
+    valid_config["delete_local_registry_images_after_build"] = True
+    with caplog.at_level(logging.WARNING):
+        CONFIG_VALIDATOR.validate(valid_config, LOGGER)
+    assert "not retained" not in caplog.text
+
+
 def test_registry_credentials_are_optional_vault_keys():
     schema = _schema("image_build_credentials.json")
     assert "oci_registry_username" in schema["properties"]
