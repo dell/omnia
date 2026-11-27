@@ -42,7 +42,10 @@ anchors_path: "/etc/pki/ca-trust/source/anchors/{{ repo_cert_path | basename | d
 regctl_bin_path: "/usr/local/bin/regctl"
 
 # regctl for aarch64 — downloaded on OIM first, then SCP'd to aarch64 node
-regctl_download_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64"
+# Pinned release and SHA256 (Req-SEC-C-3); bump both together
+regctl_version: "v0.11.7"
+regctl_download_url: "https://github.com/regclient/regclient/releases/download/{{ regctl_version }}/regctl-linux-arm64"
+regctl_arm64_sha256: "9f349bab5c407ac04f3dabf99c7c7a6b0f9e9723c23f2775380e804d02c6dbb9"
 regctl_oim_staging_dir: "{{ aarch64_work_dir }}/aarch64"
 regctl_oim_staging_path: "{{ regctl_oim_staging_dir }}/regctl-linux-arm64"
 

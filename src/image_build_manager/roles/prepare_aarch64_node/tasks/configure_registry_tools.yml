@@ -33,6 +33,7 @@
       ansible.builtin.get_url:
         url: "{{ regctl_download_url }}"
         dest: "{{ regctl_bin_path }}"
+        checksum: "sha256:{{ regctl_arm64_sha256 }}"
         mode: "{{ dir_permissions_755 }}"
         timeout: 120
       become: true

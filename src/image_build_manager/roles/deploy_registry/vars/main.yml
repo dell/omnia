@@ -35,6 +35,9 @@ download_retries: 5
 download_delay: 10
 
 # regctl
-regctl_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64"
+# Pinned release and SHA256 (Req-SEC-C-3); bump both together
+regctl_version: "v0.11.7"
+regctl_url: "https://github.com/regclient/regclient/releases/download/{{ regctl_version }}/regctl-linux-amd64"
+regctl_sha256: "3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc"
 regctl_dest: "/usr/local/bin/regctl"
 file_perm_rwx: "0755"

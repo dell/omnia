@@ -86,6 +86,7 @@
       ansible.builtin.get_url:
         url: "{{ regctl_url }}"
         dest: "{{ regctl_dest }}"
+        checksum: "sha256:{{ regctl_sha256 }}"
         mode: "{{ file_perm_rwx }}"
         timeout: 120
       register: regctl_download
