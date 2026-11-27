@@ -28,6 +28,7 @@ Following the collect scenario pattern:
 import os
 
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -306,7 +307,7 @@ def test_backup_oim_logs_metadata_exists(host):
 
     output_path = get_backup_oim_logs_output_path(host)
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    result = host.run(cmd)
+    result = run_on_host(host, cmd)
 
     if result.rc != 0 or not result.stdout.strip():
         tl.failed(f"No metadata.json found in {output_path}")
@@ -333,7 +334,7 @@ def test_backup_oim_logs_metadata_valid(host):
 
     output_path = get_backup_oim_logs_output_path(host)
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    find_result = host.run(cmd)
+    find_result = run_on_host(host, cmd)
     if find_result.rc != 0 or not find_result.stdout.strip():
         tl.skipped("No metadata.json found")
         pytest.skip("No metadata.json found")
@@ -357,7 +358,7 @@ def test_backup_oim_logs_metadata_sha256(host):
 
     output_path = get_backup_oim_logs_output_path(host)
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    find_result = host.run(cmd)
+    find_result = run_on_host(host, cmd)
     if find_result.rc != 0 or not find_result.stdout.strip():
         tl.skipped("No metadata.json found")
         pytest.skip("No metadata.json found")
@@ -410,7 +411,7 @@ def test_backup_oim_logs_cli_backup_path(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     custom_path = "/tmp/omnia_fvt_backup_oim_logs_cli"  # nosec: B108 - disposable FVT scratch dir
-    host.run(f"rm -rf {custom_path} && mkdir -p {custom_path}")
+    run_on_host(host, f"rm -rf {custom_path} && mkdir -p {custom_path}")
 
     result = run_playbook(
         playbook=PLAYBOOK_BACKUP_OIM_LOGS,
@@ -428,7 +429,7 @@ def test_backup_oim_logs_cli_backup_path(host):
     else:
         tl.failed(f"No archive found under CLI backup_path override: {custom_path}")
 
-    host.run(f"rm -rf {custom_path}")
+    run_on_host(host, f"rm -rf {custom_path}")
     assert bundle_result["success"], (
         f"-e backup_path={custom_path} was not honored by backup_oim_logs.yml"
     )
@@ -443,13 +444,13 @@ def test_backup_oim_logs_env_var_backup_path(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     custom_path = "/tmp/omnia_fvt_backup_oim_logs_env"  # nosec: B108 - disposable FVT scratch dir
-    host.run(f"rm -rf {custom_path} && mkdir -p {custom_path}")
-    host.run(f"echo 'export OMNIA_BACKUP_PATH={custom_path}' >> {_ENV_FILE}")
+    run_on_host(host, f"rm -rf {custom_path} && mkdir -p {custom_path}")
+    run_on_host(host, f"echo 'export OMNIA_BACKUP_PATH={custom_path}' >> {_ENV_FILE}")
 
     try:
         result = run_playbook(playbook=PLAYBOOK_BACKUP_OIM_LOGS, tag=None)
     finally:
-        host.run(f"sed -i '\\|OMNIA_BACKUP_PATH={custom_path}|d' {_ENV_FILE}")
+        run_on_host(host, f"sed -i '\\|OMNIA_BACKUP_PATH={custom_path}|d' {_ENV_FILE}")
 
     if not result["success"]:
         tl.failed(LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]))
@@ -461,7 +462,7 @@ def test_backup_oim_logs_env_var_backup_path(host):
     else:
         tl.failed(f"No archive found under OMNIA_BACKUP_PATH override: {custom_path}")
 
-    host.run(f"rm -rf {custom_path}")
+    run_on_host(host, f"rm -rf {custom_path}")
     assert bundle_result["success"], (
         f"OMNIA_BACKUP_PATH={custom_path} was not honored by backup_oim_logs.yml"
     )
@@ -547,7 +548,7 @@ def test_backup_oim_logs_missing_domain_dir_warns(host):
 
     output_path = get_backup_oim_logs_output_path(host)
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    find_result = host.run(cmd)
+    find_result = run_on_host(host, cmd)
     if find_result.rc != 0 or not find_result.stdout.strip():
         tl.skipped("No metadata.json found")
         pytest.skip("No metadata.json found")
@@ -571,7 +572,7 @@ def test_backup_oim_logs_custom_project_name(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     custom_project = "fvt_backup_oim_logs_project"
-    host.run(f"echo 'export OMNIA_PROJECT_NAME={custom_project}' >> {_ENV_FILE}")
+    run_on_host(host, f"echo 'export OMNIA_PROJECT_NAME={custom_project}' >> {_ENV_FILE}")
     data_path = ""
 
     try:
@@ -583,9 +584,9 @@ def test_backup_oim_logs_custom_project_name(host):
             "success": False, "bundle_path": "",
         }
     finally:
-        host.run(f"sed -i '\\|OMNIA_PROJECT_NAME={custom_project}|d' {_ENV_FILE}")
+        run_on_host(host, f"sed -i '\\|OMNIA_PROJECT_NAME={custom_project}|d' {_ENV_FILE}")
         if data_path:
-            host.run(f"rm -rf {data_path}/utils/output/{custom_project}")
+            run_on_host(host, f"rm -rf {data_path}/utils/output/{custom_project}")
 
     if bundle_result["success"]:
         tl.passed(f"Custom OMNIA_PROJECT_NAME honored: {bundle_result['bundle_path']}")

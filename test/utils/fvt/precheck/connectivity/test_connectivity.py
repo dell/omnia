@@ -19,6 +19,7 @@ Verifies target host connectivity, environment variables, hostname, and admin IP
 """
 
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -171,7 +172,7 @@ def test_omnia_setup(host):
 
     # Check for omnia.env file
     cmd = "test -f /etc/omnia/omnia.env && echo exists"
-    result = host.run(cmd)
+    result = run_on_host(host, cmd)
 
     if result.rc == 0 and "exists" in result.stdout:
         tl.passed("omnia.sh setup completed (/etc/omnia/omnia.env exists)")

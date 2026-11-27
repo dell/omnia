@@ -24,6 +24,7 @@ Validates that the setup tag properly initializes the utils domain:
 """
 
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -92,7 +93,7 @@ def test_setup_omnia_data_path_set(host):
 
     # Check that OMNIA_DATA_PATH environment variable is set
     cmd = "echo $OMNIA_DATA_PATH"
-    result = host.run(cmd)
+    result = run_on_host(host, cmd)
 
     data_path = result.stdout.strip()
     success = bool(data_path) and data_path != ""
