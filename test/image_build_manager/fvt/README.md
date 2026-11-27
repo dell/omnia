@@ -77,7 +77,9 @@ default build flows.
 
 ## Build test cases — OCI packaging and external registry
 
-Run with `./run_validation.sh fvt_image_build_manager build verify --suite oci`. The registry cases (V023-V028) need the disposable TLS lab registry: set `OMNIA_OCI_LAB_HOST`, `OMNIA_OCI_LAB_PORT`, and `OMNIA_OCI_LAB_CA_FILE`, and store the lab account as `oci_lab_registry_username` and `oci_lab_registry_password` in `test_creds.yml`. They skip when the lab is not configured.
+Run with `./run_validation.sh fvt_image_build_manager build verify --suite oci`. The registry cases (V023-V029) skip unless the target is configured: set `OMNIA_OCI_LAB_HOST`, `OMNIA_OCI_LAB_PORT`, and `OMNIA_OCI_LAB_CA_FILE`. Use `OMNIA_OCI_LAB_NAMESPACE` for the Harbor project (default `omnia-lab`). The account comes from `OMNIA_OCI_TEST_USERNAME` and `OMNIA_OCI_TEST_PASSWORD` when set, otherwise from `oci_lab_registry_username` and `oci_lab_registry_password` in `test_creds.yml`. Set the environment variables inline for the run so the password is never stored in a file.
+
+Harbor run used on the OIM (v2.11.0 at `100.10.1.202:443`, project `hpc-demo2`): `OMNIA_OCI_LAB_HOST=100.10.1.202 OMNIA_OCI_LAB_PORT=443 OMNIA_OCI_LAB_NAMESPACE=hpc-demo2 OMNIA_OCI_LAB_CA_FILE=/opt/omnia/image_build_manager/certs/harbor-100.10.1.202.crt`. The probes are read-only: nothing is pushed to Harbor.
 
 | ID | Test | Marker | What it verifies | Expected |
 |----|------|--------|------------------|----------|
@@ -90,6 +92,7 @@ Run with `./run_validation.sh fvt_image_build_manager build verify --suite oci`.
 | IMGBM_FVT_BUILD_V026 | `test_robot_account_name_used_exactly` | sanity | A robot account with `$` and `+` is used exactly (FR-3.1, TC-FVT-012). | Stored name matches; registry read succeeds. |
 | IMGBM_FVT_BUILD_V027 | `test_rejected_secret_fails_without_leak` | sanity | A rejected secret fails with the auth error class and never appears in output (NFR-3). | Auth error for the host; secret absent. |
 | IMGBM_FVT_BUILD_V028 | `test_session_configuration_removed_after_run` | sanity | The temporary regctl configuration is removed after the run (TC-FVT-012). | `PROBE_REMOVED exists=False`. |
+| IMGBM_FVT_BUILD_V029 | `test_harbor_project_check_accepts_configured_ca` | sanity | The Harbor project API accepts the configured CA, not only the Registry V2 endpoint. | `PROBE_PROJECT accessible=True`. |
 
 ## Prepare test cases
 

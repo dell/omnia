@@ -41,9 +41,6 @@ from library.functions.oci_registry_probe_func import (
 from library.messages import TEST_ASSERT_MSGS as ASSERT, TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
-ROBOT_NAME = "robot$omnia+buildstream"
-
-
 def _lab_or_skip(tl: TestLogger):
     if not lab_available():
         tl.skipped(LOG["oci_probe_skipped"])
@@ -120,13 +117,10 @@ def test_tls_disabled_is_explicit_opt_out(tmp_path):
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_robot_account_name_used_exactly(tmp_path):
-    """A robot acct name with '$' and '+' is stored and used exactly as configured."""
+    """The configured acct name, including '$' and '+' when present, is used exactly."""
     tc = TC["oci_robot_account_exact"]
     tl = TestLogger(tc["title"], tc["id"])
     acct, secret = _lab_or_skip(tl)
-    if acct != ROBOT_NAME:
-        tl.skipped(LOG["oci_probe_skipped"])
-        pytest.skip(LOG["oci_probe_skipped"])
 
     result = run_probe(tmp_path, "session", lab_registry(ca_cert_path=LAB_CA_FILE), acct, secret)
     state = parse_session_state(result["output"]) or {}
@@ -147,7 +141,8 @@ def test_rejected_secret_fails_without_leak(tmp_path):
     wrong = new_secret()
 
     result = run_probe(tmp_path, "precheck", lab_registry(ca_cert_path=LAB_CA_FILE), acct, wrong)
-    expected = f"authentication failed (phase: precheck) for acct {acct} at https://{LAB_HOST}:{LAB_PORT}"
+    expected = (f"authentication failed (phase: precheck) for acct {acct} "
+                f"at https://{LAB_HOST}:{LAB_PORT}")
     ok = (not result["success"]) and expected in result["output"] and wrong not in result["output"]
     _report(tl, ok, "auth error class reported and no secret in output",
             expected + " without the secret",
@@ -169,3 +164,18 @@ def test_session_configuration_removed_after_run(tmp_path):
     _report(tl, ok, "session regctl configuration removed",
             "PROBE_REMOVED exists=False", f"success={result['success']} removed={removed}")
     assert ok, ASSERT["oci_probe_assert"].format(detail="session configuration removal")
+
+
+@pytest.mark.sanity
+@pytest.mark.order(13)
+def test_harbor_project_check_accepts_configured_ca(tmp_path):
+    """The Harbor project API accepts the configured CA, not only the Registry V2 endpoint."""
+    tc = TC["oci_harbor_project_ca"]
+    tl = TestLogger(tc["title"], tc["id"])
+    acct, secret = _lab_or_skip(tl)
+
+    result = run_probe(tmp_path, "harbor", lab_registry(ca_cert_path=LAB_CA_FILE), acct, secret)
+    ok = result["success"] and "PROBE_PROJECT accessible=True" in result["output"]
+    _report(tl, ok, "Harbor project reachable with the configured CA",
+            "PROBE_PROJECT accessible=True", f"success={result['success']}")
+    assert ok, ASSERT["oci_probe_assert"].format(detail="Harbor project check with the CA")

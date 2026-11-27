@@ -36,6 +36,15 @@
     - name: Run the endpoint and credential check
       ansible.builtin.include_tasks: "{{ probe_role_dir }}/tasks/check_oci_registry_endpoint.yml"
 
+    - name: Run the Harbor project check
+      ansible.builtin.include_tasks: "{{ probe_role_dir }}/tasks/check_harbor_project.yml"
+      when: probe_mode == 'harbor'
+
+    - name: Report the Harbor project check
+      ansible.builtin.debug:
+        msg: "PROBE_PROJECT accessible={{ _ext_oci_ns_check.status | default(-1) == 200 }}"
+      when: probe_mode == 'harbor'
+
     - name: Write and read the session regctl configuration
       when: probe_mode == 'session'
       block:

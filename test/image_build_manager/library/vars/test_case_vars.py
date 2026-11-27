@@ -360,4 +360,8 @@ TEST_CASES = {
         "id": "IMGBM_FVT_BUILD_V028",
         "title": "Verify the session regctl configuration is removed after the run",
     },
+    "oci_harbor_project_ca": {
+        "id": "IMGBM_FVT_BUILD_V029",
+        "title": "Verify the Harbor project API accepts the configured CA",
+    },
 }

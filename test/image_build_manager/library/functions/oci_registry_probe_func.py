@@ -65,9 +65,12 @@ def lab_available() -> bool:
 
 
 def lab_credentials() -> Optional[Tuple[str, str]]:
-    """Return the lab account from the Vault-backed test credentials, or None."""
-    creds = load_test_credentials()
-    user, password = creds.get(LAB_USER_KEY, ""), creds.get(LAB_PASSWORD_KEY, "")
+    """Return the registry account from OMNIA_OCI_TEST_* or the Vault-backed test credentials."""
+    user = os.environ.get("OMNIA_OCI_TEST_USERNAME", "")
+    password = os.environ.get("OMNIA_OCI_TEST_PASSWORD", "")
+    if not (user and password):
+        creds = load_test_credentials()
+        user, password = creds.get(LAB_USER_KEY, ""), creds.get(LAB_PASSWORD_KEY, "")
     return (user, password) if user and password else None
 
 
@@ -81,7 +84,7 @@ def lab_registry(
         "registry_protocol": "https",
         "registry_hostname": LAB_HOST,
         "registry_port": LAB_PORT,
-        "namespace_name": "omnia-lab",
+        "namespace_name": os.environ.get("OMNIA_OCI_LAB_NAMESPACE", "omnia-lab"),
     }
     if tls_verify is not None:
         section["tls_verify"] = tls_verify
@@ -108,7 +111,7 @@ def run_probe(
     username: str,
     password: str,
 ) -> Dict[str, Any]:
-    """Run the endpoint check (mode precheck) or endpoint plus session push check (mode session)."""
+    """Run the endpoint check; mode harbor adds the project check, mode session the push check."""
     workdir.mkdir(parents=True, exist_ok=True)
     inputs = workdir / "probe_inputs.yml"
     _write_private_yaml(inputs, {
@@ -135,7 +138,8 @@ def parse_session_state(output: str) -> Optional[Dict[str, Any]]:
     if not match:
         return None
     mode, owner, user_exact, rc = match.groups()
-    return {"mode": mode, "owner": owner, "user_exact": user_exact == "True", "regctl_rc": int(rc)}
+    return {"mode": mode, "owner": owner,
+            "user_exact": user_exact == "True", "regctl_rc": int(rc)}
 
 
 def session_removed(output: str) -> Optional[bool]:
