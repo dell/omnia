@@ -523,4 +523,4 @@
             action: release_lock
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
             run_id: "{{ fg_run_id }}"
-          ignore_errors: true
+          failed_when: false
