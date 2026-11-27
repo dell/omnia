@@ -159,7 +159,7 @@ Enter to skip a cluster) and stores it as a masked, protected variable. It commi
 | `svt_ci.py`, `svt_report_page.py`, `svt_pipeline_config.yml` | The runner helper and the report page builder; a reference copy of your config |
 | `clusters/<cluster>/svt/secret.yaml`, `values.yaml` | PowerScale CSI; `--create` adds them copied from the product's reference examples, you edit them (never replaced by `--update-inputs`). Copied next to `user_inputs.yml` on the OIM at every checkout; the initialization job then runs `./setup_env.sh --stage-files`, which moves them to the paths of `omnia_config.yml` (default: the orchestrator's project input folder) only when `enable_powerscale_csi` is true, and then both must exist (see SETUP.md, PowerScale CSI) |
 | `clusters/<cluster>/svt/user_inputs.yml` | The cluster values (from `test/system_test`; edit them in GitLab). Other files with the same syntax can sit beside it; the CI/CD variable `<CLUSTER>_SVT_USER_INPUTS` (`svt.user_inputs` in the config) names the one the cluster's pipeline uses, default `user_inputs.yml` |
-| `clusters/<cluster>/svt/<theme>_test_config.yml` | The theme settings of that cluster (catalogs, cleanup flags ...) |
+| `clusters/<cluster>/svt/<theme>_test_config.yml` | The theme settings of that cluster (catalogs, stages ...; the cleanup flags are in the cleanup block of `user_inputs.yml`) |
 
 It also sets the CI/CD variables (see [PIPELINE_CONFIG.md](PIPELINE_CONFIG.md#the-variables-the-script-creates))
 and raises the project CI timeout to the longest job.
@@ -187,7 +187,7 @@ Edit, in the GitLab project (Repository > Files, or a clone of it):
 
 - `clusters/<cluster>/svt/user_inputs.yml`: the cluster values (OIM identity, networks, PXE
   mapping, BuildStream and GitLab hosts ...), the same file as `test/system_test/user_inputs.yml`;
-- `clusters/<cluster>/svt/<theme>_test_config.yml`: catalogs, cleanup flags.
+- `clusters/<cluster>/svt/<theme>_test_config.yml`: catalogs, stages (the cleanup flags are in the cleanup block of `user_inputs.yml`; a theme file with its own `cleanup` block is refused).
 
 The preflight job copies both into the OIM's `test/system_test/` before every run; configure then
 writes them into the Omnia inputs. A commit does not start the pipeline. The files hold cluster

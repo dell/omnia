@@ -35,8 +35,14 @@ summary. build_stream:
 
 observability: prepare_base, repo_sync, image_build, cluster_deploy (the cluster;
 left out of 'all' by default: the theme runs on a deployed cluster), then
-observability_cleanup, observability_precheck, observability_deploy,
-observability_idrac and observability_ldms.
+observability_sfm_vm_only (telemetry cleanup, only the VictoriaMetrics sink, then the SFM
+checks), observability_cleanup (hard, always runs), observability_precheck,
+observability_deploy, observability_idrac, observability_ldms, observability_powerscale,
+observability_ome, observability_ufm and observability_sfm. The source stages have no
+setting: they run when their source is on. observability_sfm_vm_only is on by default;
+the theme config's stages: block can turn it off. A source stage (observability_sfm_vm_only,
+observability_idrac ... observability_sfm) is recorded as skipped, with the reason, while
+its source is off in the deployed telemetry_config.yml (configure_sfm for the SFM stages).
 
 Each stage is a set of SVT tests (svt/<theme>/); each test runs one FVT step
 of test/<domain> (or one ./omnia.sh command, a RUN step) and its screen output
@@ -261,14 +267,16 @@ def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any],
             emit(STAGE_MSGS["start"].format(stage=label, run_id=ctx["run_id"],
                                             theme=ctx["theme"]))
             try:
-                if skip_reason:
-                    outcome = {"status": "skipped", "error": skip_reason}
-                else:
-                    if stage != LAST_STAGE:
-                        config = load_svt_config(ctx["theme"])
-                        reapply_run_settings(config,
-                                             run_func.active_run(config, allow_failed=True), emit)
-                    outcome = _call(stage, ctx, emit)
+                skip_kind = {}
+                if not skip_reason and stage != LAST_STAGE:
+                    config = load_svt_config(ctx["theme"])
+                    reapply_run_settings(config,
+                                         run_func.active_run(config, allow_failed=True), emit)
+                    # A stage that checks one source is skipped while that source is off.
+                    skip_reason = stage_func.source_skip_reason(ctx["theme"], stage)
+                    skip_kind = {"skip": "source"}
+                outcome = ({"status": "skipped", **skip_kind, "error": skip_reason} if skip_reason
+                           else _call(stage, ctx, emit))
             except (OSError, ValueError, KeyError) as exc:
                 outcome = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
             except KeyboardInterrupt:

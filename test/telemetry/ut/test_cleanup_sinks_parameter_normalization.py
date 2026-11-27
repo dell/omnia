@@ -32,26 +32,28 @@ Test Coverage:
 """
 
 import subprocess
+from pathlib import Path
 
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class TestParameterNormalization:
     """Test suite for omnia.sh parameter normalization."""
 
     @staticmethod
-    def run_normalization_test(args):
-        """Run a bash script to test parameter normalization.
+    def run_normalization_script(args):
+        """Run normalize_extra_args on args inside omnia.sh.
 
         Args:
             args: List of arguments to normalize
 
         Returns:
-            String output from bash script, or None if test is skipped
+            (returncode, output): stdout when the call succeeded, stdout and stderr otherwise
         """
         bash_script = '''
         set -e
-        cd /root/automation_testing/omnia
         source ./src/main/omnia.sh
 
         # Test the normalize_extra_args function
@@ -67,17 +69,28 @@ class TestParameterNormalization:
                 ['bash', '-c', bash_script, '--'] + args,
                 capture_output=True,
                 text=True,
-                check=True,
                 timeout=10,
-                cwd='/root/automation_testing/omnia'
+                cwd=REPO_ROOT
             )
-            return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            pytest.skip(f"Bash script failed: {e.stderr}")
-            return None
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             pytest.skip(f"Could not run bash test: {e}")
-            return None
+        if result.returncode != 0:
+            return result.returncode, (result.stdout + result.stderr).strip()
+        return 0, result.stdout.strip()
+
+    @staticmethod
+    def run_normalization_test(args):
+        """Run normalize_extra_args and return its output; a failed call fails the test.
+
+        Args:
+            args: List of arguments to normalize
+
+        Returns:
+            String output from bash script
+        """
+        returncode, output = TestParameterNormalization.run_normalization_script(args)
+        assert returncode == 0, f"normalize_extra_args failed (rc={returncode}): {output}"
+        return output
 
     @pytest.mark.test_id("TEL_UT_CLEANUP_V046")
 
@@ -233,28 +246,28 @@ class TestParameterNormalization:
 
         GIVEN: -e invalid_sink
         WHEN: normalize_extra_args is called
-        THEN: Should NOT normalize (not a valid sink name)
+        THEN: The script exits non-zero with an invalid-sink error and does not normalize
         """
-        result = self.run_normalization_test(["-e", "invalid_sink"])
-        assert result is not None
-        # Should NOT convert to invalid_sink=true (should error or pass through)
-        assert "invalid_sink=true" not in result, (
-            f"Should reject invalid sink, got: {result}"
+        returncode, output = self.run_normalization_script(["-e", "invalid_sink"])
+        assert returncode != 0, f"Should reject invalid sink, got: {output}"
+        assert "Invalid telemetry sink 'invalid_sink'" in output, (
+            f"Should name the invalid sink, got: {output}"
         )
+        assert "invalid_sink=true" not in output
 
     def test_mixed_valid_invalid_no_normalization(self):
         """UT_CLEANUP_PARAM_011: Mixed valid/invalid should not normalize.
 
         GIVEN: -e kafka,invalid_sink
         WHEN: normalize_extra_args is called
-        THEN: Should NOT normalize (contains invalid sink)
+        THEN: The script exits non-zero with an invalid-sink error and does not normalize
         """
-        result = self.run_normalization_test(["-e", "kafka,invalid_sink"])
-        assert result is not None
-        # Should NOT convert to sinks=...
-        assert "sinks=kafka,invalid_sink" not in result, (
-            f"Should reject mixed valid/invalid, got: {result}"
+        returncode, output = self.run_normalization_script(["-e", "kafka,invalid_sink"])
+        assert returncode != 0, f"Should reject mixed valid/invalid, got: {output}"
+        assert "Invalid telemetry sink 'invalid_sink'" in output, (
+            f"Should name the invalid sink, got: {output}"
         )
+        assert "sinks=kafka,invalid_sink" not in output
 
     @pytest.mark.test_id("TEL_UT_CLEANUP_V055")
 
@@ -404,7 +417,7 @@ class TestAnsibleVariableDetection:
     def test_marker_variable_null_default(self):
         """Verify marker variables have null defaults."""
         with open(
-            '/root/automation_testing/omnia/src/telemetry/roles/cleanup/vars/main.yml',
+            REPO_ROOT / 'src/telemetry/roles/cleanup/vars/main.yml',
             'r',
             encoding='utf-8'
         ) as f:
@@ -420,7 +433,7 @@ class TestAnsibleVariableDetection:
     def test_short_form_detection_logic(self):
         """Verify short-form detection logic in initialize.yml."""
         with open(
-            '/root/automation_testing/omnia/src/telemetry/roles/cleanup/tasks/initialize.yml',
+            REPO_ROOT / 'src/telemetry/roles/cleanup/tasks/initialize.yml',
             'r',
             encoding='utf-8'
         ) as f:

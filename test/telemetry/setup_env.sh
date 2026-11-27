@@ -47,6 +47,7 @@
 #   bash setup_env.sh --force                 # Force-reinstall dependencies
 #   bash setup_env.sh --venv --force         # Recreate .venv/ from scratch
 #   bash setup_env.sh --set-creds            # Prompt for test credentials
+#   bash setup_env.sh --set-external-creds   # Prompt only the enabled OME/SFM credentials
 #   bash setup_env.sh --update-creds         # Update test credentials
 #   approved-secret-provider | bash setup_env.sh --creds-stdin
 #   bash setup_env.sh --set-domain-creds     # Prompt for telemetry creds
@@ -119,6 +120,7 @@ DEBUG=false
 PIP_QUIET="--quiet"
 SET_CREDS=false
 UPDATE_CREDS=false
+SET_EXTERNAL_CREDS=false
 CREDS_FROM_STDIN=false
 SET_DOMAIN_CREDS=false
 UPDATE_DOMAIN_CREDS=false
@@ -132,6 +134,7 @@ while [[ $# -gt 0 ]]; do
         --force|-f)          FORCE=true; shift ;;
         --debug)             DEBUG=true; PIP_QUIET=""; shift ;;
         --set-creds)         SET_CREDS=true; shift ;;
+        --set-external-creds) SET_EXTERNAL_CREDS=true; shift ;;
         --update-creds)      UPDATE_CREDS=true; shift ;;
         --creds-stdin)       CREDS_FROM_STDIN=true; shift ;;
         --set-domain-creds)    SET_DOMAIN_CREDS=true; shift ;;
@@ -163,6 +166,9 @@ TEST CREDENTIALS (test_creds.yml)
   --set-creds     Prompt for OIM SSH and enabled OME/SFM credentials.
   --update-creds  Force-update OIM SSH and enabled OME/SFM credentials.
   --creds-stdin   Read an OIM SSH password from standard input.
+  --set-external-creds
+                  Prompt only the enabled OME and SFM appliance credentials
+                  (test_creds.yml); no SSH or domain prompts.
 DOMAIN CREDENTIALS (telemetry_credentials.yml)
 ─────────────────────────────────────────────────────────────────
   Created at $TELEMETRY_DATA_PATH/input/$OMNIA_PROJECT_NAME/ when set;
@@ -701,6 +707,8 @@ if [ "$UPDATE_CREDS" = true ]; then
     _handle_external_credentials update
 elif [ "$SET_CREDS" = true ]; then
     _handle_external_credentials set
+elif [ "$SET_EXTERNAL_CREDS" = true ]; then
+    _handle_external_credentials set
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -771,7 +779,7 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
    && [ "$DOMAIN_CREDS_FROM_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
-   && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
+   && [ "$UPDATE_DOMAIN_CREDS" = false ] && [ "$SET_EXTERNAL_CREDS" = false ]; then
     if _test_credential_fields_are_set oim_password; then
         ok "OIM SSH credentials: test_creds.yml (encrypted)"
     else

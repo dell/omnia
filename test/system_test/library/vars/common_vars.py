@@ -47,6 +47,9 @@ REPORT_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}")
 REPORT_PATH_RE = re.compile(r"[A-Za-z0-9_./-]{1,255}")
 OPENBAO_URL_RE = re.compile(r"https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?")
 OPENBAO_PATH_RE = re.compile(r"[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*")
+# Theme settings of kind "host" (an appliance IPv4/IPv6 address or host name) and "port".
+HOST_RE = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9.:-]{0,252}[A-Za-z0-9])?")
+MAX_PORT = 65535
 OPENBAO_TOKEN_ENV = "BAO_TOKEN"
 # Each run has its own folder under report_path (the report, the stage logs,
 # run.json), so one folder is one run to send. The run is started by
@@ -124,6 +127,11 @@ OMNIA_ACTIVATE_SCRIPT = "activate-omnia.sh"
 # A domain's data root: <DOMAIN>_DATA_PATH, else <OMNIA_DATA_PATH>/<domain>.
 DOMAIN_DATA_KEY = "{domain}_DATA_PATH"
 DOMAIN_INPUT_DIR = os.path.join("input", "{project}")
+# The telemetry input the source stages read (observability source_stages): the deployed copy
+# in <telemetry data>/input/<project>/, else the src input the dataset generator writes.
+TELEMETRY_CONFIG_FILE = "telemetry_config.yml"
+TELEMETRY_SRC_CONFIG = os.path.join(REPO_ROOT, "src", "telemetry", "input",
+                                    TELEMETRY_CONFIG_FILE)
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 # ------------------------------------- FVT domains under test/<domain>
@@ -137,6 +145,7 @@ RESULTS_FILE_ENV = "OMNIA_RESULTS_FILE"
 # RUN steps: ./omnia.sh -r <domain> [--tags <tag>] (theme_vars.OMNIA_RUN_TAGS).
 OMNIA_RUN_ARG = "-r"
 OMNIA_TAGS_ARG = "--tags"
+OMNIA_EXTRA_ARG = "-e"
 
 # ------------------------- environment the stage driver and the SVT runner honour
 RUN_ID_ENV = "SVT_RUN_ID"
@@ -158,6 +167,11 @@ CREDS_FLAGS = ("--set-domain-creds", "--update-domain-creds", "--domain-creds-st
                OPENBAO_CREDS_FLAG)
 CREDS_STDIN_FLAG = "--domain-creds-stdin"
 MAX_CREDS_STDIN_BYTES = 65536
+# OME and SFM appliance credentials (test_creds.yml of the telemetry suite): set by the suite's
+# --set-external-creds, which prompts only for the appliances its test_config.yml enables.
+EXTERNAL_CREDS_FLAG = "--set-external-creds"
+EXTERNAL_CREDS_SUITE = "telemetry"
+EXTERNAL_CREDS_FILE = "test_creds.yml"
 # Test requirements installed into the Omnia venv, per suite: checksums of the
 # suite's requirements.txt and setup_env.sh and of the omnia_auto wheel. A
 # suite whose checksum is unchanged is not installed again (unless --force).

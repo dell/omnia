@@ -37,7 +37,7 @@ reports what is missing.
 | `<stage>` / `all` | required | One stage, or every stage from `--start-stage`, then `summary` |
 | `--run-id` | the current run | Must be the run started by `./setup_env.sh --configure`; another id is refused |
 | `--start-stage` | `initialization` | With `all`: first stage |
-| `--skip-stages` | the theme's `default_skip_stages` | With `all`: theme stages to leave out, comma separated (recorded as skipped, not in the report's planned stages); `none` runs every stage. observability leaves out `prepare_base,repo_sync,image_build,cluster_deploy` by default |
+| `--skip-stages` | the theme's `default_skip_stages` | With `all`: theme stages to leave out, comma separated (recorded as skipped, not in the report's planned stages); `none` runs every stage. observability leaves out `prepare_base,repo_sync,image_build,cluster_deploy` by default. A stage skipped because its source is off (theme `source_stages`) stays planned: the report's Stage Overview shows it as Skipped with the reason, outside the pass rate |
 | `--quiet` | off | Output to the stage log only |
 
 Exit codes: `0` passed or skipped, `1` failed, `2` invalid arguments, the
@@ -161,7 +161,11 @@ omnia_auto FVT report, light/dark). Top to bottom:
 3. **Cards:** stages, SVT steps, and the SVT steps passed / failed / skipped
    (click to filter), pass rate, duration. The counts are SVT steps; FVT test
    counts are shown only inside the step that ran them, so a stage's numbers
-   always agree with its status.
+   always agree with its status. The **pass rate** counts test cases when the
+   stage has any (passed / (passed + failed) of its FVT results, so one failed
+   test in a step with many passing tests lowers the rate only by that test); a
+   stage of playbook steps only counts its steps. The caption under each rate
+   says which: "3 of 4 test cases passed" or "1 of 1 steps passed".
 4. **Run Details** and **Stage Overview.** Run Details lists the theme, run,
    state, previous run, then the **Git Clone URL**, **Branch** and **Commit**
    of the tested checkout, each a link to the repository page (GitHub
