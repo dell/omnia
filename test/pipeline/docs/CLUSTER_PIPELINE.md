@@ -129,6 +129,8 @@ exist before the clone. All of them need the cluster variables
 | `pxeboot` | `./omnia.sh --run orchestrator --tags pxeboot`; its own stage between `orchestrator` and `test_orchestrator` (skip words `pxeboot`, `orchestrator`, `deploy`) |
 | `stage <domain> <tag>` | `fvt_<domain> <tag> exec` |
 | `verify <domain\|main>` | The test config and credentials, then the verify command |
+| `prepare-base` | Build stream pipeline: the credentials of `repo_manager`, `image_build_manager` and `orchestrator`, then `./omnia.sh --prepare-base`; blocked when a cleanup failed |
+| `setup-utils` | Utils pipeline: `install` (`omnia.sh -s`), then the inputs of the `utils` domain |
 | `summary` | Prints the job table, fetches the test reports, sends the email |
 
 Domain and tag names are checked against fixed lists and patterns before they reach a command.
