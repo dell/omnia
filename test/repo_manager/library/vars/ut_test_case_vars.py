@@ -722,6 +722,32 @@ UT_TEST_CASE_IDS = {
             338: "test_iso_spider_ends_options_before_url",
         },
     ),
+    # ── Pulp Quadlet least privilege ──────────────────────────────────────
+    "test_pulp_quadlet_contract.py::test_pulp_quadlet_is_not_privileged": "RM_UT_339",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_quadlet_keeps_selinux_confinement"
+    ): "RM_UT_340",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_selinux_storage_check_runs_before_pulp_changes"
+    ): "RM_UT_341",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_network_filesystems_map_to_selinux_booleans"
+    ): "RM_UT_342",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_selinux_relabel_paths_follow_detected_filesystems"
+    ): "RM_UT_343",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_volumes_apply_relabel_per_storage_path"
+    ): "RM_UT_344",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_volumes_do_not_use_global_selinux_option"
+    ): "RM_UT_345",
 }
 
 
