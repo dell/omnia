@@ -48,7 +48,7 @@ IMAGE_BUILD_DATA_PATH = os.environ.get("IMAGE_BUILD_MANAGER_DATA_PATH") or os.pa
 TARGET_INPUT_DIR = Path(IMAGE_BUILD_DATA_PATH) / "input" / PROJECT_NAME
 
 LAB_HOST = os.environ.get("OMNIA_OCI_LAB_HOST", "")
-LAB_PORT = int(os.environ.get("OMNIA_OCI_LAB_PORT", "5443"))
+LAB_PORT = int(os.environ.get("OMNIA_OCI_LAB_PORT", "443"))
 LAB_CA_FILE = os.environ.get("OMNIA_OCI_LAB_CA_FILE", "")
 LAB_USER_KEY = "oci_lab_registry_username"
 LAB_PASSWORD_KEY = "oci_lab_registry_password"  # nosec B105 - credential key name, not a value

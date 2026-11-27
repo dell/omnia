@@ -166,7 +166,7 @@ def test_session_configuration_protected(tmp_path):
 @pytest.mark.order(14)
 @pytest.mark.parametrize("field,value", [
     ("registry_hostname", "oim;reboot"),
-    ("registry_hostname", "oim.omnia.cluster/../x"),
+    ("registry_hostname", "registry.example.com/../x"),
     ("namespace_name", "omnia/../other"),
     ("namespace_name", "omnia$(id)"),
 ], ids=["host_semicolon", "host_traversal", "namespace_traversal", "namespace_subshell"])
