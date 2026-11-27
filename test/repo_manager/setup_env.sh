@@ -22,18 +22,19 @@ show_help() {
 Repo Manager FVT environment setup.
 
 Usage:
-  bash setup_env.sh [--venv] [--force] [--set-password] [--password PWD]
+  bash setup_env.sh [--venv] [--force] [--set-password] [--password-env NAME] [--password-stdin]
 
 Options:
   --venv              Create and install into .venv/
   --force             Recreate .venv/ from scratch
   --set-password      Prompt interactively for OIM SSH password (remote mode)
-  --password PWD      Set OIM SSH password non-interactively (remote mode)
+  --password-env NAME Read the OIM SSH password from the environment variable NAME (remote mode)
+  --password-stdin    Read the OIM SSH password from the first line of standard input (remote mode)
   -h, --help          Show this help
 
 Examples:
   bash setup_env.sh --venv
-  bash setup_env.sh --venv --force --password 'changeme'
+  OIM_PASSWORD='changeme' bash setup_env.sh --venv --force --password-env OIM_PASSWORD
 EOF
 }
 
@@ -47,7 +48,11 @@ while [[ $# -gt 0 ]]; do
         --venv) USE_VENV=true ;;
         --force) FORCE=true ;;
         --set-password) SET_PASSWORD=true ;;
-        --password) PASSWORD="$2"; SET_PASSWORD=true; shift ;;
+        --password-env)
+            [[ $# -ge 2 && "$2" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "--password-env needs the name of an environment variable"; exit 1; }
+            PASSWORD="${!2:-}"; SET_PASSWORD=true; shift ;;
+        --password-stdin) IFS= read -r PASSWORD || true; SET_PASSWORD=true ;;
+        --password) echo "--password was removed: a password in the arguments is visible to other users (ps). Use --set-password, --password-env NAME or --password-stdin."; exit 1 ;;
         -h|--help) show_help; exit 0 ;;
         *) echo "Unknown option: $1"; show_help; exit 1 ;;
     esac
@@ -80,22 +85,29 @@ fi
 
 # Set SSH password for remote mode if requested
 if "$SET_PASSWORD"; then
-    python3 - <<PY
-import sys, os
-sys.path.insert(0, "${SCRIPT_DIR}")
+    MODULE_DIR="${SCRIPT_DIR}" OIM_SSH_PASSWORD="${PASSWORD}" python3 - <<'PY'
+import os
+import sys
+module_dir = os.environ["MODULE_DIR"]
+sys.path.insert(0, module_dir)
 import omnia_auto
 omnia_auto.configure(
-    module_root="${SCRIPT_DIR}",
+    module_root=module_dir,
     config_file="test_config.yml",
     credentials_file="test_creds.yml",
     credentials_key=".test_creds.key",
 )
+import yaml
 from omnia_auto import encrypt_test_credentials
-pwd = """${PASSWORD}"""
+pwd = os.environ.get("OIM_SSH_PASSWORD", "")
 if not pwd:
     import getpass
     pwd = getpass.getpass("OIM SSH password: ")
-encrypt_test_credentials({"oim_password": pwd})
+creds_file = os.path.join(module_dir, "test_creds.yml")
+descriptor = os.open(creds_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+    yaml.safe_dump({"oim_password": pwd}, handle)
+encrypt_test_credentials()
 PY
 fi
 
