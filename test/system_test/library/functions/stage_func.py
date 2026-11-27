@@ -29,18 +29,22 @@ import shutil
 import tempfile
 import time
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import pytest
+import yaml
 
 from . import state_func, svt_report_func
 from .config_func import ConfigError, load_svt_config, theme_config_path
+from .fvt_func import domain_dir
+from .omnia_func import domain_input_dir, omnia_env
 from .process_func import capture_command
 from .run_func import describe, load_run, settings_of
 from .readiness_func import load_setup_record, readiness_checks, sha256
 from ..messages.svt_msgs import STAGE_MSGS
 from ..vars.common_vars import (
     FIRST_STAGE,
+    FVT_TEST_CONFIG,
     INPUTS_FILE,
     MODULE_ROOT,
     REPO_ROOT,
@@ -50,9 +54,62 @@ from ..vars.common_vars import (
     RUN_MANIFEST,
     SETUP_REPORT_DIR,
     SETUP_STEPS,
+    TELEMETRY_CONFIG_FILE,
+    TELEMETRY_SRC_CONFIG,
 )
+from ..vars.theme_vars import THEMES
 
 Emit = Callable[[str], None]
+
+
+def _read_mapping(path: str) -> Optional[Dict[str, Any]]:
+    """Return the YAML mapping in ``path`` (None when it is missing or not a mapping)."""
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            data = yaml.safe_load(stream)
+    except (OSError, yaml.YAMLError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _telemetry_config() -> Tuple[str, Optional[Dict[str, Any]]]:
+    """Return (path, mapping) of the telemetry input the deploy uses: the deployed copy, else
+    the src input the dataset generator writes ((path, None) when neither can be read)."""
+    deployed = os.path.join(domain_input_dir(omnia_env(), "telemetry"), TELEMETRY_CONFIG_FILE)
+    for path in (deployed, TELEMETRY_SRC_CONFIG):
+        data = _read_mapping(path)
+        if data is not None:
+            return path, data
+    return deployed, None
+
+
+def source_skip_reason(theme: str, stage: str) -> str:
+    """Return why ``stage`` is skipped because the one source it checks is off ("" = run it).
+
+    THEMES[theme]["source_stages"]: ("source", <name>) is off when telemetry_sources.<name>
+    has neither metrics_enabled nor logs_enabled true; ("setting", <suite>, <key>) is off
+    when <key> of test/<suite>/test_config.yml is not true. An input that cannot be read
+    skips nothing: the stage runs and its checks report the problem.
+    """
+    spec = (THEMES.get(theme, {}).get("source_stages") or {}).get(stage)
+    if not spec:
+        return ""
+    if spec[0] == "setting":
+        _, suite, key = spec
+        path = os.path.join(domain_dir(suite), FVT_TEST_CONFIG)
+        data = _read_mapping(path)
+        if data is None or data.get(key) is True:
+            return ""
+        return STAGE_MSGS["setting_off"].format(key=key, path=path)
+    source = spec[1]
+    path, data = _telemetry_config()
+    if data is None:
+        return ""
+    block = (data.get("telemetry_sources") or {}).get(source)
+    block = block if isinstance(block, dict) else {}
+    if block.get("metrics_enabled") is True or block.get("logs_enabled") is True:
+        return ""
+    return STAGE_MSGS["source_off"].format(source=source, path=path)
 
 
 def run_dir(run_id: str) -> str:

@@ -107,8 +107,6 @@ LDMS_LOG_MSGS = {
     "package_not_installed": "LDMS package not installed on {count} nodes",
     "kafka_data_verifying": "Verifying latest LDMS data in Kafka topic",
     "kafka_data_success": "LDMS latest data verified for all {count} hosts",
-    "kafka_earliest_verifying": "Verifying earliest LDMS data in Kafka topic",
-    "kafka_earliest_success": "LDMS earliest data found for {count} hosts",
 }
 
 # =============================================================================
@@ -123,7 +121,6 @@ LDMS_ASSERT_MSGS = {
     "sampler_plugins_mismatch": "LDMS plugin mismatch on: {nodes}",
     "package_not_installed": "LDMS package not installed on: {nodes}",
     "kafka_data_missing": "LDMS data missing from: {hosts}",
-    "kafka_earliest_missing": "No LDMS earliest data found in Kafka topic",
 }
 
 # =============================================================================

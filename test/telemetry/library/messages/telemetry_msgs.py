@@ -850,8 +850,6 @@ LDMS_LOG_MSGS = {
     "ldms_data_found": "LDMS data verified for {count} instances from {hosts} hosts",
     "ldms_data_missing": "LDMS data missing for {count} instance(s)",
     "ldms_verifying": "Verifying LDMS data in Kafka topic '{topic}'",
-    "ldms_earliest_found": "Earliest LDMS data found for {count} hosts",
-    "ldms_earliest_missing": "Earliest LDMS data missing for hosts: {missing}",
 }
 
 

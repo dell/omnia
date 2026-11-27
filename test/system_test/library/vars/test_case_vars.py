@@ -15,7 +15,9 @@
 """SVT test registry: stable IDs, titles, order, stage and the step of each test.
 
 ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused
-(001-003 were the former whole-case tests). Order: theme base +
+(001-003 were the former whole-case tests; SVT_OBSERVABILITY_025 and 027 were the
+iDRAC and LDMS data-flow halves, now part of 024 and 026; 028-031 are PowerScale, OME,
+UFM and SFM; 032-035 are SFM with only the VictoriaMetrics sink). Order: theme base +
 position (build_stream 1000, observability 2000). Each test has one of:
 
 * ``step``: ``(domain, runner arguments)`` of ``test/<domain>/_run.py fvt_<domain>``:
@@ -293,39 +295,48 @@ TEST_CASES = {
         "step": ("orchestrator", ("pxeboot", "verify", "--suite", "slurm_cluster",
                                   "--marker", "sanity")),
     },
+    # ---------------------------------------------- stage observability_sfm_vm_only
+    # First observability stage, skipped while configure_sfm is false: SFM must deliver its
+    # metrics with only the VictoriaMetrics sink deployed. It leaves telemetry in that
+    # reduced state; observability_cleanup and observability_deploy, next, bring up the
+    # full telemetry. The cleanup keeps the telemetry output folder, so the external
+    # Victoria export is generated again (new vminsert/vmselect addresses and CA) before
+    # the SFM checks, which would otherwise reuse the old one.
+    "observability_sfm_vm_only_cleanup_run": {
+        "id": "SVT_OBSERVABILITY_032", "order": 2045, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags cleanup "
+                 "-e cleanup_credentials=false",
+        "run": ("-r", _TEL, "--tags", "cleanup", "-e", "cleanup_credentials=false"),
+    },
+    "observability_sfm_vm_only_sinks_run": {
+        "id": "SVT_OBSERVABILITY_033", "order": 2046, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags deploy_sinks "
+                 "-e victoria_metrics",
+        "run": ("-r", _TEL, "--tags", "deploy_sinks", "-e", "victoria_metrics"),
+    },
+    "observability_sfm_vm_only_export_run": {
+        "id": "SVT_OBSERVABILITY_034", "order": 2047, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: ./omnia.sh -r telemetry --tags external_victoria",
+        "run": ("-r", _TEL, "--tags", "external_victoria"),
+    },
+    "observability_sfm_vm_only_verify": {
+        "id": "SVT_OBSERVABILITY_035", "order": 2048, "stage": "observability_sfm_vm_only",
+        "title": "SFM, VictoriaMetrics only: SFM metrics in VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "sfm")),
+    },
     # -------------------------------------------------- stage observability_cleanup
-    # The iDRAC and LDMS telemetry of an earlier deployment; soft (a cluster without
-    # telemetry yet may fail it, the deploy still follows).
-    "observability_cleanup_ldms_run": {
+    # All telemetry sources and sinks deployed before (by an earlier run or by
+    # observability_sfm_vm_only); hard, always runs. Credentials are kept.
+    "observability_cleanup_run": {
         "id": "SVT_OBSERVABILITY_014", "order": 2050, "stage": "observability_cleanup",
-        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup_ldms",
-        "run": ("-r", _TEL, "--tags", "cleanup_ldms"),
-    },
-    "observability_cleanup_ldms_verify": {
-        "id": "SVT_OBSERVABILITY_015", "order": 2051, "stage": "observability_cleanup",
-        "title": "Cleanup: LDMS pods removed",
-        "step": (_TEL, ("cleanup_ldms", "verify")),
-    },
-    "observability_cleanup_idrac_run": {
-        "id": "SVT_OBSERVABILITY_016", "order": 2052, "stage": "observability_cleanup",
-        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup_idrac",
-        "run": ("-r", _TEL, "--tags", "cleanup_idrac"),
-    },
-    "observability_cleanup_idrac_verify": {
-        "id": "SVT_OBSERVABILITY_017", "order": 2053, "stage": "observability_cleanup",
-        "title": "Cleanup: iDRAC pods removed",
-        "step": (_TEL, ("cleanup_idrac", "verify")),
+        "title": "Cleanup: ./omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false",
+        "run": ("-r", _TEL, "--tags", "cleanup", "-e", "cleanup_credentials=false"),
     },
     # ------------------------------------------------- stage observability_precheck
     "observability_precheck_run": {
         "id": "SVT_OBSERVABILITY_018", "order": 2060, "stage": "observability_precheck",
         "title": "Precheck: ./omnia.sh -r telemetry --tags precheck",
         "run": ("-r", _TEL, "--tags", "precheck"),
-    },
-    "observability_precheck_verify": {
-        "id": "SVT_OBSERVABILITY_019", "order": 2061, "stage": "observability_precheck",
-        "title": "Precheck: omnia.env, Kubernetes nodes Ready, kube_vip reachable",
-        "step": (_TEL, ("precheck", "verify", "--marker", "sanity")),
     },
     "observability_validate_run": {
         "id": "SVT_OBSERVABILITY_020", "order": 2062, "stage": "observability_precheck",
@@ -343,32 +354,58 @@ TEST_CASES = {
         "title": "Deploy: ./omnia.sh -r telemetry (enabled sources and sinks)",
         "run": ("-r", _TEL),
     },
-    "observability_stack_verify": {
-        "id": "SVT_OBSERVABILITY_023", "order": 2071, "stage": "observability_deploy",
-        "title": "Deploy: Kafka, VictoriaMetrics, VictoriaLogs, telemetry pods, install mode",
-        "step": (_TEL, ("deploy", "verify", "--marker", "sanity")),
-    },
     # ---------------------------------------------------- stage observability_idrac
-    "observability_idrac_readiness_verify": {
+    # Every iDRAC check of the FVT (pods, containers, service, MySQL, receiver, Kafka,
+    # VictoriaMetrics, install-mode deployment), as fvt_telemetry verify runs them.
+    "observability_idrac_verify": {
         "id": "SVT_OBSERVABILITY_024", "order": 2080, "stage": "observability_idrac",
-        "title": "iDRAC readiness: pods, StatefulSet, containers, VictoriaPump, service",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac+sanity")),
-    },
-    "observability_idrac_data_verify": {
-        "id": "SVT_OBSERVABILITY_025", "order": 2081, "stage": "observability_idrac",
-        "title": "iDRAC data flow: MySQL, receiver, Kafka, VictoriaMetrics",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac+functional")),
+        "title": "iDRAC: pods, containers, MySQL, receiver, Kafka, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "idrac")),
     },
     # ----------------------------------------------------- stage observability_ldms
-    "observability_ldms_readiness_verify": {
+    # Every LDMS check of the FVT (aggregator, store, bridge, samplers, Kafka,
+    # VictoriaMetrics).
+    "observability_ldms_verify": {
         "id": "SVT_OBSERVABILITY_026", "order": 2090, "stage": "observability_ldms",
-        "title": "LDMS readiness: aggregator, store, Vector-LDMS bridge, Kafka topic",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+sanity")),
+        "title": "LDMS: aggregator, store, bridge, samplers, Kafka, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms")),
     },
-    "observability_ldms_data_verify": {
-        "id": "SVT_OBSERVABILITY_027", "order": 2091, "stage": "observability_ldms",
-        "title": "LDMS data flow: samplers, Kafka, VictoriaMetrics",
-        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ldms+functional")),
+    # The PowerScale, OME, UFM and SFM stages are not toggled: they run whenever their source
+    # is on (user_inputs.yml telemetry). Like observability_idrac and
+    # observability_ldms, each is skipped while its source is off (theme source_stages;
+    # SFM: configure_sfm). Within a stage, a check whose channel (metrics or logs) is off
+    # is skipped by the FVT. A live source needs its external appliance.
+    # ----------------------------------------------- stage observability_powerscale
+    # Every PowerScale check of the FVT source suite (CSM Metrics, OTEL Collector, CSI
+    # driver and volume exporter, metrics, syslog and logs, install-mode deployment).
+    "observability_powerscale_verify": {
+        "id": "SVT_OBSERVABILITY_028", "order": 2100, "stage": "observability_powerscale",
+        "title": "PowerScale: CSM Metrics, OTEL Collector, CSI exporter, VictoriaMetrics, "
+                 "VictoriaLogs",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "powerscale")),
+    },
+    # ------------------------------------------------------ stage observability_ome
+    # Every OME check (bridge, KafkaUser; with configure_ome: mTLS, forwarder, Kafka,
+    # VictoriaMetrics, VictoriaLogs). Needs ome_ip and the OME test credentials.
+    "observability_ome_verify": {
+        "id": "SVT_OBSERVABILITY_029", "order": 2110, "stage": "observability_ome",
+        "title": "OME: Vector-OME bridge, KafkaUser, forwarder, Kafka, VictoriaMetrics, "
+                 "VictoriaLogs",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ome")),
+    },
+    # ------------------------------------------------------ stage observability_ufm
+    "observability_ufm_verify": {
+        "id": "SVT_OBSERVABILITY_030", "order": 2120, "stage": "observability_ufm",
+        "title": "UFM: external service, VMServiceScrape, credentials, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "ufm")),
+    },
+    # ------------------------------------------------------ stage observability_sfm
+    # Every SFM check (with configure_sfm: switch path, Remote Write, metrics). Configures
+    # the SFM appliance; needs sfm_api_ip, sfm_ssh_ip and the SFM test credentials.
+    "observability_sfm_verify": {
+        "id": "SVT_OBSERVABILITY_031", "order": 2130, "stage": "observability_sfm",
+        "title": "SFM: VictoriaMetrics services, switch path, Remote Write, VictoriaMetrics",
+        "step": (_TEL, ("deploy", "verify", "--suite", "sources", "--marker", "sfm")),
     },
     # ============================================================ theme cluster_lifecycle
     # When use_discovery_mapping=true in the theme's test_config, the
