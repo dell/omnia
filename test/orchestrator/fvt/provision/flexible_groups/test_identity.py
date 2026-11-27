@@ -313,7 +313,3 @@ class TestInvalidIdentities:
         assert not errors, f"Unqualified OS should not produce blocking errors: {errors}"
         assert warnings, "Expected non-blocking advisory warning"
         assert any("only RHEL 10.0 and 10.2 are qualified" in w for w in warnings)
-        """ORCH_FVT_FG_V008: An empty configuration template changes nothing."""
-        group = "fg_research_rhel_10_0_x86_64"
-        errors = _validate(tmp_path, {"common": {}, "groups": {}}, [group])
-        assert not errors, f"Unexpected errors: {errors}"

@@ -32,12 +32,12 @@
          and functional_group_name in functional_group_config.groups
          and functional_group_config.groups[functional_group_name].image_override is defined
          and functional_group_config.groups[functional_group_name].image_override | length > 0 }}
-  when: functional_group_config is defined
-
-- name: Skip image validation for groups with image override
-  ansible.builtin.set_fact:
-    _skip_image_validation: true
-  when: _fg_has_image_override | default(false)
+    _skip_image_validation: >-
+      {{ functional_group_config is defined
+         and functional_group_config.groups is defined
+         and functional_group_name in functional_group_config.groups
+         and functional_group_config.groups[functional_group_name].image_override is defined
+         and functional_group_config.groups[functional_group_name].image_override | length > 0 }}
 
 - name: Compute FG name components for matching
   ansible.builtin.set_fact:
