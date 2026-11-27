@@ -49,10 +49,6 @@ TEST_CASES = {
         "id": "RM_FVT_CLEANUP_E001",
         "title": "Deploy repo_manager (cleanup)",
     },
-    "deploy_cleanup_repos": {
-        "id": "RM_FVT_CLEANUP_REPOS_E001",
-        "title": "Deploy repo_manager (cleanup_repos)",
-    },
     "deploy_credentials": {
         "id": "RM_FVT_CREDENTIALS_E001",
         "title": "Deploy repo_manager (credentials)",
