@@ -58,10 +58,9 @@ skip_credential_tags:
 # Note: prepare and deploy tags only deploy containers (OpenCHAMI/OpenLDAP),
 # they don't configure nodes, so repo_status.yml is not needed until provision.
 # Note: the flexible-group tag (manage-functional-group) is intentionally
-# absent (ER-ORCH-009 FR-4.1, FR-4.3). Repository, registry, and package
-# configuration for flexible groups is the user's responsibility via
-# cloud_init.config_file or pre-baked images, so these flows must proceed
-# without a repo_status.yml.
+# absent. Repository, registry, and package configuration for flexible groups
+# is the user's responsibility via cloud_init.config_file or pre-baked images,
+# so these flows must proceed without a repo_status.yml.
 repo_status_required_tags:
   - all
   - precheck

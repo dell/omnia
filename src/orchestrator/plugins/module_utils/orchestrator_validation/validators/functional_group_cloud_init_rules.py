@@ -13,8 +13,8 @@
 # limitations under the License.
 """Cloud-init validation rules for functional groups.
 
-Per ER-ORCH-009 FR-2.2, flexible groups support write_files and runcmd
-directives only. Secret-bearing content is rejected before publication.
+Flexible groups support write_files and runcmd directives only.
+Secret-bearing content is rejected before publication.
 Paths are validated to remain within the active project input boundary.
 """
 

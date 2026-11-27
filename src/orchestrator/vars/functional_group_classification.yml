@@ -79,7 +79,7 @@ functional_group_categories:
       os: "Minimal OS Node"
     default_description: "Minimal OS Node"
 
-  # ER-ORCH-009: flexible functional groups (fg_ prefix)
+  # Flexible functional groups (fg_ prefix)
   flexible:
     patterns:
       - "^fg_"

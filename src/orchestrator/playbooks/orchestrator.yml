@@ -253,8 +253,8 @@
     - execute
     - provision
 
-# Lifecycle integration (ER-ORCH-009 FR-4.4): publish all mapped flexible
-# (fg_) groups idempotently during default, provision, and execute flows.
+# Lifecycle integration: publish all mapped flexible (fg_) groups
+# idempotently during default, provision, and execute flows.
 # This never removes groups, never runs category bolt-on roles, does not
 # consume omnia_config.yml / storage_config.yml, and does not require
 # repo_status.yml. Per-group failures are isolated and do not abort
@@ -293,15 +293,15 @@
     - verify_node_registration
 
 # =========================================================================
-# FLOW: manage-functional-group (ER-ORCH-009, HLD v13)
+# FLOW: manage-functional-group
 # Single public tag for all flexible functional-group (fg_) operations:
 # add, remove, and configure. These never invoke category provisioning
 # playbooks (provision_kubernetes/slurm/os/custom) or category bolt-on roles,
 # do not consume omnia_config.yml/storage_config.yml, and do not require
 # repo_status.yml.
 #
-# Lifecycle integration (FR-4.4): flexible-group publication also runs
-# automatically during default (no-tag), provision, and execute flows.
+# Lifecycle integration: flexible-group publication also runs automatically
+# during default (no-tag), provision, and execute flows.
 # Lifecycle runs publish all mapped flexible groups idempotently and never
 # remove groups.
 # =========================================================================

@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 # validate_functional_group_image_override.yml — Validate image override
-# for flexible functional groups (ER-ORCH-009)
+# for flexible functional groups
 #
 # This task validates that image override objects (kernel, initrd, rootfs)
 # are reachable from the configured image-storage endpoint when provided.

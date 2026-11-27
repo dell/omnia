@@ -511,7 +511,7 @@
         _catalog_group_names: "{{ catalog_data.catalog.groups | list }}"
         cacheable: true
 
-    - name: Inspect PXE mapping for active category presence (ER-ORCH-009 FR-4.5)
+    - name: Inspect PXE mapping for active category presence
       ansible.builtin.set_fact:
         _mapping_has_service_k8s: >-
           {{ (lookup('file', pxe_mapping_file_path, errors='ignore') | default(''))
