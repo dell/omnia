@@ -496,7 +496,7 @@ Keep cluster-specific values (IPs, mirror URLs) out of `user_inputs.yml` in comm
 ### Run it from a GitLab pipeline (one job per catalog)
 
 The SVT pipeline ([PIPELINE.md](PIPELINE.md)) runs this theme too. Set
-`catalog_build` in `clusters.<name>.themes` of `pipeline/svt_pipeline_config.yml` (alone, or after another theme, e.g. `"build_stream,catalog_build"`) and render the CI files
+`catalog_build` in `clusters.<name>.themes` of `pipeline/svt_pipeline_config.yml` (alone, or with another theme, e.g. `"catalog_build,build_stream"`; build_stream is always last) and render the CI files
 from a checkout whose `catalog_build_test_config.yml` and `user_inputs.yml` hold the
 values to test:
 
