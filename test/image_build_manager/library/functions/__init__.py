@@ -89,6 +89,11 @@ from .build_image_func import (
 )
 
 # --- Validation ---
+from .oci_boot_ready_func import (
+    check_boot_ready_complete,
+    check_boot_ready_incomplete,
+    check_layers_preserved,
+)
 from .validation_func import (
     validate_test_config,
     validate_all,
@@ -139,6 +144,9 @@ __all__ = [
     "check_s3_bucket_images",
     "check_s3_buckets",
     "check_registry_images",
+    "check_boot_ready_complete",
+    "check_boot_ready_incomplete",
+    "check_layers_preserved",
     "check_build_status_file",
     "check_functional_groups_built",
     "check_build_status_s3_match",

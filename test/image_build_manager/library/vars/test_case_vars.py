@@ -310,4 +310,17 @@ TEST_CASES = {
         "id": "IMGBM_NFT_SECURITY_002",
         "title": "NFT: /root/.s3cfg is 0600 root:root",
     },
+    # ── Build — OCI boot-ready contract (IMGBM_FVT_BUILD_V020-022) ──────────
+    "oci_boot_ready_complete": {
+        "id": "IMGBM_FVT_BUILD_V020",
+        "title": "Verify a Thrillhouse OCI image is accepted by the boot-ready check",
+    },
+    "oci_boot_ready_incomplete": {
+        "id": "IMGBM_FVT_BUILD_V021",
+        "title": "Verify incomplete OCI images are rejected naming the missing path",
+    },
+    "oci_layers_preserved": {
+        "id": "IMGBM_FVT_BUILD_V022",
+        "title": "Verify OCI layers are preserved and stored once in the registry",
+    },
 }
