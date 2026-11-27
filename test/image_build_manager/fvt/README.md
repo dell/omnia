@@ -79,7 +79,7 @@ default build flows.
 
 Run with `./run_validation.sh fvt_image_build_manager build verify --suite oci`. The registry cases (V023-V029) skip unless the target is configured: set `OMNIA_OCI_LAB_HOST`, `OMNIA_OCI_LAB_PORT`, and `OMNIA_OCI_LAB_CA_FILE`. Use `OMNIA_OCI_LAB_NAMESPACE` for the Harbor project (default `omnia-lab`). The account comes from `OMNIA_OCI_TEST_USERNAME` and `OMNIA_OCI_TEST_PASSWORD` when set, otherwise from `oci_lab_registry_username` and `oci_lab_registry_password` in `test_creds.yml`. Set the environment variables inline for the run so the password is never stored in a file.
 
-Harbor run used on the OIM (v2.11.0 at `100.10.1.202:443`, project `hpc-demo2`): `OMNIA_OCI_LAB_HOST=100.10.1.202 OMNIA_OCI_LAB_PORT=443 OMNIA_OCI_LAB_NAMESPACE=hpc-demo2 OMNIA_OCI_LAB_CA_FILE=/opt/omnia/image_build_manager/certs/harbor-100.10.1.202.crt`. The probes are read-only: nothing is pushed to Harbor.
+Run the registry cases against a live Harbor endpoint by setting those variables to that endpoint's host, port, namespace, and CA certificate path. The probes are read-only: nothing is pushed.
 
 | ID | Test | Marker | What it verifies | Expected |
 |----|------|--------|------------------|----------|
