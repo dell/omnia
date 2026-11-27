@@ -6,7 +6,31 @@ Complete reference for all `pipeline_config.yml` settings and CI/CD variables.
 
 ## pipeline_config.yml Structure
 
-All configuration is in `pipeline_config.yml`. This file is used by `setup_gitlab_project.py` to create CI/CD variables in GitLab.
+All configuration is in `pipeline_config.yml`, in the GitLab project.
+
+**Edit the file and commit it: that is all.** The first job of every pipeline (`config`) runs
+`pipeline_triggers.py`, which reads the file of the commit being run and passes its values to the
+cluster, utils or build stream pipeline of every cluster. No CI/CD variable of the project has to
+be changed. For every setting the first non-empty value of these wins:
+
+1. the value in `pipeline_config.yml`;
+2. the CI/CD variable of the project with the old name (`<CLUSTER>_PIPELINE_MODE`,
+   `<CLUSTER>_OMNIA_BRANCH`, `CLUSTERS`, `UTILS_ENABLE`, ...), so a project that was set up with
+   variables keeps working;
+3. the default.
+
+An empty value in the file therefore keeps the project variable. The `config` job prints every
+value with its source (`<config>`, `<variable>` or `<default>`). Values that rules depend on are
+checked (`pipeline_mode`, `utils_mode`, the true/false flags), and a mistake fails that job with
+the line of the problem; `$` in a value stays literal.
+
+What stays a CI/CD variable, because it is a secret: the OIM password
+(`<CLUSTER>_TARGET_PASS`), the host key (`<CLUSTER>_SSH_KNOWN_HOSTS`, a File variable),
+`PIPELINE_API_TOKEN`, the optional `<CLUSTER>_TEST_CREDS` and the SMTP credentials
+(`SMTP_USER`, `SMTP_PASSWORD`). The child pipelines inherit them.
+
+`setup_gitlab_project.py` is only needed to create the project, upload the files and store these
+secrets.
 
 ### Global Settings
 
@@ -58,6 +82,7 @@ cluster1:
     dry_run: "false"
     verbose: "false"
     skip_stages: ""
+    tolerate_failures: ""
   deploy_tags:
     repo_manager: ""
     image_build_manager: ""
@@ -91,8 +116,9 @@ cluster1:
 | `pipeline.enable_discovery` | `false` | Enable discovery stage after image_build_manager |
 | `pipeline.test_mode` | `false` | Enable test stages after deployment |
 | `pipeline.dry_run` | `false` | Simulate without making changes |
-| `pipeline.verbose` | `false` | Enable detailed logging (`-vvv`) |
-| `pipeline.skip_stages` | `""` | Comma-separated stages to skip |
+| `pipeline.verbose` | `false` | Detailed logging: pytest `-v` and ansible `-vvv` (`--ansible-verbosity 3`) in the cluster pipeline |
+| `pipeline.tolerate_failures` | `""` | Job names (comma or space separated, for example `cleanup_telemetry,test_cleanup_telemetry`) whose failure is tolerated: the job still runs and is shown as failed in the report and the mail, but it does not block the install and does not fail the pipeline |
+| `pipeline.skip_stages` | `""` | Words to skip, comma or space separated, each matched exactly: a domain, a stage name, or `cleanup`, `test_cleanup`, `deploy`, `test`, `nfs_check`, `inputs` (table in [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md)) |
 
 #### Deploy Tags
 
@@ -138,7 +164,8 @@ test_commands:
 
 ## CI/CD Variables
 
-After running `setup_gitlab_project.py --create`, the following CI/CD variables are created in GitLab:
+`setup_gitlab_project.py` can still store the settings of the file as CI/CD variables. They are the
+fallback of step 2 above; the file wins when it has a value:
 
 ### Global Variables
 
@@ -156,6 +183,21 @@ After running `setup_gitlab_project.py --create`, the following CI/CD variables 
 | `SMTP_SERVER` | config | SMTP server hostname |
 | `SMTP_PORT` | config | SMTP server port |
 
+### Variables of the cluster pipeline
+
+Project-level variables that are not per cluster:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PIPELINE_SSH_KNOWN_HOSTS` | | Host key file for every cluster (instead of `<CLUSTER>_SSH_KNOWN_HOSTS`) |
+| `PIPELINE_SSH_SKIP_HOST_KEY` | `false` | `true` accepts an unchecked OIM host key (a warning is printed) |
+| `BAO_CA_CERT` | | CA file that verifies the OpenBao TLS certificate |
+| `BAO_TLS_SKIP_VERIFY` | `true` | `false` verifies OpenBao with the system certificates |
+| `TEST_REPORTS_PATH` | `/automation` | Folder on the OIM with the test reports attached to the email |
+| `REPORTS_KEEP_DAYS` | `30` | Reports of earlier pipelines older than this are deleted from that folder by `initialization` |
+| `SSH_CONNECT_TIMEOUT` | `30` | SSH connect timeout in seconds |
+| `DRY_RUN` | `false` | Per cluster through `<CLUSTER>_DRY_RUN`: print what would run on the OIM |
+
 ### Per-Cluster Variables
 
 For each cluster, these variables are created with the cluster name prefix (e.g., `CLUSTER1_`, `CLUSTER2_`):
@@ -172,11 +214,13 @@ For each cluster, these variables are created with the cluster name prefix (e.g.
 | `<CLUSTER>_TEST_MODE` | config | Enable tests |
 | `<CLUSTER>_DRY_RUN` | config | Dry-run mode |
 | `<CLUSTER>_VERBOSE` | config | Verbose logging |
-| `<CLUSTER>_REPO_MANAGER_TAGS` | config | Ansible tags |
-| `<CLUSTER>_IMAGE_BUILD_MANAGER_TAGS` | config | Ansible tags |
-| `<CLUSTER>_ORCHESTRATOR_TAGS` | config | Ansible tags |
-| `<CLUSTER>_DISCOVERY_TAGS` | config | Ansible tags |
-| `<CLUSTER>_TELEMETRY_TAGS` | config | Ansible tags |
+| `PIPELINE_API_TOKEN` | masked, protected | Project access token (`read_api`, Reporter) used by the summary to read the stage logs for the HTML report |
+| `<CLUSTER>_CHECKOUT_MODE` | config | Omnia checkout on the OIM: `update` (default), `recreate` or `keep` |
+| `<CLUSTER>_REPO_MANAGER_TAGS` | config | Cluster pipeline: playbook tags (comma list, run with `omnia.sh --run`). Other pipelines: ansible tags |
+| `<CLUSTER>_IMAGE_BUILD_MANAGER_TAGS` | config | FVT tags (cluster pipeline) |
+| `<CLUSTER>_ORCHESTRATOR_TAGS` | config | FVT tags (cluster pipeline) |
+| `<CLUSTER>_DISCOVERY_TAGS` | config | FVT tags (cluster pipeline) |
+| `<CLUSTER>_TELEMETRY_TAGS` | config | FVT tags (cluster pipeline) |
 | `<CLUSTER>_BUILD_STREAM_TAGS` | config | Ansible tags |
 | `<CLUSTER>_TEST_MAIN_CMD` | config | Test command for main |
 | `<CLUSTER>_TEST_REPO_MANAGER_CMD` | config | Test command |
@@ -186,6 +230,8 @@ For each cluster, these variables are created with the cluster name prefix (e.g.
 | `<CLUSTER>_TEST_TELEMETRY_CMD` | config | Test command |
 | `<CLUSTER>_TEST_BUILD_STREAM_CMD` | config | Test command |
 | `<CLUSTER>_SKIP_STAGES` | config | Stages to skip |
+| `<CLUSTER>_SSH_KNOWN_HOSTS` | `--scan-host-keys` | File variable with the OIM host key line. Required, unless `PIPELINE_SSH_SKIP_HOST_KEY` is `true` |
+| `<CLUSTER>_TEST_CREDS` | manual | Optional File variable with the test credentials |
 
 ---
 
@@ -234,15 +280,19 @@ The script automatically adds trigger jobs and CI/CD variables for each new clus
 
 ## Advanced Features
 
-### Use Ansible Deploy Tags
+### Choose the Deploy Tags
 
-Run only specific tasks in the domain playbooks:
+In the cluster pipeline a domain runs its playbook tags in order, in one stage
+(`./omnia.sh --run <domain> --tags <tag>`). Give a comma-separated list to run only some of
+them; empty means the default list (see [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md#domain-stages)):
 
 ```yaml
 deploy_tags:
-  repo_manager: "deploy"
-  orchestrator: "validate"
+  repo_manager: "precheck,prepare"
+  orchestrator: "precheck"
 ```
+
+The build stream and utils pipelines still pass these values as ansible tags.
 
 ### Override Test Commands
 
@@ -256,7 +306,7 @@ test_commands:
 
 ### Force Setup in Deploy Mode
 
-Clone Omnia and rebuild venv before deploying. Useful when the target server does not have Omnia installed yet:
+Run the install (`setup_main`: `omnia.sh -s`, which creates the Omnia venv) in `deploy` mode. Omnia is always cloned. Useful when the OIM has no Omnia venv yet:
 
 ```yaml
 pipeline:
@@ -290,6 +340,21 @@ python3 setup_gitlab_project.py --create \
     --config pipeline_config.yml
 ```
 
+### Store the OIM host keys
+
+The jobs need the host key of every OIM. Add `--scan-host-keys` to `--create` or `--update` (with
+`--config`): it runs `ssh-keyscan` from this machine and stores `<CLUSTER>_SSH_KNOWN_HOSTS` as a
+protected File variable.
+
+```bash
+python3 setup_gitlab_project.py --update \
+    --gitlab-url https://gitlab.example.com \
+    --token glpat-xxxx \
+    --project-name omnia-pipeline \
+    --config pipeline_config.yml \
+    --scan-host-keys
+```
+
 ### Update variables and files after editing config
 
 ```bash
@@ -308,7 +373,7 @@ python3 setup_gitlab_project.py --update-file \
     --token glpat-xxxx \
     --project-name omnia-pipeline \
     --file /path/to/omnia.env \
-    --repo-path clusters/cluster1/inputs/omnia.env
+    --repo-path clusters/cluster1/inputs/src/main/omnia.env
 ```
 
 ### Upload a local directory to the repo
