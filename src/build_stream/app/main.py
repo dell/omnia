@@ -31,6 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.logging_utils import log_secure_info
+from api.logs.dependencies import get_redaction_service
 from api.router import api_router
 from container import container
 from orchestrator.cleanup.scheduler import AutoCleanupScheduler
@@ -61,6 +62,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     Starts the result poller and, with the SQL-backed (prod) container, the
     automatic image cleanup scheduler on startup; stops both on shutdown.
     """
+    # Builds the redaction policy first: a broken baseline stops startup here.
+    get_redaction_service()
     # Startup: Start the result poller
     result_poller = container.result_poller()
     await result_poller.start()

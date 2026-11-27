@@ -16,15 +16,21 @@
 
 Provides per-job file logging with automatic redaction of sensitive data
 (IP addresses, JWT tokens, passwords, API keys, emails) so that job log
-files never contain exploitable information.
+files never contain exploitable information. Redaction uses the shared
+redaction policy (ER-BSM-003 FR-3.3), the same rules as the log query API.
 """
 
 import logging
 import os
 import re
 import traceback
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Optional
+
+from core.logs.redaction import RedactionService, RedactionTier
+from core.logs.redaction_patterns import REDACTION_SUPPRESSED_LINE
+from core.logs.redaction_policy import RedactionPolicyError, load_policy
 
 _LOG_FORMATTER = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -44,32 +50,37 @@ def _is_safe_job_id(job_id: str) -> bool:
     return isinstance(job_id, str) and bool(_SAFE_JOB_ID.fullmatch(job_id))
 
 # ---------------------------------------------------------------------------
-# Sensitive-data redaction patterns
+# Sensitive-data redaction (shared redaction policy)
 # ---------------------------------------------------------------------------
-_SENSITIVE_PATTERNS = [
-    # IPv4 addresses  (e.g. 192.168.1.100)
-    (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "<REDACTED_IP>"),
-    # IPv6 addresses  (simplified – colon-hex groups)
-    (re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b"), "<REDACTED_IP>"),
-    # JWT / Bearer tokens  (three base64url segments separated by dots)
-    (re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"), "<REDACTED_TOKEN>"),
-    # Authorization header values
-    (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9_\-\.]+"), r"\1<REDACTED_TOKEN>"),
-    # password= or passwd= or secret= or api_key= or token= values
-    (re.compile(
-        r"(?i)((?:password|passwd|secret|api_key|apikey|token|auth_token)"
-        r"\s*[=:]\s*)[^\s,;\"']+"
-    ), r"\1<REDACTED>"),
-    # Email addresses
-    (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"), "<REDACTED_EMAIL>"),
-]
+@lru_cache(maxsize=1)
+def get_policy_redaction_service() -> RedactionService:
+    """Return the process-wide policy redaction service (raises RedactionPolicyError)."""
+    # Audit logging and the log query API share this instance, so one policy
+    # (baseline plus operator additions) drives both.
+    # Imported here because retention_config imports this module.
+    from orchestrator.cleanup.retention_config import (  # pylint: disable=import-outside-toplevel
+        build_stream_config_path,
+    )
+    # Policy problems go to the plain logger: log_secure_info would recurse into
+    # this function. The messages carry rule ids and reasons only.
+    logger = logging.getLogger(__name__)
+    try:
+        config_path = build_stream_config_path()
+    except ValueError:
+        logger.error("Invalid OMNIA_PROJECT_NAME; redaction additions ignored")
+        config_path = None
+    policy = load_policy(config_path)
+    for message in policy.operator_errors:
+        logger.error(message)
+    return RedactionService(policy.secret_rules, policy.identifier_rules)
 
 
 def _sanitize_message(message: str) -> str:
-    """Redact sensitive data from a log message."""
-    for pattern, replacement in _SENSITIVE_PATTERNS:
-        message = pattern.sub(replacement, message)
-    return message
+    """Redact secrets and identifiers with the shared policy; withhold the line if it fails."""
+    try:
+        return get_policy_redaction_service().redact(message, RedactionTier.FULL)
+    except RedactionPolicyError:
+        return REDACTION_SUPPRESSED_LINE
 
 
 # ---------------------------------------------------------------------------
@@ -241,15 +252,7 @@ def log_auth_info(
     # Only allow safe characters in event log messages
     if not isinstance(message, str):
         message = str(message)
-    
-    # Checkmarx: Remove any potential sensitive patterns before processing
-    # This provides defense-in-depth beyond _sanitize_message()
-    forbidden_patterns = ['password', 'passwd', 'secret', 'token', 'api_key', 'credential']
-    for pattern in forbidden_patterns:
-        if pattern.lower() in message.lower():
-            # Replace with generic placeholder
-            message = re.sub(re.escape(pattern), '<REDACTED>', message, flags=re.IGNORECASE)
-    
+
     logger = logging.getLogger(__name__)
 
     log_message = message
@@ -287,8 +290,9 @@ def log_secure_info(
     """Log a message after redacting sensitive data.
 
     * *identifier* is truncated to its first 8 characters.
-    * IP addresses, JWT tokens, passwords, API keys, and emails are
-      automatically replaced with ``<REDACTED_*>`` placeholders.
+    * Secrets (JWT and bearer tokens, passwords, API keys) are replaced with
+      ``***REDACTED***`` and IP and e-mail addresses with ``<REDACTED_IP>`` and
+      ``<REDACTED_EMAIL>``, using the shared redaction policy.
     * When *job_id* is supplied the entry is also written to the
       per-job log file.
 

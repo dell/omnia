@@ -25,14 +25,13 @@ from enum import Enum
 from typing import List, Optional, Sequence, Tuple
 
 from core.logs.redaction_patterns import (
-    IDENTIFIER_RULES,
     PRIVATE_KEY_BEGIN,
     PRIVATE_KEY_END,
     REDACTED,
     REDACTION_SUPPRESSED_LINE,
-    SECRET_RULES,
     RedactionRule,
 )
+from core.logs.redaction_policy import baseline_policy
 
 
 class RedactionTier(str, Enum):
@@ -93,11 +92,15 @@ class RedactionService:
         secret_rules: Optional[Sequence[RedactionRule]] = None,
         identifier_rules: Optional[Sequence[RedactionRule]] = None,
     ) -> None:
-        """Create the service, optionally with custom rule sets (used by tests)."""
-        self._secret_rules = list(SECRET_RULES if secret_rules is None else secret_rules)
-        self._identifier_rules = list(
-            IDENTIFIER_RULES if identifier_rules is None else identifier_rules
-        )
+        """Create the service; a None rule set comes from the baseline policy."""
+        if secret_rules is None or identifier_rules is None:
+            policy = baseline_policy()
+            secret_rules = policy.secret_rules if secret_rules is None else secret_rules
+            identifier_rules = (
+                policy.identifier_rules if identifier_rules is None else identifier_rules
+            )
+        self._secret_rules = list(secret_rules)
+        self._identifier_rules = list(identifier_rules)
 
     def redact(self, text: str, tier: RedactionTier = RedactionTier.SECRETS_ONLY) -> str:
         """Redact a block of text and return it."""

@@ -53,10 +53,12 @@ from core.logs.redaction import (  # noqa: E402  pylint: disable=wrong-import-po
     RedactionService,
     RedactionTier,
 )
-
-# Shared, thread-safe (stateless across calls) redaction service used for all
-# write-time log sanitization in this process.
-_REDACTION_SERVICE = RedactionService()
+from core.logs.redaction_policy import (  # noqa: E402  pylint: disable=wrong-import-position
+    load_policy,
+)
+from orchestrator.cleanup.retention_config import (  # noqa: E402  pylint: disable=wrong-import-position
+    build_stream_config_path,
+)
 
 
 # Keys that decide the binaries, paths and playbook mapping the root watcher
@@ -166,6 +168,26 @@ def log_secure_info(
 
     log_func = getattr(logger, level)
     log_func(log_message, exc_info=exc_info)
+
+
+def _build_redaction_service() -> RedactionService:
+    """Build the shared write-time redaction service from the redaction policy.
+
+    The service is thread-safe and stateless across calls. A broken baseline
+    raises here, so the watcher does not start with fewer rules.
+    """
+    try:
+        config_path = build_stream_config_path()
+    except ValueError:
+        log_secure_info("error", "Invalid OMNIA_PROJECT_NAME; redaction additions ignored")
+        config_path = None
+    policy = load_policy(config_path)
+    for message in policy.operator_errors:
+        log_secure_info("error", message)
+    return RedactionService(policy.secret_rules, policy.identifier_rules)
+
+
+_REDACTION_SERVICE = _build_redaction_service()
 
 
 # Configuration

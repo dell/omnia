@@ -17,20 +17,15 @@
 # Applicable rules used: CG-LOGGING-001.2, CG-SECRETS-001.1
 # ****
 
-"""Tiered credential redaction pattern registry (ER-BSM-003 HLD 5.3.4).
+"""Built-in redaction rules and markers (ER-BSM-003 HLD 5.3.4, 5.3.5).
 
-Tier 1 (secrets) is applied to every log served by the API. Tier 2 (IP and
-e-mail identifiers) is applied only when full redaction is requested; Tier 3
-operational data (host IPs, stage names, task output) is never redacted from
-execution logs.
-
-Every pattern uses bounded quantifiers so a single long line cannot cause
-catastrophic backtracking. Replacements are idempotent: re-applying a pattern
-to already-redacted text leaves it unchanged.
+Logic that is not data lives here: the private-key block and the ``key = value``
+rule, whose key names come from the redaction policy. Other rules are loaded
+from ``redaction_baseline.yml``.
 """
 
 import re
-from typing import Callable, List, Pattern, Tuple, Union
+from typing import Callable, Pattern, Sequence, Tuple, Union
 
 REDACTED = "***REDACTED***"
 REDACTION_SUPPRESSED_LINE = "[REDACTION ERROR \u2014 line suppressed]"
@@ -43,15 +38,12 @@ RedactionRule = Tuple[Pattern[str], Replacement]
 PRIVATE_KEY_BEGIN = re.compile(r"-----BEGIN (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----")
 PRIVATE_KEY_END = re.compile(r"-----END (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----")
 
-_SECRET_KEY_WORDS = (
-    r"(?:password|passwd|pwd|secret|token|api[_-]?key|apikey|credential|private[_-]?key)"
-)
-
-_KEY_VALUE = re.compile(
-    r"(?P<prefix>(?<![\w.-])[\"']?[\w.-]{0,40}?" + _SECRET_KEY_WORDS
-    + r"[\w.-]{0,40}[\"']?\s{0,3}[:=]\s{0,3})"
-    r"(?P<value>\"[^\"\n]{0,4096}\"|'[^'\n]{0,4096}'|[^\s,;\"'}\])]{1,4096})",
-    re.IGNORECASE,
+PRIVATE_KEY_RULE: RedactionRule = (
+    re.compile(
+        r"-----BEGIN (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----.*?"
+        r"(?:-----END (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----|$)"
+    ),
+    REDACTED,
 )
 
 
@@ -63,38 +55,19 @@ def _redact_key_value(match: re.Match) -> str:
     return f"{match.group('prefix')}{REDACTED}"
 
 
-SECRET_RULES: List[RedactionRule] = [
-    (
-        re.compile(
-            r"-----BEGIN (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----.*?"
-            r"(?:-----END (?:[A-Z0-9]{1,16} ){0,4}PRIVATE KEY-----|$)"
-        ),
-        REDACTED,
-    ),
-    (
-        re.compile(
-            r"\b(?:glpat|glprt|glrt|gldt|glptt|glcbt|glimt|glagent|gloas|glsoat|glffct|glft)"
-            r"-[A-Za-z0-9_-]{8,256}"
-        ),
-        REDACTED,
-    ),
-    (
-        re.compile(r"\beyJ[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}"),
-        REDACTED,
-    ),
-    (re.compile(r"(?i)\b(bearer\s{1,5})[A-Za-z0-9._~+/=-]{1,4096}"), r"\1" + REDACTED),
-    (
-        re.compile(r"(?i)\b([a-z][a-z0-9+.-]{1,20}://[^\s:/@]{1,128}:)[^\s@/]{1,256}@"),
-        r"\1" + REDACTED + "@",
-    ),
-    (_KEY_VALUE, _redact_key_value),
-]
+def build_key_value_rule(key_names: Sequence[str]) -> RedactionRule:
+    """Build the ``key = value`` rule for the given secret key names.
 
-IDENTIFIER_RULES: List[RedactionRule] = [
-    (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), REDACTED_IP),
-    (re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b"), REDACTED_IP),
-    (
-        re.compile(r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}\b"),
-        REDACTED_EMAIL,
-    ),
-]
+    Names are escaped and matched case-insensitively; the value replacement
+    keeps any surrounding quotes.
+    """
+    if not key_names:
+        raise ValueError("at least one secret key name is required")
+    keywords = "|".join(re.escape(name) for name in key_names)
+    pattern = re.compile(
+        r"(?P<prefix>(?<![\w.-])[\"']?[\w.-]{0,40}?(?:" + keywords + r")"
+        r"[\w.-]{0,40}[\"']?\s{0,3}[:=]\s{0,3})"
+        r"(?P<value>\"[^\"\n]{0,4096}\"|'[^'\n]{0,4096}'|[^\s,;\"'}\])]{1,4096})",
+        re.IGNORECASE,
+    )
+    return (pattern, _redact_key_value)
