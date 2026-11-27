@@ -13,24 +13,23 @@
 # limitations under the License.
 ---
 
-# manage_functional_group.yml — Bounded flexible-group lifecycle (ER-ORCH-009).
+# manage_functional_group.yml — Bounded flexible-group lifecycle.
 # =============================================================================
 # Single entry point for all flexible (fg_) functional-group operations:
-# add, remove, and configure. This flow (HLD v13):
+# add, remove, and configure. This flow:
 #   - operates only on groups carrying the mandatory ``fg_`` prefix;
 #   - composes the shared ``provision_common`` publish pipeline, scoped to the
 #     target group(s);
 #   - never runs category provisioning playbooks or category bolt-on roles,
 #     and never consumes omnia_config.yml / storage_config.yml;
-#   - does not require repo_status.yml (FR-4.1, FR-4.3);
+#   - does not require repo_status.yml;
 #   - uses an upsert replace-node model for add: it does not check prior PXE
-#     identity or workload-scheduler state (FR-4.1). The operator MUST remove
+#     identity or workload-scheduler state. The operator MUST remove
 #     nodes from their existing scheduler before adding them to a flexible group.
 #
-# Operations (FR-4.1, FR-4.2, FR-4.3):
+# Operations:
 #   add       — Create or reconcile OpenCHAMI group, BSS, and metadata state.
 #   remove    — Remove owned records after verifying no mapped nodes remain.
-#               (Delivered by ER-ORCH-009-lifecycle-mutation-safety story.)
 #   configure — Publish BSS and/or metadata configuration only, without group
 #               creation, node registration, bolt-on roles, or scheduler effects.
 #
@@ -89,7 +88,7 @@
       ansible.builtin.include_vars:
         file: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}/vars/functional_group_classification.yml"
 
-    - name: Slurp functional_group_config.yml (ER-ORCH-009)
+    - name: Slurp functional_group_config.yml
       ansible.builtin.slurp:
         src: >-
           {{ hostvars['localhost']['input_project_dir']
@@ -184,7 +183,7 @@
           - name: "{{ fg_target_group }}"
       when: fg_operation == 'remove'
 
-    - name: Validate exact target for configure operation (FR-4.3)
+    - name: Validate exact target for configure operation
       ansible.builtin.assert:
         that:
           - target_functional_groups | length == 1
@@ -193,7 +192,7 @@
           Found {{ target_functional_groups | length }}.
       when: fg_operation == 'configure'
 
-    - name: Count mapped nodes for target group from reviewed PXE mapping (AC-006)
+    - name: Count mapped nodes for target group from reviewed PXE mapping
       ansible.builtin.set_fact:
         target_group_nodes: >-
           {{ ((read_mapping_file.dict | default(hostvars['localhost']['read_mapping_file']['dict'] | default({}))).values() | list)
@@ -202,7 +201,7 @@
              | list }}
       when: fg_operation == 'remove'
 
-    - name: Fail if target group has mapped nodes (AC-006)
+    - name: Fail if target group has mapped nodes
       ansible.builtin.fail:
         msg: >-
           Cannot remove flexible group '{{ target_functional_groups[0].name }}' because
@@ -212,37 +211,16 @@
         - fg_operation == 'remove'
         - target_group_nodes | length > 0
 
-    - name: Acquire project mutation lock (FR-5.1)
+    - name: Acquire project mutation lock
       functional_group_lifecycle:
         action: acquire_lock
         project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
         operation: "{{ fg_operation }}"
         target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
         state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+        run_id: "{{ fg_run_id }}"
+        force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
       register: _lifecycle_lock
-      when: target_functional_groups | length > 0
-
-    - name: Start transition journal (FR-5.1)
-      functional_group_lifecycle:
-        action: start_journal
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-        operation: "{{ fg_operation }}"
-        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
-        planned_stages: >-
-          {%- if fg_operation == 'remove' %}
-          ['metadata', 'bss', 'smd_group']
-          {%- elif configure_scope == 'boot' %}
-          ['bss']
-          {%- elif configure_scope == 'cloud_init' %}
-          ['metadata']
-          {%- else %}
-          ['smd_group', 'bss', 'metadata']
-          {%- endif %}
-          }}
-      register: _lifecycle_journal
       when: target_functional_groups | length > 0
 
     - name: Report resolved flexible targets
@@ -285,21 +263,7 @@
     - name: Flexible functional group lifecycle mutation sequence
       when: target_functional_groups | length > 0
       block:
-        - name: Acquire project mutation lock (FR-5.1)
-          functional_group_lifecycle:
-            action: acquire_lock
-            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-            operation: "{{ fg_operation }}"
-            target_group: >-
-              {{ fg_target_group
-                 | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
-            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-            run_id: "{{ fg_run_id }}"
-            pid: "{{ lookup('pipe', 'echo $PPID') | int }}"
-            force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
-          register: _lifecycle_lock
-
-        - name: Start transition journal (FR-5.1)
+        - name: Start transition journal
           functional_group_lifecycle:
             action: start_journal
             project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
@@ -369,7 +333,7 @@
           register: _ownership_inspection
           when: fg_operation == 'remove'
 
-        - name: Plan removal with ownership and emptiness verification (FR-4.2)
+        - name: Plan removal with ownership and emptiness verification
           functional_group_lifecycle:
             action: plan_remove
             target_group: "{{ target_functional_groups[0].name }}"
@@ -491,7 +455,7 @@
                    )
                  ) }}
 
-        - name: Reconcile flexible functional group lifecycle status (FR-5.2)
+        - name: Reconcile flexible functional group lifecycle status
           orchestrator_status_reconcile:
             mode: functional_group
             project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
@@ -504,24 +468,24 @@
             stage_results: "{{ _computed_stage_results }}"
           register: _fg_status_report
 
-        - name: Finish transition journal (FR-5.1)
+        - name: Finish transition journal
           functional_group_lifecycle:
             action: finish_journal
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
             terminal_result: succeeded
 
       rescue:
-        - name: Record stage failure in transition journal (FR-5.1)
+        - name: Record stage failure in transition journal
           functional_group_lifecycle:
             action: record_stage
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-            stage: "{{ _current_stage | default('validation') }}"
+            stage: "{{ _current_stage | default('smd_group') }}"
             stage_status: failed
           when:
             - _lifecycle_journal is defined
             - _lifecycle_journal.changed | default(false)
 
-        - name: Mark transition journal as failed (FR-5.1)
+        - name: Mark transition journal as failed
           functional_group_lifecycle:
             action: finish_journal
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
@@ -531,7 +495,7 @@
             - _lifecycle_journal is defined
             - _lifecycle_journal.changed | default(false)
 
-        - name: Reconcile status on failure (FR-5.2)
+        - name: Reconcile status on failure
           orchestrator_status_reconcile:
             mode: functional_group
             project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
@@ -542,9 +506,9 @@
                  | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
             planned_stages: "{{ planned_lifecycle_stages }}"
             stage_results:
-              - stage: "{{ _current_stage | default('validation') }}"
+              - stage: "{{ _current_stage | default('smd_group') }}"
                 status: failed
-                diagnostic_category: "{{ _current_stage | default('validation') }}_failed"
+                diagnostic_category: "{{ _current_stage | default('smd_group') }}_failed"
           failed_when: false
 
         - name: Fail lifecycle operation
@@ -554,11 +518,9 @@
               {{ ansible_failed_result.msg | default('Unknown error') }}
 
       always:
-        - name: Release project mutation lock (FR-5.1)
+        - name: Release project mutation lock
           functional_group_lifecycle:
             action: release_lock
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
             run_id: "{{ fg_run_id }}"
-          when:
-            - _lifecycle_lock is defined
-            - _lifecycle_lock.changed | default(false)
+          failed_when: false

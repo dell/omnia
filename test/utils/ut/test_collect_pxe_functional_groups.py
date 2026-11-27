@@ -139,6 +139,15 @@ class TestValidateCollectConfigRole:
         pattern = self._functional_group_pattern(src_dir)
         assert pattern.match(NEW_GROUP)
 
+    def test_pattern_matches_flexible_functional_groups(self, src_dir):
+        pattern = self._functional_group_pattern(src_dir)
+        assert pattern.match("fg_custom_control_node_rhel_10_2_x86_64")
+        assert pattern.match("fg_custom_worker_node_rhel_10_2_x86_64")
+        assert pattern.match("fg_service_kube_control_plane_rhel_10_2_x86_64")
+        assert pattern.match("fg_webserver_x86_64")
+        assert pattern.match("fg_hpc_aarch64")
+        assert not pattern.match("invalid_random_group")
+
     def test_error_message_documents_login_compiler_node_role(self, src_dir):
         vars_path = src_dir / "roles" / "validate_collect_config" / "vars" / "main.yml"
         with open(vars_path, encoding="utf-8") as handle:

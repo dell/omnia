@@ -511,10 +511,26 @@
         _catalog_group_names: "{{ catalog_data.catalog.groups | list }}"
         cacheable: true
 
+    - name: Inspect PXE mapping for active category presence
+      ansible.builtin.set_fact:
+        _mapping_has_service_k8s: >-
+          {{ (lookup('file', pxe_mapping_file_path, errors='ignore') | default(''))
+             is search('(?m)^[ \t]*service_kube_') }}
+        _mapping_has_slurm: >-
+          {{ (lookup('file', pxe_mapping_file_path, errors='ignore') | default(''))
+             is search('(?m)^[ \t]*(slurm_|login_)') }}
+      when:
+        - pxe_mapping_file_path | default('') | length > 0
+        - pxe_mapping_file_path is file
+
     - name: Set feature support flags from catalog
       ansible.builtin.set_fact:
-        service_k8s_support: "{{ _catalog_fl_names | select('match', '.*kube.*|.*k8s.*') | list | length > 0 }}"
-        slurm_support: "{{ _catalog_fl_names | select('match', '.*slurm.*') | list | length > 0 }}"
+        service_k8s_support: >-
+          {{ (_catalog_fl_names | select('match', '.*kube.*|.*k8s.*') | list | length > 0)
+             and (_mapping_has_service_k8s | default(true) | bool) }}
+        slurm_support: >-
+          {{ (_catalog_fl_names | select('match', '.*slurm.*') | list | length > 0)
+             and (_mapping_has_slurm | default(true) | bool) }}
         openldap_support: "{{ _catalog_group_names | select('match', '.*openldap.*') | list | length > 0 }}"
         ucx_support: "{{ _catalog_group_names | select('match', '.*ucx.*') | list | length > 0 }}"
         openmpi_support: "{{ _catalog_group_names | select('match', '.*openmpi.*') | list | length > 0 }}"

@@ -18,14 +18,46 @@
           hashed_passwd: "{{ hashed_password_output.stdout }}"
       disable_root: false
 
-      {% if hostvars['localhost']['read_mapping_file'] is defined %}
+{% set fg_resolved_ci = (resolved_fg_config[functional_group_name].cloud_init_config_file if (resolved_fg_config is defined and functional_group_name in resolved_fg_config) else '') %}
+{% if fg_resolved_ci | length > 0 %}
+{% set fg_ci_path = (fg_resolved_ci if (fg_resolved_ci.startswith('/')) else (hostvars['localhost']['input_project_dir'] ~ '/' ~ fg_resolved_ci)) %}
+{% set fg_ci_data = lookup('file', fg_ci_path) | from_yaml %}
+{% endif %}
+{% if (hostvars['localhost']['read_mapping_file'] is defined) or (fg_ci_data is defined and fg_ci_data.write_files is defined and fg_ci_data.write_files | length > 0) %}
       write_files:
+{% if hostvars['localhost']['read_mapping_file'] is defined %}
         - path: /usr/local/bin/configure-ib-network.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
+{% endif %}
+{% if fg_ci_data is defined and fg_ci_data.write_files is defined %}
+{% for wf in fg_ci_data.write_files %}
+        - path: {{ wf.path | to_json }}
+{% if wf.permissions is defined %}
+          permissions: {{ wf.permissions | to_json }}
+{% endif %}
+{% if wf.owner is defined %}
+          owner: {{ wf.owner | to_json }}
+{% endif %}
+{% if wf.append is defined %}
+          append: {{ wf.append | lower }}
+{% endif %}
+          content: |
+            {{ wf.content | default('') | indent(12) }}
+{% endfor %}
+{% endif %}
+{% endif %}
 
+{% if (hostvars['localhost']['read_mapping_file'] is defined) or (fg_ci_data is defined and fg_ci_data.runcmd is defined and fg_ci_data.runcmd | length > 0) %}
       runcmd:
+{% if hostvars['localhost']['read_mapping_file'] is defined %}
         - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"
-      {% endif %}
+{% endif %}
+{% if fg_ci_data is defined and fg_ci_data.runcmd is defined %}
+{% for cmd in fg_ci_data.runcmd %}
+        - {{ cmd | to_json }}
+{% endfor %}
+{% endif %}
+{% endif %}

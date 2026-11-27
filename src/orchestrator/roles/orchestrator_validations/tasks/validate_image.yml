@@ -24,10 +24,26 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
+- name: Check if functional group has image override in functional_group_config.yml
+  ansible.builtin.set_fact:
+    _fg_has_image_override: >-
+      {{ functional_group_config is defined
+         and functional_group_config.groups is defined
+         and functional_group_name in functional_group_config.groups
+         and functional_group_config.groups[functional_group_name].image_override is defined
+         and functional_group_config.groups[functional_group_name].image_override | length > 0 }}
+    _skip_image_validation: >-
+      {{ functional_group_config is defined
+         and functional_group_config.groups is defined
+         and functional_group_name in functional_group_config.groups
+         and functional_group_config.groups[functional_group_name].image_override is defined
+         and functional_group_config.groups[functional_group_name].image_override | length > 0 }}
+
 - name: Compute FG name components for matching
   ansible.builtin.set_fact:
     _fg_arch: "{{ functional_group_name | regex_search('(x86_64|aarch64)$') | default('x86_64') }}"
     _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') }}"
+  when: not _skip_image_validation | default(false)
 
 - name: Compute base image prefix for a primary control-plane FG
   ansible.builtin.set_fact:
@@ -48,7 +64,9 @@
 
 # Load build_status.yml if not already loaded (first iteration only)
 - name: Load build_status.yml for image validation
-  when: _build_status_data is not defined
+  when:
+    - _build_status_data is not defined
+    - not _skip_image_validation | default(false)
   block:
     - name: Resolve build_status path
       ansible.builtin.set_fact:
@@ -82,12 +100,14 @@
         | default('') | length > 0
     fail_msg: "{{ build_status_invalid_fail_msg }}"
     quiet: true
+  when: not _skip_image_validation | default(false)
 
 - name: Set boot image endpoint from build status
   ansible.builtin.set_fact:
     _orchestrator_validations_boot_image_endpoint: >-
       {{ _build_status_data.s3_configurations.endpoint_url
          | regex_replace('/+$', '') }}
+  when: not _skip_image_validation | default(false)
 
 - name: Extract FG entries from build_status (nested arch format)
   ansible.builtin.set_fact:
@@ -98,6 +118,7 @@
          | map(attribute='value') | flatten
          | list }}
   failed_when: false
+  when: not _skip_image_validation | default(false)
 
 - name: Try flat format if nested produced empty results
   ansible.builtin.set_fact:
@@ -105,7 +126,9 @@
       {{ _build_status_data.functional_group_images
          | selectattr('functional_group', 'defined')
          | list }}
-  when: _all_fg_entries | default([]) | length == 0
+  when:
+    - _all_fg_entries | default([]) | length == 0
+    - not _skip_image_validation | default(false)
   failed_when: false
 
 - name: Find matching FG entry (exact match)
@@ -114,7 +137,9 @@
       {{ _all_fg_entries
          | selectattr('functional_group', 'equalto', functional_group_name)
          | list | first | default({}) }}
-  when: _all_fg_entries | default([]) | length > 0
+  when:
+    - _all_fg_entries | default([]) | length > 0
+    - not _skip_image_validation | default(false)
 
 - name: Find matching FG entry (prefix + arch match)
   ansible.builtin.set_fact:
@@ -125,6 +150,7 @@
   when:
     - _all_fg_entries | default([]) | length > 0
     - _fg_image_entry | default({}) | length == 0
+    - not _skip_image_validation | default(false)
 
 # The "_first" suffix is an orchestrator-internal concept (marks the first
 # control-plane node).  image_build_manager builds a single image for
@@ -141,13 +167,45 @@
     - _all_fg_entries | default([]) | length > 0
     - _fg_image_entry | default({}) | length == 0
     - "'_first' in _fg_prefix"
+    - not _skip_image_validation | default(false)
+
+# Flexible groups (fg_ prefix) fall back to base OS images
+- name: Extract OS version from flexible group name
+  ansible.builtin.set_fact:
+    _fg_os_version: "{{ functional_group_name | regex_search('_(rhel|rocky|ubuntu|sles)(_[0-9]+)+') | default('') }}"
+  when:
+    - functional_group_name[:3] == 'fg_'
+    - not _skip_image_validation | default(false)
+
+- name: Construct base OS image name for flexible group
+  ansible.builtin.set_fact:
+    _base_os_image_name: "os{{ _fg_os_version }}_{{ _fg_arch }}"
+  when:
+    - functional_group_name[:3] == 'fg_'
+    - _fg_os_version | length > 0
+    - not _skip_image_validation | default(false)
+
+- name: Find matching base OS image for flexible group
+  ansible.builtin.set_fact:
+    _fg_image_entry: >-
+      {{ _all_fg_entries
+         | selectattr('functional_group', 'equalto', _base_os_image_name)
+         | list | first | default({}) }}
+  when:
+    - functional_group_name[:3] == 'fg_'
+    - _fg_image_entry | default({}) | length == 0
+    - _base_os_image_name is defined
+    - _all_fg_entries | default([]) | length > 0
+    - not _skip_image_validation | default(false)
 
 - name: Set kernel, initrd and image from build_status
   ansible.builtin.set_fact:
     kernel: "{{ _fg_image_entry.kernel | default('') }}"
     initrd: "{{ _fg_image_entry.initrd | default('') }}"
     image: "{{ _fg_image_entry.image | default('') }}"
-  when: _fg_image_entry | default({}) | length > 0
+  when:
+    - _fg_image_entry | default({}) | length > 0
+    - not _skip_image_validation | default(false)
 
 - name: Fail if boot artifact paths are missing from build status
   ansible.builtin.fail:
@@ -157,6 +215,7 @@
       initrd='{{ initrd | default('') }}', image='{{ image | default('') }}'.
   when:
     - kernel | length < 1 or initrd | length < 1 or image | length < 1
+    - not _skip_image_validation | default(false)
 
 - name: Define boot artifacts for endpoint verification
   ansible.builtin.set_fact:
@@ -168,7 +227,9 @@
       - name: rootfs
         path: "{{ image }}"
     _orchestrator_validations_boot_artifact_failures: []
-  when: kernel | length > 0 and initrd | length > 0 and image | length > 0
+  when:
+    - kernel | length > 0 and initrd | length > 0 and image | length > 0
+    - not _skip_image_validation | default(false)
 
 - name: Verify boot artifacts are accessible from the OIM
   ansible.builtin.uri:
@@ -187,7 +248,9 @@
     label: "{{ boot_artifact.name }}"
   register: _orchestrator_validations_boot_artifact_checks
   failed_when: false
-  when: kernel | length > 0 and initrd | length > 0 and image | length > 0
+  when:
+    - kernel | length > 0 and initrd | length > 0 and image | length > 0
+    - not _skip_image_validation | default(false)
 
 - name: Collect inaccessible boot artifacts
   ansible.builtin.set_fact:
@@ -209,6 +272,7 @@
     - initrd | length > 0
     - image | length > 0
     - artifact_check.status | default(-1) | int != 200
+    - not _skip_image_validation | default(false)
 
 - name: Fail if boot artifacts are inaccessible
   ansible.builtin.fail:
@@ -216,6 +280,7 @@
   when: >-
     _orchestrator_validations_boot_artifact_failures
     | default([]) | length > 0
+    and not _skip_image_validation | default(false)
 
 - name: Store validated kernel, initrd and image for functional group
   ansible.builtin.set_fact:
@@ -231,3 +296,23 @@
     - >-
       _orchestrator_validations_boot_artifact_failures
       | default([]) | length == 0
+    - not _skip_image_validation | default(false)
+
+# For groups with image override, load the override from functional_group_config.yml
+- name: Load image override from functional_group_config.yml
+  ansible.builtin.set_fact:
+    validated_images: >-
+      {{ validated_images | default({}) | combine({
+           functional_group_name: {
+             'kernel': functional_group_config.groups[functional_group_name].image_override.kernel,
+             'initrd': functional_group_config.groups[functional_group_name].image_override.initrd,
+             'image': functional_group_config.groups[functional_group_name].image_override.rootfs
+           }
+         })
+      }}
+  when:
+    - _skip_image_validation | default(false)
+    - functional_group_config is defined
+    - functional_group_config.groups is defined
+    - functional_group_name in functional_group_config.groups
+    - functional_group_config.groups[functional_group_name].image_override is defined

@@ -135,8 +135,8 @@ def _validate_groups(
 ) -> None:
     """Validate explicit group scopes and inherited cloud-init architecture."""
     for group, scope in groups.items():
-        # ER-ORCH-009 FR-1.2: only flexible groups (mandatory ``fg_`` prefix)
-        # may be configured here. Reject predefined Slurm, Kubernetes, login,
+        # Only flexible groups (mandatory ``fg_`` prefix) may be configured here.
+        # Reject predefined Slurm, Kubernetes, login,
         # and OS group keys up front so they never reach provisioning config.
         if not str(group).startswith("fg_"):
             record_error(

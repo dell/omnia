@@ -154,16 +154,18 @@ def _validate_functional_groups(config_data, errors, logger=None):
     Validate functional group names.
 
     Rules:
-    - All keys must be valid functional group names
+    - All keys must be valid functional group names (predefined or flexible fg_*)
     """
     for group_name in config_data.keys():
         if not is_valid_functional_group(group_name):
             valid_groups = ", ".join(sorted(VALID_FUNCTIONAL_GROUPS))
             error = (
                 f"collect_pxe_config: Invalid functional group '{group_name}'. "
-                f"Expected <role>_<arch>, optionally with an OS/version segment "
+                f"Expected <role>_<arch> (predefined) or fg_<label>_<os>_<version>_<arch> (flexible), "
+                f"optionally with an OS/version segment before the architecture "
                 f"(e.g. '{next(iter(sorted(VALID_FUNCTIONAL_GROUPS)))}' or "
-                f"'slurm_node_rhel_10_0_aarch64'). Valid roles: {valid_groups}"
+                f"'slurm_node_rhel_10_0_aarch64' or 'fg_webserver_rhel_10_2_x86_64'). "
+                f"Valid predefined roles: {valid_groups}. Flexible groups must start with 'fg_'."
             )
             errors.append(error)
             if logger:

@@ -49,14 +49,14 @@
   when: _config_file_stat.stat.exists | default(false)
 
 # Step 4: Define the functional group name pattern.
-# Accepts "<role>_<arch>" (the legacy bare form) and Omnia's PXE-mapping
+# Accepts "<role>_<arch>" (the legacy bare form), Omnia's PXE-mapping
 # convention of "<role>_<os>_<version segments>_<arch>" (e.g.
-# "slurm_node_rhel_10_0_aarch64"), so new OS/version combinations keep
-# validating without changes here.
+# "slurm_node_rhel_10_0_aarch64"), and flexible functional groups with
+# "fg_<label>_<os>_<version segments>_<arch>" (e.g. "fg_custom_control_node_rhel_10_2_x86_64").
 - name: Set functional group name pattern
   ansible.builtin.set_fact:
     _functional_group_pattern: >-
-      ^(service_kube_control_plane_first|service_kube_control_plane|service_kube_node|slurm_control_node|slurm_node|login_node|login_compiler_node)(_(rhel|rocky|ubuntu|sles)(_[0-9]+)+)?_(x86_64|aarch64)$
+      ^(?:(service_kube_control_plane_first|service_kube_control_plane|service_kube_node|slurm_control_node|slurm_node|login_node|login_compiler_node)|fg_[a-zA-Z0-9_-]+?)(_(rhel|rocky|ubuntu|sles)(_[0-9]+)+)?_(x86_64|aarch64)$
 
 # Step 5: Validate group names
 - name: Validate group names in config
