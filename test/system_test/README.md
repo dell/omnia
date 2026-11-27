@@ -13,10 +13,11 @@ commands do everything:
 ```
 
 **Several themes in one GitLab pipeline:** list them per cluster, for example
-`themes: "build_stream,catalog_build"` in `pipeline/svt_pipeline_config.yml`. They run one after
+`themes: "catalog_build,build_stream"` in `pipeline/svt_pipeline_config.yml`. They run one after
 another (the next theme runs whether the previous passed or failed) in one pipeline with a single
 `preflight`, `initialization` and `summary`; each theme opens as its own nested pipeline, and the
-report has an index and a page per theme with Previous / Next links. See
+report has an index and a page per theme with Previous / Next links. `build_stream` starts from
+scratch (its own `clean_install` job) and must be the last theme. See
 [docs/PIPELINE.md](docs/PIPELINE.md) for the diagram.
 
 - **`./setup_env.sh`** ([docs/SETUP.md](docs/SETUP.md)): starts a run, loads your values into the Omnia inputs

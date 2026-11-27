@@ -79,7 +79,7 @@ waits. All clusters of the file run at the same time, each on its own OIM.
 
 | Key | Default | Meaning | Where it is used |
 |-----|---------|---------|------------------|
-| `themes` | required | The SVT themes of this cluster in run order, comma separated (keys of `THEMES` in `library/vars/theme_vars.py`), e.g. `"build_stream,catalog_build"`. They run one after another in one pipeline; a theme runs whether the one before passed or failed. It is the value of the cluster's CI/CD variable `<PREFIX>_SVT_THEMES`, which can name a subset at run time. `theme` (single) is no longer accepted | one trigger job per theme in the cluster pipeline file |
+| `themes` | required | The SVT themes of this cluster in run order, comma separated (keys of `THEMES` in `library/vars/theme_vars.py`), e.g. `"catalog_build,build_stream"`; `build_stream` starts from scratch and must be the last theme (`--update` refuses it elsewhere). They run one after another in one pipeline; a theme runs whether the one before passed or failed. It is the value of the cluster's CI/CD variable `<PREFIX>_SVT_THEMES`, which can name a subset at run time. `theme` (single) is no longer accepted | one trigger job per theme in the cluster pipeline file |
 
 ### `clusters.<name>.enabled`
 
