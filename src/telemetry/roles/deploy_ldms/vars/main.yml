@@ -212,3 +212,72 @@ ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is r
 ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout."
 ldms_sampler_started_msg: "LDMS sampler service started on {{ inventory_hostname }} listening on port {{ telemetry_config.ldms_configurations.sampler_port }}"
 ldms_sampler_firewall_msg: "Firewall port {{ telemetry_config.ldms_configurations.sampler_port }}/tcp opened for LDMS sampler"
+
+# =============================================================================
+# Partial LDMS deployment warnings
+# =============================================================================
+# Per-node Slurm problems are never fatal. Affected nodes are skipped,
+# reported, and the run pauses for the same duration as the iDRAC
+# invalid-BMC warning (deploy_idrac_telemetry waiting_time_30).
+ldms_warning_pause_seconds: 30
+
+ldms_warning_pause_prompt: |
+  [WARNING] LDMS could not be deployed on some Slurm nodes. Kindly address the issues mentioned above and re-execute telemetry.yml.
+  All other telemetry deployment continues.
+
+ldms_deploy_skipped_msg: |
+  ════════════════════════════════════════════════════════════════════════
+  [WARNING] LDMS telemetry skipped for this run
+  ════════════════════════════════════════════════════════════════════════
+  Reason: {{ _ldms_deploy_skip_reason }}
+
+  The LDMS aggregator authenticates with the Slurm munge key, which is read
+  from a Slurm control node. Without it the aggregator cannot be configured
+  safely, so the LDMS aggregator, store, Vector-LDMS bridge and samplers are
+  not deployed in this run. All other telemetry sources and sinks continue.
+
+  Slurm control node status:
+  {% for host in _ldms_control_candidates %}
+    - {{ host }} ({{ hostvars[host].ansible_host | default(host) }}):
+      {{ 'SSH unreachable'
+         if host in _ldms_deploy_control_unreachable_hosts
+         else 'munge key not readable at ' ~ (munge_key_path | default('/etc/munge/munge.key')) }}
+  {% else %}
+    - none defined in the cluster inventory
+  {% endfor %}
+
+  Action required:
+    1. Make a Slurm control node reachable over SSH from the Ansible controller
+    2. Ensure {{ munge_key_path | default('/etc/munge/munge.key') }} exists on it
+    3. Re-run telemetry.yml to deploy LDMS
+  ════════════════════════════════════════════════════════════════════════
+
+ldms_deploy_nodes_skipped_msg: |
+  ════════════════════════════════════════════════════════════════════════
+  [WARNING] LDMS sampler skipped on {{ _ldms_deploy_unreachable_hosts | length }} Slurm node(s)
+  ════════════════════════════════════════════════════════════════════════
+  {% for entry in _ldms_deploy_all_skipped_details %}
+    - {{ entry.node }} ({{ entry.ip }}): {{ entry.reason }} — {{ entry.detail }}
+  {% endfor %}
+
+  LDMS sampler nodes in this run: {{ _ldms_deploy_reachable_hosts | length }}
+  {% if _ldms_host_map_fallback | bool %}
+  No Slurm node is currently healthy for the LDMS sampler. The LDMS
+  aggregator and store are still deployed with all LDMS inventory nodes
+  configured as producers; they start collecting once the samplers are
+  configured on a later run.
+  {% endif %}
+  Fix the node(s) above and re-run telemetry.yml to add them to LDMS.
+  ════════════════════════════════════════════════════════════════════════
+
+ldms_sampler_nodes_failed_msg: |
+  ════════════════════════════════════════════════════════════════════════
+  [WARNING] LDMS sampler could not be configured on {{ _ldms_sampler_skipped_details | length }} Slurm node(s)
+  ════════════════════════════════════════════════════════════════════════
+  {% for entry in _ldms_sampler_skipped_details %}
+    - {{ entry.node }} ({{ entry.ip }}): {{ entry.reason }} — {{ entry.detail }}
+  {% endfor %}
+
+  LDMS continues on all other Slurm nodes. Fix the node(s) above and
+  re-run telemetry.yml to add them to LDMS.
+  ════════════════════════════════════════════════════════════════════════

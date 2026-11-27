@@ -163,13 +163,17 @@
   register: host_map_count
   changed_when: false
 
-- name: Validate LDMS host map contains reachable sampler nodes
+# The host map falls back to every LDMS inventory node when no sampler node is
+# deployable (see build_deployment_inventory.yml), so it can only be empty when
+# the cluster inventory itself defines no Slurm nodes, which is a
+# configuration error rather than a node-health problem.
+- name: Validate LDMS host map contains sampler nodes
   ansible.builtin.assert:
     that:
       - host_map_count.stdout | int > 0
     fail_msg: >-
       The LDMS host map is empty, so the aggregator cannot be configured.
-      Verify the reachable Slurm inventory built during LDMS preflight.
+      Verify that the cluster inventory defines Slurm nodes.
 
 # ---- Reconcile K8s secrets required by the Helm chart ----
 

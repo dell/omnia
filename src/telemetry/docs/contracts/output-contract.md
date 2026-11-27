@@ -59,6 +59,11 @@ bridges:
 
 deploy_unreachable_nodes:
   ldms: []
+
+deploy_skipped_nodes:
+  ldms: []
+
+deploy_warnings: []
 ```
 
 ### Fields
@@ -78,24 +83,63 @@ deploy_unreachable_nodes:
 | `sources.<name>.metrics` | string | Metrics outcome: `"deployed"`, `"failed"`, or `"skipped"`; iDRAC also reports `"disabled"` when successfully reconciled off |
 | `sources.<name>.logs` | string | Logs outcome when supported: `"deployed"`, `"failed"`, or `"skipped"` |
 | `bridges.<name>` | string | `"deployed"`, `"failed"`, or `"skipped"` |
-| `deploy_unreachable_nodes.ldms` | list | LDMS nodes skipped because Ansible could not reach them |
+| `deploy_unreachable_nodes.ldms` | list | Names of Slurm nodes on which the LDMS sampler was skipped (any reason below) |
+| `deploy_skipped_nodes.ldms` | list | One entry per skipped node and reason: `node`, `ip`, `reason`, `detail` |
+| `deploy_warnings` | list | Human-readable non-fatal deployment warnings (empty when there are none) |
 
 ### Deployment reachability warnings
 
-Deployment status reports LDMS nodes that could not be reached and were skipped:
+Deployment status reports the Slurm nodes on which the LDMS sampler was
+skipped, and why:
 
 ```yaml
 deploy_unreachable_nodes:
   ldms:
     - "compute-01"
     - "login-02"
+
+deploy_skipped_nodes:
+  ldms:
+    - node: "compute-01"
+      ip: "172.10.0.21"
+      reason: "slurmd_inactive"
+      detail: "slurmd state: inactive"
+    - node: "login-02"
+      ip: "172.10.0.31"
+      reason: "ssh_unreachable"
+      detail: "SSH port 22 is not reachable from the Ansible controller"
+
+deploy_warnings:
+  - "LDMS sampler skipped on 2 Slurm node(s); fix them and re-run telemetry.yml to add them to LDMS"
 ```
 
-An unreachable LDMS node is a non-fatal deployment warning when the remaining
-LDMS components deploy successfully. Deployment continues on reachable nodes,
-and the warning does not by itself change `overall_status` from `success`.
-Failures returned by reachable nodes and an unreachable Kubernetes VIP remain
-fatal.
+| `reason` | Detected by | Meaning |
+|----------|-------------|---------|
+| `ssh_unreachable` | precheck / deploy | Node not reachable over SSH |
+| `slurmd_inactive` | precheck | `slurmd` is not `active` on a `slurm_node` host |
+| `slurmctld_inactive` | precheck | `slurmctld` is not `active` on a `slurm_control_node` host |
+| `slurm_not_responsive` | deploy | Compute node not responsive (idle/alloc/mixed) in `sinfo` |
+| `sinfo_unavailable` | deploy | `sinfo` failed, so compute nodes could not be verified |
+| `sampler_config_failed` | deploy | Sampler configuration failed on the node |
+| `munge_key_unavailable` | deploy | Control node reachable but its munge key is not readable |
+| `ldms_skipped` | deploy | LDMS skipped as a whole (see below) |
+
+A skipped LDMS node is a non-fatal deployment warning. LDMS is deployed on the
+remaining healthy nodes, all other components deploy normally, and the warning
+does not by itself change `overall_status` from `success`. Each warning is
+shown during the run with a 30 second pause, matching the iDRAC invalid-BMC
+warning. Re-running `telemetry.yml` after fixing a node adds it to LDMS.
+
+When no Slurm control node is reachable with a readable munge key, the LDMS
+aggregator cannot authenticate, so LDMS (aggregator, store, Vector-LDMS bridge
+and samplers) is skipped for the run: `sources.ldms.metrics` and
+`bridges.vector_ldms` report `"skipped"` and `deploy_warnings` contains the
+reason. When a control node is usable but no sampler node is healthy, the
+aggregator and store are still deployed with every LDMS inventory node
+configured as a producer.
+
+An unreachable Kubernetes VIP and errors unrelated to Slurm node health
+(Helm, Kubernetes API, image pulls, invalid inventory) remain fatal.
 
 ---
 

@@ -423,6 +423,9 @@
         _idrac_pod_count: "{{ _kv['_idrac_pods'].stdout_lines | default([]) | length }}"
         _idrac_operation_ok: "{{ not (_kv['_idrac_reconcile_failed'] | default(false) | bool) }}"
         _ldms_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+        # Set by deploy_ldms when no Slurm control node can provide the munge
+        # key: LDMS was intentionally not deployed in this run (warning only).
+        _ldms_skipped: "{{ (_ldms_deploy_skip_reason | default('') | trim | length) > 0 }}"
         _ldms_aggregator_sts_value: "{{ _kv['_ldms_aggregator_sts'].stdout | default('') | trim }}"
         _ldms_aggregator_sts_exists: "{{ _kv['_ldms_aggregator_sts'].rc | default(1) == 0 }}"
         _ldms_aggregator_desired: "{{ _ldms_aggregator_sts_value | default('0') | int }}"
@@ -445,7 +448,9 @@
              and (_idrac_pod_count | int) == 0) else 'failed' }}
           {% endif %}
         _deploy_result_ldms_metrics: >-
-          {%- if _ldms_on | bool -%}
+          {%- if (_ldms_on | bool) and (_ldms_skipped | bool) -%}
+          skipped
+          {%- elif _ldms_on | bool -%}
           {{ 'deployed' if (_ldms_aggregator_sts_exists | bool)
              and (_ldms_aggregator_desired | int) > 0
              and (_ldms_aggregator_running | bool)
@@ -514,6 +519,7 @@
       vars:
         _vldms_bridge_on: "{{ _cfg.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}"
         _ldms_src_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+        _ldms_skipped: "{{ (_ldms_deploy_skip_reason | default('') | trim | length) > 0 }}"
         _vldms_deployment_value: "{{ _kv['_vector_ldms_deployment'].stdout | default('') | trim }}"
         _vldms_deployment_exists: "{{ _kv['_vector_ldms_deployment'].rc | default(1) == 0 }}"
         _vldms_desired: "{{ _vldms_deployment_value | default('0') | int }}"
@@ -527,7 +533,9 @@
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
         _deploy_result_vector_ldms: >-
-          {%- if (_vldms_bridge_on | bool) and (_ldms_src_on | bool) -%}
+          {%- if (_vldms_bridge_on | bool) and (_ldms_src_on | bool) and (_ldms_skipped | bool) -%}
+          skipped
+          {%- elif (_vldms_bridge_on | bool) and (_ldms_src_on | bool) -%}
           {{ 'deployed' if (_vldms_deployment_exists | bool)
              and (_vldms_desired | int) > 0
              and (_vldms_running | bool) else 'failed' | trim }}

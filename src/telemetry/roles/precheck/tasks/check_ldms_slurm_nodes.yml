@@ -22,6 +22,14 @@
 #   3. slurmd service is running on all slurm nodes
 #   4. slurmctld service is running on slurm control nodes
 #
+# Checks 1-2 are structural and remain fatal. Checks 3-4 (and SSH
+# reachability) are per-node: a failing node is recorded with a reason in
+# localhost.ldms_precheck_skipped_nodes, a warning is shown (with the same
+# pause used for invalid iDRAC BMCs), and the run continues. The deploy phase
+# excludes those nodes from LDMS sampler deployment, and the final telemetry
+# status reports them, so other telemetry sources are never blocked by a
+# single unhealthy Slurm node.
+#
 # This check is only performed when telemetry_sources.ldms.metrics_enabled is true.
 # =============================================================================
 
@@ -193,6 +201,17 @@
         (slurm_login_hosts.values() | map(attribute='ansible_host') | default([]) | list) +
         (slurm_login_compiler_hosts.values() | map(attribute='ansible_host') | default([]) | list)
       }}
+    # Deduplicated {key: <inventory name>, value: {ansible_host: <ip>}} items,
+    # so per-node findings can be reported by inventory name (the same name
+    # the deploy phase uses for its dynamic LDMS host groups).
+    all_slurm_node_items: >-
+      {{
+        slurm_control_hosts
+        | combine(slurm_compute_hosts)
+        | combine(slurm_login_hosts)
+        | combine(slurm_login_compiler_hosts)
+        | dict2items
+      }}
   delegate_to: localhost
   run_once: true  # noqa
 
@@ -210,14 +229,16 @@
   run_once: true  # noqa
 
 # --- Network reachability validation for all Slurm nodes ---
+# An unreachable node is recorded as a per-node LDMS finding instead of
+# failing the precheck: it only affects LDMS on that node.
 - name: Check network reachability for all Slurm nodes
   # HPC: run_once: true prevents loop fan-out
   ansible.builtin.shell:
-    cmd: "timeout 5 nc -zv {{ item | quote }} 22 2>&1 || echo 'UNREACHABLE'"
+    cmd: "timeout 5 nc -zv {{ (item.value.ansible_host | default(item.key)) | quote }} 22 2>&1 || echo 'UNREACHABLE'"
   delegate_to: localhost
-  loop: "{{ all_slurm_node_ips }}"
+  loop: "{{ all_slurm_node_items }}"
   loop_control:
-    label: "{{ item }}"
+    label: "{{ item.key }} ({{ item.value.ansible_host | default(item.key) }})"
   register: node_reachability_check
   changed_when: false
   failed_when: false
@@ -230,36 +251,26 @@
       {{
         node_reachability_check.results |
         selectattr('stdout', 'search', 'UNREACHABLE') |
-        map(attribute='item') |
+        map(attribute='item.key') |
         list
       }}
   delegate_to: localhost
   run_once: true  # noqa
 
-- name: Fail if any Slurm nodes are unreachable
+- name: Record unreachable Slurm nodes as LDMS findings
   # HPC: run_once: true prevents loop fan-out
-  ansible.builtin.fail:
-    msg: |
-      ════════════════════════════════════════════════════════════════════════
-      LDMS VALIDATION FAILED: Slurm nodes unreachable
-      ════════════════════════════════════════════════════════════════════════
-      The following Slurm nodes are not reachable via SSH (port 22):
-      {% for node in unreachable_nodes %}
-        - {{ node }}
-      {% endfor %}
-
-      LDMS requires all Slurm nodes to be reachable for service validation
-      and deployment. Cannot proceed with telemetry deployment until
-      all nodes are accessible.
-
-      Action required for each unreachable node:
-      1. Verify the node is powered on
-      2. Check network connectivity from the Ansible controller
-      3. Ensure SSH service is running on the node
-      4. Verify firewall rules allow SSH (port 22) access
-      5. Test connectivity: ping <node-ip> and ssh root@<node-ip>
-      ════════════════════════════════════════════════════════════════════════
-  when: unreachable_nodes | length > 0
+  ansible.builtin.set_fact:
+    _ldms_ssh_issues: >-
+      {%- set issues = [] -%}
+      {%- for node in all_slurm_node_items if node.key in unreachable_nodes -%}
+      {%- set _ = issues.append({
+            'node': node.key,
+            'ip': node.value.ansible_host | default(node.key),
+            'reason': 'ssh_unreachable',
+            'detail': 'SSH port 22 is not reachable from the Ansible controller'
+          }) -%}
+      {%- endfor -%}
+      {{ issues }}
   delegate_to: localhost
   run_once: true  # noqa
 
@@ -277,32 +288,45 @@
   run_once: true  # noqa
 
 # --- Service validation on Slurm control nodes ---
+# Only SSH-reachable nodes are checked. ignore_unreachable keeps a node whose
+# SSH session fails (e.g. authentication) from removing the kube_vip host
+# from the play; such nodes are classified as ssh_unreachable below.
 - name: Check slurmctld service status on Slurm control nodes
   ansible.builtin.systemd:
     name: slurmctld
   register: slurmctld_status
-  delegate_to: "{{ item.value.ansible_host }}"
-  loop: "{{ slurm_control_hosts | dict2items }}"
+  delegate_to: "{{ item.value.ansible_host | default(item.key) }}"
+  loop: "{{ slurm_control_hosts | dict2items | rejectattr('key', 'in', unreachable_nodes) | list }}"
   loop_control:
-    label: "{{ item.key }} ({{ item.value.ansible_host }})"
+    label: "{{ item.key }} ({{ item.value.ansible_host | default(item.key) }})"
   failed_when: false
+  ignore_unreachable: true
   run_once: true
 
-- name: Fail if slurmctld is not running on any control node
+- name: Collect Slurm control nodes with slurmctld issues
   # HPC: run_once: true prevents loop fan-out
-  ansible.builtin.fail:
-    msg: |
-      {{ ldms_error_messages.slurmctld_not_running }}
-  vars:
-    node_name: "{{ item.item.key }}"
-    node_ip: "{{ item.item.value.ansible_host }}"
-    service_status: "{{ item.status.ActiveState | default('unknown') }}"
-  loop: "{{ slurmctld_status.results }}"
-  loop_control:
-    label: "{{ item.item.key }}"
-  when:
-    - item.status is defined
-    - item.status.ActiveState != 'active'
+  ansible.builtin.set_fact:
+    _ldms_slurmctld_issues: >-
+      {%- set issues = [] -%}
+      {%- for result in slurmctld_status.results | default([]) -%}
+      {%- set state = (result.status | default({})).ActiveState | default('unknown') -%}
+      {%- if result.unreachable | default(false) | bool -%}
+      {%- set _ = issues.append({
+            'node': result.item.key,
+            'ip': result.item.value.ansible_host | default(result.item.key),
+            'reason': 'ssh_unreachable',
+            'detail': 'SSH session failed while checking slurmctld'
+          }) -%}
+      {%- elif state != 'active' -%}
+      {%- set _ = issues.append({
+            'node': result.item.key,
+            'ip': result.item.value.ansible_host | default(result.item.key),
+            'reason': 'slurmctld_inactive',
+            'detail': 'slurmctld state: ' ~ state
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ issues }}
   delegate_to: localhost
   run_once: true  # noqa
 
@@ -311,38 +335,75 @@
   ansible.builtin.systemd:
     name: slurmd
   register: slurmd_status
-  delegate_to: "{{ item.value.ansible_host }}"
-  loop: "{{ slurm_compute_hosts | dict2items }}"
+  delegate_to: "{{ item.value.ansible_host | default(item.key) }}"
+  loop: "{{ slurm_compute_hosts | dict2items | rejectattr('key', 'in', unreachable_nodes) | list }}"
   loop_control:
-    label: "{{ item.key }} ({{ item.value.ansible_host }})"
+    label: "{{ item.key }} ({{ item.value.ansible_host | default(item.key) }})"
   failed_when: false
+  ignore_unreachable: true
   run_once: true
 
-- name: Collect failed slurmd nodes
+- name: Collect Slurm compute nodes with slurmd issues
   # HPC: run_once: true prevents loop fan-out
   ansible.builtin.set_fact:
-    failed_slurmd_nodes: >-
-      {{
-        slurmd_status.results |
-        selectattr('status', 'defined') |
-        selectattr('status.ActiveState', 'ne', 'active') |
-        map(attribute='item') |
-        list
-      }}
+    _ldms_slurmd_issues: >-
+      {%- set issues = [] -%}
+      {%- for result in slurmd_status.results | default([]) -%}
+      {%- set state = (result.status | default({})).ActiveState | default('unknown') -%}
+      {%- if result.unreachable | default(false) | bool -%}
+      {%- set _ = issues.append({
+            'node': result.item.key,
+            'ip': result.item.value.ansible_host | default(result.item.key),
+            'reason': 'ssh_unreachable',
+            'detail': 'SSH session failed while checking slurmd'
+          }) -%}
+      {%- elif state != 'active' -%}
+      {%- set _ = issues.append({
+            'node': result.item.key,
+            'ip': result.item.value.ansible_host | default(result.item.key),
+            'reason': 'slurmd_inactive',
+            'detail': 'slurmd state: ' ~ state
+          }) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ issues }}
   delegate_to: localhost
   run_once: true  # noqa
 
-- name: Fail if slurmd is not running on any compute node
+# --- Publish per-node findings (consumed by deploy_ldms and the final status) ---
+- name: Publish LDMS Slurm node findings to localhost
   # HPC: run_once: true prevents loop fan-out
-  ansible.builtin.fail:
-    msg: |
-      {{ ldms_error_messages.slurmd_not_running }}
-  vars:
-    failed_count: "{{ failed_slurmd_nodes | length }}"
-    total_count: "{{ slurm_compute_hosts | length }}"
-    failed_nodes: "{{ failed_slurmd_nodes }}"
-  when: failed_slurmd_nodes | length > 0
+  ansible.builtin.set_fact:
+    ldms_precheck_skipped_nodes: >-
+      {{ (_ldms_ssh_issues + _ldms_slurmctld_issues + _ldms_slurmd_issues) | unique | list }}
   delegate_to: localhost
+  delegate_facts: true
+  run_once: true  # noqa
+
+- name: Warn about Slurm nodes that will be skipped for LDMS
+  # HPC: run_once: true prevents loop fan-out
+  ansible.builtin.debug:
+    msg: "{{ ldms_warning_messages.precheck_nodes_skipped }}"
+  vars:
+    skipped_nodes: "{{ hostvars['localhost']['ldms_precheck_skipped_nodes'] }}"
+    usable_control_nodes: >-
+      {{
+        slurm_control_hosts.keys() | list
+        | difference(
+            hostvars['localhost']['ldms_precheck_skipped_nodes']
+            | selectattr('reason', 'equalto', 'ssh_unreachable')
+            | map(attribute='node') | list
+          )
+      }}
+  when: hostvars['localhost']['ldms_precheck_skipped_nodes'] | length > 0
+  delegate_to: localhost
+  run_once: true  # noqa
+
+- name: Warning for user to fix Slurm node issues
+  ansible.builtin.pause:
+    seconds: "{{ ldms_warning_pause_seconds }}"
+    prompt: "{{ ldms_warning_messages.pause_prompt }}"
+  when: hostvars['localhost']['ldms_precheck_skipped_nodes'] | length > 0
   run_once: true  # noqa
 
 - name: LDMS Slurm validation passed
@@ -355,5 +416,6 @@
     login_count: "{{ slurm_login_hosts | length }}"
     login_compiler_count: "{{ slurm_login_compiler_hosts | length }}"
     total_count: "{{ all_slurm_node_ips | length }}"
+  when: hostvars['localhost']['ldms_precheck_skipped_nodes'] | length == 0
   delegate_to: localhost
   run_once: true  # noqa

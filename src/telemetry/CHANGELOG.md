@@ -69,6 +69,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ubuntu-ldms` (previously `ldms`) with default tag `1.2`, matching the image
   consumed by the LDMS deployment.
 
+### Fixed
+- LDMS no longer aborts the whole telemetry run when individual Slurm nodes
+  are unhealthy (Omnia_Spec #1786). Precheck and the LDMS deployment now skip
+  nodes that are SSH-unreachable, have `slurmd`/`slurmctld` inactive, are not
+  responsive in `sinfo`, or fail sampler configuration, show a warning with
+  the same 30 second pause as the iDRAC invalid-BMC warning, and report the
+  nodes with a reason in `telemetry_status.yml` (`deploy_skipped_nodes`,
+  `deploy_warnings`). All other telemetry sources and sinks deploy normally,
+  and re-running `telemetry.yml` adds fixed nodes to LDMS.
+- When no Slurm control node is reachable with a readable munge key, LDMS is
+  skipped for the run with a warning (`sources.ldms.metrics: skipped`)
+  instead of failing. When a control node is usable but no sampler node is
+  healthy, the LDMS aggregator and store are still deployed.
+- LDMS sampler configuration and `sinfo` now use the selected reachable Slurm
+  control node instead of always the first one in the inventory.
+
 
 ## [2.3.0] - 2026-09-05
 

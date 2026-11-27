@@ -15,6 +15,8 @@
 
 # Render the host-independent sampler files once on the selected Slurm control
 # node. All LDMS-enabled Slurm nodes consume these files from the shared mount.
+# The selected node (_ldms_deploy_aggregator_control_host) is a reachable
+# control node, so an unreachable first control node does not block LDMS.
 
 - name: Create LDMS samplers directory in shared storage
   ansible.builtin.file:
@@ -23,7 +25,7 @@
     owner: root
     group: root
     mode: "{{ common_mode }}"
-  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
+  delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
 
 - name: Render shared LDMS sampler configuration
   ansible.builtin.template:
@@ -32,7 +34,7 @@
     owner: root
     group: root
     mode: "{{ file_permissions_644 }}"
-  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
+  delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
 
 - name: Use LDMS sampler password from kube_vip host
   ansible.builtin.set_fact:
@@ -47,7 +49,7 @@
     owner: root
     group: root
     mode: "{{ file_permissions_600 }}"
-  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
+  delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
 
 - name: Render shared LDMS sampler environment file
   ansible.builtin.template:
@@ -56,7 +58,7 @@
     owner: root
     group: root
     mode: "{{ file_permissions_644 }}"
-  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
+  delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
 
 - name: Log shared LDMS sampler configuration preparation
   ansible.builtin.debug:
