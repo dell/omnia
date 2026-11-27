@@ -116,6 +116,15 @@ _IPV4_RE = re.compile(
     r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$"
 )
 
+# IPv6 simple validation — accept any valid inet_pton parseable address
+def _is_valid_ipv6(addr: str) -> bool:
+    """Return True if *addr* is a syntactically valid IPv6 address."""
+    try:
+        socket.inet_pton(socket.AF_INET6, addr)
+        return True
+    except (OSError, ValueError):
+        return False
+
 
 def _get_system_hostname() -> str:
     """Return the short hostname via ``hostname -s``."""
@@ -158,6 +167,25 @@ def _get_local_ips() -> list[str]:
             parts = line.split()
             for i, part in enumerate(parts):
                 if part == "inet" and i + 1 < len(parts):
+                    ip_cidr = parts[i + 1]
+                    ips.append(ip_cidr.split("/")[0])
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return ips
+
+
+def _get_local_ipv6s() -> list[str]:
+    """Return list of IPv6 addresses on local network interfaces."""
+    ips: list[str] = []
+    try:
+        result = subprocess.run(
+            ["ip", "-6", "-o", "addr", "show"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            for i, part in enumerate(parts):
+                if part == "inet6" and i + 1 < len(parts):
                     ip_cidr = parts[i + 1]
                     ips.append(ip_cidr.split("/")[0])
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -255,6 +283,32 @@ def _check_ip_on_nic(env_ip: str) -> dict[str, Any]:
     }
 
 
+def _check_ipv6_on_nic(env_ipv6: str) -> dict[str, Any]:
+    """Cross-validate SYSTEM_ADMIN_NIC_IPV6 exists on a local NIC (optional)."""
+    if not _is_valid_ipv6(env_ipv6):
+        return {
+            "name": "validate_ipv6_format",
+            "expected": "Valid IPv6 address",
+            "actual": env_ipv6,
+            "passed": False,
+            "message": f"SYSTEM_ADMIN_NIC_IPV6 '{env_ipv6}' is not a valid IPv6 address",
+        }
+
+    local_ipv6s = _get_local_ipv6s()
+    passed = env_ipv6 in local_ipv6s
+    return {
+        "name": "validate_ipv6_on_nic",
+        "expected": env_ipv6,
+        "actual": ", ".join(local_ipv6s) if local_ipv6s else "(no IPv6 addresses found)",
+        "passed": passed,
+        "message": (
+            f"Admin IPv6 {env_ipv6} found on local NIC"
+            if passed
+            else f"SYSTEM_ADMIN_NIC_IPV6 '{env_ipv6}' not found on any local NIC. Available: {', '.join(local_ipv6s)}"
+        ),
+    }
+
+
 def _check_data_path(env_path: str) -> dict[str, Any]:
     """Verify OMNIA_DATA_PATH exists or parent is writable."""
     if os.path.isdir(env_path):
@@ -324,6 +378,11 @@ def main() -> None:
     env_ip = os.environ.get("SYSTEM_ADMIN_NIC_IPV4", "")
     if validate_ip and env_ip:
         checks.append(_check_ip_on_nic(env_ip))
+
+    # 4b. Cross-validate admin IPv6 is on a local NIC (optional)
+    env_ipv6 = os.environ.get("SYSTEM_ADMIN_NIC_IPV6", "")
+    if validate_ip and env_ipv6:
+        checks.append(_check_ipv6_on_nic(env_ipv6))
 
     # 5. Validate data path
     env_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")

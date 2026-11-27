@@ -118,9 +118,11 @@ sudo ./omnia.sh --init image_build_manager
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SYSTEM_ADMIN_NIC_IPV4` | **required** | Admin NIC IPv4 (S3 + registry endpoint) |
+| `SYSTEM_ADMIN_NIC_IPV4` | **required** | Admin NIC IPv4 (Podman bind address) |
+| `SYSTEM_ADMIN_NIC_IPV6` | _(optional)_ | Admin NIC IPv6 for dual-stack; enables socat proxy for MinIO |
 | `SYSTEM_HOSTNAME` | **required** | Short hostname of the OIM host |
 | `SYSTEM_DOMAIN_NAME` | **required** | OIM domain name |
+| `SYSTEM_OIM_HOSTNAME` | _(derived)_ | FQDN (`SYSTEM_HOSTNAME.SYSTEM_DOMAIN_NAME`); used for S3 and registry endpoints |
 | `OMNIA_DATA_PATH` | `/opt/omnia` | Root data directory; must be exported for direct playbook runs |
 | `OMNIA_VERSION` | **required** | Version embedded in generated image names |
 | `OMNIA_PROJECT_NAME` | `project_default` | Project name |

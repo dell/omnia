@@ -1,0 +1,20 @@
+# Managed by Ansible — do not edit manually.
+# Proxies IPv6 MinIO traffic to the IPv4-bound Podman container.
+# Podman/netavark only creates IPv4 DNAT rules, so this socat bridge
+# is required for dual-stack MinIO access.
+[Unit]
+Description=MinIO S3 IPv6 Proxy (socat)
+After=network-online.target minio.service
+Wants=minio.service
+BindsTo=minio.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat \
+  TCP6-LISTEN:{{ minio_port }},bind=[{{ admin_nic_ipv6 }}],reuseaddr,fork \
+  TCP4:{{ admin_nic_ip }}:{{ minio_port }}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

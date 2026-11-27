@@ -148,6 +148,7 @@
       generate_local_repo_access:
         pulp_cli_executable: "{{ pulp_cli_executable }}"
         pulp_server_ip: "{{ pulp_server_ip }}"
+        pulp_server_hostname: "{{ pulp_server_hostname | default('') }}"
         pulp_server_port: "{{ pulp_server_port | int }}"
         cluster_os_type: "{{ catalog_execution_contexts[0].os_type }}"
         cluster_os_version: "{{ catalog_execution_contexts[0].os_version }}"

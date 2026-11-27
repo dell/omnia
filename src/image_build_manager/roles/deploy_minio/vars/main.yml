@@ -17,11 +17,14 @@ shared_path: "{{ hostvars['localhost']['shared_path'] }}"
 host_name: "{{ hostvars['localhost']['host_name'] | default(ansible_hostname) }}"
 domain_name: "{{ hostvars['localhost']['domain_name'] | default(ansible_domain) }}"
 admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default(ansible_default_ipv4.address) }}"
+admin_nic_ipv6: "{{ hostvars['localhost']['admin_nic_ipv6'] | default('') }}"
+oim_hostname: "{{ hostvars['localhost']['oim_hostname'] | default(host_name + '.' + domain_name) }}"
 
 # Derived cluster variables (same as prepare_oim/deploy_openchami)
 cluster_name: "{{ host_name }}"
 cluster_domain: "{{ domain_name }}"
 cluster_boot_ip: "{{ admin_nic_ip }}"
+cluster_boot_hostname: "{{ oim_hostname }}"
 
 # S3 configuration from image_build_config.yml (loaded on localhost)
 s3_configurations: "{{ hostvars['localhost']['s3_configurations'] | default({}) }}"

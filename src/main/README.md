@@ -26,7 +26,7 @@ Core entry points for the Omnia Infrastructure Manager (OIM).
 
 ```bash
 # 1. Configure environment
-vi omnia.env                         # Set SYSTEM_ADMIN_NIC_IPV4 at minimum
+vi omnia.env                         # Set SYSTEM_ADMIN_NIC_IPV4 (and optionally SYSTEM_ADMIN_NIC_IPV6 for dual-stack)
 
 # 2. Set up env + venv + copy input files (one-time)
 #    Installs env to /etc/omnia/omnia.env (system-wide)

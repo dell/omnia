@@ -54,7 +54,7 @@
   ansible.builtin.debug:
     msg:
       - "Project: {{ project_name }}"
-      - "Host: {{ host_name }}.{{ domain_name }} ({{ admin_nic_ip }})"
+      - "Host: {{ oim_hostname }} ({{ admin_nic_ip }}{{ ', ' + admin_nic_ipv6 if admin_nic_ipv6 | default('') | length > 0 else '' }})"
       - "Shared path: {{ shared_path }}"
       - "Output dir: {{ output_project_dir }}"
       - "Log dir: {{ log_dir }}"

@@ -57,6 +57,29 @@
         state: absent
       loop: "{{ minio_cleanup_directories }}"
 
+    - name: Check if MinIO IPv6 proxy service exists
+      ansible.builtin.stat:
+        path: "{{ minio_ipv6_proxy_file }}"
+      register: _minio_ipv6_proxy_stat
+
+    - name: Stop and disable MinIO IPv6 proxy
+      ansible.builtin.systemd:
+        name: "{{ minio_ipv6_proxy_service }}"
+        state: stopped
+        enabled: false
+      when: _minio_ipv6_proxy_stat.stat.exists
+      failed_when: false
+
+    - name: Remove MinIO IPv6 proxy service file
+      ansible.builtin.file:
+        path: "{{ minio_ipv6_proxy_file }}"
+        state: absent
+
+    - name: Reload systemd after removing MinIO IPv6 proxy
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: _minio_ipv6_proxy_stat.stat.exists
+
     - name: Remove MinIO firewall ports
       ansible.posix.firewalld:
         port: "{{ item }}"

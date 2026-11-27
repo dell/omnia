@@ -9,9 +9,9 @@ Image={{ minio_image }}:{{ minio_release_tag }}
 # Volumes
 Volume={{ data_s3_dir }}:/data:Z
 
-# Ports
-PublishPort=9000:9000
-PublishPort=9001:9001
+# Ports — bind to admin NIC IPv4 only; IPv6 is handled by minio-ipv6-proxy.service
+PublishPort={{ admin_nic_ip }}:{{ minio_port }}:9000
+PublishPort={{ admin_nic_ip }}:{{ minio_console_port }}:9001
 
 # Environemnt Variables
 Environment=MINIO_ROOT_USER={{ s3_access_id }}

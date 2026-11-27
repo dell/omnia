@@ -33,7 +33,7 @@ The `omnia.sh` script handles initial setup and environment configuration for Om
 ## What `--setup-venv` Does
 
 1. **Configures env system-wide** — Copies `omnia.env` on the first run; later runs preserve the authoritative `/etc/omnia/omnia.env` unless `--force-env` is supplied
-2. **Validates environment** — Checks required env vars are set (e.g., `SYSTEM_ADMIN_NIC_IPV4`)
+2. **Validates environment** — Checks required env vars are set (e.g., `SYSTEM_ADMIN_NIC_IPV4`); validates optional `SYSTEM_ADMIN_NIC_IPV6` on interface when set; derives `SYSTEM_OIM_HOSTNAME` from hostname and domain
 3. **Creates base directories** — Creates `$OMNIA_DATA_PATH` and its `.data` directory
 4. **Finds Python 3.11+** — Searches for python3.12, python3.11, or python3
 5. **Creates or updates venv** — Sets up virtual environment at `$OMNIA_VENV_PATH`

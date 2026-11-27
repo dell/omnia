@@ -17,7 +17,7 @@
 #
 # Reads environment variables directly (user must export them before running).
 # Required env vars: OMNIA_VERSION, OMNIA_DATA_PATH, SYSTEM_ADMIN_NIC_IPV4, SYSTEM_HOSTNAME, SYSTEM_DOMAIN_NAME
-# Optional env vars: OMNIA_PROJECT_NAME, IMAGE_BUILD_MANAGER_DATA_PATH
+# Optional env vars: OMNIA_PROJECT_NAME, IMAGE_BUILD_MANAGER_DATA_PATH, SYSTEM_ADMIN_NIC_IPV6, SYSTEM_OIM_HOSTNAME
 
 # --- Resolve domain root directory (works from any playbook location) ---
 - name: Set domain root directory
@@ -32,8 +32,14 @@
     omnia_version: "{{ lookup('env', 'OMNIA_VERSION') | default('', true) }}"
     project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
     admin_nic_ip: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
+    admin_nic_ipv6: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV6') | default('', true) }}"
     host_name: "{{ lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) }}"
     domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
+    oim_hostname: >-
+      {{ lookup('env', 'SYSTEM_OIM_HOSTNAME') | default('', true)
+         if (lookup('env', 'SYSTEM_OIM_HOSTNAME') | default('', true)) | length > 0
+         else (lookup('env', 'SYSTEM_HOSTNAME') | default('oim', true) + '.'
+               + lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true)) }}
     cacheable: true
 
 - name: Resolve cleanup-only setup mode
@@ -68,7 +74,9 @@
     msg:
       - "SYSTEM_HOSTNAME: {{ host_name }}"
       - "SYSTEM_DOMAIN_NAME: {{ domain_name }}"
+      - "SYSTEM_OIM_HOSTNAME: {{ oim_hostname }}"
       - "SYSTEM_ADMIN_NIC_IPV4: {{ admin_nic_ip }}"
+      - "SYSTEM_ADMIN_NIC_IPV6: {{ admin_nic_ipv6 | default('(not set)') }}"
       - "OMNIA_VERSION: {{ omnia_version }}"
       - "OMNIA_DATA_PATH: {{ omnia_data_path }}"
       - "OMNIA_PROJECT_NAME: {{ project_name }}"

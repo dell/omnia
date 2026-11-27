@@ -35,7 +35,8 @@ pulp_csr_permissions: "0600"
 device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_https_port: "{{ pulp_deployment_defaults.https.container_port }}"
 pulp_publish_port: "{{ pulp_server_ip }}:{{ pulp_server_port }}:{{ pulp_container_https_port }}"
-pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+pulp_publish_port_ipv6: "[{{ pulp_server_ipv6 }}]:{{ pulp_server_port }}:{{ pulp_container_https_port }}"
+pulp_base_url: "https://{{ pulp_endpoint_authority | default(pulp_server_ip) }}:{{ pulp_server_port }}"
 pulp_status_url: "{{ pulp_base_url }}/pulp/api/v3/status/"
 pulp_registry_url: "{{ pulp_base_url }}/v2/"
 
@@ -156,10 +157,14 @@ cert_validity_days: >-
   {{ pulp_deployment_defaults.https.certificate_validity_days }}
 cert_renewal_threshold_seconds: >-
   {{ pulp_deployment_defaults.https.certificate_renewal_threshold_seconds }}
-cert_subject_alt_names:
-  - "IP:{{ pulp_server_ip }}"
-  - "DNS:pulp"
-  - "DNS:localhost"
+cert_subject_alt_names: >-
+  {{ ['IP:' + pulp_server_ip, 'DNS:pulp', 'DNS:localhost']
+     + (['DNS:' + pulp_server_hostname]
+        if pulp_server_hostname | default('') | length > 0
+        else [])
+     + (['IP:' + pulp_server_ipv6]
+        if pulp_server_ipv6 | default('') | length > 0
+        else []) }}
 
 pulp_deployed_msg: "The {{ pulp_container_name }} container has been successfully deployed."
 
