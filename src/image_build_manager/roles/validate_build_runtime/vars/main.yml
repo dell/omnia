@@ -46,6 +46,22 @@ aarch64_unreachable_fail_msg: >-
   Verify the IP is correct and the host is powered on and network-reachable.
   Ping stderr: {{ _aarch64_ping.stderr | default('no output') }}
 
+powerscale_validation_fail_msg: >-
+  PowerScale S3 endpoint validation failed.
+  When s3_configurations.provider is 'powerscale', the following must be set:
+    - s3_configurations.endpoint_url (non-empty PowerScale S3 endpoint URL)
+    - s3_access_id (S3 access key)
+    - s3_secret_key (S3 secret key)
+  Please check {{ input_project_dir | default('input') }}/image_build_config.yml
+  and {{ input_project_dir | default('input') }}/image_build_credentials.yml.
+
+powerscale_unreachable_msg: >-
+  PowerScale S3 endpoint at {{ s3_configurations.endpoint_url | default('(not set)') }}
+  is unreachable. Verify the endpoint URL is correct and the PowerScale
+  storage system is powered on and network-reachable.
+  HTTP status: {{ ps_endpoint_check.status | default('no response') }}.
+  Error: {{ ps_endpoint_check.msg | default('no details') }}
+
 validate_repo_status_fail_msg: >
   repo_status.yml pre-check failed. overall_status is not 'synced'.
   Run repo_manager first:
