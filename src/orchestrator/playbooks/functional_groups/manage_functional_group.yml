@@ -219,30 +219,9 @@
         operation: "{{ fg_operation }}"
         target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
         state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
+        run_id: "{{ fg_run_id }}"
+        force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
       register: _lifecycle_lock
-      when: target_functional_groups | length > 0
-
-    - name: Start transition journal (FR-5.1)
-      functional_group_lifecycle:
-        action: start_journal
-        project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-        operation: "{{ fg_operation }}"
-        target_group: "{{ fg_target_group | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}"
-        state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-        run_id: "{{ ansible_date_time.epoch | default('manual') }}"
-        planned_stages: >-
-          {%- if fg_operation == 'remove' %}
-          ['metadata', 'bss', 'smd_group']
-          {%- elif configure_scope == 'boot' %}
-          ['bss']
-          {%- elif configure_scope == 'cloud_init' %}
-          ['metadata']
-          {%- else %}
-          ['smd_group', 'bss', 'metadata']
-          {%- endif %}
-          }}
-      register: _lifecycle_journal
       when: target_functional_groups | length > 0
 
     - name: Report resolved flexible targets
@@ -285,20 +264,6 @@
     - name: Flexible functional group lifecycle mutation sequence
       when: target_functional_groups | length > 0
       block:
-        - name: Acquire project mutation lock (FR-5.1)
-          functional_group_lifecycle:
-            action: acquire_lock
-            project_name: "{{ hostvars['localhost']['project_name'] | default('default') }}"
-            operation: "{{ fg_operation }}"
-            target_group: >-
-              {{ fg_target_group
-                 | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
-            state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-            run_id: "{{ fg_run_id }}"
-            pid: "{{ lookup('pipe', 'echo $PPID') | int }}"
-            force_recovery: "{{ fg_force_recovery | default(false) | bool }}"
-          register: _lifecycle_lock
-
         - name: Start transition journal (FR-5.1)
           functional_group_lifecycle:
             action: start_journal
@@ -515,7 +480,7 @@
           functional_group_lifecycle:
             action: record_stage
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
-            stage: "{{ _current_stage | default('validation') }}"
+            stage: "{{ _current_stage | default('smd_group') }}"
             stage_status: failed
           when:
             - _lifecycle_journal is defined
@@ -542,9 +507,9 @@
                  | default(target_functional_groups[0].name if target_functional_groups | length > 0 else '') }}
             planned_stages: "{{ planned_lifecycle_stages }}"
             stage_results:
-              - stage: "{{ _current_stage | default('validation') }}"
+              - stage: "{{ _current_stage | default('smd_group') }}"
                 status: failed
-                diagnostic_category: "{{ _current_stage | default('validation') }}_failed"
+                diagnostic_category: "{{ _current_stage | default('smd_group') }}_failed"
           failed_when: false
 
         - name: Fail lifecycle operation
@@ -559,6 +524,4 @@
             action: release_lock
             state_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
             run_id: "{{ fg_run_id }}"
-          when:
-            - _lifecycle_lock is defined
-            - _lifecycle_lock.changed | default(false)
+          ignore_errors: true

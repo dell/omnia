@@ -69,7 +69,7 @@ def resolve_functional_group_config(
         "boot_kernel_params_mode_provenance": resolved.boot_kernel_params_mode.provenance,
         "cloud_init_config_file": resolved.cloud_init_config_file.value,
         "cloud_init_config_file_provenance": resolved.cloud_init_config_file.provenance,
-        "image_override": resolved.image_override,
+        "image_override": resolved.image_override.value,
     }
 
 
