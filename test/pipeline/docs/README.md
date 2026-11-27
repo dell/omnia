@@ -21,6 +21,19 @@ Start here → **[Quick Start Guide](QUICKSTART.md)**
 - Configure JWT authentication for GitLab
 - Troubleshoot OpenBao issues
 
+### 🧭 **How Does the Cluster Pipeline Work?**
+→ **[Cluster Pipeline](CLUSTER_PIPELINE.md)**
+- The flow, stage by stage, and what a failed cleanup does
+- Inputs, domain stages, credentials and test stages
+- NFS share cleanup and its safety rules
+- SSH, secrets, summary and email
+
+### 🧩 **Changing the Pipeline?**
+→ **[Development Guide](DEVELOPMENT.md)**
+- Layout of the sources and what runs where
+- Regenerating the cluster pipeline, adding a domain
+- Unit tests and lint
+
 ### 🎯 **Choosing Deployment Strategy?**
 → **[Pipeline Modes & Domains](PIPELINE_MODES.md)**
 - Understand `default`, `deploy`, and `cleanup` modes
@@ -118,42 +131,35 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 ### Pipeline Flow
 
 ```
-Parent Pipeline (.gitlab-ci.yml)
-    ↓
-    ├─→ Child Pipeline 1 (.gitlab-ci-cluster.yml) for cluster1
-    │   ├─ initialization
-    │   ├─ setup_environment
-    │   ├─ cleanup_<domains>
-    │   ├─ deploy_<domains>
-    │   ├─ discovery (if ENABLE_DISCOVERY=true)
-    │   ├─ test_<domains>
-    │   ├─ cleanup_discovery
-    │   └─ summary
-    │
-    ├─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
-    │   └─ (same stages as cluster1)
-    │
-    ├─→ Build Stream Pipeline (.gitlab-ci-build-stream.yml) [if BUILD_STREAM_ENABLE=true]
-    │   ├─ initialization
-    │   ├─ setup_environment
-    │   ├─ cleanup_<domains>
-    │   ├─ prepare_base (repo_manager + image_build_manager + orchestrator setup)
-    │   ├─ test_<domains> (repo_manager, image_build_manager, orchestrator tests)
-    │   ├─ build_stream deploy
-    │   ├─ test_build_stream
-    │   └─ summary
-    │
-    └─→ Utils Pipeline (.gitlab-ci-utils.yml) [if UTILS_ENABLE=true]
-        ├─ initialization
-        ├─ setup_environment
-        ├─ install_os (conditional)
-        ├─ log_collection_cluster (conditional)
-        ├─ log_collection_oim (conditional)
-        ├─ test_utils (conditional)
-        └─ summary
+Parent Pipeline (.gitlab-ci.yml, generated)
+    ├─ config: pipeline_triggers.py reads pipeline_config.yml -> generated-triggers.yml
+    └─ trigger_pipelines: runs it; one trigger job per cluster, in parallel
+        │
+        ├─→ Cluster pipeline (.gitlab-ci-cluster.yml) per cluster
+        │   ├─ initialization (clone, checks, NFS check, report settings)
+        │   ├─ cleanup_<domains> (playbook), test_cleanup_<domains> (verify, NFS shares),
+        │   │  cleanup_omnia (omnia.sh --cleanup --all), test_cleanup_omnia (verify)
+        │   ├─ setup_main (omnia.sh -s, then the inputs of all domains), test_main_installation
+        │   ├─ <domains> (omnia.sh --run, tag by tag) and test_<domains>
+        │   └─ summary (table, test report, email)
+        │
+        ├─→ Build Stream Pipeline (.gitlab-ci-build-stream.yml) [global.build_stream_enable]
+        │   ├─ initialization, cleanup_<domains>, test_cleanup_<domains>, cleanup_omnia, test_cleanup_omnia
+        │   ├─ setup_main, test_main_installation
+        │   ├─ prepare_base (repo_manager + image_build_manager + orchestrator, omnia.sh --prepare-base)
+        │   ├─ test_repo_manager, test_image_build_manager, test_orchestrator
+        │   ├─ build_stream deploy, test_build_stream
+        │   └─ summary
+        │
+        └─→ Utils Pipeline (.gitlab-ci-utils.yml) [global.utils_enable]
+            ├─ initialization, setup_utils
+            ├─ install_os / log_collection_cluster / log_collection_oim (by UTILS_MODE)
+            ├─ test_utils
+            └─ summary
 ```
 
-Each cluster and utils pipeline runs independently. If cluster1 fails, cluster2 and utils pipelines continue.
+Each cluster runs independently. If cluster1 fails, cluster2 continues, and the parent pipeline
+fails at the end.
 
 ### Credential Flow
 
@@ -222,13 +228,10 @@ test/pipeline/
     ├── cluster1/
     │   ├── cluster.env              ← Connection details
     │   └── inputs/
-    │       ├── omnia.env            ← Omnia environment
-    │       ├── repo_manager/        ← Domain configs
-    │       ├── image_build_manager/
-    │       ├── discovery/
-    │       ├── orchestrator/
-    │       ├── telemetry/
-    │       └── test/                ← Test configs
+    │       ├── src/main/omnia.env   ← Omnia environment (and catalog_rhel.json)
+    │       ├── src/<domain>/        ← Domain configs (repo_manager, image_build_manager,
+    │       │                          discovery, orchestrator, telemetry)
+    │       └── test/<domain>/       ← Test configs
     └── cluster2/
         └── ...
 ```

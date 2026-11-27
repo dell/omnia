@@ -27,6 +27,7 @@ import os
 import time
 
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -367,7 +368,7 @@ def test_collect_metadata_exists(host):
     output_path = get_collect_output_path(host)
     # Find any metadata.json file in the collect directory tree
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    result = host.run(cmd)
+    result = run_on_host(host, cmd)
 
     if result.rc == 0 and result.stdout.strip():
         metadata_path = result.stdout.strip()
@@ -396,7 +397,7 @@ def test_collect_metadata_valid(host):
     output_path = get_collect_output_path(host)
     # Find any metadata.json file in the collect directory tree
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    result = host.run(cmd)
+    result = run_on_host(host, cmd)
 
     if result.rc == 0 and result.stdout.strip():
         metadata_path = result.stdout.strip()
@@ -425,7 +426,7 @@ def test_collect_metadata_sha256(host):
     output_path = get_collect_output_path(host)
     # Find any metadata.json file in the collect directory tree
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
-    result = host.run(cmd)
+    result = run_on_host(host, cmd)
 
     if result.rc == 0 and result.stdout.strip():
         metadata_path = result.stdout.strip()
@@ -579,7 +580,7 @@ def test_collect_output_not_writable_fails(host):
     output_path = get_collect_output_path(host)
 
     # Setup: Make output directory read-only
-    host.run(f"chmod 000 {output_path}")
+    run_on_host(host, f"chmod 000 {output_path}")
 
     try:
         # Execute: Run collection (should fail)
@@ -593,7 +594,7 @@ def test_collect_output_not_writable_fails(host):
         assert not result["success"], "Collection should fail when output directory is not writable"
     finally:
         # Cleanup: Restore permissions
-        host.run(f"chmod 755 {output_path}")
+        run_on_host(host, f"chmod 755 {output_path}")
 
 
 @pytest.mark.functional
@@ -610,13 +611,13 @@ def test_collect_no_nodes_configured_fails(host):
     collect_pxe_file = f"{input_path}/collect_pxe.yml"
     backup_file = f"{collect_pxe_file}.backup"
 
-    host.run(f"cp {collect_pxe_file} {backup_file}")
+    run_on_host(host, f"cp {collect_pxe_file} {backup_file}")
 
     try:
         # Setup: Create collect_pxe.yml with empty functional groups
-        host.run(f"echo '---' > {collect_pxe_file}")
-        host.run(f"echo 'slurm_control_node_x86_64: []' >> {collect_pxe_file}")
-        host.run(f"echo 'slurm_node_x86_64: []' >> {collect_pxe_file}")
+        run_on_host(host, f"echo '---' > {collect_pxe_file}")
+        run_on_host(host, f"echo 'slurm_control_node_x86_64: []' >> {collect_pxe_file}")
+        run_on_host(host, f"echo 'slurm_node_x86_64: []' >> {collect_pxe_file}")
 
         # Execute: Run collection (should fail)
         result = run_playbook(playbook=PLAYBOOK_COLLECT, tag="bundle")
@@ -629,7 +630,7 @@ def test_collect_no_nodes_configured_fails(host):
         assert not result["success"], "Collection should fail when no nodes are configured"
     finally:
         # Cleanup: Restore original collect_pxe.yml
-        host.run(f"mv {backup_file} {collect_pxe_file}")
+        run_on_host(host, f"mv {backup_file} {collect_pxe_file}")
 
 
 @pytest.mark.functional
@@ -666,7 +667,7 @@ def test_collect_archive_failure_fails(host):
 
     # Setup: Fill disk space to simulate archive failure
     # We'll create a large file to fill the partition
-    host.run(f"dd if=/dev/zero of={output_path}/temp_fill bs=1M count=1000 2>/dev/null || true")
+    run_on_host(host, f"dd if=/dev/zero of={output_path}/temp_fill bs=1M count=1000 2>/dev/null || true")
 
     try:
         # Execute: Run collection (should fail due to disk space)
@@ -682,7 +683,7 @@ def test_collect_archive_failure_fails(host):
         # We check if the playbook handles the error gracefully
     finally:
         # Cleanup: Remove the temporary file
-        host.run(f"rm -f {output_path}/temp_fill 2>/dev/null || true")
+        run_on_host(host, f"rm -f {output_path}/temp_fill 2>/dev/null || true")
 
     # This test is informational - actual disk space failure depends on environment
     # We verify the playbook runs and doesn't crash

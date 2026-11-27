@@ -100,12 +100,6 @@ exceptions:
     match: "UTILS_FVT_COLLECT_NEG00"
     kind: known-debt
     reason: "UTILS_FVT_COLLECT_NEG001-003 are each registered for two differently titled tests."
-  - scope: test
-    domain: utils
-    check: "Credential artifacts"
-    match: "*"
-    kind: known-debt
-    reason: "test/utils/.gitignore ignores .test_creds.key but not test_creds.yml (required by test_automation.md section 3.3)."
   - scope: src
     domain: discovery
     check: "samples/ directory exists"

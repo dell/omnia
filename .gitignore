@@ -16,6 +16,9 @@ test/test_helper/bats-assert/
 
 test/**/datasets/local*/
 
+# Test credential store of the FVT modules (vaulted, written by setup_env.sh)
+test/**/test_creds.yml
+
 # BuildStream
 src/build_stream/MagicMock/
 src/build_stream/pyproject.toml

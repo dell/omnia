@@ -28,6 +28,7 @@ Following image_build_manager pattern:
 
 import os
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -275,9 +276,9 @@ def test_negative_missing_credentials_file(host):
 
     try:
         # Backup and remove credentials file AND key file
-        host.run(f"cp {creds_path} {backup_creds} 2>/dev/null || true")
-        host.run(f"cp {key_path} {backup_key} 2>/dev/null || true")
-        host.run(f"rm -f {creds_path} {key_path}")
+        run_on_host(host, f"cp {creds_path} {backup_creds} 2>/dev/null || true")
+        run_on_host(host, f"cp {key_path} {backup_key} 2>/dev/null || true")
+        run_on_host(host, f"rm -f {creds_path} {key_path}")
 
         # Run credentials tag - should create new credentials or prompt
         result = run_playbook(playbook=PLAYBOOK_INSTALL_OS, tag="credentials")
@@ -289,7 +290,7 @@ def test_negative_missing_credentials_file(host):
         # 2. Prompt for credentials (which fails in non-interactive mode)
         if result["success"]:
             # Check if it created a new credentials file
-            check = host.run(f"test -f {creds_path}")
+            check = run_on_host(host, f"test -f {creds_path}")
             if check.rc == 0:
                 tl.passed("Playbook created new credentials file when missing")
             else:
@@ -303,8 +304,8 @@ def test_negative_missing_credentials_file(host):
 
     finally:
         # Restore credentials file
-        host.run(f"mv {backup_creds} {creds_path} 2>/dev/null || true")
-        host.run(f"mv {backup_key} {key_path} 2>/dev/null || true")
+        run_on_host(host, f"mv {backup_creds} {creds_path} 2>/dev/null || true")
+        run_on_host(host, f"mv {backup_key} {key_path} 2>/dev/null || true")
 
 
 @pytest.mark.regression
@@ -331,7 +332,7 @@ def test_negative_invalid_source_iso_path(host):
 
     try:
         # Backup original config
-        host.run(f"cp {config_path} {backup_path}")
+        run_on_host(host, f"cp {config_path} {backup_path}")
 
         # Modify config to use non-existent ISO path
         import re
@@ -343,7 +344,7 @@ def test_negative_invalid_source_iso_path(host):
 
         # Write modified config using base64 to handle special chars
         b64 = base64.b64encode(modified_config.encode("utf-8")).decode("ascii")
-        host.run(f"echo '{b64}' | base64 -d > {config_path}")
+        run_on_host(host, f"echo '{b64}' | base64 -d > {config_path}")
 
         # Run build_iso - should fail validation for non-existent ISO
         result = run_playbook(playbook=PLAYBOOK_INSTALL_OS, tag="build_iso")
@@ -359,7 +360,7 @@ def test_negative_invalid_source_iso_path(host):
 
     finally:
         # Restore original config
-        host.run(f"mv {backup_path} {config_path} 2>/dev/null || true")
+        run_on_host(host, f"mv {backup_path} {config_path} 2>/dev/null || true")
 
 
 @pytest.mark.regression
@@ -391,7 +392,7 @@ def test_negative_empty_bmc_ip_validation(host):
 
     try:
         # Backup original config
-        host.run(f"cp {config_path} {backup_path}")
+        run_on_host(host, f"cp {config_path} {backup_path}")
 
         # Modify config to have empty BMC IP
         import re
@@ -403,7 +404,7 @@ def test_negative_empty_bmc_ip_validation(host):
 
         # Write modified config
         b64 = base64.b64encode(modified_config.encode("utf-8")).decode("ascii")
-        host.run(f"echo '{b64}' | base64 -d > {config_path}")
+        run_on_host(host, f"echo '{b64}' | base64 -d > {config_path}")
 
         # Validate the config file directly (not via playbook)
         # This tests the validation logic without running the full deploy
@@ -426,7 +427,7 @@ def test_negative_empty_bmc_ip_validation(host):
 
     finally:
         # Restore original config
-        host.run(f"mv {backup_path} {config_path} 2>/dev/null || true")
+        run_on_host(host, f"mv {backup_path} {config_path} 2>/dev/null || true")
 
 
 @pytest.mark.regression
@@ -444,11 +445,11 @@ def test_negative_invalid_yaml_config(host):
 
     try:
         # Backup original config
-        host.run(f"cp {config_path} {backup_path}")
+        run_on_host(host, f"cp {config_path} {backup_path}")
 
         # Write invalid YAML (syntax error)
-        host.run(f"echo 'invalid: yaml: syntax: here' > {config_path}")
-        host.run(f"echo '  - broken' >> {config_path}")
+        run_on_host(host, f"echo 'invalid: yaml: syntax: here' > {config_path}")
+        run_on_host(host, f"echo '  - broken' >> {config_path}")
 
         # Run validate tag - should fail with YAML parse error
         result = run_playbook(playbook=PLAYBOOK_INSTALL_OS, tag="validate")
@@ -467,7 +468,7 @@ def test_negative_invalid_yaml_config(host):
 
     finally:
         # Restore original config
-        host.run(f"mv {backup_path} {config_path} 2>/dev/null || true")
+        run_on_host(host, f"mv {backup_path} {config_path} 2>/dev/null || true")
 
 
 @pytest.mark.regression
@@ -499,7 +500,7 @@ def test_negative_deploy_mode_missing_ssh_key(host):
 
     try:
         # Backup original config
-        host.run(f"cp {config_path} {backup_path}")
+        run_on_host(host, f"cp {config_path} {backup_path}")
 
         # Modify config to use non-existent SSH key path
         import re
@@ -511,7 +512,7 @@ def test_negative_deploy_mode_missing_ssh_key(host):
 
         # Write modified config using base64 to handle special chars
         b64 = base64.b64encode(modified_config.encode("utf-8")).decode("ascii")
-        host.run(f"echo '{b64}' | base64 -d > {config_path}")
+        run_on_host(host, f"echo '{b64}' | base64 -d > {config_path}")
 
         # Run deploy tag - should fail validation for missing SSH key
         result = run_playbook(playbook=PLAYBOOK_INSTALL_OS, tag="deploy")
@@ -527,4 +528,4 @@ def test_negative_deploy_mode_missing_ssh_key(host):
 
     finally:
         # Restore original config
-        host.run(f"mv {backup_path} {config_path} 2>/dev/null || true")
+        run_on_host(host, f"mv {backup_path} {config_path} 2>/dev/null || true")
