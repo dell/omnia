@@ -29,6 +29,11 @@ KUBERNETES_WAIT_TIMEOUT_SECONDS = 300
 RECOVERY_WAIT_TIMEOUT_SECONDS = 900
 RECOVERY_POLL_SECONDS = 15
 SLURM_JOB_TIMEOUT_SECONDS = 180
+# srun --immediate: a job that cannot get its nodes within this time fails instead of waiting
+# in the queue (a job pinned to a node that Slurm cannot use would wait for ever).
+SLURM_JOB_START_SECONDS = 60
+# Grace added to the Slurm time limit of a job before the shell `timeout` stops its srun.
+SLURM_JOB_KILL_GRACE_SECONDS = 30
 # Node states in which a targeted job can start or queue for a bounded time; a node in any
 # other state (down, drained, unknown, missing) would keep the job pending (ReqNodeNotAvail).
 SLURM_JOB_READY_STATES = ("idle", "mix", "mixed", "alloc", "allocated", "comp", "completing")
@@ -502,6 +507,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "timeout 30 scancel %s",
+    "slurm_cancel_job_name": "timeout 30 scancel --name=%s",
+    "slurm_node_reasons": "sinfo --noheader --Node --nodes=%s --format='%%N|%%E'",
     "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
@@ -540,10 +547,12 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "openmpi": _OPENMPI_DISCOVERY_COMMAND + '"$mpirun_path" --version',
     "slurm_mpi_plugins": "srun --mpi=list 2>&1",
     "ssh_remove_host_key": "ssh-keygen -R %s -f %s",
-    "openmpi_compile": ("srun --nodes=1 --ntasks=1 --nodelist=%s bash -lc %s"),
+    "openmpi_compile": (
+        "timeout %s srun --immediate=%s --nodes=1 --ntasks=1 --nodelist=%s bash -lc %s"
+    ),
     "openmpi_job": (
-        "srun --nodes=%s --ntasks=%s --ntasks-per-node=1 "
-        "--nodelist=%s --mpi=%s --export=%s %s"
+        "timeout %s srun --job-name=%s --immediate=%s --time=%s --nodes=%s --ntasks=%s "
+        "--ntasks-per-node=1 --nodelist=%s --mpi=%s --export=%s %s"
     ),
     "ucx": _UCX_DISCOVERY_COMMAND + '"$ucx_info_path" -v',
     "ucx_transports": (

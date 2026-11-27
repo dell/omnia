@@ -59,6 +59,7 @@ from .s3_func import (                               # noqa: F401
 
 # --- Registry checks ---------------------------------------------------------
 from .registry_func import (                         # noqa: F401
+    check_registry_image,
     check_registry_images,
 )
 
@@ -128,6 +129,7 @@ __all__ = [
     "check_s3_buckets",
     "check_s3_bucket_images",
     # Registry checks
+    "check_registry_image",
     "check_registry_images",
     # Build status / functional groups
     "check_build_status_file",

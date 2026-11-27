@@ -49,10 +49,6 @@ TEST_CASES = {
         "id": "RM_FVT_CLEANUP_E001",
         "title": "Deploy repo_manager (cleanup)",
     },
-    "deploy_cleanup_repos": {
-        "id": "RM_FVT_CLEANUP_REPOS_E001",
-        "title": "Deploy repo_manager (cleanup_repos)",
-    },
     "deploy_credentials": {
         "id": "RM_FVT_CREDENTIALS_E001",
         "title": "Deploy repo_manager (credentials)",
@@ -422,5 +418,59 @@ TEST_CASES = {
     "deploy_full_playbook": {
         "id": "RM_FVT_FULL_PLAYBOOK_E001",
         "title": "Deploy repo_manager (complete playbook, no tags)",
+    },
+    # ── Non-functional ────────────────────────────────────────────────────
+    "nft_status_idempotency": {
+        "id": "RM_NFT_001",
+        "title": "NFT: status semantic idempotency",
+    },
+    "nft_pulp_status_response_time": {
+        "id": "RM_NFT_002",
+        "title": "NFT: Pulp status response time",
+    },
+    "nft_encrypted_private_credentials": {
+        "id": "RM_NFT_003",
+        "title": "NFT: encrypted private credentials",
+    },
+    "nft_private_keys_and_logs": {
+        "id": "RM_NFT_004",
+        "title": "NFT: private keys and log permissions",
+    },
+    "nft_pulp_tls_validity": {
+        "id": "RM_NFT_005",
+        "title": "NFT: Pulp TLS certificate validity",
+    },
+    # ── repo_sync (explicit-only exact mirror) ────────────────────────────
+    "deploy_repo_sync": {
+        "id": "RM_FVT_REPO_SYNC_E001",
+        "title": "Execute standalone exact-mirror reconciliation",
+    },
+    "repo_sync_status_is_successful": {
+        "id": "RM_FVT_REPO_SYNC_V001",
+        "title": "Verify aggregate sync and orphan cleanup success",
+    },
+    "repo_sync_result_matches_catalog_scope": {
+        "id": "RM_FVT_REPO_SYNC_V002",
+        "title": "Verify result contains only catalog RPM repos",
+    },
+    "repo_sync_zero_stale_packages": {
+        "id": "RM_FVT_REPO_SYNC_V003",
+        "title": "Verify every selected repository was reconciled",
+    },
+    "repo_sync_package_deltas_valid": {
+        "id": "RM_FVT_REPO_SYNC_V004",
+        "title": "Verify deterministic version and package metrics",
+    },
+    "repo_sync_one_publication_and_version": {
+        "id": "RM_FVT_REPO_SYNC_V005",
+        "title": "Verify superseded publications and versions are gone",
+    },
+    "repo_sync_distributions_valid_metadata": {
+        "id": "RM_FVT_REPO_SYNC_V006",
+        "title": "Verify publication binding and served repomd.xml",
+    },
+    "repo_sync_slurm_user_repository": {
+        "id": "RM_FVT_REPO_SYNC_V007",
+        "title": "Verify Slurm user-repo URL and policy are preserved",
     },
 }

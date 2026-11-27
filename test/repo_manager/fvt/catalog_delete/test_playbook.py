@@ -36,10 +36,9 @@ def test_deploy_catalog_delete(host):
     """Deploy repo_manager --tags catalog_delete."""
     input_path = _get_input_path()
     input_file = f"{input_path}/removals.txt"
-    result = host.run(f"test -f {input_file} && echo 'exists' || echo 'missing'")
-
-    if "missing" in result.stdout:
-        tl = TestLogger("Deploy repo_manager (catalog_delete)", "RM_FVT_CATALOG_DELETE_E001")
+    if not host.file(input_file).exists:
+        tc = TC["deploy_catalog_delete"]
+        tl = TestLogger(tc["title"], tc["id"])
         tl.skipped_fields(
             "Catalog delete input file not found",
             {

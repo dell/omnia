@@ -25,11 +25,10 @@ import csv
 import io
 import os
 import re
-import shlex
 
 import pytest
 
-from library.functions import TestLogger
+from library.functions import TestLogger, run_pulp
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import _get_base_path, _get_output_path
 
@@ -69,11 +68,9 @@ def test_exact_repository_is_absent(host):
     tc = TC["exact_repository_absent"]
     tl = TestLogger(tc["title"], tc["id"])
     target, _version = _cleanup_target()
-    health = host.run("/usr/local/bin/pulp status")
+    health = run_pulp(host, "status")
     assert health.rc == 0, health.stderr
-    query = host.run(
-        "/usr/local/bin/pulp rpm repository show --name " + shlex.quote(target)
-    )
+    query = run_pulp(host, "rpm", "repository", "show", "--name", target)
 
     if query.rc != 0:
         query_output = f"{query.stdout}\n{query.stderr}".lower()

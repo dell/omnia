@@ -120,7 +120,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_049 | `test_transient_failure_stops_after_configured_attempts` | A persistent transient error cannot retry indefinitely. |
 | RM_UT_050 | `test_warning_reports_next_attempt_numbers` | Retry logs expose bounded progress without raw command data. |
 
-### Framework contract (`test_framework_contract.py`) -- 30 tests
+### Framework contract (`test_framework_contract.py`) -- 31 tests
 
 #### FrameworkContractTests
 
@@ -144,6 +144,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_066 | `test_playbook_wrapper_uses_supported_verbosity_keyword` | The domain wrapper matches the shared runner API. |
 | RM_UT_067 | `test_pytest_entrypoint_can_import_shared_ut_loader` | ValidationRunner's absolute UT path can resolve source_loader.py. |
 | RM_UT_068 | `test_pytest_reporting_hooks_are_defined_once` | Later definitions cannot silently override result reporting. |
+| RM_UT_339 | `test_repo_sync_is_explicit_only` | repo_sync needs its own playbook run, so no default run selects it. |
 | RM_UT_069 | `test_runner_entrypoint_dependencies_are_importable` | The CLI dependency graph has no missing domain constants. |
 | RM_UT_070 | `test_selected_suite_is_forwarded_to_execution` | A full flow executes only the selected operation suite. |
 | RM_UT_071 | `test_shell_entrypoint_prefers_the_local_virtual_environment` | The public wrapper uses installed local dependencies when available. |
@@ -523,7 +524,7 @@ explicitly excluded from aggregate FVT execution.
 | `test_dnf_retry.py` | 7 | Transient-only bounded retries and integrity failures |
 | `test_error_message_redaction.py` | 9 | Schema/vault/CSV error messages do not echo sensitive content |
 | `test_exact_mirror_reconciliation.py` | 13 | Exact mirror sync, safety checks, repomd validation |
-| `test_framework_contract.py` | 30 | Commands, public tags, suites, entrypoint imports, filtering and dispatch |
+| `test_framework_contract.py` | 31 | Commands, public tags, suites, entrypoint imports, filtering and dispatch |
 | `test_fvt_policy_helpers.py` | 9 | Policy config keys, Pulp JSON parsing, selected contexts and HTTPS verification |
 | `test_input_validation_fail_closed.py` | 17 | Unknown/empty tags fail closed; credential file mapped to a schema; tag guard covers public tags |
 | `test_mirror_state.py` | 16 | Rerun/resync selection, checkpoints, ambiguity, corruption and atomic replacement |
@@ -538,4 +539,4 @@ explicitly excluded from aggregate FVT execution.
 | `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
 | `test_vault_in_memory_read.py` | 16 | In-memory vault decryption, error redaction and subprocess safety |
 | `test_wget_argument_contract.py` | 5 | wget end-of-options marker and option-like URL rejection (CWE-88) |
-| **Total** | **340** | |
+| **Total** | **341** | |
