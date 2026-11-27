@@ -351,9 +351,20 @@ UT_TEST_CASE_IDS = {
     **_module_cases(
         "test_external_contract_live_source.py",
         {
-            165: "test_external_check_skips_without_an_external_source",
-            166: "test_external_check_fails_when_an_external_host_is_set_and_not_used",
-            167: "test_external_check_runs_without_a_host_when_required",
+            165: "test_external_check_skips_when_every_host_is_this_oim",
+            166: "test_external_check_runs_when_a_host_is_another_server",
+            167: "test_external_check_runs_with_a_pinned_host_even_when_local",
+            168: "test_external_check_runs_when_required",
+            169: "test_external_check_runs_when_the_file_names_no_host",
+        },
+    ),
+    **_module_cases(
+        "test_external_hosts.py",
+        {
+            170: "test_own_names_and_addresses_are_this_oim_without_dns",
+            171: "test_alias_that_resolves_to_this_oim_is_local",
+            172: "test_other_and_unresolvable_hosts_are_external",
+            173: "test_slow_dns_is_cut_off",
         },
     ),
 }

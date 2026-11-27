@@ -21,10 +21,9 @@ validation, then parse_repo_status.
 
 Data sources (20 tests): synthetic dicts (V005-V017, V020, V021, V023, V024),
 bundled samples (V018, V019) and the live file (V022, the only test that needs
-a completed repo_manager run). V022 checks the external contract only when an external
-repository source is in use (external_repo_host in test_config.yml, or REQUIRE_EXTERNAL_REPO=1) and
-skips otherwise; it then skips when the file is absent, or fails when REQUIRE_LIVE_REPO_STATUS=1
-is set.
+a completed repo_manager run). V022 skips when the file is absent (or fails when
+REQUIRE_LIVE_REPO_STATUS=1 is set) and when every repository host is this OIM and no external
+source is pinned or required; otherwise it checks the external contract.
 """
 
 import os
@@ -40,7 +39,9 @@ from library.functions.contract_func import (
     write_status_fixture,
     load_sample_status,
     live_status_path,
+    external_hosts,
     local_addresses,
+    status_repo_hosts,
     verify_external_source,
 )
 from library.vars import TEST_CASES as TC
@@ -288,20 +289,15 @@ def test_external_contract_source_is_external():
     **Data source: live file** (requires a completed repo_manager run).
 
     The success path needs a repo_status.yml produced by a separate Repo Manager
-    host. The external source is optional: with the local repo_manager the repositories
-    resolve to this OIM, so the test applies only when ``external_repo_host`` is set in
-    test_config.yml (or REQUIRE_EXTERNAL_REPO=1) and skips otherwise. Once it applies, a
-    live file that names this OIM fails; a skip for a missing live file means nothing was
-    checked.
+    host. The external source is optional. The live file decides: when every repository
+    host is this OIM (the local repo_manager serves them) and ``external_repo_host`` is not
+    set in test_config.yml (and REQUIRE_EXTERNAL_REPO is not 1), the test skips; when a
+    host is another server, or a host is pinned or required, the external contract is
+    checked and a file that names this OIM fails. A skip for a missing live file means
+    nothing was checked.
     """
     tl = _logger("external_contract_source_is_external")
     config = load_test_config()
-    if not str(config.get("external_repo_host", "")).strip() and not _REQUIRE_EXTERNAL:
-        msg = ("External repository source is not in use: external_repo_host is not set in "
-               "test_config.yml (set it, or REQUIRE_EXTERNAL_REPO=1, to check that the live "
-               "file names an external host)")
-        tl.skipped(msg)
-        pytest.skip(msg)
     path = live_status_path(config.get("repo_manager_output_path", ""))
     if not os.path.isfile(path):
         msg = f"Live repo_status.yml not found at {path}" + (
@@ -314,7 +310,16 @@ def test_external_contract_source_is_external():
     with open(path, "r", encoding="utf-8") as stream:
         data = yaml.safe_load(stream)
 
-    result = verify_external_source(data, str(config.get("external_repo_host", "")))
+    pinned = str(config.get("external_repo_host", "")).strip()
+    hosts = status_repo_hosts(data)
+    if not pinned and not _REQUIRE_EXTERNAL and hosts and not external_hosts(hosts):
+        msg = ("The repositories are served by this OIM (local repo_manager), so the "
+               "external-source check does not apply (set external_repo_host in "
+               "test_config.yml, or REQUIRE_EXTERNAL_REPO=1, to require an external source)")
+        tl.skipped(msg)
+        pytest.skip(msg)
+
+    result = verify_external_source(data, pinned)
     if not result["success"]:
         tl.failed(LOG["contract_external_source_failed"].format(
             details=result["details"]), result["details"])

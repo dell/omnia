@@ -12,63 +12,67 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The external-source check of the live repo_status.yml applies only to an external source."""
+"""The external-source check of the live repo_status.yml is decided by the live file."""
 
 import pytest
 
 from fvt.validate.contract import test_repo_contract as contract
 
 
-def _live_file(tmp_path, monkeypatch):
-    """Point the check at an existing live file that names a repository on this OIM."""
+def _setup(monkeypatch, tmp_path, config, hosts, external, required=False):
+    """Point the check at a live file with ``hosts``; ``external`` are the hosts not on this OIM."""
     path = tmp_path / "repo_status.yml"
     path.write_text("repo_manager: {}\n", encoding="utf-8")
     monkeypatch.setattr(contract, "live_status_path", lambda _output_path: str(path))
+    monkeypatch.setattr(contract, "load_test_config", lambda: config)
+    monkeypatch.setattr(contract, "_REQUIRE_EXTERNAL", required)
+    monkeypatch.setattr(contract, "status_repo_hosts", lambda _data: set(hosts))
+    monkeypatch.setattr(contract, "external_hosts", lambda _hosts: set(external))
+    seen = []
+
+    def verify(_data, expected_host):
+        seen.append(expected_host)
+        return {"success": True, "details": "external", "hosts": sorted(hosts)}
+
+    monkeypatch.setattr(contract, "verify_external_source", verify)
+    return seen
 
 
-def test_external_check_skips_without_an_external_source(monkeypatch, tmp_path):
+def test_external_check_skips_when_every_host_is_this_oim(monkeypatch, tmp_path):
     """The local repo_manager serves the repositories: skip, do not fail."""
-    _live_file(tmp_path, monkeypatch)
-    monkeypatch.setattr(contract, "load_test_config", dict)
-    monkeypatch.setattr(contract, "_REQUIRE_EXTERNAL", False)
-    monkeypatch.setattr(
-        contract, "verify_external_source",
-        lambda *_args: pytest.fail("the live file must not be judged without an external source"),
-    )
+    seen = _setup(monkeypatch, tmp_path, {}, {"10.0.0.1"}, set())
     with pytest.raises(pytest.skip.Exception) as skipped:
         contract.test_external_contract_source_is_external()
     reason = str(skipped.value)
-    assert "external_repo_host" in reason and "REQUIRE_EXTERNAL_REPO" in reason
+    assert "served by this OIM" in reason and "REQUIRE_EXTERNAL_REPO" in reason
     assert "repo_status" not in reason
+    assert not seen
 
 
-def test_external_check_fails_when_an_external_host_is_set_and_not_used(monkeypatch, tmp_path):
-    """external_repo_host is set and the live file names this OIM: the check fails."""
-    _live_file(tmp_path, monkeypatch)
-    monkeypatch.setattr(contract, "load_test_config", lambda: {"external_repo_host": "ext.example"})
-    seen = []
+def test_external_check_runs_when_a_host_is_another_server(monkeypatch, tmp_path):
+    """An external source needs no setting: the file shows it."""
+    seen = _setup(monkeypatch, tmp_path, {}, {"repo.other.example"}, {"repo.other.example"})
+    contract.test_external_contract_source_is_external()
+    assert seen == [""]
 
-    def verify(_data, expected_host):
-        seen.append(expected_host)
-        return {"success": False, "details": "repository host(s) are this OIM", "hosts": []}
 
-    monkeypatch.setattr(contract, "verify_external_source", verify)
-    with pytest.raises(AssertionError):
-        contract.test_external_contract_source_is_external()
+def test_external_check_runs_with_a_pinned_host_even_when_local(monkeypatch, tmp_path):
+    """external_repo_host is set: the check runs and the pin is passed on."""
+    config = {"external_repo_host": " ext.example "}
+    seen = _setup(monkeypatch, tmp_path, config, {"10.0.0.1"}, set())
+    contract.test_external_contract_source_is_external()
     assert seen == ["ext.example"]
 
 
-def test_external_check_runs_without_a_host_when_required(monkeypatch, tmp_path):
-    """REQUIRE_EXTERNAL_REPO=1 runs the check with no host pin."""
-    _live_file(tmp_path, monkeypatch)
-    monkeypatch.setattr(contract, "load_test_config", dict)
-    monkeypatch.setattr(contract, "_REQUIRE_EXTERNAL", True)
-    seen = []
+def test_external_check_runs_when_required(monkeypatch, tmp_path):
+    """REQUIRE_EXTERNAL_REPO=1 runs the check although every host is this OIM."""
+    seen = _setup(monkeypatch, tmp_path, {}, {"10.0.0.1"}, set(), required=True)
+    contract.test_external_contract_source_is_external()
+    assert seen == [""]
 
-    def verify(_data, expected_host):
-        seen.append(expected_host)
-        return {"success": True, "details": "external", "hosts": ["ext.example"]}
 
-    monkeypatch.setattr(contract, "verify_external_source", verify)
+def test_external_check_runs_when_the_file_names_no_host(monkeypatch, tmp_path):
+    """A file without repository hosts is not skipped: the contract check reports it."""
+    seen = _setup(monkeypatch, tmp_path, {}, set(), set())
     contract.test_external_contract_source_is_external()
     assert seen == [""]

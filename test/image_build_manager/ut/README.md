@@ -37,7 +37,8 @@ and unchanged.
 | `IMGBM_UT_159`–`160` | `test_input_validation_fail_closed.py` | Standalone `build_image_x86_64.yml` and `build_image_aarch64.yml` accept every tag their plays and roles define |
 | `IMGBM_UT_161` | `test_input_validation_fail_closed.py` | Empty values written by the credential template are placeholders, not validation errors |
 | `IMGBM_UT_162`–`164` | `test_runner_lifecycle_safety.py` | catalog_reuse E2E suite is skipped unless selected explicitly with `--suite catalog_reuse` |
-| `IMGBM_UT_165`–`167` | `test_external_contract_live_source.py` | The live external-source check (V022) applies only with `external_repo_host` or `REQUIRE_EXTERNAL_REPO=1` and skips with the reason otherwise |
+| `IMGBM_UT_165`–`169` | `test_external_contract_live_source.py` | V022 is decided by the live file: it skips when every repository host is this OIM and runs for another server, a pinned host, `REQUIRE_EXTERNAL_REPO=1` or a file without hosts |
+| `IMGBM_UT_170`–`173` | `test_external_hosts.py` | A repository host is this OIM by name, address or an alias that resolves to it; other and unresolvable names are external; slow DNS is cut off |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.
