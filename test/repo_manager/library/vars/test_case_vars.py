@@ -423,4 +423,37 @@ TEST_CASES = {
         "id": "RM_FVT_FULL_PLAYBOOK_E001",
         "title": "Deploy repo_manager (complete playbook, no tags)",
     },
+    # ── repo_sync (explicit-only exact mirror) ────────────────────────────
+    "deploy_repo_sync": {
+        "id": "RM_FVT_REPO_SYNC_E001",
+        "title": "Execute standalone exact-mirror reconciliation",
+    },
+    "repo_sync_status_is_successful": {
+        "id": "RM_FVT_REPO_SYNC_V001",
+        "title": "Verify aggregate sync and orphan cleanup success",
+    },
+    "repo_sync_result_matches_catalog_scope": {
+        "id": "RM_FVT_REPO_SYNC_V002",
+        "title": "Verify result contains only catalog RPM repos",
+    },
+    "repo_sync_zero_stale_packages": {
+        "id": "RM_FVT_REPO_SYNC_V003",
+        "title": "Verify every selected repository was reconciled",
+    },
+    "repo_sync_package_deltas_valid": {
+        "id": "RM_FVT_REPO_SYNC_V004",
+        "title": "Verify deterministic version and package metrics",
+    },
+    "repo_sync_one_publication_and_version": {
+        "id": "RM_FVT_REPO_SYNC_V005",
+        "title": "Verify superseded publications and versions are gone",
+    },
+    "repo_sync_distributions_valid_metadata": {
+        "id": "RM_FVT_REPO_SYNC_V006",
+        "title": "Verify publication binding and served repomd.xml",
+    },
+    "repo_sync_slurm_user_repository": {
+        "id": "RM_FVT_REPO_SYNC_V007",
+        "title": "Verify Slurm user-repo URL and policy are preserved",
+    },
 }

@@ -112,6 +112,8 @@ VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "cleanup_repos",
+    # Maintenance operation: its result file only exists after an explicit run of repo_sync.yml.
+    "repo_sync",
     "catalog_generate",
     "catalog_add",
     "catalog_delete",

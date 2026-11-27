@@ -20,6 +20,7 @@ import logging
 import os
 import socket
 import subprocess
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
@@ -199,6 +200,39 @@ def local_addresses() -> Set[str]:
     except (OSError, subprocess.SubprocessError):
         pass
     return {name.lower() for name in names if name}
+
+
+_DNS_TIMEOUT_SECONDS = 5
+
+
+def _resolve(host: str) -> Set[str]:
+    """Return the addresses of ``host``; empty when it does not resolve in time."""
+    found: Dict[str, Set[str]] = {}
+
+    def lookup() -> None:
+        try:
+            found["addresses"] = {
+                info[4][0].split("%", 1)[0].lower()
+                for info in socket.getaddrinfo(host, None)
+            }
+        except OSError:
+            found["addresses"] = set()
+
+    worker = threading.Thread(target=lookup, daemon=True)
+    worker.start()
+    worker.join(_DNS_TIMEOUT_SECONDS)
+    return found.get("addresses", set())
+
+
+def external_hosts(hosts: Set[str], local: Optional[Set[str]] = None) -> Set[str]:
+    """Return the hosts that are not this OIM.
+
+    A host is this OIM when it is one of its names or addresses, or when it resolves to an
+    address of this OIM (an alias). A name that does not resolve counts as external, so a
+    typo is checked and not hidden.
+    """
+    own = local_addresses() if local is None else local
+    return {host for host in hosts if host not in own and not _resolve(host) & own}
 
 
 def status_repo_hosts(data: Dict[str, Any]) -> Set[str]:

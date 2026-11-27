@@ -38,6 +38,7 @@ jobs:
       - name: Run compliance gate (changed domains only on a PR, all on manual run)
         env:
           BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'skip-compliance-check') }}
         run: |
           ARGS="--comment-file compliance-comment.md"
