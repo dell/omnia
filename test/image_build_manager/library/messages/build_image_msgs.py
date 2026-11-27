@@ -372,6 +372,18 @@ TEST_LOG_MSGS = {
 
     # OCI boot-ready contract
     "oci_boot_ready_ok": "Boot set accepted: {versions}",
+    "oci_probe_ok": "{detail}",
+    "oci_probe_failed": "Expected {expected}; observed {observed}",
+    "oci_probe_skipped": (
+        "External registry lab not configured: set OMNIA_OCI_LAB_HOST, "
+        "OMNIA_OCI_LAB_CA_FILE and the lab credentials in test_creds.yml"
+    ),
+    "oci_canary_ok": "Credential canary absent from every probe output",
+    "oci_canary_failed": "Credential canary found in: {artifacts}",
+    "oci_temp_config_ok": "Session configuration is 0600 root-owned and removed",
+    "oci_temp_config_failed": "Session configuration check failed: state={state} removed={removed}",
+    "oci_input_ok": "Unsafe {field} rejected before any command",
+    "oci_input_failed": "Unsafe {field} was not rejected before commands ran",
     "oci_boot_ready_rejected": "Image {kind} rejected, missing {path}",
     "oci_layers_ok": "{shared} base layer(s) preserved and stored once",
     "oci_layers_bad": "Layer preservation or sharing check failed",
@@ -586,6 +598,10 @@ TEST_ASSERT_MSGS = {
         "\u2551   3. Verify: /etc/profile.d/omnia-env.sh exists\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
+    "oci_probe_assert": "External registry probe check failed: {detail}",
+    "oci_canary_assert": "Credential canary leaked into: {artifacts}",
+    "oci_temp_config_assert": "Session configuration check failed: state={state} removed={removed}",
+    "oci_input_assert": "Unsafe {field} was not rejected before commands ran",
     "oci_boot_ready_failed": (
         "OCI boot-ready check did not behave as required: {error}"
     ),

@@ -310,6 +310,18 @@ TEST_CASES = {
         "id": "IMGBM_NFT_SECURITY_002",
         "title": "NFT: /root/.s3cfg is 0600 root:root",
     },
+    "oci_credential_canary": {
+        "id": "IMGBM_NFT_SECURITY_004",
+        "title": "NFT: external registry credential absent from all probe output",
+    },
+    "oci_temp_config_lifecycle": {
+        "id": "IMGBM_NFT_SECURITY_005",
+        "title": "NFT: session regctl configuration is 0600 root-owned and removed",
+    },
+    "oci_input_safety": {
+        "id": "IMGBM_NFT_SECURITY_006",
+        "title": "NFT: unsafe registry host or namespace rejected before any command",
+    },
     # ── Build — OCI boot-ready contract (IMGBM_FVT_BUILD_V020-022) ──────────
     "oci_boot_ready_complete": {
         "id": "IMGBM_FVT_BUILD_V020",
@@ -322,5 +334,30 @@ TEST_CASES = {
     "oci_layers_preserved": {
         "id": "IMGBM_FVT_BUILD_V022",
         "title": "Verify OCI layers are preserved and stored once in the registry",
+    },
+    # ── Build — external registry TLS and credentials (IMGBM_FVT_BUILD_V023-028) ──
+    "oci_tls_default_verify": {
+        "id": "IMGBM_FVT_BUILD_V023",
+        "title": "Verify an untrusted external registry certificate is rejected by default",
+    },
+    "oci_tls_custom_ca": {
+        "id": "IMGBM_FVT_BUILD_V024",
+        "title": "Verify a custom CA is used by the precheck and the session push configuration",
+    },
+    "oci_tls_disabled_warns": {
+        "id": "IMGBM_FVT_BUILD_V025",
+        "title": "Verify tls_verify false is an explicit opt-out with a logged warning",
+    },
+    "oci_robot_account_exact": {
+        "id": "IMGBM_FVT_BUILD_V026",
+        "title": "Verify a robot account name with $ and + is used exactly",
+    },
+    "oci_wrong_secret_auth_error": {
+        "id": "IMGBM_FVT_BUILD_V027",
+        "title": "Verify a rejected secret fails with the auth error class and no leak",
+    },
+    "oci_session_config_removed": {
+        "id": "IMGBM_FVT_BUILD_V028",
+        "title": "Verify the session regctl configuration is removed after the run",
     },
 }
