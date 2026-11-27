@@ -21,7 +21,7 @@ Top to bottom:
 - summary cards: stages, then SVT steps passed / failed / skipped and the pass rate
 - run details: theme, run, the repository (clone URL), branch and commit as links
 - stage overview: one row per stage (status, SVT steps passed / failed / skipped,
-  pass rate)
+  pass rate); a stage skipped because its source is off shows Skipped and the reason
 - stage details: one collapsible block per stage. Initialization holds the
   setup phases (Cleanup, Install) and the readiness checks. Each SVT step opens
   to its command, its FVT results (the same table as the FVT report: TC ID,
@@ -180,14 +180,17 @@ def _header(meta: Dict[str, Any]) -> str:
 def _banner(meta: Dict[str, Any], groups: List[Dict[str, Any]]) -> str:
     planned = list(meta.get("stages") or [])
     done = {group["stage"] for group in groups}
+    source_off = [stage for stage in meta.get("source_skipped") or {}
+                  if stage in planned and stage not in done]
     status = combined_status([group["status"] for group in groups]) if groups else "Skipped"
     label = {"Passed": "PASSED", "Failed": "FAILED", RUNNING: "RUNNING"}.get(status, "NOT STARTED")
     progress = (f"{len([stage for stage in planned if stage in done])} of {len(planned)} stages "
-                f"run" if planned else "")
+                f"run" + (f", {len(source_off)} skipped (source off)" if source_off else "")
+                if planned else "")
     state = meta.get("state", "")
     detail = " &middot; ".join(part for part in (_e(progress), _e(f"Run state: {state}")
                                                  if state else "") if part)
-    if status == "Passed" and planned and not set(planned) <= done:
+    if status == "Passed" and planned and not set(planned) <= done | set(source_off):
         label = "PASSED SO FAR"
     return (f'<div class="banner {BADGE.get(status, "skip")}">OVERALL STATUS: {label}'
             f"<small>{detail}</small></div>")
@@ -277,7 +280,8 @@ def _heading(theme: str, group: Dict[str, Any], number: int) -> str:
     return f"Stage {number}: {stage_info(theme, group['stage'])[0]}{group['suffix']}{attempt}"
 
 
-def _overview(theme: str, groups: List[Dict[str, Any]], planned: List[str]) -> str:
+def _overview(theme: str, groups: List[Dict[str, Any]], planned: List[str],
+              source_skipped: Dict[str, str]) -> str:
     rows = ""
     for number, group in enumerate(groups, 1):
         steps = _counts(group["items"])
@@ -297,7 +301,14 @@ def _overview(theme: str, groups: List[Dict[str, Any]], planned: List[str]) -> s
                  f'<td>{_e(group["started_at"])}</td></tr>')
     done = {group["stage"] for group in groups}
     for stage in planned:
-        if stage not in done:
+        if stage in done:
+            continue
+        if stage in source_skipped:
+            # Not run because the one source it checks is off (not counted in the pass rate).
+            rows += (f'<tr><td>{_e(stage_info(theme, stage)[0])}</td>'
+                     f'<td class="center">{_badge("Skipped")}</td>'
+                     f'<td colspan="7" class="text-muted">{_e(source_skipped[stage])}</td></tr>')
+        else:
             rows += (f'<tr><td class="text-muted">{_e(stage_info(theme, stage)[0])}</td>'
                      f'<td class="center"><span class="text-muted">not run</span></td>'
                      + '<td class="center text-muted">&mdash;</td>' * 6 + "<td></td></tr>")
@@ -498,7 +509,7 @@ def render_html(report: Dict[str, Any]) -> str:
         f"<title>{_e(title)}</title><style>{CSS}</style></head><body>"
         f"{_header(meta)}{_banner(meta, groups)}<div class=\"container\">"
         f"{_cards(groups, meta)}{_run_panel(meta)}"
-        f"{_overview(theme, groups, list(meta.get('stages') or []))}"
+        f"{_overview(theme, groups, list(meta.get('stages') or []), dict(meta.get('source_skipped') or {}))}"
         f"{_state_panel(report.get('state') or {})}"
         f'<div class="panel"><div class="panel-header"><h2>Stage Details</h2>{controls}</div>'
         f'<div style="padding:16px;">{stages or "<p class=text-muted>No stage has run yet.</p>"}'

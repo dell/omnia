@@ -268,13 +268,15 @@ def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any],
             emit(STAGE_MSGS["start"].format(stage=label, run_id=ctx["run_id"],
                                             theme=ctx["theme"]))
             try:
+                skip_kind = {}
                 if not skip_reason and stage != LAST_STAGE:
                     config = load_svt_config(ctx["theme"])
                     reapply_run_settings(config,
                                          run_func.active_run(config, allow_failed=True), emit)
                     # A stage that checks one source is skipped while that source is off.
                     skip_reason = stage_func.source_skip_reason(ctx["theme"], stage)
-                outcome = ({"status": "skipped", "error": skip_reason} if skip_reason
+                    skip_kind = {"skip": "source"}
+                outcome = ({"status": "skipped", **skip_kind, "error": skip_reason} if skip_reason
                            else _call(stage, ctx, emit))
             except (OSError, ValueError, KeyError) as exc:
                 outcome = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}

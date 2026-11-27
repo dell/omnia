@@ -37,7 +37,7 @@ reports what is missing.
 | `<stage>` / `all` | required | One stage, or every stage from `--start-stage`, then `summary` |
 | `--run-id` | the current run | Must be the run started by `./setup_env.sh --configure`; another id is refused |
 | `--start-stage` | `initialization` | With `all`: first stage |
-| `--skip-stages` | the theme's `default_skip_stages` | With `all`: theme stages to leave out, comma separated (recorded as skipped, not in the report's planned stages); `none` runs every stage. observability leaves out `prepare_base,repo_sync,image_build,cluster_deploy` by default |
+| `--skip-stages` | the theme's `default_skip_stages` | With `all`: theme stages to leave out, comma separated (recorded as skipped, not in the report's planned stages); `none` runs every stage. observability leaves out `prepare_base,repo_sync,image_build,cluster_deploy` by default. A stage skipped because its source is off (theme `source_stages`) stays planned: the report's Stage Overview shows it as Skipped with the reason, outside the pass rate |
 | `--quiet` | off | Output to the stage log only |
 
 Exit codes: `0` passed or skipped, `1` failed, `2` invalid arguments, the
