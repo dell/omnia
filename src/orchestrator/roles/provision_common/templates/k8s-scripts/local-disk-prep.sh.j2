@@ -257,6 +257,9 @@ system_disks() {
     local src mp
     {
         for mp in / /boot /boot/efi /var /var/lib/etcd /var/lib/kubelet /var/lib/containerd; do
+            # The declared etcd disk may already be mounted at its own mount point
+            # (re-run in the same boot); it must stay a candidate for purpose etcd.
+            [ "$PURPOSE" = "etcd" ] && [ "$mp" = "$MOUNT_POINT" ] && continue
             src=$(findmnt -n -o SOURCE --mountpoint "$mp" 2>/dev/null || true)
             [ -b "$src" ] && echo "$src"
         done

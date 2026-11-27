@@ -185,8 +185,9 @@ def check_kubernetes_kafka_disk_status(host) -> Dict[str, Any]:  # pylint: disab
                 continue
 
             if result == "failed":
+                # The disk-prep log is node-local: read it on the failed node.
                 log_cmd = PXEBOOT_COMMANDS["kafka_error_log"] % node_ip
-                log_out = remote_command(host, control, log_cmd)
+                log_out = remote_command(host, row, log_cmd)
                 has_error_line = log_out.rc == 0 and "ERROR" in log_out.stdout
                 ok = has_error_line
                 detail = (

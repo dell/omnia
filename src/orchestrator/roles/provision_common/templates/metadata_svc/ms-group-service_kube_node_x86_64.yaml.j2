@@ -434,7 +434,9 @@
             systemctl daemon-reload
             systemctl restart kubelet
 {% if kafka_disk_entry is not none %}
-            /usr/local/bin/local-disk-prep.sh --label-only --purpose kafka --entry {{ kafka_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping || true
+            # First boot: the Node object and kubelet client certificate may take
+            # minutes to become usable after the join, so retry for up to 5 minutes.
+            /usr/local/bin/local-disk-prep.sh --label-only --purpose kafka --entry {{ kafka_disk_entry.name | quote }} --node "{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}" --status-dir {{ k8s_client_mount_path }}/kafka_disk_mapping --label-retries 60 --label-interval 5 || true
 {% endif %}
             # Mark initialization complete so all of above is skipped on reboot!
             touch "$MARKER"
