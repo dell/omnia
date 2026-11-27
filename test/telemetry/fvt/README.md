@@ -132,7 +132,7 @@ All tests in this section carry `source` and `ldms`.
 | TEL_FVT_DEPLOY_V024 | Verify LDMS sampler service running on Slurm nodes | functional |
 | TEL_FVT_DEPLOY_V025 | Verify LDMS sampler plugins configured | functional |
 | TEL_FVT_DEPLOY_V026 | Verify LDMS Kafka topic exists | sanity + functional |
-| TEL_FVT_DEPLOY_V027 | Verify earliest LDMS data in Kafka | functional |
+| TEL_FVT_DEPLOY_V027 | Retired (was: earliest LDMS data in Kafka): V028 checks fresh Kafka data and V029 the VictoriaMetrics data for every host and plugin. The ID is not reused | &mdash; |
 | TEL_FVT_DEPLOY_V028 | Verify latest LDMS data in Kafka | functional |
 | TEL_FVT_DEPLOY_V029 | Verify fresh LDMS metrics in VictoriaMetrics for every LDMS host and sampler plugin (Vector-LDMS path; skipped when the bridge or the VictoriaMetrics sink is disabled) | functional |
 
@@ -179,6 +179,7 @@ ensure syslog is configured before verifying log ingestion.
 | TEL_FVT_DEPLOY_V061 | Verify UFM VMServiceScrape CR exists | sanity + ufm |
 | TEL_FVT_DEPLOY_V062 | Verify UFM credentials K8s secret exists | sanity + ufm |
 | TEL_FVT_DEPLOY_V063 | Verify UFM InfiniBand metrics in VictoriaMetrics | functional + ufm |
+| TEL_FVT_DEPLOY_V064 | Verify configured-disabled UFM state | sanity + ufm |
 
 Run only the UFM source verification:
 
@@ -396,11 +397,13 @@ See `test_playbook.py` and `status/test_cleanup_final.py` for implementation det
 | TC ID | Test | Tag |
 |-------|------|-----|
 | TEL_FVT_FULL_E001 | Deploy telemetry (full stack, no tags) | (none) |
+| TEL_FVT_FULL_PLAYBOOK_E001 | Deploy telemetry (complete playbook, no tags; alternate ID for the same run) | (none) |
 | TEL_FVT_PRECHECK_E001 | Deploy telemetry (--tags precheck) | precheck |
 | TEL_FVT_VALIDATE_E001 | Deploy telemetry (--tags validate) | validate |
 | TEL_FVT_DEPLOY_E001 | Deploy telemetry (--tags deploy) | deploy |
 | TEL_FVT_DEPLOY_SINKS_E001 | Deploy sinks only (--tags deploy_sinks) | deploy_sinks |
 | TEL_FVT_CLEANUP_E001 | Cleanup all (--tags cleanup) | cleanup |
+| TEL_FVT_CLEANUP_E002 | Deploy cleanup with credential and log preservation | cleanup |
 | TEL_FVT_CLEANUP_SINKS_E001 | Cleanup sinks only (--tags cleanup_sinks) | cleanup_sinks |
 | TEL_FVT_CLEANUP_IDRAC_E001 | Cleanup iDRAC (--tags cleanup_idrac) | cleanup_idrac |
 | TEL_FVT_CLEANUP_LDMS_E001 | Cleanup LDMS (--tags cleanup_ldms) | cleanup_ldms |

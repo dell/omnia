@@ -86,6 +86,7 @@ from library.vars.theme_vars import (  # noqa: E402
     default_skip_stages,
     soft_stages,
     stage_info,
+    starts_clean,
     theme_title,
 )
 
@@ -96,8 +97,10 @@ POWERSCALE_EXAMPLES = (TEST_ROOT.parent / "src" / "orchestrator" / "examples"
                        / "powerscale_reference_files" / "CSI_driver")
 FIRST_STAGE, LAST_STAGE = "initialization", "summary"
 THEME_RESULT = "theme_result"
+# First job of a theme that starts from scratch: the shared cleanup and omnia.sh -s again.
+CLEAN_INSTALL = "clean_install"
 # A theme job without its own timeouts_hours entry takes the entry of this job.
-TIMEOUT_ALIASES = {THEME_RESULT: "summary"}
+TIMEOUT_ALIASES = {THEME_RESULT: "summary", CLEAN_INSTALL: FIRST_STAGE}
 OIM_LOGIN_VAR = "SVT_TARGET_PASS"
 CLUSTER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 # Global keys: config section.key -> CI/CD variable.
@@ -165,6 +168,29 @@ def cluster_themes(config: Dict[str, Any], cluster: str) -> List[str]:
     return [str(item).strip() for item in items if str(item).strip()]
 
 
+def check_theme_order(cluster: str, themes: List[str]) -> None:
+    """Refuse a theme that starts from scratch (build_stream) anywhere but last.
+
+    The other themes share one initialization. A theme that cleans and installs Omnia again in
+    its own first job would destroy what the themes after it run on, so it must be the last.
+    """
+    for index, theme in enumerate(themes):
+        if starts_clean(theme) and index != len(themes) - 1:
+            others = ",".join(t for t in themes if t != theme)
+            raise SystemExit(
+                f"clusters.{cluster}.themes: {theme} must be the last theme, not "
+                f"{'first' if index == 0 else 'in the middle'} ({', '.join(themes)}). {theme} "
+                f"cleans and installs Omnia again in its own clean_install job, so every other "
+                f"theme runs before it, for example \"{others},{theme}\"")
+
+
+def theme_slots(themes: List[str]) -> Tuple[List[str], List[str]]:
+    """Return (shared, last) themes of a cluster pipeline: the themes that share the one
+    initialization, and the theme that starts from scratch (it is the last one) or none."""
+    last = themes[-1:] if starts_clean(themes[-1]) else []
+    return [t for t in themes if t not in last], last
+
+
 def cluster_enabled(config: Dict[str, Any], cluster: str) -> bool:
     """Return whether a cluster is in the default selection (``enabled: false`` leaves it out)."""
     block = (config.get("clusters") or {}).get(cluster) or {}
@@ -183,13 +209,16 @@ def cluster_ci_file(cluster: str) -> str:
 
 
 def disabled_stages(theme: str) -> List[str]:
-    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false)."""
+    """Return the optional stages <theme>_test_config.yml turns off (stages: <name>: false;
+    a stage not given is off, unless it is in the theme's optional_stages_on)."""
     try:
         with open(SVT_ROOT / f"{theme}_test_config.yml", "r", encoding="utf-8") as stream:
             block = (yaml.safe_load(stream) or {}).get("stages") or {}
     except (OSError, yaml.YAMLError):
         block = {}
-    return [name for name in THEMES[theme].get("optional_stages") or () if not block.get(name)]
+    default_on = set(THEMES[theme].get("optional_stages_on") or ())
+    return [name for name in THEMES[theme].get("optional_stages") or ()
+            if not block.get(name, name in default_on)]
 
 
 def ci_file(theme: str) -> str:
@@ -208,7 +237,7 @@ def load_config(path: Path) -> Dict[str, Any]:
         if "theme" in (block or {}):
             raise SystemExit(f"clusters.{name}.theme is replaced by themes: a comma separated "
                              "list of themes that run one after another, e.g. "
-                             "themes: \"build_stream,catalog_build\"")
+                             "themes: \"catalog_build,build_stream\"")
         themes = cluster_themes(config, name)
         unknown = [theme for theme in themes if theme not in THEMES]
         if not themes or unknown or len(set(themes)) != len(themes):
@@ -216,6 +245,7 @@ def load_config(path: Path) -> Dict[str, Any]:
                        else "repeats a theme" if themes else "is missing")
             raise SystemExit(f"clusters.{name}.themes {problem} "
                              f"(a list of: {', '.join(THEMES)})")
+        check_theme_order(name, themes)
         clusters[name]["themes"] = ",".join(themes)
     bad = [name for name in clusters if not CLUSTER_NAME.fullmatch(str(name))]
     if bad:
@@ -289,11 +319,12 @@ def plan_variable(plan: Dict[str, Any]) -> str:
     return ",".join(f"{entry['stage']}={entry['catalog']}" for entry in plan.get("entries") or [])
 
 
-def jobs_of(stages: Tuple[str, ...]) -> List[str]:
+def jobs_of(theme: str, stages: Tuple[str, ...]) -> List[str]:
     """Return the jobs of a theme pipeline in order: the SVT stages, then theme_result. A theme
     starts directly with its first stage: the initialization of the cluster pipeline did the
-    cleanup, the installation and the credentials."""
-    return [*stages, THEME_RESULT]
+    cleanup, the installation and the credentials. A theme that starts from scratch has the job
+    clean_install first (cleanup, omnia.sh -s, credentials, readiness)."""
+    return [*([CLEAN_INSTALL] if starts_clean(theme) else []), *stages, THEME_RESULT]
 
 
 def _timeout(config: Dict[str, Any], job: str) -> Tuple[str, int]:
@@ -446,15 +477,17 @@ def credential_domains(themes: List[str]) -> List[str]:
 def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
     """Return (the cluster pipeline text, longest job timeout in seconds).
 
-    preflight and initialization run once, then one trigger job per theme in the order of
+    preflight (the Omnia checkout) runs once, then one trigger job per theme in the order of
     clusters.<name>.themes (a theme runs whether the one before passed or failed), then the one
     summary with the combined report and email. Each theme trigger opens as its own pipeline.
     The initialization is the complete start of the OIM (cleanup, install, the Omnia environment,
-    credentials, readiness); a theme begins directly with its first stage.
+    credentials, readiness), once, for the themes that share it. A theme that starts from scratch
+    (build_stream) is the last one and does its own clean_install job.
     """
     themes = cluster_themes(config, cluster)
-    names = [f"theme_{theme}" for theme in themes]
-    jobs = ["preflight", FIRST_STAGE, *names, LAST_STAGE]
+    shared, last = theme_slots(themes)
+    jobs = ["preflight", *([FIRST_STAGE] if shared else []),
+            *[f"theme_{t}" for t in shared + last], LAST_STAGE]
     var = f"{prefix(cluster)}_SVT_THEMES"
     longest = max(_timeout(config, job)[1] for job in ("preflight", FIRST_STAGE, LAST_STAGE))
     plans = [(theme, plan_variable(catalog_plan(theme))) for theme in themes]
@@ -470,6 +503,7 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
         f'  SVT_THEME_ORDER: "{",".join(themes)}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(credential_domains(themes))}"',
+        f'  SVT_CLEAN_INSTALL_THEMES: "{",".join(t for t in themes if starts_clean(t))}"',
         # The initialization job runs once with the first theme of the run (the cluster's
         # <PREFIX>_SVT_THEMES can select a subset): that theme's defaults apply when the cluster's
         # <PREFIX>_SVT_CLEAN_REINSTALL and <PREFIX>_SVT_SKIP_STAGES are empty.
@@ -488,16 +522,19 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
         "# SSH to the OIM, OpenBao reachable, Omnia checkout on the OIM, svt/ inputs copied",
         "preflight:", "  stage: preflight", f"  timeout: {_timeout(config, 'preflight')[0]}",
         "  script:", "    - python3 svt_ci.py preflight", "",
+    ]
+    init_lines = [
         "# The complete initialization, once: configure, the clean reinstall (shared cleanup of",
         "# user_inputs.yml, then omnia.sh -s and the Omnia environment), OpenBao credentials,",
-        "# PowerScale CSI files and the readiness checks. Every theme starts at its first stage.",
+        "# PowerScale CSI files and the readiness checks. The themes that share it start at their first stage.",
         f"{FIRST_STAGE}:", f"  stage: {FIRST_STAGE}",
         f"  timeout: {_timeout(config, FIRST_STAGE)[0]}",
         "  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL",
         "  script:", "    - python3 svt_ci.py initialization", "",
     ]
+    blocks: Dict[str, List[str]] = {}
     for index, theme in enumerate(themes):
-        lines += [
+        blocks[theme] = [
             f"# Theme {theme}: {theme_title(theme)} (its jobs are in {ci_file(theme)})",
             f"theme_{theme}:", f"  stage: theme_{theme}",
             "  # A failed theme does not stop the next one; the summary still fails the pipeline.",
@@ -518,6 +555,10 @@ def render_cluster_ci(config: Dict[str, Any], cluster: str) -> Tuple[str, int]:
             "    strategy: depend", "    forward:", "      yaml_variables: true",
             "      pipeline_variables: true", "",
         ]
+    if shared:
+        lines += init_lines
+    for theme in shared + last:
+        lines += blocks[theme]
     lines += [
         "# ONE report (svt_report/svt_report.html: an overview and a page per theme) and one email",
         f"{LAST_STAGE}:", f"  stage: {LAST_STAGE}", f"  timeout: {_timeout(config, LAST_STAGE)[0]}",
@@ -539,7 +580,7 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
     """
     plan = catalog_plan(theme)
     stages, soft, info = theme_stages(theme, plan)
-    jobs = jobs_of(stages)
+    jobs = jobs_of(theme, stages)
     longest = max(_timeout(config, job)[1] for job in jobs)
     lines = [
         HEADER.rstrip("\n"),
@@ -553,6 +594,7 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         "",
         "variables:",
         f'  SVT_THEME: "{theme}"',
+        f'  SVT_THEME_ORDER: "{theme}"',
         f'  SVT_JOB_ORDER: "{",".join(jobs)}"',
         f'  SVT_CREDENTIAL_DOMAINS: "{",".join(THEMES[theme]["credential_domains"])}"',
         # Used when the cluster's <PREFIX>_SVT_CLEAN_REINSTALL is empty.
@@ -567,7 +609,9 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
         *_default_block(),
     ]
     descriptions = {THEME_RESULT: ("Result", "the theme's SVT summary and verdict, kept for "
-                                   "the cluster summary")}
+                                   "the cluster summary"),
+                    CLEAN_INSTALL: ("Clean install", "the shared cleanup, omnia.sh -s, the "
+                                    "credentials and the readiness checks again, from scratch")}
     for job in jobs:
         timeout = _timeout(config, job)[0]
         title, description = descriptions.get(job) or info.get(job) or stage_info(theme, job)
@@ -591,6 +635,11 @@ def render_ci(config: Dict[str, Any], theme: str) -> Tuple[str, int]:
                           "      when: never"]
             lines += ["    - when: on_success",
                       "  script:", f"    - python3 svt_ci.py stage {job}"]
+        elif job == CLEAN_INSTALL:
+            lines += ["  id_tokens:", "    VAULT_ID_TOKEN:", "      aud: $BAO_SERVER_URL",
+                      "  rules:", f"    - if: '$SVT_SKIP_STAGES =~ /(^|,) *{job} *(,|$)/'",
+                      "      when: never", "    - when: on_success",
+                      "  script:", "    - python3 svt_ci.py clean-install"]
         else:
             lines += ["  when: always", "  script:", "    - python3 svt_ci.py theme-result"]
         lines.append("")

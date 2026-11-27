@@ -16,8 +16,9 @@
 
 ``<run folder>/<report_name>.json`` holds::
 
-    meta:     theme, theme_title, description, stages, run_id, started_at, state,
-              previous_run, repo_url, branch, commit, commit_full, oim, updated_at
+    meta:     theme, theme_title, description, stages, skipped_stages, source_skipped,
+              run_id, started_at, state, previous_run, repo_url, branch, commit,
+              commit_full, oim, updated_at
     sections: [{kind: setup | stage, name, stage, status, started_at, duration,
                 items: [item, ...]}, ...]          # in the order they ran
     item:     {id, name, status, duration, command, note, error, output,
@@ -308,28 +309,39 @@ def repo_meta() -> Dict[str, str]:
             "commit_full": git("rev-parse", "HEAD")}
 
 
-def _skipped_stages(run: Dict[str, Any]) -> List[str]:
-    """Return the stages the run manifest records as skipped (left out of 'all')."""
+def _skipped_stages(run: Dict[str, Any]) -> Tuple[List[str], Dict[str, str]]:
+    """Return the stages the run manifest records as skipped: those left out of 'all', and
+    {stage: reason} of those skipped because their source is off."""
     path = os.path.join(str(run.get("report_path") or ""), RUN_MANIFEST)
     stages = load_json(path).get("stages") if run.get("report_path") else {}
-    return [name for name, outcome in (stages or {}).items()
-            if isinstance(outcome, dict) and outcome.get("status") == "skipped"]
+    left_out: List[str] = []
+    source_off: Dict[str, str] = {}
+    for name, outcome in (stages or {}).items():
+        if not isinstance(outcome, dict) or outcome.get("status") != "skipped":
+            continue
+        if outcome.get("skip") == "source":
+            source_off[name] = str(outcome.get("error") or "")
+        else:
+            left_out.append(name)
+    return left_out, source_off
 
 
 def run_meta(theme: str, run: Dict[str, Any]) -> Dict[str, Any]:
     """Return the run details shown on top of the report (``run``: run_func.load_run()).
 
-    The planned stages leave out those the run skipped (a theme's default_skip_stages).
+    The planned stages leave out those the run skipped (a theme's default_skip_stages,
+    --skip-stages, stages turned off). A stage skipped because its source is off stays
+    planned and is listed in ``source_skipped`` with the reason.
     """
     failed = run.get("failed") or {}
     previous = run.get("previous") or {}
-    skipped = _skipped_stages(run)
+    skipped, source_skipped = _skipped_stages(run)
     return {"theme": theme, "theme_title": theme_title(theme),
             "description": THEMES[theme]["description"],
             "stages": [FIRST_STAGE, *(stage for stage in THEMES[theme]["stages"]
                                       if stage not in skipped)],
             "skipped_stages": skipped,
-            "scenario_stages": list(THEMES[theme].get("scenario_stages") or []),
+            "source_skipped": source_skipped,
             "run_id": run.get("run_id", ""), "started_at": run.get("started_at", ""),
             "state": f"Failed at {failed['step']}" if failed.get("step") else "Open",
             "previous_run": (f"{previous['run_id']} ({previous.get('state', '')})"

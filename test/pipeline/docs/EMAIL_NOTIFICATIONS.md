@@ -1,140 +1,43 @@
 # Email Notifications with Test Report Attachments
 
-## Overview
+## Summary email
 
-The `send_email.py` script sends automated email notifications with pipeline execution summaries and test reports attached. It integrates with GitLab CI/CD to notify stakeholders of pipeline results.
+In the cluster, utils and build stream pipelines the email is sent by the `summary` job
+(`pipeline_ci.py summary`, `library/functions/email_func.py`). It always runs, even after a failure.
+It is sent when `EMAIL_RECIPIENTS`, `EMAIL_SENDER` and `SMTP_SERVER` are set; `SMTP_PORT`
+(465 uses SSL, 587 uses STARTTLS), `SMTP_USER` and `SMTP_PASSWORD` are optional.
 
-## Features
+Layout:
 
-- **Test Report Attachments** - HTML and JSON test reports with detailed results
-- **Test Summary in Email Body** - Quick overview of pass/fail/skip counts
-- **SMTP Retry Logic** - Automatic retry with exponential backoff for reliability
-- **Multiple Recipients** - Support for comma-separated email addresses
-- **Flexible Configuration** - All settings via environment variables
+- **Banner:** the cluster and the verdict, `PASSED` (green), `FAILED` (red) or `UNKNOWN`.
+- **Details table:** cluster, mode, domains, repository, branch and commit (links to the web
+  page of the repository), start time and pipeline (link).
+- **Failure box** (only after a failure): the failed jobs, each linked to its log, and the jobs
+  that did not run after the first failure.
+- **Buttons:** open the pipeline, download all artifacts.
+- **Pipeline jobs:** one row per job that ran, in pipeline order, with its status and a link.
+- **Attachments:** exactly two files: the pipeline's one test report (HTML, written on the OIM in
+  `TEST_REPORTS_PATH`, default `/automation`; a report over 5 MB is compressed) and the HTML
+  report of the stages with their logs. The JSON of the test report is in the job artifacts. The copy of the stage report in the mail keeps at most
+  40,000 characters of each log (the artifact `pipeline_report/` has up to 200,000, and a longer
+  log keeps its start and end with a link to the job). The attachments of one mail together stay
+  below 20 MB: when they would not, the largest are left out, named in the mail, and stay in the
+  job artifacts (`pipeline_reports/`, `pipeline_report/`). A job log is also limited by GitLab
+  itself (4 MB by default).
+- A plain-text version with the same facts.
 
-## Configuration
+Subject: `Omnia FVT Pipeline [<cluster>] <mode> - <VERDICT> (<failed jobs>)`.
 
-### Required Environment Variables
+A mail that cannot be sent is reported in the job log with an error banner; it does not change the
+result of the pipeline.
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `EMAIL_RECIPIENTS` | Comma-separated list of recipients | `user1@example.com,user2@example.com` |
-| `EMAIL_SENDER` | From address for the email | `pipeline@example.com` |
-| `SMTP_SERVER` | SMTP relay host | `smtp.example.com` |
+## HTML report of the stages
 
-### Optional Environment Variables
+The cluster pipeline summary attaches `pipeline_<id>_report.html`: every stage with its status,
+duration, failure reason and a scrollable log, in a day and a night theme. See
+[CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) (Summary, HTML report and email).
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SMTP_PORT` | SMTP relay port | `25` |
-| `SMTP_USER` | SMTP authentication username | (none) |
-| `SMTP_PASSWORD` | SMTP authentication password | (none) |
-| `TEST_REPORTS_PATH` | Directory containing test reports | `/opt/omnia/reports` |
-| `PIPELINE_TRIGGER_TIME` | Pipeline trigger timestamp | (read from `pipeline_time.env`) |
-| `CI_PIPELINE_URL` | GitLab pipeline URL | (auto-set by GitLab) |
-
-## Usage in GitLab CI/CD
-
-### Basic Example
-
-```yaml
-send_notification:
-  stage: notify
-  script:
-    - python3 test/pipeline/send_email.py
-  variables:
-    EMAIL_RECIPIENTS: "team@example.com"
-    EMAIL_SENDER: "pipeline@example.com"
-    SMTP_SERVER: "smtp.example.com"
-  only:
-    - branches
-  when: always
-```
-
-### With SMTP Authentication
-
-```yaml
-send_notification:
-  stage: notify
-  script:
-    - python3 test/pipeline/send_email.py
-  variables:
-    EMAIL_RECIPIENTS: "team@example.com"
-    EMAIL_SENDER: "pipeline@example.com"
-    SMTP_SERVER: "smtp.example.com"
-    SMTP_PORT: "587"
-    SMTP_USER: "username"
-    SMTP_PASSWORD: $SMTP_PASSWORD  # Use GitLab CI/CD secret variable
-  only:
-    - branches
-  when: always
-```
-
-### With Custom Test Reports Path
-
-```yaml
-send_notification:
-  stage: notify
-  script:
-    - python3 test/pipeline/send_email.py
-  variables:
-    EMAIL_RECIPIENTS: "team@example.com,manager@example.com"
-    EMAIL_SENDER: "pipeline@example.com"
-    SMTP_SERVER: "smtp.example.com"
-    TEST_REPORTS_PATH: "/opt/omnia/reports"  # Optional, defaults to this
-  artifacts:
-    paths:
-      - /opt/omnia/reports/*.html
-      - /opt/omnia/reports/*.json
-    expire_in: 30 days
-  only:
-    - branches
-  when: always
-```
-
-## Email Content
-
-### Email Subject
-```
-Omnia Pipeline Execution Report - 2026-09-09 18:39:04
-```
-
-### Email Body
-
-The email includes:
-
-1. **Pipeline Information**
-   - Trigger time
-   - Pipeline URL (clickable link)
-
-2. **Test Execution Summary** (if test reports exist)
-   - Total passed tests
-   - Total failed tests
-   - Total skipped tests
-
-3. **Attachments**
-   - `*.html` - Interactive HTML test reports (one per domain)
-   - `*.json` - Structured JSON test data (one per domain)
-
-### Example Email Body
-
-```
-Omnia Pipeline Execution Report
-
-Pipeline Trigger Time: 2026-09-09 18:39:04
-Pipeline URL: https://gitlab.example.com/project/-/pipelines/12345
-
-Test Execution Summary
-Passed: 120
-Failed: 15
-Skipped: 20
-
-Detailed test reports are attached to this email.
-
-Please find the detailed test reports attached.
-
-This is an automated email from GitLab CI/CD pipeline.
-```
+---
 
 ## Test Report Attachments
 
@@ -162,7 +65,7 @@ To programmatically extract failure details from the JSON report:
 ```python
 import json
 
-with open("/opt/omnia/reports/repo_manager_fvt.json") as f:
+with open("/automation/repo_manager_fvt.json") as f:
     report = json.load(f)
 
 for server_ip, server_data in report["servers"].items():
@@ -206,7 +109,7 @@ for server_ip, server_data in report["servers"].items():
 
 1. **Verify test reports exist**
    ```bash
-   ls -la /opt/omnia/reports/
+   ls -la /automation/
    ```
 
 2. **Check TEST_REPORTS_PATH is set**
@@ -227,56 +130,3 @@ for server_ip, server_data in report["servers"].items():
    - Port 25: No authentication (open relay)
    - Port 587: TLS authentication
    - Port 465: SSL authentication
-
-## Performance Considerations
-
-- **Large Reports**: HTML reports can be large (>1MB). Consider email size limits.
-- **Multiple Recipients**: Email is sent to all recipients in a single message.
-- **Retry Logic**: Failed sends are retried up to 3 times with 5-second delays.
-- **File I/O**: Reports are read entirely into memory before sending.
-
-## Security Considerations
-
-- **Sensitive Data**: Reports may contain sensitive information (IPs, hostnames, etc.)
-  - Ensure email recipients are authorized
-  - Consider using encryption for sensitive environments
-  
-- **Credentials**: Use GitLab CI/CD secret variables for SMTP credentials
-  - Never commit passwords to the repository
-  - Use `$VARIABLE_NAME` syntax in CI/CD configuration
-
-- **Email Headers**: The script includes standard email headers for traceability
-
-## Examples
-
-### Send to Multiple Teams
-
-```yaml
-variables:
-  EMAIL_RECIPIENTS: "team-a@example.com,team-b@example.com,manager@example.com"
-```
-
-### Send Only on Failure
-
-```yaml
-send_notification:
-  when: on_failure  # Only send if pipeline fails
-```
-
-### Send with Custom Subject
-
-Modify the script to customize the subject line:
-
-```python
-msg["Subject"] = f"[FAILED] Omnia Pipeline - {trigger_time}"
-```
-
-### Archive Reports
-
-```yaml
-artifacts:
-  paths:
-    - /opt/omnia/reports/
-  expire_in: 90 days
-  when: always
-```

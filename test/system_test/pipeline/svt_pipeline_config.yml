@@ -86,15 +86,23 @@ svt:
     repo_sync: 8
     image_build: 8
     cluster_deploy: 8
+    # Telemetry cleanup, VictoriaMetrics sink deploy, export and the SFM checks.
+    observability_sfm_vm_only: 2
     observability_cleanup: 1
     observability_precheck: 1
     observability_deploy: 2
     observability_idrac: 1
     observability_ldms: 1
+    # Run whenever their source is on (user_inputs.yml telemetry); no stages: toggle.
+    observability_powerscale: 1
+    observability_ome: 1
+    observability_ufm: 1
+    observability_sfm: 1
     # theme catalog_build: every catalog job (catalog_01, catalog_02 ...) without its
     # own entry.
     catalog_stage: 3
     # Report and email.
+    theme_result: 1
     summary: 1
 
 # -----------------------------------------------------------------------------
@@ -148,6 +156,11 @@ clusters:
     # Default: every theme that has test cases, build_stream last. observability needs a
     # deployed cluster, so it comes after cluster_lifecycle (which deploys the Slurm and
     # Kubernetes clusters).
+    # build_stream starts from scratch: its own first job, clean_install, runs the shared
+    # cleanup and omnia.sh -s again. It must therefore be the last theme (--update refuses it
+    # anywhere else); every other theme runs before it and shares the one initialization. Any
+    # subset of the other themes can run alone. The cleanup is one block at the bottom of
+    # user_inputs.yml; a theme file with its own cleanup block fails the preflight job.
     themes: "catalog_build,cluster_lifecycle,observability,build_stream"
     # theme catalog_build: one job per catalog of ../catalog_build_test_config.yml, resolved
     # when the CI files are rendered; after changing the catalog list run --update --update-inputs.

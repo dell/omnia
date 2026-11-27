@@ -46,7 +46,7 @@ CLEANUP_STEPS: Tuple[FvtStep, ...] = (
     ("repo_manager", ("cleanup", "test", "--marker", "destructive")),
     ("main", ("cleanup", "test")),
 )
-# Cleanup flags <theme>_test_config.yml may set, per suite:
+# Cleanup flags the cleanup block of user_inputs.yml (shared by every theme) may set, per suite:
 # (section of the suite's test_config.yml, "" = top level; allowed keys).
 # Every value is a boolean; "enabled" (SVT only) turns the suite's cleanup
 # step on or off and is never written into the suite.
@@ -96,7 +96,14 @@ OMNIA_RUN_TAGS: Dict[str, Tuple[str, ...]] = {
     "repo_manager": ("execute",),
     "image_build_manager": ("build",),
     "orchestrator": ("provision", "pxeboot"),
-    "telemetry": ("precheck", "validate", "cleanup_idrac", "cleanup_ldms"),
+    "telemetry": ("precheck", "validate", "cleanup", "deploy_sinks", "external_victoria"),
+}
+# Extra variables a RUN step may pass with -e (exact text, per domain): "key=value", or a
+# sink name, which omnia.sh turns into the sinks list of deploy_sinks / cleanup_sinks.
+# telemetry cleanup keeps the stored credentials, so the next deploy reuses them;
+# deploy_sinks -e victoria_metrics deploys only the VictoriaMetrics sink.
+OMNIA_RUN_VARS: Dict[str, Tuple[str, ...]] = {
+    "telemetry": ("cleanup_credentials=false", "victoria_metrics"),
 }
 OMNIA_PREPARE_BASE = ("--prepare-base",)
 
@@ -115,6 +122,10 @@ THEMES: Dict[str, Dict] = {
     "build_stream": {
         # Theme name shown on top of the SVT report and in the pipeline email.
         "title": "BuildStream End-to-End Lifecycle",
+        # Starts from scratch: its own first CI job (clean_install) runs the shared cleanup and
+        # omnia.sh -s again, so it must be the first or the last theme of a cluster (the other
+        # themes share one initialization).
+        "clean_install": True,
         "description": "BuildStream: base domains, BuildStream and GitLab, build and "
                        "deploy, cadence, automatic cleanup",
         # dataset_generator/profiles/<profile>.yml: user_inputs.yml -> src inputs.
@@ -291,9 +302,9 @@ THEMES: Dict[str, Dict] = {
         "fvt_settings": {},
     },
     "observability": {
-        "title": "Observability End-to-End (iDRAC, LDMS)",
-        "description": "Telemetry of a deployed cluster: the iDRAC and LDMS sources deployed "
-                       "with omnia.sh -r telemetry, then the telemetry FVT checks by test ID",
+        "title": "Observability End-to-End (iDRAC, LDMS, PowerScale, OME, UFM, SFM)",
+        "description": "Telemetry of a deployed cluster: the enabled sources deployed with "
+                       "omnia.sh -r telemetry, then the telemetry FVT checks per source",
         "profile": "observability",
         "cleanup_steps": CLEANUP_STEPS,
         "nfs_shares": {"slurm_share": "nfs_slurm", "k8s_share": "nfs_k8s"},
@@ -307,26 +318,49 @@ THEMES: Dict[str, Dict] = {
         # Stores written by another suite than creds_suite: the suite takes one flat JSON
         # object on --domain-creds-stdin and has no --domain option.
         "creds_suites": {"telemetry": "telemetry"},
+        # Theme settings that turn on an external appliance: when one is true, the credential
+        # step sets the appliance credentials (test_creds.yml) of the telemetry suite too.
+        "external_credentials": ("configure_ome", "configure_sfm"),
         "cleanup_requires": BUILD_STREAM_CLEANUP_REQUIRES,
         "cleanup_when_deployed": ("telemetry", "discovery"),
         # Cluster stages first (repo_manager -> image_build_manager -> orchestrator, the order
         # omnia.sh recommends), then observability last: telemetry needs the Kubernetes and
-        # Slurm nodes the orchestrator brings up.
+        # Slurm nodes the orchestrator brings up. observability_sfm_vm_only runs first and
+        # leaves only VictoriaMetrics; observability_cleanup (hard, always runs) then removes
+        # it and the deploy stage brings up the full telemetry for the source stages.
         "stages": ("prepare_base", "repo_sync", "image_build", "cluster_deploy",
-                   "observability_cleanup", "observability_precheck", "observability_deploy",
-                   "observability_idrac", "observability_ldms"),
-        "soft_stages": ("observability_cleanup", "observability_idrac", "observability_ldms"),
+                   "observability_sfm_vm_only", "observability_cleanup",
+                   "observability_precheck", "observability_deploy", "observability_idrac",
+                   "observability_ldms", "observability_powerscale", "observability_ome",
+                   "observability_ufm", "observability_sfm"),
+        "soft_stages": ("observability_sfm_vm_only", "observability_idrac",
+                        "observability_ldms", "observability_powerscale", "observability_ome",
+                        "observability_ufm", "observability_sfm"),
         # Default: an already deployed cluster. ./run_validation.sh svt_observability all and
         # the pipeline leave these stages out (--skip-stages none / skip_stages "none" runs them),
         # and the pipeline does no clean reinstall unless clean_reinstall is "true".
         "default_skip_stages": ("initialization", "prepare_base", "repo_sync", "image_build",
                                 "cluster_deploy"),
-        # The stages the report counts as scenarios: cleanup (when enabled), then the deploy
-        # stage and the stages after it that ran. Precheck is a gate, not a scenario.
-        "scenario_stages": ("observability_cleanup", "observability_deploy",
-                            "observability_idrac", "observability_ldms"),
-        # Stages that are off unless <theme>_test_config.yml stages: turns them on.
-        "optional_stages": ("observability_cleanup",),
+        # Stages <theme>_test_config.yml stages: turns on or off. Off by default, unless listed
+        # in optional_stages_on. The source stages (idrac, ldms, powerscale, ome, ufm, sfm) are
+        # not optional: they run whenever their source is on (see source_stages);
+        # observability_cleanup always runs.
+        "optional_stages": ("observability_sfm_vm_only",),
+        "optional_stages_on": ("observability_sfm_vm_only",),
+        # Stages that check one source: skipped (recorded with the reason, in 'all', by name
+        # and in the pipeline) when it is off. ("source", <name>): telemetry_sources.<name>
+        # of the deployed telemetry_config.yml (user_inputs.yml block telemetry) has neither
+        # metrics_enabled nor logs_enabled true. ("setting", <suite>, <key>): <key> of
+        # test/<suite>/test_config.yml is false (SFM is not a telemetry source).
+        "source_stages": {
+            "observability_idrac": ("source", "idrac"),
+            "observability_ldms": ("source", "ldms"),
+            "observability_powerscale": ("source", "powerscale"),
+            "observability_ome": ("source", "ome"),
+            "observability_ufm": ("source", "ufm"),
+            "observability_sfm": ("setting", "telemetry", "configure_sfm"),
+            "observability_sfm_vm_only": ("setting", "telemetry", "configure_sfm"),
+        },
         "default_clean_reinstall": False,
         # omnia.sh -r <domain> RUN steps allowed in this theme (OMNIA_RUN_TAGS).
         "run_domains": ("repo_manager", "image_build_manager", "orchestrator", "telemetry"),
@@ -345,10 +379,16 @@ THEMES: Dict[str, Dict] = {
                 "Cluster Deploy",
                 "omnia.sh -r orchestrator provision and PXE boot: Kubernetes and Slurm nodes "
                 "up"),
+            "observability_sfm_vm_only": (
+                "SFM with VictoriaMetrics Only",
+                "Telemetry cleanup (credentials kept), then only the VictoriaMetrics sink "
+                "(deploy_sinks -e victoria_metrics), a new external Victoria export, and "
+                "the SFM checks: SFM metrics reach VictoriaMetrics without the other sinks "
+                "and sources"),
             "observability_cleanup": (
                 "Observability Cleanup",
-                "The iDRAC and LDMS telemetry of an earlier deployment removed "
-                "(omnia.sh -r telemetry --tags cleanup_ldms, cleanup_idrac)"),
+                "The telemetry sources and sinks deployed before removed "
+                "(omnia.sh -r telemetry --tags cleanup -e cleanup_credentials=false)"),
             "observability_precheck": (
                 "Observability Precheck",
                 "omnia.sh -r telemetry --tags precheck and validate: the cluster is healthy "
@@ -365,12 +405,45 @@ THEMES: Dict[str, Dict] = {
                 "LDMS Telemetry",
                 "LDMS aggregator, store and bridge, then the samplers and LDMS data in Kafka "
                 "and VictoriaMetrics"),
+            "observability_powerscale": (
+                "PowerScale Telemetry",
+                "CSM Metrics PowerScale, OTEL Collector, CSI driver and exporter, then "
+                "PowerScale metrics in VictoriaMetrics and logs in VictoriaLogs"),
+            "observability_ome": (
+                "OME Telemetry",
+                "Vector-OME bridge and KafkaUser, then (configure_ome) OME mTLS, Kafka "
+                "forwarder, OME data in Kafka, VictoriaMetrics and VictoriaLogs"),
+            "observability_ufm": (
+                "UFM Telemetry",
+                "UFM external service, VMServiceScrape and credentials, then UFM InfiniBand "
+                "metrics in VictoriaMetrics"),
+            "observability_sfm": (
+                "SFM Telemetry",
+                "VictoriaMetrics workloads and services, then (configure_sfm) the SFM switch "
+                "path, Remote Write and SFM metrics in VictoriaMetrics"),
         },
+        # kind: bool; host (IP or host name, "" = not set); port (1-65535).
         "fvt_settings": {
             "sync_telemetry_input": ("telemetry", "", "sync_telemetry_input", "bool"),
             "configure_ome": ("telemetry", "", "configure_ome", "bool"),
+            "ome_ip": ("telemetry", "", "ome_ip", "host"),
+            "force_external_kafka_playbook": ("telemetry", "", "force_external_kafka_playbook",
+                                              "bool"),
             "configure_sfm": ("telemetry", "", "configure_sfm", "bool"),
+            "sfm_api_ip": ("telemetry", "", "sfm_api_ip", "host"),
+            "sfm_api_port": ("telemetry", "", "sfm_api_port", "port"),
+            "sfm_ssh_ip": ("telemetry", "", "sfm_ssh_ip", "host"),
+            "sfm_ssh_port": ("telemetry", "", "sfm_ssh_port", "port"),
+            "force_external_victoria_playbook": ("telemetry", "",
+                                                 "force_external_victoria_playbook", "bool"),
         },
+        # fvt_settings the theme config does not set. Fixed: the deployed telemetry inputs
+        # are the ones ./setup_env.sh installs, so the FVT never pushes a dataset. Derived:
+        # the value of another setting (the OME client certificates and the external Victoria
+        # export are made again whenever OME or SFM is configured).
+        "fixed_fvt_settings": {"sync_telemetry_input": False},
+        "derived_fvt_settings": {"force_external_kafka_playbook": "configure_ome",
+                                 "force_external_victoria_playbook": "configure_sfm"},
     },
     "catalog_build": {
         "title": "Catalog Build",
@@ -464,6 +537,9 @@ THEMES: Dict[str, Dict] = {
 # THEMES[theme]["stage_info"]. In the report, cleanup and install (run by
 # ./setup_env.sh) are shown inside the Initialization stage.
 COMMON_STAGE_INFO: Dict[str, Tuple[str, str]] = {
+    "theme_result": (
+        "Theme Result",
+        "The theme's SVT summary and verdict, kept for the cluster summary"),
     "initialization": (
         "Initialization",
         "Clean reinstall of this OIM (./setup_env.sh: cleanup, install), then the "
@@ -500,6 +576,11 @@ def soft_stages(theme: str) -> Tuple[str, ...]:
 def theme_title(theme: str) -> str:
     """Return the display name of ``theme``."""
     return str(THEMES.get(theme, {}).get("title") or theme.replace("_", " ").title())
+
+
+def starts_clean(theme: str) -> bool:
+    """Return whether ``theme`` cleans and installs Omnia again in its own first job."""
+    return bool(THEMES.get(theme, {}).get("clean_install", False))
 
 
 def default_skip_stages(theme: str) -> Tuple[str, ...]:

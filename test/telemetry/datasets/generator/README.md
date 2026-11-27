@@ -144,9 +144,9 @@ The `--var` compatibility aliases remain for common flat values:
   --var ldms_metrics_enabled=false
 ```
 
-The supported aliases are `idrac_metrics_enabled`, `ldms_metrics_enabled`,
+The supported aliases are `kube_vip`, `idrac_metrics_enabled`, `ldms_metrics_enabled`,
 `powerscale_metrics_enabled`, `ufm_metrics_enabled`, `vast_metrics_enabled`,
-`ome_metrics_enabled`, and `install_mode`. SFM has no source enablement alias
+`ome_metrics_enabled`, `victoria_metrics_enabled`, `victoria_logs_enabled`, `kafka_enabled`, and `install_mode`. SFM has no source enablement alias
 because it is an external VictoriaMetrics integration. Prefer `--set` for new
 automation.
 

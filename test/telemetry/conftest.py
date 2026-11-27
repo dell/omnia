@@ -649,6 +649,7 @@ def pytest_runtest_makereport(item, call):
         status=status,
         duration=getattr(result, "duration", 0),
         tc_id=tc_id,
+        reason=skip_reason,
     )
 
     report = get_current_report()

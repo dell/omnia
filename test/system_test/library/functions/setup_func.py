@@ -81,6 +81,9 @@ from ..vars.common_vars import (
     CREDS_STDIN_FLAG,
     DOMAIN_INIT,
     DOMAIN_INIT_FORCE_ARG,
+    EXTERNAL_CREDS_FILE,
+    EXTERNAL_CREDS_FLAG,
+    EXTERNAL_CREDS_SUITE,
     FVT_SETUP,
     GENERATOR,
     INPUTS_CATALOG_KEY,
@@ -674,7 +677,52 @@ def _creds_stdin(theme: str, venv: str, missing: List[str], emit: Emit) -> Dict[
 
 def auto_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool,
                from_openbao: bool = False) -> Dict[str, Any]:
-    """Write only the missing stores: from OpenBao (``from_openbao``), else prompts on a
+    """Write the missing domain stores, then the OME and SFM appliance credentials the theme
+    turns on (test/telemetry/test_creds.yml). A failure of either fails the step."""
+    domain = _domain_creds(config, emit, assume_yes, from_openbao)
+    if domain["status"] == "failed":
+        return domain
+    external = _external_creds(config, emit, assume_yes)
+    if external["status"] == "failed":
+        return external
+    return {**domain, "status": "passed"} if external["status"] == "passed" else domain
+
+
+def _external_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool) -> Dict[str, Any]:
+    """Prompt the OME and SFM appliance credentials when the theme's config enables an appliance
+    (THEMES[theme]["external_credentials"] is true in fvt_settings).
+
+    The suite's --set-external-creds prompts only for the enabled appliances and needs a
+    terminal: an unattended run reports what is missing and skips the step, so the appliance
+    stages then fail with the reason.
+    """
+    theme = config["theme"]
+    settings = config["fvt_settings"]
+    needed = [key for key in THEMES[theme].get("external_credentials") or ()
+              if settings.get(key) is True]
+    if not needed:
+        return _skipped("")
+    if unattended(assume_yes):
+        reason = SETUP_MSGS["external_creds_unattended"].format(
+            settings=", ".join(needed), theme=theme)
+        emit(reason)
+        return _skipped(reason)
+    venv, error = _creds_ready(theme)
+    if error:
+        return _failed(error)
+    result = _run_creds_suite(theme, [EXTERNAL_CREDS_FLAG], venv, emit,
+                              suite=EXTERNAL_CREDS_SUITE)
+    if not result["success"]:
+        return _failed(SETUP_MSGS["external_creds_failed"].format(rc=result["rc"]))
+    path = os.path.join(domain_dir(EXTERNAL_CREDS_SUITE), EXTERNAL_CREDS_FILE)
+    if not os.path.isfile(path):
+        return _failed(SETUP_MSGS["external_creds_missing"].format(path=path))
+    return _passed()
+
+
+def _domain_creds(config: Dict[str, Any], emit: Emit, assume_yes: bool,
+                  from_openbao: bool = False) -> Dict[str, Any]:
+    """Write only the missing domain stores: from OpenBao (``from_openbao``), else prompts on a
     terminal, else JSON read from stdin."""
     theme = config["theme"]
     venv, error = _creds_ready(theme)

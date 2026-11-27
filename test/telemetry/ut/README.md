@@ -20,12 +20,15 @@ unchanged.
 | `TEL_UT_040`–`TEL_UT_046` | `test_ome_lifecycle.py` | OME independent metrics/logs reconciliation, dependency validation, retained-state restore, isolation, and status contracts |
 | `TEL_UT_047`–`TEL_UT_049` | `test_kafka_topic_lifecycle.py` | Non-destructive topic-manifest cleanup, enabled-source application, and readiness gating |
 | `TEL_UT_050`–`TEL_UT_056` | `test_disabled_state_fvt.py` | Disabled workload detection, required shared-sink health, and PowerScale quiet-window probes |
+| `TEL_UT_057`–`TEL_UT_061` | `test_project_name_validation.py` | `project_name` path-traversal rejection, vault path and log path containment |
 | `TEL_UT_062`–`TEL_UT_066` | `test_input_validation_fail_closed.py` | Telemetry `validate_input` fails closed on unknown or empty tags |
 | `TEL_UT_067` | `test_log_permissions.py` | Restricted Ansible log directory/file permissions (CWE-532) |
 | `TEL_UT_068`–`TEL_UT_077` | `test_idrac_bmc_inventory.py` | iDRAC MySQL ↔ `bmc_group_data.csv` parity (missing, stale, wrong-pod, duplicate rows), CSV parsing, safe lifecycle BMC selection, and MySQL-only node deletion |
 | `TEL_UT_CLEANUP_V019`–`TEL_UT_CLEANUP_V035` | `cleanup_sinks/test_cleanup_sinks_deps.py` | Cleanup sink dependency checking for Kafka, VictoriaMetrics, and VictoriaLogs |
 | `TEL_UT_CLEANUP_V036`–`TEL_UT_CLEANUP_V045` | `cleanup_sinks/test_cleanup_sinks_shortform.py` | Cleanup sink short-form parameter syntax and normalization |
 | `TEL_UT_CLEANUP_V046`–`TEL_UT_CLEANUP_V062` | `test_cleanup_sinks_parameter_normalization.py` | Parameter normalization logic for short-form sink arguments |
+`test_ufm_lifecycle.py` (UFM reconciliation contracts) and `test_vault_in_memory_read.py` (vault handling in the input-validation module) have no `TEL_UT` ID yet, so they are not in the registry. Run them directly (see Execution).
+
 ## Test Categories
 
 | Category | Description | Marker |
@@ -37,7 +40,8 @@ unchanged.
 | Cleanup Sinks | Cleanup sink dependency checking, short-form parameter syntax, and parameter normalization | ut |
 | Disabled-State FVT Helpers | Stopped workloads and required shared-sink health | ut |
 | Input Validation Fail-Closed | Unknown, mixed, and empty tag rejection | ut |
-| Credential Log Hygiene | Credential `no_log` coverage, fail-closed checker, and log permissions | ut |
+| Project Name and Path Validation | `project_name` traversal rejection, vault path and log path containment | ut |
+| Log Permissions | Restricted Ansible log directory and file permissions | ut |
 | iDRAC BMC Inventory | MySQL ↔ CSV parity, CSV parsing, lifecycle BMC selection, MySQL-only deletion | ut |
 
 ## Test Case Registry
@@ -136,6 +140,16 @@ unchanged.
 | TEL_UT_055 | PowerScale test event carries a unique marker | ut |
 | TEL_UT_056 | PowerScale VL query matches only its marker | ut |
 
+### Project Name and Path Validation (TEL_UT_057–TEL_UT_061)
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_UT_057 | Valid project names are accepted | ut |
+| TEL_UT_058 | Invalid project names are rejected (traversal, absolute paths, embedded `/`, empty) | ut |
+| TEL_UT_059 | Vault path rejects traversal | ut |
+| TEL_UT_060 | Vault path accepts a valid project | ut |
+| TEL_UT_061 | Log path symlink containment | ut |
+
 ### Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066)
 
 | TC ID | Test | Marker |
@@ -152,9 +166,8 @@ unchanged.
 |-------|------|--------|
 | TEL_UT_067 | Ansible log dir/files are restricted | ut |
 
-The credential `no_log` checker (`.github/scripts/check_credential_no_log.py`)
-is CI tooling, so its tests live in `.github/scripts/tests/` and run in the
-`credential-no-log.yml` workflow, not in this suite.
+Credential `no_log` checks are CI tooling outside this suite, so they are not
+registered here.
 
 ### iDRAC BMC Inventory (TEL_UT_068–TEL_UT_077)
 
@@ -246,6 +259,9 @@ pytest ut/test_cleanup_sinks_parameter_normalization.py -v
 pytest ut/test_input_validation_fail_closed.py -v
 pytest ut/test_log_permissions.py -v
 pytest ut/test_idrac_bmc_inventory.py -v
+pytest ut/test_project_name_validation.py -v
+pytest ut/test_ufm_lifecycle.py -v
+pytest ut/test_vault_in_memory_read.py -v   # run in its own process: it shares a module name with repo_manager
 
 # Run with coverage
 pytest ut/ --cov=src/telemetry --cov-report=html
@@ -256,14 +272,11 @@ pytest ut/ -vv -s
 
 ## Expected Results
 
-All UT tests should **PASS**:
+The registered UT tests should **PASS**. Cleanup-sink tests skip when their
+dependencies are not running, which is expected. Pass and skip totals depend on the
+environment, so take them from the run's summary.
 
 ```
-Total Tests:           128
-├─ Passed:            101 (79%)
-├─ Failed:              0 (0%)
-└─ Skipped:            27 (21%) — Expected behavior (cleanup_sinks tests skip when no dependencies running)
-
 OME Functions (TEL_UT_001–TEL_UT_022): 22/22 PASS
 OME Victoria (TEL_UT_023–TEL_UT_028): 6/6 PASS
 iDRAC Lifecycle (TEL_UT_029–TEL_UT_036): 8/8 PASS
@@ -271,11 +284,12 @@ Sink Enablement (TEL_UT_037–TEL_UT_039): 3/3 PASS
 OME Lifecycle (TEL_UT_040–TEL_UT_046): 7/7 PASS
 Kafka Topic Lifecycle (TEL_UT_047–TEL_UT_049): 3/3 PASS
 Disabled-State FVT Helpers (TEL_UT_050–TEL_UT_056): 7/7 PASS
+Project Name and Path Validation (TEL_UT_057–TEL_UT_061): 5/5 PASS
 Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066): 5/5 PASS
 Ansible Log Permissions (TEL_UT_067): 1/1 PASS
 iDRAC BMC Inventory (TEL_UT_068–TEL_UT_077): 10/10 PASS
-Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035): 1/17 PASS (16 skipped - no dependencies running)
-Cleanup Sinks Short-Form Parameters (TEL_UT_CLEANUP_V036–TEL_UT_CLEANUP_V045): 0/9 PASS (9 skipped - no dependencies running)
+Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035): skipped when no dependencies are running (expected)
+Cleanup Sinks Short-Form Parameters (TEL_UT_CLEANUP_V036–TEL_UT_CLEANUP_V045): skipped when no dependencies are running (expected)
 Cleanup Sinks Parameter Normalization (TEL_UT_CLEANUP_V046–TEL_UT_CLEANUP_V062): 17/17 PASS
 ```
 
