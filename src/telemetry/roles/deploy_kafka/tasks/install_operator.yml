@@ -45,22 +45,39 @@
   failed_when: false
 
 # Build Helm image overrides for Strimzi operator and Kafka bridge
-# When container_registry is set, override the default image registry/repository.
-# Strimzi chart composes images as: {registry}/{repository}/{name}:{tag}
-# e.g. quay.io / strimzi / operator : 1.1.0
-# We only override registry and tag; repository ("strimzi") and name ("operator")
-# stay at their chart defaults since the Pulp mirror preserves the same path structure.
-- name: Set Strimzi image overrides for container_registry
+# Strimzi chart composes images as: {registry}/{repository}/{name}:{tag}, or
+# {registry}/{repository}/{name}@{digest} when a digest is set (digest wins over tag).
+# e.g. quay.io / strimzi / operator @ sha256:...
+# Tags and digests from telemetry_packages.yml are always passed so the operator,
+# the entity operator (topic/user operator), kafka-init and the Kafka bridge are
+# pulled by digest. The topic/user operator and kafka-init run the operator image.
+# When container_registry is set, also override the default image registry;
+# repository ("strimzi") and name ("operator") stay at their chart defaults since
+# the Pulp mirror preserves the same path structure.
+- name: Set Strimzi image overrides
   ansible.builtin.set_fact:
     _strimzi_helm_args: >
-      {% set _operator_img = telemetry_registry.images.strimzi.operator | default('quay.io/strimzi/operator:1.2.0') %}
-      {% set _op_tag = _operator_img.split(':')[-1] %}
-      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.2.0') %}
-      {% set _br_tag = _bridge_img.split(':')[-1] %}
+      {% set _operator_img = telemetry_registry.images.strimzi.operator
+         | default('quay.io/strimzi/operator:1.2.0@sha256:77f8fa8121a67561c3418de985783d197f51b8931e9a47f793dc0437dc6bb21f') %}
+      {% set _op_tag = _operator_img.split('@')[0].split(':')[-1] %}
+      {% set _op_digest = _operator_img.split('@')[1] if '@' in _operator_img else '' %}
+      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge
+         | default('quay.io/strimzi/kafka-bridge:1.2.0@sha256:65b8e957487e35414041c1ef54ae03d1c2a736fce39c5d921bbccadfca282ee6') %}
+      {% set _br_tag = _bridge_img.split('@')[0].split(':')[-1] %}
+      {% set _br_digest = _bridge_img.split('@')[1] if '@' in _bridge_img else '' %}
       {% if telemetry_registry.host | default('') %}
       --set defaultImageRegistry={{ telemetry_registry.host | quote }}
+      {% endif %}
       --set image.tag={{ _op_tag | quote }}
       --set kafkaBridge.image.tag={{ _br_tag | quote }}
+      {% if _op_digest %}
+      --set image.digest={{ _op_digest | quote }}
+      --set topicOperator.image.digest={{ _op_digest | quote }}
+      --set userOperator.image.digest={{ _op_digest | quote }}
+      --set kafkaInit.image.digest={{ _op_digest | quote }}
+      {% endif %}
+      {% if _br_digest %}
+      --set kafkaBridge.image.digest={{ _br_digest | quote }}
       {% endif %}
 
 - name: Install Strimzi Kafka operator

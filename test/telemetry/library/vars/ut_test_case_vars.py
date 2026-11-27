@@ -158,6 +158,15 @@ UT_TEST_CASE_IDS = {
             77: "test_nft_bmc_ip_config",
         },
     ),
+    **_module_cases(
+        "test_image_digest_pinning.py",
+        {
+            78: "test_shipped_manifest_images_are_digest_pinned",
+            79: "test_unpinned_or_malformed_images_are_rejected",
+            80: "test_pinned_images_are_accepted",
+            81: "test_validate_telemetry_packages_reports_unpinned_image",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

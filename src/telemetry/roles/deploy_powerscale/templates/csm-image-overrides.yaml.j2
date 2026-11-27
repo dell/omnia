@@ -1,0 +1,71 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# karavi-observability image overrides generated from telemetry_packages.yml
+# (images.powerscale.*). Passed to helm after the user values file so the
+# digest-pinned images in the package manifest are the ones deployed.
+# With container_registry set, the upstream registry prefix is replaced by it
+# and the @sha256 digest is preserved.
+{% set _ps = (telemetry_registry.images | default({})).powerscale | default({}) %}
+{% set _host = telemetry_registry.host | default('') %}
+{% macro ref(img) -%}
+{{ (_host ~ '/' ~ (img | regex_replace('^[^/]*\\.[^/]*/', ''))) if _host else img }}
+{%- endmacro %}
+{% macro chart_image(img) -%}
+{% set _r = ref(img) %}
+repository: "{{ _r.split('@')[0] | regex_replace(':[^:/]+$', '') }}"
+{% if '@' in _r %}
+digest: "{{ _r.split('@')[1] }}"
+{% else %}
+tag: "{{ _r.split(':')[-1] }}"
+{% endif %}
+{%- endmacro %}
+{% if _ps.csm_metrics is defined or _ps.csm_authorization_sidecar is defined %}
+karaviMetricsPowerscale:
+{% if _ps.csm_metrics is defined %}
+  image: "{{ ref(_ps.csm_metrics) }}"
+{% endif %}
+{% if _ps.csm_authorization_sidecar is defined %}
+  authorization:
+    sidecarProxy:
+      image: "{{ ref(_ps.csm_authorization_sidecar) }}"
+{% endif %}
+{% endif %}
+{% if _ps.otel_collector is defined or _ps.nginx is defined %}
+otelCollector:
+{% if _ps.otel_collector is defined %}
+  image: "{{ ref(_ps.otel_collector) }}"
+{% endif %}
+{% if _ps.nginx is defined %}
+  nginxProxy:
+    image: "{{ ref(_ps.nginx) }}"
+{% endif %}
+{% endif %}
+{% if _ps.cert_manager_controller is defined or _ps.cert_manager_webhook is defined or _ps.cert_manager_cainjector is defined %}
+cert-manager:
+{% if _ps.cert_manager_controller is defined %}
+  image:
+    {{ chart_image(_ps.cert_manager_controller) | indent(4) }}
+{% endif %}
+{% if _ps.cert_manager_webhook is defined %}
+  webhook:
+    image:
+      {{ chart_image(_ps.cert_manager_webhook) | indent(6) }}
+{% endif %}
+{% if _ps.cert_manager_cainjector is defined %}
+  cainjector:
+    image:
+      {{ chart_image(_ps.cert_manager_cainjector) | indent(6) }}
+{% endif %}
+{% endif %}

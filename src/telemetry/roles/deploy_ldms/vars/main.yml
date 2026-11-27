@@ -86,9 +86,9 @@ vector:
   image: |-
     {%- if telemetry_registry.host | default('') -%}
     {{ telemetry_registry.host }}/{{ ((telemetry_images.vector | default({})).vector |
-    default('docker.io/timberio/vector:0.59.0-debian')) | regex_replace('^[^/]*\.[^/]*/', '') }}
+    default('docker.io/timberio/vector:0.59.0-debian@sha256:98e7b4dfe50750e61470697bbd2fbeca643d12bea97f351005038ef506eab630')) | regex_replace('^[^/]*\.[^/]*/', '') }}
     {%- else -%}
-    {{ (telemetry_images.vector | default({})).vector | default('docker.io/timberio/vector:0.59.0-debian') }}
+    {{ (telemetry_images.vector | default({})).vector | default('docker.io/timberio/vector:0.59.0-debian@sha256:98e7b4dfe50750e61470697bbd2fbeca643d12bea97f351005038ef506eab630') }}
     {%- endif -%}
   ldms:
     app_name: "vector-ldms"
@@ -115,9 +115,9 @@ vector:
     image: |-
       {%- if telemetry_registry.host | default('') -%}
       {{ telemetry_registry.host }}/{{ (telemetry_registry.images.victoria.vmagent |
-      default('victoriametrics/vmagent:v1.153.0')) | regex_replace('^[^/]*\.[^/]*/', '') }}
+      default('victoriametrics/vmagent:v1.153.0@sha256:474135388ae700b842007d3e186a8ae60ccf7de3dfd776fb6ed27cf8522d8331')) | regex_replace('^[^/]*\.[^/]*/', '') }}
       {%- else -%}
-      {{ telemetry_registry.images.victoria.vmagent | default('victoriametrics/vmagent:v1.153.0') }}
+      {{ telemetry_registry.images.victoria.vmagent | default('victoriametrics/vmagent:v1.153.0@sha256:474135388ae700b842007d3e186a8ae60ccf7de3dfd776fb6ed27cf8522d8331') }}
       {%- endif -%}
     remote_write_url: >-
       {{

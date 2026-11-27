@@ -112,7 +112,16 @@ csi_volume_exporter:
   service_account_name: "csi-volume-exporter"
   cluster_role_name: "csi-volume-exporter"
   cluster_role_binding_name: "csi-volume-exporter"
-  image: "{{ telemetry_registry.images.powerscale.python | default('python:3.12-slim') }}"
+  # Digest-pinned in telemetry_packages.yml; container_registry (if set) replaces the
+  # upstream registry prefix and the @sha256 digest is preserved.
+  image: |-
+    {%- set _img = telemetry_registry.images.powerscale.python
+        | default('docker.io/library/python:3.12-slim@sha256:191083cdf6c7bda8c76158983163ead5d5cf7b77cf3033e805bb0f5296f51b4b') -%}
+    {%- if telemetry_registry.host | default('') -%}
+    {{ telemetry_registry.host }}/{{ _img | regex_replace('^[^/]*\.[^/]*/', '') }}
+    {%- else -%}
+    {{ _img }}
+    {%- endif -%}
   metrics_port: 9090
   scrape_interval: "30s"
   scrape_interval_seconds: 30

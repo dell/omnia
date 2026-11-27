@@ -36,8 +36,15 @@ ome_victoria_logs_required_msg: >-
   Ensure 'victoria_logs' is listed in at least one component's collection_targets in telemetry_config.yml.
 
 # Vector configuration for OME telemetry bridge
+# Images are digest-pinned in telemetry_packages.yml. When a private registry host
+# (container_registry) is set, the original registry prefix (docker.io/, quay.io/, ...)
+# is replaced by that host; the @sha256 digest is preserved.
+_ome_registry_host: "{{ hostvars['localhost']['telemetry_registry'].host | default('') }}"
 vector:
-  image: "{{ hostvars['localhost']['telemetry_registry'].images.vector.vector | default('docker.io/timberio/vector:0.59.0-debian') }}"
+  image: |-
+    {%- set _img = hostvars['localhost']['telemetry_registry'].images.vector.vector
+        | default('docker.io/timberio/vector:0.59.0-debian@sha256:98e7b4dfe50750e61470697bbd2fbeca643d12bea97f351005038ef506eab630') -%}
+    {{ (_ome_registry_host ~ '/' ~ (_img | regex_replace('^[^/]*\.[^/]*/', ''))) if _ome_registry_host else _img }}
   ome:
     app_name: "vector-ome"
     service_name: "vector-ome"
@@ -60,7 +67,10 @@ vector:
     service_name: "vmagent-vector"
     port: 8429
     replicas: 2
-    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.153.0')) }}"
+    image: |-
+      {%- set _img = hostvars['localhost']['telemetry_registry'].images.victoria.vmagent
+          | default('docker.io/victoriametrics/vmagent:v1.153.0@sha256:474135388ae700b842007d3e186a8ae60ccf7de3dfd776fb6ed27cf8522d8331') -%}
+      {{ (_ome_registry_host ~ '/' ~ (_img | regex_replace('^[^/]*\.[^/]*/', ''))) if _ome_registry_host else _img }}
     remote_write_url: >-
       {{
         ('https' if victoria_cluster.tls_enabled | default(false) | bool else 'http')
@@ -81,7 +91,10 @@ vector:
     service_name: "vlagent-vector"
     port: 9427
     replicas: 2
-    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vlagent | default('victoriametrics/vlagent:v1.53.0')) }}"
+    image: |-
+      {%- set _img = hostvars['localhost']['telemetry_registry'].images.victoria.vlagent
+          | default('docker.io/victoriametrics/vlagent:v1.53.0@sha256:a82f93ffecc153fb068606903e512368b070272739d823abe99fad0eff6e1849') -%}
+      {{ (_ome_registry_host ~ '/' ~ (_img | regex_replace('^[^/]*\.[^/]*/', ''))) if _ome_registry_host else _img }}
     remote_write_url: >-
       {{
         ('https' if victoria_logs_cluster.tls_enabled | default(false) | bool else 'http')

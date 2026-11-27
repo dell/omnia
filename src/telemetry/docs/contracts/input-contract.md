@@ -52,8 +52,8 @@ Central package manifest for all telemetry stack dependencies.
 | `install_mode` | string | No | `"offline"` (default) or `"online"` |
 | `repo_url` | string | Conditional | Pulp base URL (required for offline mode) |
 | `cluster_mount` | string | Yes | NFS mount point on K8s cluster nodes |
-| `container_registry` | string | No | Registry override for air-gapped clusters |
-| `images.<subsystem>.<key>` | string | No | Container image references grouped by subsystem |
+| `container_registry` | string | No | Registry override for air-gapped clusters; replaces the upstream registry prefix and keeps the image digest |
+| `images.<subsystem>.<key>` | string | No | Container image references grouped by subsystem. Each must be digest-pinned as `<registry>/<repository>:<tag>@sha256:<digest>` (`:latest` not allowed); validated in L2 |
 | `helm_charts.<chart>.package` | string | No | Pulp directory name for Helm chart tarball |
 | `helm_charts.<chart>.filename` | string | No | Archive filename |
 | `helm_charts.<chart>.online_url` | string | No | Upstream download URL |

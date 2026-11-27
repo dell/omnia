@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- Pinned every telemetry container image by digest
+  (`<registry>/<repository>:<tag>@sha256:<digest>`) in `telemetry_packages.yml`
+  and in all in-role fallback defaults, so a moved tag or a compromised registry
+  cannot change the deployed image. Digests are the multi-arch manifest list /
+  OCI index digests of the existing tags (no version changes).
+- Image references are now parsed digest-safely everywhere `container_registry`
+  is applied: VMCluster, VMAgent (and config-reloader), VLCluster, VLAgent,
+  VictoriaMetrics operator Helm values, busybox init containers, Kafka broker,
+  iDRAC, LDMS and Vector. The registry is rewritten and the digest preserved.
+- Strimzi Helm install now always passes the operator and Kafka bridge
+  tags and digests (`image.digest`, `topicOperator.image.digest`,
+  `userOperator.image.digest`, `kafkaInit.image.digest`,
+  `kafkaBridge.image.digest`). Previously, without `container_registry`, the
+  chart default bridge tag (`1.1.0`) was used instead of the manifest's `1.2.0`.
+- Removed hardcoded images: the LDMS aggregator/store image now comes from
+  `images.ldms.sampler` (and honours `container_registry`), and the pod-cleanup
+  CronJob template uses `images.support.kubectl` / `images.support.busybox`.
+- The OME Vector, vmagent-vector and vlagent-vector deployments and the
+  PowerScale csi-volume-exporter now honour `container_registry`.
+- PowerScale: karavi-observability is installed with an extra values file
+  generated from `images.powerscale.*` (csm-metrics-powerscale,
+  authorization sidecar, otel-collector, nginx proxy and cert-manager
+  controller/webhook/cainjector by digest). These override images set in the
+  user-provided `csm_observability_values.yaml`.
+- Input validation (L2) rejects any `images.<group>.<key>` in
+  `telemetry_packages.yml` that is not digest-pinned or uses `:latest`.
 - Rebuilt the `dellhpcomniaaisolution/ubuntu-ldms` container image as tag `1.2`
   with updated Python dependencies:
   - pip 26.1.1 -> 26.2.0 (CVE-2026-13346, CVE-2026-8643)

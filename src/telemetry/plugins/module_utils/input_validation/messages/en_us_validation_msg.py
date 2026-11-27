@@ -174,6 +174,14 @@ PACKAGE_URL_INVALID_MSG = (
     "Package URL in telemetry_packages.yml must start with 'http://' or 'https://'. "
     "Provide the full download URL from the Pulp repository or external source."
 )
+IMAGE_DIGEST_REQUIRED_MSG = (
+    "Container image in telemetry_packages.yml must be pinned by digest in the form "
+    "'<registry>/<repository>:<tag>@sha256:<64 hex characters>' "
+    "(e.g., 'docker.io/victoriametrics/vmagent:v1.153.0@sha256:...'). "
+    "The ':latest' tag is not allowed. Look up the digest with "
+    "'regctl image digest <image>:<tag>' or "
+    "'skopeo inspect --format {{.Digest}} docker://<image>:<tag>'."
+)
 K8S_CLUSTER_MOUNT_PATH_NOT_FOUND_ON_KUBE_VIP_MSG = (
     "k8s_cluster_mount path does not exist on kube_vip host. "
     "Ensure the NFS mount point exists on the Kubernetes "

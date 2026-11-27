@@ -103,6 +103,7 @@
   ansible.builtin.set_fact:
     _helm_values_nfs: "{{ telemetry_deploy_dir }}/karavi-observability/csm_metrics_values.yaml"
     _cert_manager_resources_override: "{{ telemetry_deploy_dir }}/karavi-observability/cert-manager-resources.yaml"
+    _csm_image_override: "{{ telemetry_deploy_dir }}/karavi-observability/csm-image-overrides.yaml"
 
 - name: Remove cert-manager-readiness-check hook from Helm chart
   ansible.builtin.file:
@@ -167,12 +168,21 @@
               memory: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.memory }}"
               cpu: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.cpu }}"
 
+# Digest-pinned images from telemetry_packages.yml (images.powerscale.*) override
+# any image set in the user-provided values file.
+- name: Write CSM Observability image overrides from telemetry_packages.yml
+  ansible.builtin.template:
+    src: csm-image-overrides.yaml.j2
+    dest: "{{ _csm_image_override }}"
+    mode: "0644"
+
 - name: Upgrade existing karavi-observability release
   ansible.builtin.command: >
     helm upgrade karavi-observability {{ karavi_helm_chart_path | quote }}
     -n {{ csm_observability_namespace | quote }}
     -f {{ _helm_values_nfs | quote }}
     -f {{ _cert_manager_resources_override | quote }}
+    -f {{ _csm_image_override | quote }}
     --timeout 10m
   when: _karavi_helm_check.rc == 0
   register: _helm_upgrade
@@ -184,6 +194,7 @@
     -n {{ csm_observability_namespace | quote }}
     -f {{ _helm_values_nfs | quote }}
     -f {{ _cert_manager_resources_override | quote }}
+    -f {{ _csm_image_override | quote }}
     --timeout 10m
   when: _karavi_helm_check.rc != 0
   register: _helm_install
