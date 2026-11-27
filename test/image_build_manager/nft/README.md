@@ -23,8 +23,8 @@ identifies the test level, and `SEQ` is a stable three-digit sequence.
 | IMGBM_NFT_002 | `test_build_performance` | Performance | Build completes within threshold |
 | IMGBM_NFT_003 | `test_cleanup_performance` | Opt-in destructive performance | Cleanup completes within threshold when `--marker destructive` is requested |
 | IMGBM_NFT_004 | `test_prepare_idempotent` | Idempotency | Prepare succeeds twice and required services remain available |
-| IMGBM_NFT_SECURITY_001 | `test_minio_quadlet_permissions` | Security | `/etc/containers/systemd/minio.container` is `0600 root:root` |
-| IMGBM_NFT_SECURITY_002 | `test_s3cfg_permissions` | Security | `/root/.s3cfg` is `0600 root:root` |
+| IMGBM_NFT_005 | `test_minio_quadlet_permissions` | Security | `/etc/containers/systemd/minio.container` is `0600 root:root` |
+| IMGBM_NFT_006 | `test_s3cfg_permissions` | Security | `/root/.s3cfg` is `0600 root:root` |
 
 
 ---
@@ -119,7 +119,7 @@ nft/
 ├── test_idempotency.py    ← IMGBM_NFT_004
 │   └── test_prepare_idempotent     (order=1)
 │
-└── test_security.py       ← IMGBM_NFT_SECURITY_001-002
+└── test_security.py       ← IMGBM_NFT_005-006
     ├── test_minio_quadlet_permissions              (order=10)
     └── test_s3cfg_permissions                      (order=11)
 ```

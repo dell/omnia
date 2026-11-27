@@ -14,7 +14,7 @@
 
 """File-permission and ownership security helpers.
 
-These helpers back the IMGBM_NFT_SECURITY_* cases that guard the 0600
+These helpers back the IMGBM_NFT_005 and IMGBM_NFT_006 cases that guard the 0600
 root:root posture of credential-bearing files (MinIO quadlet, /root/.s3cfg)
 against accidental regression to world-readable modes.
 """

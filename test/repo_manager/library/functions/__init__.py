@@ -89,7 +89,7 @@ from .repo_manager_func import (
     check_user_registry_distributions,
     check_user_registry_remotes_in_pulp,
 )
-from .repo_sync_func import fetch_repomd, logged, pulp_json
+from .repo_sync_func import fetch_repomd, logged, pulp_json, run_pulp
 # Host sync functions
 from .host_func import (
     sync_project_to_remote,

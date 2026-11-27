@@ -36,10 +36,9 @@ def test_deploy_catalog_add(host):
     """Deploy repo_manager --tags catalog_add."""
     input_path = _get_input_path()
     input_file = f"{input_path}/additions.txt"
-    result = host.run(f"test -f {input_file} && echo 'exists' || echo 'missing'")
-
-    if "missing" in result.stdout:
-        tl = TestLogger("Deploy repo_manager (catalog_add)", "RM_FVT_CATALOG_ADD_E001")
+    if not host.file(input_file).exists:
+        tc = TC["deploy_catalog_add"]
+        tl = TestLogger(tc["title"], tc["id"])
         tl.skipped_fields(
             "Catalog add input file not found",
             {

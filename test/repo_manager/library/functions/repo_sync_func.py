@@ -21,10 +21,14 @@ from contextlib import contextmanager
 PULP = "/usr/local/bin/pulp"
 
 
+def run_pulp(host, *arguments):
+    """Run one Pulp CLI command (arguments are shell-quoted) and return the command result."""
+    return host.run(" ".join(shlex.quote(value) for value in (PULP, *arguments)))
+
+
 def pulp_json(host, *arguments):
     """Run one structured Pulp query and return its JSON response."""
-    command = " ".join(shlex.quote(value) for value in (PULP, *arguments))
-    result = host.run(command)
+    result = run_pulp(host, *arguments)
     assert result.rc == 0, result.stderr
     value = json.loads(result.stdout or "[]")
     return value.get("results", []) if isinstance(value, dict) and "results" in value else value

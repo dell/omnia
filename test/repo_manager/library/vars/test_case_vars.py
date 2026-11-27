@@ -423,6 +423,27 @@ TEST_CASES = {
         "id": "RM_FVT_FULL_PLAYBOOK_E001",
         "title": "Deploy repo_manager (complete playbook, no tags)",
     },
+    # ── Non-functional ────────────────────────────────────────────────────
+    "nft_status_idempotency": {
+        "id": "RM_NFT_001",
+        "title": "NFT: status semantic idempotency",
+    },
+    "nft_pulp_status_response_time": {
+        "id": "RM_NFT_002",
+        "title": "NFT: Pulp status response time",
+    },
+    "nft_encrypted_private_credentials": {
+        "id": "RM_NFT_003",
+        "title": "NFT: encrypted private credentials",
+    },
+    "nft_private_keys_and_logs": {
+        "id": "RM_NFT_004",
+        "title": "NFT: private keys and log permissions",
+    },
+    "nft_pulp_tls_validity": {
+        "id": "RM_NFT_005",
+        "title": "NFT: Pulp TLS certificate validity",
+    },
     # ── repo_sync (explicit-only exact mirror) ────────────────────────────
     "deploy_repo_sync": {
         "id": "RM_FVT_REPO_SYNC_E001",

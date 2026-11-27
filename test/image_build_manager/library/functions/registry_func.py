@@ -25,6 +25,26 @@ from ..vars.common_vars import CMDS, REGISTRY_PORT
 # REGISTRY IMAGE VERIFICATION
 # =============================================================================
 
+def check_registry_image(host, expected_image: str) -> Dict[str, Any]:
+    """Verify the running registry container uses the release-pinned image.
+
+    Compares the image name without its registry path, so a mirrored copy of the
+    pinned image passes.
+
+    Returns:
+        Dict with 'success', 'actual' and 'details'.
+    """
+    result = host.run("podman inspect registry --format '{{.Config.Image}}'")
+    actual = result.stdout.strip()
+    expected_name = expected_image.rsplit("/", maxsplit=1)[-1]
+    actual_name = actual.rsplit("/", maxsplit=1)[-1]
+    return {
+        "success": result.rc == 0 and actual_name == expected_name,
+        "actual": actual,
+        "details": f"Expected: {expected_image}\nActual:   {actual or '<not found>'}",
+    }
+
+
 def check_registry_images(
     host, arch: str = "x86_64"
 ) -> Dict[str, Any]:
