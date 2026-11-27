@@ -147,7 +147,7 @@ def test_rejected_secret_fails_without_leak(tmp_path):
     wrong = new_secret()
 
     result = run_probe(tmp_path, "precheck", lab_registry(ca_cert_path=LAB_CA_FILE), acct, wrong)
-    expected = f"authentication failed (phase: precheck) for https://{LAB_HOST}:{LAB_PORT}"
+    expected = f"authentication failed (phase: precheck) for acct {acct} at https://{LAB_HOST}:{LAB_PORT}"
     ok = (not result["success"]) and expected in result["output"] and wrong not in result["output"]
     _report(tl, ok, "auth error class reported and no secret in output",
             expected + " without the secret",

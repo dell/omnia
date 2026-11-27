@@ -374,6 +374,7 @@ def test_push_tasks_are_wired_and_never_expose_credentials():
     assert "write_session_regctl_config.yml" in publish_text
     session_text = texts["write_session_regctl_config.yml"]
     assert 'mode: "0600"' in session_text and "ansible.builtin.tempfile" in session_text
+    assert all("ca_path:" in texts[name] for name in ("check_oci_registry_endpoint.yml", "check_harbor_project.yml"))
     assert "state: absent" in publish_text and "always:" in publish_text
     for task_text in texts.values():
         assert "regctl registry login" not in task_text

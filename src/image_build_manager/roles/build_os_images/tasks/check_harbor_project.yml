@@ -27,6 +27,7 @@
     url_password: "{{ hostvars['localhost']['oci_registry_password'] }}"
     force_basic_auth: true
     validate_certs: "{{ _ext_oci_tls == 'enabled' }}"
+    ca_path: "{{ ext_oci_registry.ca_cert_path | default(omit, true) }}"
     timeout: "{{ ext_oci_connect_timeout }}"
     status_code: [200, 401, 403, 404]
   register: _ext_oci_ns_check
