@@ -419,6 +419,26 @@ def preflight() -> int:
     return _checks() or checkout()
 
 
+def _check_theme_inputs() -> None:
+    """Fail before anything is cleaned when a theme file of the project has its own cleanup.
+
+    The cleanup is one block of the cluster's user inputs file, shared by every theme.
+    """
+    own = []
+    for theme in _themes():
+        path = os.path.join(_inputs_dir(), f"{theme}_test_config.yml")
+        try:
+            with open(path, "r", encoding="utf-8") as stream:
+                if re.search(r"^cleanup\s*:", stream.read(), re.MULTILINE):
+                    own.append(path)
+        except OSError:
+            continue
+    if own:
+        _fail(f"{', '.join(own)} has its own cleanup block. HOW TO FIX: the cleanup is one "
+              f"block at the bottom of {_inputs_name()}, shared by every theme; move the "
+              "settings there and delete the block from the theme file")
+
+
 def _checks() -> int:
     """Check the CI variables, SSH to the OIM and OpenBao."""
     missing = [name for name in ("SVT_TARGET_IP", "SVT_OMNIA_INSTALL_PATH")
@@ -441,6 +461,7 @@ def _checks() -> int:
         except (OSError, ValueError) as exc:
             _fail(f"OpenBao {server} is not reachable ({type(exc).__name__})")
         _say("OpenBao reachable")
+    _check_theme_inputs()
     return 0
 
 
@@ -686,8 +707,38 @@ def _credentials_and_files(theme: str, payload: bytes) -> int:
     return rc
 
 
+def _clean_install_themes() -> List[str]:
+    """Return the themes that start from scratch (SVT_CLEAN_INSTALL_THEMES, rendered)."""
+    return [item for item in _env("SVT_CLEAN_INSTALL_THEMES").split(",") if item]
+
+
 def initialization() -> int:
-    """The complete initialization, once for the whole cluster pipeline, with the first theme.
+    """The initialization shared by the themes that do not start from scratch, once.
+
+    It runs with the first of those themes (build_stream does its own clean_install job), so a
+    run of build_stream alone has nothing to do here.
+    """
+    themes = _themes()
+    if not themes:
+        _fail("no theme selected: clusters.<name>.themes and <CLUSTER>_SVT_THEMES are empty")
+    shared = [theme for theme in themes if theme not in _clean_install_themes()]
+    if not shared:
+        _say(f"themes of this run: {', '.join(themes)}; each starts from scratch in its own "
+             "clean_install job, nothing to initialize here")
+        return 0
+    return _initialize(shared[0], themes)
+
+
+def clean_install() -> int:
+    """First job of a theme that starts from scratch (build_stream): the same complete
+    initialization again, for this theme alone: the shared cleanup, omnia.sh -s, the Omnia
+    environment, the credentials, the CSI files and the readiness stage."""
+    theme = _theme()
+    return _initialize(theme, [theme])
+
+
+def _initialize(first: str, themes: List[str]) -> int:
+    """The complete initialization with theme ``first``.
 
     configure (the first theme's run), then the clean reinstall (``--install --force``: the shared
     cleanup of user_inputs.yml, then omnia.sh -s and the Omnia environment), the credentials from
@@ -697,10 +748,6 @@ def initialization() -> int:
     detached, so a dropped SSH connection does not stop them; only the short credential step
     runs attached, because the OpenBao JSON goes on its stdin.
     """
-    themes = _themes()
-    if not themes:
-        _fail("no theme selected: clusters.<name>.themes and <CLUSTER>_SVT_THEMES are empty")
-    first = themes[0]
     reinstall = (_env("SVT_CLEAN_REINSTALL")
                  or _env(f"SVT_INIT_DEFAULT_CLEAN_REINSTALL_{first.upper()}", "true"))
     force = reinstall.lower() == "true"
@@ -739,9 +786,10 @@ def _start_theme_run() -> int:
     if run.get("theme") == theme and _run_since(run, _since()):
         _record_run()
         return 0
-    if int(_env("SVT_THEME_INDEX", "0") or 0) == 0:
-        _fail(f"the SVT run of theme {theme} was not started by the initialization job. HOW "
-              "TO FIX: open the initialization job of the cluster pipeline and run it again")
+    if int(_env("SVT_THEME_INDEX", "0") or 0) == 0 or theme in _clean_install_themes():
+        job = "clean_install" if theme in _clean_install_themes() else "initialization"
+        _fail(f"the SVT run of theme {theme} was not started by the {job} job. HOW "
+              f"TO FIX: open the {job} job and run it again")
     _say(f"theme {theme}: its own run on the installation of the initialization (no cleanup)")
     rc = run_detached("configure", f"./setup_env.sh --theme {theme} --configure")
     _record_run()
@@ -1041,6 +1089,14 @@ def _theme_title(theme: str, report: Dict[str, Any]) -> str:
 REPORT_NAME = "svt_report.html"
 
 
+def _common_jobs() -> Tuple[str, ...]:
+    """Return the cluster jobs of the report: preflight, initialization (left out when every theme
+    starts from scratch) and summary."""
+    order = [job for job in _env("SVT_JOB_ORDER").split(",") if job]
+    return tuple(job for job in ("preflight", "initialization", "summary")
+                 if not order or job in order)
+
+
 def _report_context(themes: List[str], records: Dict[str, Dict[str, Any]],
                     reports: Dict[str, Dict[str, Any]], verdict: str,
                     problems: List[str], statuses: Dict[str, str]) -> Dict[str, Any]:
@@ -1051,7 +1107,7 @@ def _report_context(themes: List[str], records: Dict[str, Dict[str, Any]],
     common = [{"name": job, "status": statuses.get(job, ""), "reason": reasons.get(job, ""),
                "url": (details.get(job) or {}).get("url", ""),
                "duration": (details.get(job) or {}).get("duration")}
-              for job in ("preflight", "initialization", "summary")]
+              for job in _common_jobs()]
     entries = []
     for theme in themes:
         record, report = records.get(theme) or {}, reports.get(theme) or {}
@@ -1149,7 +1205,7 @@ def _send_cluster_email(verdict: str, statuses: Dict[str, str], themes: List[str
                 f"{_section_rows(report, cell)}</table>")
     jobs = "".join(f"<tr><td style='{cell}'>{_anchor(links.get(job, ''), job)}</td>"
                    f"<td style='{cell}'>{_status_cell(statuses.get(job, ''))}</td></tr>"
-                   for job in ("preflight", "initialization", "summary"))
+                   for job in _common_jobs())
     buttons = (_button(pipeline_url, "Open the pipeline") + _button(report_url, "Browse the report")
                + _button(f"{job_url}/artifacts/download" if job_url else "",
                          "Download all artifacts", "#6c757d"))
@@ -1254,7 +1310,7 @@ def main(argv: List[str]) -> int:
     """Dispatch one job."""
     apply_cluster()
     jobs = {"preflight": preflight, "checkout": checkout, "initialization": initialization,
-            "theme-result": theme_result, "summary": summary,
+            "clean-install": clean_install, "theme-result": theme_result, "summary": summary,
             "after-job": after_job}
     if len(argv) == 2 and argv[0] == "stage":
         return stage(argv[1])
