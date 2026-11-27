@@ -366,7 +366,8 @@ CMDS = {
         " --filter name=^{container}$ 2>/dev/null"
     ),
     # --- OCI boot-ready check (FR-1.5) ---
-    "boot_cfg_path": "mktemp /tmp/fvt_regctl_XXXXXX.json",
+    "boot_cfg_path": "mktemp -t fvt_regctl.XXXXXX",
+    "boot_tmpdir": "mktemp -d -t fvt_boot.XXXXXX",
     "boot_regctl_set_tls": (
         "REGCTL_CONFIG={cfg} regctl registry set --tls disabled {registry}"
     ),

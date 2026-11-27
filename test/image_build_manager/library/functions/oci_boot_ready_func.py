@@ -178,11 +178,13 @@ def _build_fixture(host, cfg: str, base: Tuple[str, str], version: str, kind: st
         kind: Key of ``BOOT_FIXTURE_KINDS``.
 
     Returns:
-        A tuple of (repository, tag, stage_dir, tar_path, error).
+        A tuple of (repository, tag, workdir, tar_path, error). The private
+        workdir holds the staged layer and the tar and is removed by the caller.
     """
     directory, name, _ = BOOT_FIXTURE_KINDS[kind]
-    stage = f"/tmp/fvt_boot_stage_{kind}"
-    tar_path = f"/tmp/fvt_boot_layer_{kind}.tar"
+    workdir = host.run(CMDS["boot_tmpdir"]).stdout.strip()
+    stage = f"{workdir}/stage"
+    tar_path = f"{workdir}/layer.tar"
     repo = f"{BOOT_FIXTURE_NAMESPACE}/{kind}"
     staged = host.run(
         CMDS["boot_stage_layer"].format(
@@ -193,7 +195,7 @@ def _build_fixture(host, cfg: str, base: Tuple[str, str], version: str, kind: st
         )
     )
     if staged.rc != 0:
-        return repo, "1", stage, tar_path, "Failed to stage the fixture layer"
+        return repo, "1", workdir, tar_path, "Failed to stage the fixture layer"
     created = host.run(
         CMDS["boot_image_mod_layer"].format(
             cfg=cfg,
@@ -203,7 +205,7 @@ def _build_fixture(host, cfg: str, base: Tuple[str, str], version: str, kind: st
         )
     )
     error = "" if created.rc == 0 else created.stdout.strip()[:200]
-    return repo, "1", stage, tar_path, error
+    return repo, "1", workdir, tar_path, error
 
 
 def _delete_fixture(host, cfg: str, repo: str, tag: str) -> None:
