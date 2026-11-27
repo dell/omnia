@@ -18,6 +18,7 @@ Every image in the package manifest must be ``<name>:<tag>@sha256:<64 hex>``
 so a moved tag or a compromised registry cannot change what is deployed.
 """
 
+import copy
 import importlib
 import logging
 import os
@@ -49,71 +50,72 @@ telemetry_validation = importlib.import_module(
     "ansible.module_utils.input_validation.validators.telemetry_validation"
 )
 
-_DIGEST = "sha256:" + "a" * 64
+with open(_MANIFEST, "r", encoding="utf-8") as _manifest:
+    _PACKAGES = yaml.safe_load(_manifest)
+_IMAGES = _PACKAGES["images"]
+_ALL_REFS = {
+    f"images.{group}.{key}": ref
+    for group, entries in _IMAGES.items()
+    for key, ref in entries.items()
+}
+
+
+def _split(ref):
+    """'<name>:<tag>@sha256:<hex>' -> (name, tag, hex)."""
+    name_tag, digest = ref.split("@sha256:")
+    name, tag = name_tag.rsplit(":", 1)
+    return name, tag, digest
+
+
+def _unpinned_variants(ref):
+    """Tag-only, :latest, digest-only, short/uppercase/non-sha256 digest, no registry, trailing space."""
+    name, tag, digest = _split(ref)
+    return [
+        f"{name}:{tag}",
+        f"{name}:latest@sha256:{digest}",
+        f"{name}@sha256:{digest}",
+        f"{name}:{tag}@sha256:{digest[:6]}",
+        f"{name}:{tag}@sha256:{digest.upper()}",
+        f"{name}:{tag}@sha512:{digest * 2}",
+        f"{name.split('/')[-1]}:{tag}@sha256:{digest}",
+        f"{ref} ",
+    ]
 
 
 def test_shipped_manifest_images_are_digest_pinned():
     """Every image shipped in telemetry_packages.yml carries an @sha256 digest."""
-    with open(_MANIFEST, "r", encoding="utf-8") as manifest:
-        images = yaml.safe_load(manifest)["images"]
-    refs = [ref for group in images.values() for ref in group.values()]
-    assert refs, "manifest must declare images"
-    assert telemetry_validation._image_digest_errors(images) == []  # pylint: disable=protected-access
+    assert _ALL_REFS, "manifest must declare images"
+    assert telemetry_validation._image_digest_errors(_IMAGES) == []  # pylint: disable=protected-access
 
 
-@pytest.mark.parametrize(
-    "ref",
-    [
-        "docker.io/victoriametrics/vmagent:v1.153.0",
-        "docker.io/library/busybox:latest@" + _DIGEST,
-        "docker.io/victoriametrics/vmagent@" + _DIGEST,
-        "docker.io/victoriametrics/vmagent:v1.153.0@sha256:abc123",
-        "docker.io/victoriametrics/vmagent:v1.153.0@sha256:" + "A" * 64,
-        "docker.io/victoriametrics/vmagent:v1.153.0@sha512:" + "a" * 128,
-        "busybox:1.38@" + _DIGEST,
-        "docker.io/victoriametrics/vmagent:v1.153.0@" + _DIGEST + " ",
-    ],
-)
+@pytest.mark.parametrize("ref", _unpinned_variants(_IMAGES["victoria_metrics"]["vmagent"]))
 def test_unpinned_or_malformed_images_are_rejected(ref):
-    """Tag-only, :latest, digest-only, short/uppercase/non-sha256 digests are rejected."""
+    """Unpinned or malformed variants of a shipped image are rejected."""
     images = {"victoria_metrics": {"vmagent": ref}}
     errors = telemetry_validation._image_digest_errors(images)  # pylint: disable=protected-access
     assert errors == [("images.victoria_metrics.vmagent", ref)]
 
 
-@pytest.mark.parametrize(
-    "ref",
-    [
-        "docker.io/victoriametrics/vmstorage:v1.153.0-cluster@" + _DIGEST,
-        "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.13.0@" + _DIGEST,
-        "myregistry.local:5000/strimzi/kafka:1.2.0-kafka-4.3.1@" + _DIGEST,
-        "ghcr.io/open-telemetry/opentelemetry-collector-releases/"
-        "opentelemetry-collector:0.160.0@" + _DIGEST,
-    ],
-)
-def test_pinned_images_are_accepted(ref):
-    """Registry host:port, nested repository paths and suffixed tags are accepted."""
-    images = {"group": {"image": ref}, "empty": {"unset": ""}}
+@pytest.mark.parametrize("path", sorted(_ALL_REFS))
+def test_pinned_images_are_accepted(path):
+    """Shipped images stay valid after container_registry (host:port) is applied to them."""
+    name, tag, digest = _split(_ALL_REFS[path])
+    repository = name.split("/", 1)[1] if "." in name.split("/")[0] else name
+    mirrored = f"registry.example:5000/{repository}:{tag}@sha256:{digest}"
+    images = {"group": {"image": mirrored}, "empty": {"unset": ""}}
     assert telemetry_validation._image_digest_errors(images) == []  # pylint: disable=protected-access
 
 
 def test_validate_telemetry_packages_reports_unpinned_image(tmp_path):
-    """L2 validation of telemetry_packages.yml returns an error for an unpinned image."""
-    data = {
-        "k8s_cluster_mount": "/opt/omnia/k8s_mount",
-        "slurm_cluster_mount": "/share_omnia",
-        "install_mode": "online",
-        "images": {
-            "support": {
-                "busybox": "docker.io/library/busybox:1.38@" + _DIGEST,
-                "kubectl": "docker.io/alpine/kubectl:1.35.1",
-            }
-        },
-    }
+    """L2 validation of the shipped telemetry_packages.yml flags only the image that loses its digest."""
+    data = copy.deepcopy(_PACKAGES)
+    group, key = next((g, k) for g, entries in data["images"].items() for k in entries)
+    data["images"][group][key] = data["images"][group][key].split("@")[0]
     errors = telemetry_validation.validate_telemetry_packages(
         str(tmp_path / "telemetry_packages.yml"), data,
         logging.getLogger("test"), None, str(tmp_path), _MODULE_UTILS, "project_default",
     )
     messages = [str(error) for error in errors]
-    assert any("images.support.kubectl" in message for message in messages), messages
-    assert not any("images.support.busybox" in message for message in messages), messages
+    assert any(f"images.{group}.{key}" in message for message in messages), messages
+    untouched = [path for path in _ALL_REFS if path != f"images.{group}.{key}"]
+    assert not any(path in message for path in untouched for message in messages), messages
