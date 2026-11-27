@@ -22,11 +22,16 @@ Validates cross-field constraints that cannot be expressed in JSON Schema:
   - Port numbers must be valid
   - Host IP addresses must be non-empty strings
   - log_tail_lines_default and log_ci_preview_lines must not exceed log_tail_lines_max
+  - redaction additions (ER-BSM-003 FR-3.3): key names and pattern ids are well formed,
+    pattern ids are unique and not reserved, and every pattern passes the safety check
 """
 
+import re
 from typing import List
 
 GITLAB_MODES = ("hosted", "external")
+_KEY_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{0,39}")
+_PATTERN_ID_RE = re.compile(r"[a-z][a-z0-9-]{1,40}")
 
 
 def validate(config_data, logger=None) -> List[str]:
@@ -102,12 +107,52 @@ def validate(config_data, logger=None) -> List[str]:
     if isinstance(preview, int) and isinstance(tail_max, int) and preview > tail_max:
         errors.append(msg.log_ci_preview_exceeds_max_msg(preview, tail_max))
 
+    errors.extend(_validate_redaction(config_data, msg))
+
     # Warn if BSM and GitLab on same host
     if gitlab_mode == "hosted" and host_ip and gitlab_host and str(host_ip).strip() == str(gitlab_host).strip():
         warning = msg.same_host_warning_msg()
         if logger:
             logger.warning(warning)
 
+    return errors
+
+
+def _validate_redaction(config_data, msg) -> List[str]:
+    """Check operator redaction additions; errors name the rule id or entry index only."""
+    # pylint: disable=C0415
+    from ansible.module_utils.input_validation.validators.redaction_pattern_check import (
+        RESERVED_RULE_IDS,
+        check_pattern_safety,
+    )
+
+    errors = []
+    section = config_data.get("redaction")
+    if not isinstance(section, dict):
+        return errors
+    names = section.get("additional_secret_key_names")
+    for index, name in enumerate(names if isinstance(names, list) else []):
+        if not isinstance(name, str) or not _KEY_NAME_RE.fullmatch(name):
+            errors.append(msg.invalid_redaction_key_name_msg(index))
+    entries = section.get("additional_secret_patterns")
+    used_ids = set(RESERVED_RULE_IDS)
+    for index, entry in enumerate(entries if isinstance(entries, list) else []):
+        if not isinstance(entry, dict):
+            continue
+        rule_id = entry.get("id")
+        if isinstance(rule_id, str) and _PATTERN_ID_RE.fullmatch(rule_id):
+            label = f"'{rule_id}'"
+            if rule_id in RESERVED_RULE_IDS:
+                errors.append(msg.reserved_redaction_id_msg(rule_id))
+            elif rule_id in used_ids:
+                errors.append(msg.duplicate_redaction_id_msg(rule_id))
+            used_ids.add(rule_id)
+        else:
+            label = f"[{index}]"
+            errors.append(msg.invalid_redaction_pattern_id_msg(index))
+        reason = check_pattern_safety(entry.get("pattern"))
+        if reason:
+            errors.append(msg.unsafe_redaction_pattern_msg(label, reason))
     return errors
 
 

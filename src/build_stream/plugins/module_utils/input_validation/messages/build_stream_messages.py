@@ -179,6 +179,38 @@ def log_ci_preview_exceeds_max_msg(preview, maximum) -> str:
 
 
 # =============================================================================
+# REDACTION MESSAGES (L2)
+# =============================================================================
+
+def invalid_redaction_key_name_msg(index) -> str:
+    """Returns message when an operator secret key name is not valid."""
+    return f"redaction.additional_secret_key_names[{index}] is not a valid key name."
+
+
+def invalid_redaction_pattern_id_msg(index) -> str:
+    """Returns message when an operator pattern id is missing or not valid."""
+    return f"redaction.additional_secret_patterns[{index}] has an invalid id."
+
+
+def reserved_redaction_id_msg(rule_id) -> str:
+    """Returns message when an operator pattern reuses a baseline or built-in rule id."""
+    return (
+        f"redaction.additional_secret_patterns: id '{rule_id}' is reserved "
+        "by a built-in or baseline rule."
+    )
+
+
+def duplicate_redaction_id_msg(rule_id) -> str:
+    """Returns message when two operator patterns share a rule id."""
+    return f"redaction.additional_secret_patterns: id '{rule_id}' is used more than once."
+
+
+def unsafe_redaction_pattern_msg(label, reason) -> str:
+    """Returns message when an operator pattern fails the pattern-safety check."""
+    return f"redaction.additional_secret_patterns {label} is unsafe: {reason}."
+
+
+# =============================================================================
 # CREDENTIAL MESSAGES (L2)
 # =============================================================================
 

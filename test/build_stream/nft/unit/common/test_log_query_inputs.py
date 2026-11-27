@@ -56,9 +56,14 @@ def fixture_validator(monkeypatch):
     messages = _load_module(
         "bsm_messages", VALIDATION_DIR / "messages" / "build_stream_messages.py"
     )
+    check = _load_module(
+        "bsm_redaction_check", VALIDATION_DIR / "validators" / "redaction_pattern_check.py"
+    )
     for name in (
         "ansible.module_utils.input_validation",
         "ansible.module_utils.input_validation.messages",
+        "ansible.module_utils.input_validation.validators",
+        "ansible.module_utils.input_validation.validators.redaction_pattern_check",
     ):
         monkeypatch.setitem(sys.modules, name, types.ModuleType(name))
     monkeypatch.setattr(
@@ -66,6 +71,10 @@ def fixture_validator(monkeypatch):
         "build_stream_messages",
         messages,
         raising=False,
+    )
+    monkeypatch.setitem(
+        sys.modules, "ansible.module_utils.input_validation.validators.redaction_pattern_check",
+        check,
     )
     return _load_module(
         "bsm_validator", VALIDATION_DIR / "validators" / "build_stream_config_validator.py"
