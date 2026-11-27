@@ -133,6 +133,20 @@ sync_image_build_input: false
 cleanup_credentials: true
 
 # =============================================================================
+# EXTERNAL OIM (external repo_manager contract)
+# =============================================================================
+# OIM that runs repo_manager; its repo_status.yml is fetched and used by this OIM.
+# An empty ip skips the remote run; omnia_path is the Omnia checkout on that OIM. The SSH password goes in test_creds.yml
+# (external_oim_password), or in SVT_EXTERNAL_OIM_PASS for the SVT.
+external_oim:
+  ip: ""
+  ssh_user: "root"
+  ssh_port: 22
+  omnia_path: ""
+  repo_manager_tags: "prepare,precheck,download,status"
+  project_name: "project_default"
+
+# =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.

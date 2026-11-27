@@ -229,6 +229,28 @@ TEST_CASES = {
         "id": "IMGBM_FVT_VALIDATE_V004",
         "title": "Verify repo_ssl_verify is wired into build templates",
     },
+    # ── Validate — external repo_manager contract (Phase 1: remote OIM) ────
+    "deploy_external_repo_manager_e2e": {
+        "id": "IMGBM_FVT_VALIDATE_E005",
+        "title": "Phase 1: run repo_manager on external OIM, fetch contract",
+    },
+    "deploy_phase1_build": {
+        "id": "IMGBM_FVT_VALIDATE_E006",
+        "title": "Phase 1: build images using fetched external contract",
+    },
+    # ── Validate — external repo_manager contract (deploy) ─────────────────
+    "deploy_external_contract": {
+        "id": "IMGBM_FVT_VALIDATE_E002",
+        "title": "Deploy validate with external repo_status.yml",
+    },
+    "deploy_external_contract_sentinel_url": {
+        "id": "IMGBM_FVT_VALIDATE_E003",
+        "title": "External repo_status sentinel URL is consumed from staged file",
+    },
+    "deploy_external_contract_invalid_status": {
+        "id": "IMGBM_FVT_VALIDATE_E004",
+        "title": "External repo_status invalid status is rejected by build playbook",
+    },
     # ── Validate — external repo_manager contract (verify) ───────────────
     "external_contract_minimal": {
         "id": "IMGBM_FVT_VALIDATE_V005",

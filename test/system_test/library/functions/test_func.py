@@ -102,7 +102,7 @@ def _run_step(theme: str, tc: Dict[str, Any]) -> Dict[str, Any]:
     # LOCAL_DOMAIN ("svt"): a local SVT step (pxe_publish_func.py), not a remote FVT runner.
     if tc["step"][0] == LOCAL_DOMAIN:
         return run_local_step(tc["step"])
-    return run_fvt_step(tc["step"])
+    return run_fvt_step(tc["step"], env=tc.get("env"))
 
 
 def run_svt_test(theme: str, name: str) -> None:

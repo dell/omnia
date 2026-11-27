@@ -79,6 +79,7 @@ SUITES: Dict[str, List[str]] = {
 # executions and assertions.  It must not also execute build/test_playbook.py.
 SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
     "build": ["catalog_reuse"],
+    "validate": ["contract"],
 }
 
 # =====================================================================
