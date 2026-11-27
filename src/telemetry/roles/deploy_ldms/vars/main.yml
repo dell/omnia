@@ -239,7 +239,9 @@ ldms_deploy_skipped_msg: |
   Slurm control node status:
   {% for host in _ldms_control_candidates %}
     - {{ host }} ({{ hostvars[host].ansible_host | default(host) }}):
-      {{ 'SSH unreachable' if host in _ldms_deploy_control_unreachable_hosts else 'munge key not readable at ' ~ (munge_key_path | default('/etc/munge/munge.key')) }}
+      {{ 'SSH unreachable'
+         if host in _ldms_deploy_control_unreachable_hosts
+         else 'munge key not readable at ' ~ (munge_key_path | default('/etc/munge/munge.key')) }}
   {% else %}
     - none defined in the cluster inventory
   {% endfor %}
