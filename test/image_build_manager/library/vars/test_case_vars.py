@@ -375,11 +375,11 @@ TEST_CASES = {
     },
     # ── Non-functional security (file permissions / ownership) ──────────
     "minio_quadlet_permissions": {
-        "id": "IMGBM_NFT_SECURITY_001",
+        "id": "IMGBM_NFT_005",
         "title": "NFT: MinIO quadlet is 0600 root:root",
     },
     "s3cfg_permissions": {
-        "id": "IMGBM_NFT_SECURITY_002",
+        "id": "IMGBM_NFT_006",
         "title": "NFT: /root/.s3cfg is 0600 root:root",
     },
     "deploy_full_playbook": {

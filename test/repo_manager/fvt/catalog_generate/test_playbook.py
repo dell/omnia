@@ -36,7 +36,8 @@ def test_deploy_catalog_generate(host):
     """Deploy repo_manager --tags catalog_generate."""
     input_file = f"{_get_input_path()}/packages.txt"
     if not host.file(input_file).exists:
-        tl = TestLogger("Deploy repo_manager (catalog_generate)", "RM_FVT_CATALOG_GENERATE_E001")
+        tc = TC["deploy_catalog_generate"]
+        tl = TestLogger(tc["title"], tc["id"])
         tl.skipped_fields(
             "Catalog generate input file not found",
             {

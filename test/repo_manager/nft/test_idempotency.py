@@ -9,6 +9,7 @@ import yaml
 import pytest
 
 from library.functions import TestLogger, run_playbook
+from library.vars import TEST_CASES as TC
 from library.vars.common_vars import OUTPUT_FILES, _get_output_path
 
 
@@ -37,9 +38,8 @@ def test_status_is_semantically_idempotent(host):
 
     # Playbook execution has its own logger, so restore this test's identity
     # before emitting the final result captured by the report hook.
-    test_log = TestLogger(
-        "NFT: status semantic idempotency", "RM_NFT_001"
-    )
+    tc = TC["nft_status_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
     stable = first_status == second_status
     if stable:
         test_log.passed(

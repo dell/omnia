@@ -33,6 +33,7 @@ from library.functions import (
     check_services_active,
     check_firewall_ports_open,
     check_s3cmd_configured,
+    check_registry_image,
     check_registry_reachable,
 )
 from library.vars import TEST_CASES as TC
@@ -180,14 +181,9 @@ def test_registry_image_version(host):
     """Verify the running registry uses the release-pinned image."""
     tc = TC["registry_image_version"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = host.run(
-        "podman inspect registry --format '{{.Config.Image}}'"
-    )
-    actual = result.stdout.strip()
-    expected_name = REGISTRY_IMAGE.rsplit("/", maxsplit=1)[-1]
-    actual_name = actual.rsplit("/", maxsplit=1)[-1]
-    success = result.rc == 0 and actual_name == expected_name
-    details = f"Expected: {REGISTRY_IMAGE}\nActual:   {actual or '<not found>'}"
+    result = check_registry_image(host, REGISTRY_IMAGE)
+    success = result["success"]
+    details = result["details"]
 
     if success:
         tl.passed(f"Registry image is {REGISTRY_IMAGE}", details)
