@@ -22,6 +22,63 @@
     label: "{{ item.path }}"
   when: item.create | default(true) | bool
 
+- name: Detect Pulp host storage filesystem types
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --noheadings
+      - --output
+      - FSTYPE
+      - --target
+      - "{{ item.path }}"
+  loop: "{{ pulp_host_storage_paths }}"
+  loop_control:
+    label: "{{ item.name }}={{ item.path }}"
+  register: _pulp_storage_fstypes
+  changed_when: false
+
+- name: Identify SELinux booleans required by Pulp network storage
+  ansible.builtin.set_fact:
+    _pulp_required_selinux_booleans: >-
+      {{ (_pulp_storage_fstypes.results
+          | map(attribute='stdout')
+          | map('trim')
+          | select('in', pulp_network_fs_selinux_booleans)
+          | map('extract', pulp_network_fs_selinux_booleans)
+          | unique
+          | list)
+         if (ansible_selinux.status | default('disabled')) == 'enabled'
+         else [] }}
+
+- name: Read SELinux booleans required by Pulp network storage
+  ansible.builtin.command:
+    argv:
+      - getsebool
+      - "{{ item }}"
+  loop: "{{ _pulp_required_selinux_booleans }}"
+  register: _pulp_selinux_boolean_states
+  changed_when: false
+
+- name: Require SELinux access for confined Pulp network storage
+  ansible.builtin.assert:
+    that:
+      - (item.stdout.split() | last) == 'on'
+    fail_msg: "{{ deploy_pulp_require_selinux_network_storage_boolean_msg }}"
+    quiet: true
+  loop: "{{ _pulp_selinux_boolean_states.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Select Pulp storage paths that need SELinux relabeling
+  ansible.builtin.set_fact:
+    _pulp_selinux_relabel_paths: >-
+      {{ (_pulp_storage_fstypes.results
+          | rejectattr('stdout', 'in', pulp_network_fs_selinux_booleans)
+          | map(attribute='item.path')
+          | list)
+         if (ansible_selinux.status | default('disabled')) == 'enabled'
+         else [] }}
+
 - name: Remove obsolete Pulp HTTP and custom nginx artifacts
   ansible.builtin.file:
     path: "{{ item }}"

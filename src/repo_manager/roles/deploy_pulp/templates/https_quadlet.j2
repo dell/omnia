@@ -22,8 +22,10 @@ Image={{ pulp_image }}
 Exec=/init
 ContainerName={{ pulp_container_name }}
 AddDevice={{ device_name }}
+DropCapability=ALL
+AddCapability={{ pulp_container_capabilities | join(' ') }}
+NoNewPrivileges=true
 HostName={{ pulp_container_name }}
-PodmanArgs=--privileged
 {% for vol in volumes_https %}
 Volume={{ vol }}
 {% endfor %}

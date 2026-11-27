@@ -33,6 +33,19 @@ pulp_private_key_permissions: "0600"
 pulp_csr_permissions: "0600"
 
 device_name: "/dev/fuse:/dev/fuse:rwm"
+# Pulp starts as root under s6-overlay and runs its services as pulp (700),
+# postgres (26), nginx (699) and redis (697). The Quadlet drops every
+# capability and adds back only this list. See docs/pulp-administration.md.
+pulp_container_capabilities:
+  - CHOWN             # init and nginx set ownership of data and temp dirs
+  - DAC_OVERRIDE      # root init reads service-owned files (pgsql is 0700)
+  - SETUID            # start services as their non-root users
+  - SETGID
+  - KILL              # s6 signals services that run as other users
+  - NET_BIND_SERVICE  # nginx listens on 443 inside the container
+pulp_network_fs_selinux_booleans:
+  nfs: virt_use_nfs
+  nfs4: virt_use_nfs
 pulp_container_https_port: "{{ pulp_deployment_defaults.https.container_port }}"
 pulp_publish_port: "{{ pulp_server_ip }}:{{ pulp_server_port }}:{{ pulp_container_https_port }}"
 pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
@@ -126,31 +139,32 @@ volumes_https:
   - >-
     {{ pulp_settings_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.settings_path ~
-       selinux_option }}
+       (':z' if pulp_settings_dir in _pulp_selinux_relabel_paths else '') }}
   - >-
     {{ pulp_content_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.content_path ~
-       selinux_option }}
+       (':z' if pulp_content_dir in _pulp_selinux_relabel_paths else '') }}
   - >-
     {{ pulp_database_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.database_path ~
-       selinux_option }}
+       (':z' if pulp_database_dir in _pulp_selinux_relabel_paths else '') }}
   - >-
     {{ pulp_container_work_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.container_work_path ~
-       selinux_option }}
+       (':z' if pulp_container_work_dir in _pulp_selinux_relabel_paths else '') }}
   - >-
     {{ pulp_logs_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.service_log_path ~
-       selinux_option }}
+       (':z' if pulp_logs_dir in _pulp_selinux_relabel_paths else '') }}
   - >-
     {{ pulp_ha_dir ~ ':' ~
        pulp_deployment_defaults.container_mounts.cli_config_path ~
-       selinux_option }}
+       (':z' if pulp_ha_dir in _pulp_selinux_relabel_paths else '') }}
   - >-
     {{ deploy_pulp_nginx_timeout_file ~ ':' ~
        deploy_pulp_nginx_timeout_container_file ~
-       (':ro,z' if selinux_option | default('') == ':z' else ':ro') }}
+       (':ro,z' if pulp_settings_dir in _pulp_selinux_relabel_paths
+        else ':ro') }}
 
 cert_validity_days: >-
   {{ pulp_deployment_defaults.https.certificate_validity_days }}
@@ -201,6 +215,11 @@ deploy_pulp_validate_capacity_and_timeout_configuration_msg: >-
 deploy_pulp_validate_persistent_pulp_secret_key_msg: >-
   The persistent Pulp secret key is empty or invalid. Restore
   {{ pulp_secret_key_file }} from backup before redeploying.
+
+deploy_pulp_require_selinux_network_storage_boolean_msg: >-
+  Pulp storage is on NFS and SELinux boolean {{ item.item }} is off.
+  Pulp runs as a confined container and cannot use NFS storage.
+  Run 'setsebool -P {{ item.item }} on' and run prepare again.
 
 deploy_pulp_fail_with_helpful_error_message_msg: |
   Failed to pull Pulp image: {{ pulp_image }}
