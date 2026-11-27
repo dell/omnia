@@ -94,17 +94,15 @@
         owner: root
         group: root
         mode: "0644"
-      register: _pulp_ipv6_proxy_render
+      notify: reload pulp systemd
 
-    - name: Reload systemd after IPv6 proxy unit change
-      ansible.builtin.systemd_service:
-        daemon_reload: true
-      when: _pulp_ipv6_proxy_render.changed
+    - name: Flush handlers for IPv6 proxy unit reload
+      ansible.builtin.meta: flush_handlers
 
     - name: Start and enable Pulp IPv6 proxy
       ansible.builtin.systemd_service:
         name: pulp-ipv6-proxy.service
-        state: "{{ 'restarted' if _pulp_ipv6_proxy_render.changed else 'started' }}"
+        state: started
         enabled: true
 
 - name: Remove IPv6 socat proxy when dual-stack is disabled
@@ -121,12 +119,10 @@
       ansible.builtin.file:
         path: /etc/systemd/system/pulp-ipv6-proxy.service
         state: absent
-      register: _pulp_ipv6_proxy_removed
+      notify: reload pulp systemd
 
-    - name: Reload systemd after IPv6 proxy removal
-      ansible.builtin.systemd_service:
-        daemon_reload: true
-      when: _pulp_ipv6_proxy_removed.changed
+    - name: Flush handlers for IPv6 proxy removal reload
+      ansible.builtin.meta: flush_handlers
 
 - name: Wait for the Pulp HTTPS API
   ansible.builtin.uri:
