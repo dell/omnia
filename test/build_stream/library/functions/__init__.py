@@ -157,14 +157,18 @@ from library.functions.precheck_func import (
     check_precheck_domain_files,
 )
 
-# --- Execute: external GitLab verification ---
+# --- Execute: external GitLab verification + external cleanup verification ---
 from library.functions.gitlab_external_func import (
     check_external_ca_bundle,
+    check_external_ci_resources_removed,
     check_external_ci_token,
+    check_external_cleanup_local_state_removed,
     check_external_credentials,
     check_external_gitlab_api,
     check_external_journal,
+    check_external_namespace_preserved,
     check_external_project,
+    check_external_project_removed,
     check_external_runner,
     check_external_trigger_and_variables,
 )
@@ -417,11 +421,15 @@ __all__ = [
     "check_prepare_services",
     "check_prepare_status_file",
     "check_external_ca_bundle",
+    "check_external_ci_resources_removed",
     "check_external_ci_token",
+    "check_external_cleanup_local_state_removed",
     "check_external_credentials",
     "check_external_gitlab_api",
     "check_external_journal",
+    "check_external_namespace_preserved",
     "check_external_project",
+    "check_external_project_removed",
     "check_external_runner",
     "check_external_trigger_and_variables",
     # Execute: build/deploy (automatic + manual), cadence, image cleanup

@@ -32,7 +32,8 @@
 # The pause is SUPPRESSED (GitLab is handled first) in:
 #   - ansible-playbook build_stream.yml --tags cleanup            (combined)
 #   - ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
-#   - ansible-playbook build_stream.yml --tags cleanup_gitlab     (BuildStream not cleaned)
+#   - ansible-playbook build_stream.yml --tags cleanup_hosted_gitlab    (BuildStream not cleaned)
+#   - ansible-playbook build_stream.yml --tags cleanup_external_gitlab  (BuildStream not cleaned)
 #
 # Usage (standalone):
 #   # BuildStream only (warns + pauses 20s, then cleans BuildStream):
@@ -73,15 +74,17 @@
           or, standalone:
             ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_gitlab=true
 
-          For GitLab-only cleanup, run:
-            ansible-playbook build_stream.yml --tags cleanup_gitlab
+          For GitLab-only cleanup, run (by gitlab_mode in build_stream_config.yml):
+            ansible-playbook build_stream.yml --tags cleanup_hosted_gitlab      # hosted mode
+            ansible-playbook build_stream.yml --tags cleanup_external_gitlab    # external mode
 
           BuildStream-only cleanup will continue in 20 seconds.
           Press Ctrl+C then 'A' to abort.
           ============================================================
       when:
         - "'cleanup' not in (ansible_run_tags | default([]))"
-        - "'cleanup_gitlab' not in (ansible_run_tags | default([]))"
+        - "'cleanup_hosted_gitlab' not in (ansible_run_tags | default([]))"
+        - "'cleanup_external_gitlab' not in (ansible_run_tags | default([]))"
         - not (cleanup_gitlab | default(false) | bool)
 
 # ── Step 2: Optional GitLab cleanup (standalone extension) ───────────
@@ -89,8 +92,16 @@
 # top-level '--tags cleanup' flow, GitLab is already imported (first) by
 # build_stream.yml, so cleanup_gitlab defaults to false here and this is
 # skipped — GitLab is never cleaned twice.
-- name: Optionally clean GitLab before BuildStream (standalone extension)
-  ansible.builtin.import_playbook: cleanup_gitlab.yml
+#
+# Both GitLab cleanups are imported; each one resolves gitlab_mode from
+# build_stream_config.yml (via build_stream_setup) and self-skips when it does
+# not match, so only the hosted OR external cleanup actually runs.
+- name: Optionally clean hosted GitLab before BuildStream (standalone extension)
+  ansible.builtin.import_playbook: cleanup_hosted_gitlab.yml
+  when: cleanup_gitlab | default(false) | bool
+
+- name: Optionally clean external GitLab before BuildStream (standalone extension)
+  ansible.builtin.import_playbook: cleanup_external_gitlab.yml
   when: cleanup_gitlab | default(false) | bool
 
 # ── Step 3: Local BuildStream cleanup (container, postgres, NFS, creds)

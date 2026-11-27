@@ -21,7 +21,7 @@
 # REST API with gitlab_api_token. There is no GitLab host to pin, authorize or
 # register for SSH, so those steps are skipped.
 - name: Register the hosted GitLab server for SSH
-  when: (gitlab_mode | default('hosted')) != 'external'
+  when: (gitlab_mode | default('')) == 'hosted'
   block:
     - name: Check gitlab_host for Jinja template injection patterns
       ansible.builtin.set_fact:
@@ -76,7 +76,7 @@
       no_log: true
 
 - name: Load the external GitLab credentials (API only, no SSH)
-  when: (gitlab_mode | default('hosted')) == 'external'
+  when: (gitlab_mode | default('')) == 'external'
   block:
     - name: Load BuildStream credentials
       ansible.builtin.include_role:

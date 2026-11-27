@@ -21,7 +21,7 @@
 
 # Hosted mode only: SSH to the Omnia-installed GitLab to mint a root token.
 - name: Resolve the hosted GitLab project
-  when: (gitlab_mode | default('hosted')) != 'external'
+  when: (gitlab_mode | default('')) == 'hosted'
   block:
     - name: Check build_stream_config for Jinja template injection patterns
       ansible.builtin.set_fact:
@@ -133,7 +133,7 @@
 # External mode (ER-BSM-003): API only. The project is created by the
 # build_stream execute step; it is looked up here, never created or SSH-ed to.
 - name: Resolve the external GitLab project
-  when: (gitlab_mode | default('hosted')) == 'external'
+  when: (gitlab_mode | default('')) == 'external'
   block:
     - name: Check external GitLab inputs for Jinja template injection patterns
       ansible.builtin.set_fact:

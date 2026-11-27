@@ -332,3 +332,28 @@ class TestJournal:
         result = _run(ext.check_external_project,
                       connection={"success": False, "error": "no token"})
         assert not result["success"] and "no token" in result["error"]
+
+
+class TestCleanupChecksWithoutToken:
+    """After cleanup_credentials=true the API token is gone and the remote state is unverifiable."""
+
+    CHECKS = ("check_external_project_removed", "check_external_namespace_preserved",
+              "check_external_ci_resources_removed")
+
+    @pytest.mark.parametrize("name", CHECKS)
+    def test_blanked_token_is_unverified_not_passed(self, name):
+        """GIVEN a blanked token THEN the check is flagged skipped and makes no API call."""
+        with patch.object(ext, "external_connection",
+                          return_value={"success": False, "error": "gitlab_api_token is empty"}), \
+                patch.object(ext, "_api_get") as api:
+            result = getattr(ext, name)(object())
+        assert result.get("skipped") and "cannot be verified" in result["skip_reason"]
+        api.assert_not_called()
+
+    @pytest.mark.parametrize("name", CHECKS)
+    def test_other_connection_errors_still_fail(self, name):
+        """GIVEN a TLS or network failure THEN the check fails instead of being skipped."""
+        with patch.object(ext, "external_connection",
+                          return_value={"success": False, "error": "TLS failure"}):
+            result = getattr(ext, name)(object())
+        assert not result["success"] and not result.get("skipped")

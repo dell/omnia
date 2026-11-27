@@ -383,15 +383,23 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 
 ## Cleanup
 
-Cleanup supports three mutually exclusive modes. **GitLab cleanup needs the
+Cleanup supports four mutually exclusive modes. **GitLab cleanup needs the
 BuildStream credentials, and BuildStream cleanup deletes those credentials** —
 so the combined mode always cleans GitLab first.
 
+The GitLab cleanup is dispatched by `gitlab_mode` in `build_stream_config.yml`:
+in **hosted** mode it runs `cleanup_hosted_gitlab` (removes the GitLab CE host:
+packages, runner, tokens, certs, dirs); in **external** mode it runs
+`cleanup_external_gitlab` (removes only the Omnia-created project and its
+resources over the API — never GitLab CE packages, runners, tokens or certs,
+and never the pre-existing group/namespace).
+
 | Mode | Command | What it does |
 |------|---------|--------------|
-| Complete (GitLab → BuildStream) | `--tags cleanup` | Cleans the remote GitLab host first, then BuildStream (BSM + Postgres + credentials). No pause. |
+| Complete (GitLab → BuildStream) | `--tags cleanup` | Cleans GitLab first (hosted OR external by `gitlab_mode`), then BuildStream (BSM + Postgres + credentials). No pause. |
 | BuildStream only | `--tags cleanup_build_stream` | Cleans only BuildStream. Warns and **pauses 20s** first because it deletes credentials needed for later GitLab cleanup. |
-| GitLab only | `--tags cleanup_gitlab` | Cleans only the remote GitLab host. Leaves BuildStream, Postgres, watcher, and credentials untouched. |
+| Hosted GitLab only | `--tags cleanup_hosted_gitlab` | Cleans only the remote GitLab CE host. Runs only in hosted mode. Leaves BuildStream, Postgres, watcher, and credentials untouched. |
+| External GitLab only | `--tags cleanup_external_gitlab` | Cleans only the Omnia-created resources on the customer's GitLab (API). Runs only in external mode. Leaves BuildStream, Postgres, watcher, and credentials untouched. |
 
 ```bash
 cd src/main
@@ -401,8 +409,11 @@ sudo ./omnia.sh --run build_stream --tags cleanup
 # BuildStream-only cleanup (warns + 20s pause; GitLab is NOT cleaned)
 sudo ./omnia.sh --run build_stream --tags cleanup_build_stream
 
-# GitLab-only cleanup
-sudo ./omnia.sh --run build_stream --tags cleanup_gitlab
+# Hosted GitLab-only cleanup (gitlab_mode: hosted)
+sudo ./omnia.sh --run build_stream --tags cleanup_hosted_gitlab
+
+# External GitLab-only cleanup (gitlab_mode: external)
+sudo ./omnia.sh --run build_stream --tags cleanup_external_gitlab
 ```
 
 Run **one** cleanup tag at a time (they cannot be combined with each other or

@@ -1,0 +1,156 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# cleanup_external_gitlab.yml — Remove Omnia's integration with an EXTERNAL,
+# customer-owned GitLab (gitlab_mode: external, ER-BSM-003).
+#
+# Runs entirely on localhost (OIM) over the GitLab REST API. It removes ONLY the
+# resources Omnia itself created in the customer's GitLab and NEVER touches:
+#   - GitLab CE/EE packages, services, runners, TLS certs or runner tokens
+#     (those belong to the customer; they are handled only in hosted mode)
+#   - the pre-existing group/namespace (an operator prerequisite)
+#   - any project, variable, trigger or file the customer owned before Omnia ran
+#
+# What it DOES remove (all tracked in the setup journal as "created" by Omnia):
+#   - the Omnia BuildStream project (deleted outright when Omnia created it; when
+#     Omnia only adopted a pre-existing project, only the files Omnia pushed,
+#     the branch protection and the created resources below are removed)
+#   - the CI templates, input files, omnia.env and sample catalogs Omnia pushed
+#   - Omnia-created CI/CD variables (incl. the pipeline BSM_CLIENT_ID/SECRET)
+#   - the omnia-ci project access token
+#   - the Omnia pipeline trigger (unless it pre-existed Omnia)
+#   - the BuildStream OAuth client registered on the OIM
+#   - local ownership evidence (journal, lock, trigger token) and the external
+#     GitLab entries in build_stream_credentials.yml
+#
+# Usage (standalone):
+#   ansible-playbook playbooks/cleanup/cleanup_external_gitlab.yml
+#
+# Preserve the external GitLab entries in build_stream_credentials.yml
+# (gitlab_api_token / gitlab_project_id); default is to blank them:
+#   ansible-playbook playbooks/cleanup/cleanup_external_gitlab.yml -e cleanup_credentials=false
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Set dynamic run tags including 'gitlab'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ ['build_stream', 'gitlab'] }}"
+        cacheable: true
+
+- name: Build Stream setup (input dirs)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ../../roles/build_stream_setup
+      when: not build_stream_setup_done | default(false) | bool
+
+- name: Load build_stream domain credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load GitLab cleanup variables
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../roles/cleanup_gitlab/vars/main.yml"
+
+    - name: Load BuildStream configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+      failed_when: false
+
+    - name: Require an explicit GitLab mode for external cleanup
+      ansible.builtin.assert:
+        that:
+          - gitlab_mode | default('') in ['hosted', 'external']
+        fail_msg: >-
+          External GitLab cleanup requires gitlab_mode to be explicitly set to
+          'hosted' or 'external' in build_stream_config.yml. No cleanup was run.
+
+    - name: Record whether external cleanup applies to the configured mode
+      ansible.builtin.set_fact:
+        gitlab_cleanup_mode_matches: "{{ gitlab_mode == 'external' }}"
+
+    # Safety guard: this playbook is for external mode only. If the project is
+    # configured for hosted GitLab, do nothing here. (In the mode-dispatched
+    # flows this play is skipped at import time; this covers a direct standalone
+    # invocation.)
+    - name: Stop external cleanup when the project is configured for hosted GitLab
+      when: not gitlab_cleanup_mode_matches | bool
+      block:
+        - name: Warn that external cleanup does not apply to hosted GitLab
+          ansible.builtin.debug:
+            msg: >-
+              gitlab_mode is 'hosted' in build_stream_config.yml. The external GitLab cleanup
+              only removes Omnia-owned resources over the API and will NOT run. Use
+              cleanup_hosted_gitlab.yml (or --tags cleanup_hosted_gitlab) instead.
+
+        - name: End external GitLab cleanup (hosted mode configured)
+          ansible.builtin.meta: end_play
+
+    - name: Set credential file paths
+      ansible.builtin.set_fact:
+        bs_credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
+        bs_credential_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
+
+    - name: Set initial external cleanup credential availability
+      ansible.builtin.set_fact:
+        gitlab_cleanup_credentials_available: >-
+          {{ bs_credential_file_path is file }}
+
+    - name: Load BuildStream credentials when they remain usable
+      block:
+        - name: Decrypt and include build_stream credentials
+          ansible.builtin.include_role:
+            name: credential_utility
+            tasks_from: decrypt_include_encrypt.yml
+          vars:
+            credential_file_path: "{{ bs_credential_file_path }}"
+            vault_password_file: "{{ bs_credential_vault_path }}"
+          when: gitlab_cleanup_credentials_available | bool
+      rescue:
+        - name: Mark external cleanup credentials unavailable
+          ansible.builtin.set_fact:
+            gitlab_cleanup_credentials_available: false
+
+        - name: Report unusable external cleanup credentials
+          ansible.builtin.debug:
+            msg: "{{ gitlab_cleanup_credentials_unusable_msg }}"
+
+- name: Clean up the external GitLab integration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    # The external cleanup is API-based; it tolerates missing credentials by
+    # keeping the local ownership evidence and reporting what it could not do.
+    # With '-e gitlab_cleanup_strict=true' we fail fast instead when the
+    # BuildStream credentials are unavailable, mirroring the hosted flow.
+    - name: Fail when external cleanup requested but credentials are unavailable (strict)
+      ansible.builtin.fail:
+        msg: "{{ gitlab_cleanup_credentials_required_fail_msg }}"
+      when:
+        - hostvars.localhost.gitlab_cleanup_mode_matches | default(false) | bool
+        - not (gitlab_cleanup_credentials_available | default(false) | bool)
+        - gitlab_cleanup_strict | default(false) | bool
+
+    - name: Run the external GitLab cleanup
+      ansible.builtin.include_role:
+        name: cleanup_gitlab
+        tasks_from: cleanup_external.yml
+      when: hostvars.localhost.gitlab_cleanup_mode_matches | default(false) | bool
