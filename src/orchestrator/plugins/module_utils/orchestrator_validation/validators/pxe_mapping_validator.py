@@ -784,12 +784,13 @@ def _mapping_file_error(path: str) -> str | None:
         file_stat = os.stat(path)
     except OSError as exc:
         return msg.pxe_mapping_read_failed_msg(path, str(exc))
-    if file_stat.st_uid not in (0, os.geteuid()):
-        return msg.pxe_mapping_untrusted_owner_msg(path, file_stat.st_uid)
-    if file_stat.st_mode & INSECURE_MODE_BITS:
-        return msg.pxe_mapping_insecure_permissions_msg(
-            path, stat.S_IMODE(file_stat.st_mode)
-        )
+    if os.name != "nt":
+        if file_stat.st_uid not in (0, os.geteuid()):
+            return msg.pxe_mapping_untrusted_owner_msg(path, file_stat.st_uid)
+        if file_stat.st_mode & INSECURE_MODE_BITS:
+            return msg.pxe_mapping_insecure_permissions_msg(
+                path, stat.S_IMODE(file_stat.st_mode)
+            )
     return None
 
 

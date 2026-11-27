@@ -50,6 +50,7 @@
   validate_ib_ipv6_allocation:
     pxe_mapping_file: "{{ ib_ipv6_pxe_mapping_file }}"
     approved_prefixes: "{{ ib_ipv6_approved_prefixes }}"
+    ib_addr_mode: "{{ (_ib_ipv6_network_data | default({'ib_network': {}})).ib_network.ib_addr_mode | default('') }}"
   register: _ib_ipv6_validation
   delegate_to: localhost
 

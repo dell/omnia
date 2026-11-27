@@ -70,6 +70,15 @@ options:
     type: list
     elements: str
     default: []
+  ib_addr_mode:
+    description: >
+      Expected InfiniBand addressing mode ("dual-stack", "ipv6-only", "ipv4-only").
+      If not provided, the mode is inferred from the allocation records in the
+      PXE mapping file.
+    required: false
+    type: str
+    default: ""
+    choices: ["", "dual-stack", "ipv6-only", "ipv4-only"]
   log_dir:
     description: >
       Directory where a log is written. Empty (default): no log file; the orchestrator
@@ -255,6 +264,7 @@ def _pxe_rows_to_normalized(
     ib_rows: list[dict[str, str]],
     approved_prefixes: list[str],
     logger: logging.Logger,
+    ib_addr_mode: str = "",
 ) -> tuple[dict[str, Any], list[str], str]:
     """Convert PXE mapping IB rows to normalized_nodes format.
 
@@ -431,8 +441,10 @@ def _pxe_rows_to_normalized(
         if records:
             normalized[hostname][nic_name] = records
 
-    # Detect IB mode
-    if has_ipv4 and has_ipv6:
+    # Detect or apply IB mode
+    if ib_addr_mode:
+        ib_mode = ib_addr_mode
+    elif has_ipv4 and has_ipv6:
         ib_mode = "dual-stack"
     elif has_ipv6:
         ib_mode = "ipv6-only"
@@ -440,6 +452,40 @@ def _pxe_rows_to_normalized(
         ib_mode = "ipv4-only"
     else:
         ib_mode = "unknown"
+
+    # Enforce address completeness according to the IB mode (Issue #5745)
+    if ib_mode == "dual-stack":
+        for row in ib_rows:
+            hostname = row["HOSTNAME"]
+            nic_name = row["IB_NIC_NAME"]
+            if not row.get("IB_IPV6"):
+                errors.append(
+                    f"Row for {hostname}/{nic_name} has IB_NIC_NAME set, but "
+                    "IB_IPV6 is missing in dual-stack mode"
+                )
+            if not row.get("IB_IPV4"):
+                errors.append(
+                    f"Row for {hostname}/{nic_name} has IB_NIC_NAME set, but "
+                    "IB_IPV4 is missing in dual-stack mode"
+                )
+    elif ib_mode == "ipv6-only":
+        for row in ib_rows:
+            hostname = row["HOSTNAME"]
+            nic_name = row["IB_NIC_NAME"]
+            if not row.get("IB_IPV6"):
+                errors.append(
+                    f"Row for {hostname}/{nic_name} has IB_NIC_NAME set, but "
+                    "IB_IPV6 is missing in ipv6-only mode"
+                )
+    elif ib_mode == "ipv4-only":
+        for row in ib_rows:
+            hostname = row["HOSTNAME"]
+            nic_name = row["IB_NIC_NAME"]
+            if not row.get("IB_IPV4"):
+                errors.append(
+                    f"Row for {hostname}/{nic_name} has IB_NIC_NAME set, but "
+                    "IB_IPV4 is missing in ipv4-only mode"
+                )
 
     return normalized, errors, ib_mode
 
@@ -457,6 +503,12 @@ def run_module() -> None:
                 "required": False,
                 "default": [],
             },
+            "ib_addr_mode": {
+                "type": "str",
+                "required": False,
+                "default": "",
+                "choices": ["", "dual-stack", "ipv6-only", "ipv4-only"],
+            },
             "log_dir": {"type": "str", "required": False, "default": ""},
             "schema_file": {"type": "str", "required": False, "default": ""},
         },
@@ -464,6 +516,7 @@ def run_module() -> None:
     )
     pxe_mapping_file = module.params["pxe_mapping_file"]
     approved_prefixes = module.params["approved_prefixes"]
+    ib_addr_mode = module.params["ib_addr_mode"]
     logger, log_file = _create_logger(module.params["log_dir"])
 
     # --- PXE mapping file path (primary) ---
@@ -516,7 +569,7 @@ def run_module() -> None:
 
         # Convert PXE rows to normalized format and validate
         normalized_nodes, val_errors, ib_mode = _pxe_rows_to_normalized(
-            ib_rows, approved_prefixes, logger
+            ib_rows, approved_prefixes, logger, ib_addr_mode=ib_addr_mode
         )
 
         total_allocations = len(ib_rows)
