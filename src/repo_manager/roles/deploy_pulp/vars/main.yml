@@ -33,6 +33,16 @@ pulp_private_key_permissions: "0600"
 pulp_csr_permissions: "0600"
 
 device_name: "/dev/fuse:/dev/fuse:rwm"
+# Pulp starts as root under s6-overlay and runs its services as pulp (700),
+# postgres (26), nginx (699) and redis (697). The Quadlet drops every
+# capability and adds back only this list. See docs/pulp-administration.md.
+pulp_container_capabilities:
+  - CHOWN             # init and nginx set ownership of data and temp dirs
+  - DAC_OVERRIDE      # root init reads service-owned files (pgsql is 0700)
+  - SETUID            # start services as their non-root users
+  - SETGID
+  - KILL              # s6 signals services that run as other users
+  - NET_BIND_SERVICE  # nginx listens on 443 inside the container
 pulp_network_fs_selinux_booleans:
   nfs: virt_use_nfs
   nfs4: virt_use_nfs

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Pulp Quadlet least-privilege contracts."""
 
+import re
 from pathlib import Path
 
 import jinja2
@@ -25,6 +26,7 @@ ROLE = REPO_ROOT / "src" / "repo_manager" / "roles" / "deploy_pulp"
 QUADLET = ROLE / "templates" / "https_quadlet.j2"
 DEPLOY_TASKS = ROLE / "tasks" / "deploy_container_https.yml"
 ROLE_VARS = ROLE / "vars" / "main.yml"
+DEFAULT_VARS = REPO_ROOT / "src" / "repo_manager" / "vars" / "default.yml"
 
 
 def _render_quadlet():
@@ -34,6 +36,7 @@ def _render_quadlet():
         pulp_image="docker.io/pulp/pulp:test",
         pulp_container_name="pulp",
         device_name="/dev/fuse:/dev/fuse:rwm",
+        pulp_container_capabilities=_role_vars()["pulp_container_capabilities"],
         volumes_https=["/srv/settings:/etc/pulp:z"],
         pulp_deployment_defaults={"container_mounts": {"settings_path": "/etc/pulp"}},
         arg_list=["-e PULP_WORKERS=4"],
@@ -120,6 +123,33 @@ def test_pulp_quadlet_is_not_privileged():
     assert "--privileged" not in rendered
     assert "Privileged" not in rendered
     assert "AddDevice=/dev/fuse:/dev/fuse:rwm" in rendered
+
+
+def test_pulp_quadlet_drops_capabilities_to_documented_minimum():
+    """Pulp drops all capabilities and adds back only the documented list."""
+    rendered = _render_quadlet()
+    caps = _role_vars()["pulp_container_capabilities"]
+    assert "DropCapability=ALL" in rendered
+    assert f"AddCapability={' '.join(caps)}" in rendered
+    assert caps == [
+        "CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID", "KILL",
+        "NET_BIND_SERVICE",
+    ]
+    for forbidden in ("ALL", "FOWNER", "SYS_ADMIN", "NET_ADMIN", "NET_RAW",
+                      "MKNOD", "SYS_PTRACE", "SYS_MODULE", "DAC_READ_SEARCH"):
+        assert forbidden not in caps
+
+
+def test_pulp_quadlet_blocks_privilege_escalation():
+    """Pulp processes cannot gain privileges through setuid or file capabilities."""
+    assert "NoNewPrivileges=true" in _render_quadlet()
+
+
+def test_pulp_image_is_pinned_by_digest():
+    """The Pulp image is pinned to an immutable sha256 digest."""
+    defaults = yaml.safe_load(DEFAULT_VARS.read_text(encoding="utf-8"))
+    image = defaults["pulp_deployment_defaults"]["image"]
+    assert re.fullmatch(r"docker\.io/pulp/pulp:[\w.]+@sha256:[0-9a-f]{64}", image)
 
 
 def test_pulp_quadlet_keeps_selinux_confinement():

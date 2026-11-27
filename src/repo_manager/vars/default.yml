@@ -212,7 +212,9 @@ pulp_resolved_storage_paths: >-
 
 pulp_deployment_defaults:
   container_name: "pulp"
-  image: "docker.io/pulp/pulp:3.123.1"
+  # Pinned by multi-arch index digest. The tag is informational; Podman
+  # resolves the image by digest. Update both together after validation.
+  image: "docker.io/pulp/pulp:3.123.1@sha256:51785c2600c2080dce70c44d79ecf353c474836a91899cfa32d777698b18f91a"
 
   # REQUIRED CONTAINER PATHS - DO NOT MODIFY.
   # The Pulp image and services expect these exact destinations. Customize only

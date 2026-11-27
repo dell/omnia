@@ -748,6 +748,18 @@ UT_TEST_CASE_IDS = {
         "test_pulp_quadlet_contract.py"
         "::test_pulp_volumes_do_not_use_global_selinux_option"
     ): "RM_UT_345",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_quadlet_drops_capabilities_to_documented_minimum"
+    ): "RM_UT_346",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_quadlet_blocks_privilege_escalation"
+    ): "RM_UT_347",
+    (
+        "test_pulp_quadlet_contract.py"
+        "::test_pulp_image_is_pinned_by_digest"
+    ): "RM_UT_348",
 }
 
 

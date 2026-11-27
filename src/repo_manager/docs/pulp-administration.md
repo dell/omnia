@@ -30,7 +30,7 @@ Other plugins present in the Pulp image are not enabled Repo Manager backends.
 
 | Item | Current contract |
 |------|------------------|
-| Pulp image default | `docker.io/pulp/pulp:3.123.1` |
+| Pulp image default | `docker.io/pulp/pulp:3.123.1@sha256:51785c2600c2080dce70c44d79ecf353c474836a91899cfa32d777698b18f91a` |
 | Service | `pulp.service` |
 | Container | `pulp` |
 | External protocol | HTTPS only |
@@ -55,6 +55,72 @@ both cases.
 
 Do not put a Pulp password on a diagnostic command line and do not replace the
 managed CLI configuration with an insecure client configuration.
+
+## Container security
+
+The Pulp Quadlet (`/etc/containers/systemd/pulp.container`) runs Pulp with
+least privilege:
+
+| Control | Setting |
+|---------|---------|
+| Privileged mode | Not used. Only `/dev/fuse` is passed through. |
+| SELinux | Confined as `container_t`. Local storage is relabeled with `:z`; NFS storage requires `virt_use_nfs=on` and deployment fails early when it is off. |
+| Capabilities | `DropCapability=ALL`, then `AddCapability=` the list below. |
+| Privilege escalation | `NoNewPrivileges=true`. setuid binaries and file capabilities cannot raise privileges. |
+| Network | One published port: `<pulp_server_ip>:<pulp_server_port>` to container port 443. |
+| Image | Pinned by the multi-arch index digest in `pulp_deployment_defaults.image`. |
+
+Retained capabilities (`pulp_container_capabilities` in
+`roles/deploy_pulp/vars/main.yml`):
+
+| Capability | Reason |
+|------------|--------|
+| `CHOWN` | Container init sets ownership of the Pulp data directories, and nginx sets ownership of its temp directories on every start. Without it nginx does not start. |
+| `DAC_OVERRIDE` | Root init reads service-owned files such as the 0700 PostgreSQL data directory. Without it the database does not start. |
+| `SETUID`, `SETGID` | s6-overlay starts each service as its own non-root user. Without them no service starts. |
+| `KILL` | s6 signals services that run as other users. Without it adding workers and stopping services hang, and PostgreSQL does not shut down cleanly. |
+| `NET_BIND_SERVICE` | nginx listens on port 443 inside the container. |
+
+Each capability was validated by removing it and restarting Pulp; Pulp failed
+without any of them. Podman defaults that are dropped: `FOWNER`, `FSETID`,
+`SETFCAP`, `SETPCAP` and `SYS_CHROOT`.
+
+Without `FOWNER`, the image's deprecated `fix-attrs` step logs
+`s6-chmod: fatal: unable to change mode of /var/lib/pgsql: Operation not permitted`
+on every start. This is expected and harmless: Repo Manager creates the
+database directory with mode `0700`, and PostgreSQL manages its data
+directory as the `postgres` user.
+
+Verify the running container with:
+
+```bash
+podman inspect pulp --format '{{.HostConfig.Privileged}} {{.EffectiveCaps}}'
+```
+
+### Accepted exception: root inside the container
+
+The Pulp image entry point (`/init`, s6-overlay) must start as root. It starts
+PostgreSQL as `postgres` (26), the Pulp API, content and worker services as
+`pulp` (700), nginx workers as `nginx` (699) and Redis as UID 697. Starting
+services as several different users requires root, so a non-root `User=` is
+not supported by this image. The Pulp application processes themselves run
+as non-root users.
+
+Compensating controls: confined SELinux (`container_t`), the capability set
+above, `NoNewPrivileges=true`, no privileged mode, no host namespaces and a
+single published port.
+
+### Updating the pinned image
+
+1. Read the multi-arch index digest of the new tag, for example
+   `podman manifest inspect docker.io/pulp/pulp:<tag>` or the Docker Hub tag
+   page.
+2. Set `pulp_deployment_defaults.image` to `docker.io/pulp/pulp:<tag>@sha256:<digest>`.
+3. Redeploy and validate RPM, File, Python and Container sync and publish.
+
+For mirrored or air-gapped registries, copy the image with
+`skopeo copy --all` so that the index digest is preserved. A re-push that
+recompresses layers changes the digest and the pinned pull fails.
 
 ## URL construction
 
