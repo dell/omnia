@@ -30,6 +30,42 @@
     msg: "S3 provider is '{{ s3_configurations.provider | default('minio') }}' — skipping MinIO deployment. Using external PowerScale S3 endpoint."
   when: s3_configurations.provider | default('minio') == 'powerscale'
 
+# --- Create .s3cfg for PowerScale (s3cmd is used for verification regardless of provider) ---
+- name: Create s3cfg for PowerScale provider
+  when: s3_configurations.provider | default('minio') == 'powerscale'
+  block:
+    - name: Import EPEL GPG key (PowerScale)
+      ansible.builtin.rpm_key:
+        key: "{{ epel10_gpg_key }}"
+        state: present
+      register: _epel_gpg_key_import
+      retries: "{{ download_retries }}"
+      delay: "{{ download_delay }}"
+      until: _epel_gpg_key_import is succeeded
+
+    - name: Install EPEL release RPM (PowerScale)
+      ansible.builtin.dnf:
+        name: "{{ epel10_url }}"
+        state: present
+      register: _epel_release_install
+      retries: "{{ download_retries }}"
+      delay: "{{ download_delay }}"
+      until: _epel_release_install is succeeded
+
+    - name: Install s3cmd for PowerScale verification
+      ansible.builtin.dnf:
+        name: s3cmd
+        state: present
+
+    - name: Render s3cfg for PowerScale
+      ansible.builtin.template:
+        src: s3/s3cfg.j2
+        dest: "{{ s3cmd_config }}"
+        owner: root
+        group: root
+        mode: "{{ s3cfg_permissions }}"
+      no_log: true
+
 - name: Validate S3 secret key is not empty
   ansible.builtin.assert:
     that:

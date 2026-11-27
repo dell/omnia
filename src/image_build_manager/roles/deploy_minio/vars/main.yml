@@ -40,6 +40,7 @@ file_perm_rw: "0644"
 # CWE-732 / CWE-522 (world-readable credential exposure on the OIM).
 minio_quadlet_permissions: "0600"
 s3cfg_permissions: "0600"
+s3cmd_config: "/root/.s3cfg"
 
 # MinIO container settings
 minio_port: 9000
