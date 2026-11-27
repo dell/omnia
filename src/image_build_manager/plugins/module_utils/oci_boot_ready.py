@@ -35,6 +35,7 @@ OPAQUE_MARKER = ".wh..wh..opq"
 KERNEL_PREFIX = "boot/vmlinuz-"
 INITRAMFS_TEMPLATE = "boot/initramfs-{version}.img"
 MODULES_TEMPLATE = "lib/modules/{version}"
+USR_MERGED_MODULES_TEMPLATE = "usr/lib/modules/{version}"
 MISSING_KERNEL_PATH = "boot/vmlinuz-*"
 NON_BOOT_KERNEL = re.compile(r"rescue|debug")
 
@@ -114,6 +115,25 @@ def _has_path(present: set[str], path: str) -> bool:
     return path in present or any(item.startswith(path + "/") for item in present)
 
 
+def _has_modules(present: set[str], version: str) -> bool:
+    """Return True when the kernel modules directory exists in either layout.
+
+    RHEL 10 images are usr-merged, so ``/lib`` is a symlink to ``/usr/lib`` and
+    layer listings carry the modules under ``usr/lib/modules``.
+
+    Args:
+        present: Merged set of relative paths.
+        version: Kernel version of a candidate boot set.
+
+    Returns:
+        True when ``lib/modules/<version>`` or ``usr/lib/modules/<version>`` exists.
+    """
+    return any(
+        _has_path(present, template.format(version=version))
+        for template in (MODULES_TEMPLATE, USR_MERGED_MODULES_TEMPLATE)
+    )
+
+
 def _first_missing(present: set[str], version: str) -> str:
     """Return the first missing boot path for one kernel version.
 
@@ -155,7 +175,7 @@ def evaluate_boot_set(layers: Sequence[Iterable[str]]) -> dict[str, Any]:
         version
         for version in versions
         if INITRAMFS_TEMPLATE.format(version=version) in present
-        and _has_path(present, MODULES_TEMPLATE.format(version=version))
+        and _has_modules(present, version)
     ]
     missing = ""
     if not complete:

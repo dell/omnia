@@ -384,6 +384,7 @@ UT_TEST_CASE_IDS = {
             190: "test_absolute_and_parent_names_are_ignored",
             191: "test_dot_slash_names_are_normalized",
             192: "test_several_complete_sets_are_all_listed",
+            201: "test_usr_merged_modules_directory_counts",
         },
     ),
     **_module_cases(

@@ -162,3 +162,17 @@ def test_several_complete_sets_are_all_listed():
 
     assert result["complete_versions"] == ["6.11.5", "6.12.0"]
     assert result["missing_path"] == ""
+
+
+def test_usr_merged_modules_directory_counts():
+    entries = [
+        "boot/vmlinuz-6.12.0",
+        "boot/initramfs-6.12.0.img",
+        "lib",
+        "usr/lib/modules/6.12.0/",
+    ]
+
+    result = evaluate_boot_set([entries])
+
+    assert result["complete_versions"] == ["6.12.0"]
+    assert result["missing_path"] == ""
