@@ -410,7 +410,7 @@ gitlab_deployment_complete_msg:
   - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
   - "Runner:     {{ gitlab_runner_container_name }}.service (Quadlet systemd service, persists across reboots)"
   - ""
-  - "IMPORTANT: For any new GitLab reconfiguration, run cleanup_gitlab.yml before running gitlab.yml"
+  - "IMPORTANT: For any new GitLab reconfiguration, run cleanup_hosted_gitlab.yml before running gitlab.yml"
   - ""
   - "============================================"
 

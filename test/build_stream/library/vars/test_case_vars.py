@@ -194,6 +194,26 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
 
     # =================================================================
+    # Cleanup: External GitLab (gitlab_mode: external)
+    # =================================================================
+    "external_cleanup_project_removed": {
+        "id": "BSM_FVT_CLEANUP_V031",
+        "title": "Verify the Omnia project is deleted from the external GitLab",
+    },
+    "external_cleanup_namespace_preserved": {
+        "id": "BSM_FVT_CLEANUP_V032",
+        "title": "Verify the external GitLab group/namespace is preserved",
+    },
+    "external_cleanup_ci_resources_removed": {
+        "id": "BSM_FVT_CLEANUP_V033",
+        "title": "Verify the omnia-ci token, trigger and CI/CD variables are removed",
+    },
+    "external_cleanup_local_state_removed": {
+        "id": "BSM_FVT_CLEANUP_V034",
+        "title": "Verify the external setup journal, lock and trigger token are removed",
+    },
+
+    # =================================================================
     # Cleanup: BuildStream service and data
     # =================================================================
     "buildstream_container_stopped": {

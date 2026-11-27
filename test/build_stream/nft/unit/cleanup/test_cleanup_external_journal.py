@@ -20,6 +20,7 @@ local fake GitLab API, so the assertions are on the HTTP calls actually issued.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -32,6 +33,7 @@ SRC = Path(__file__).resolve().parents[5] / "src" / "build_stream"
 ROLES = SRC / "roles"
 ANSIBLE = shutil.which("ansible-playbook")
 CREATED_BSM_CLIENT_KEYS = {"BSM_CLIENT_ID", "BSM_CLIENT_SECRET"}
+OMNIA_MARKER = "Omnia BuildStream catalog (managed-by:omnia-buildstream)."
 
 pytestmark = pytest.mark.skipif(ANSIBLE is None, reason="ansible-playbook is not installed")
 
@@ -51,9 +53,14 @@ PLAYBOOK = """---
 class FakeGitLab:
     """Minimal GitLab API recording every request; behaviour is configurable per test."""
 
-    def __init__(self, fail_variable_delete=False):
+    def __init__(self, fail_variable_delete=False, project_description="", project_delete_status=202):
         self.requests = []
+        self.raw_requests = []
         self.fail_variable_delete = fail_variable_delete
+        self.project_description = project_description
+        self.project_delete_status = project_delete_status
+        self.project_scheduled = False
+        self.project_deleted = False
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -71,11 +78,31 @@ class FakeGitLab:
 
             def _handle(self):
                 outer.requests.append((self.command, self.path.split("?")[0]))
+                outer.raw_requests.append((self.command, self.path))
                 path = self.path.split("?")[0]
                 if self.command == "GET" and path.endswith("/access_tokens"):
                     return self._reply(200, [{"id": 7, "name": "customer-token"}])
                 if self.command == "GET" and path.endswith("/triggers"):
                     return self._reply(200, [{"id": 9, "description": "customer trigger"}])
+                if re.match(r".*/projects/\d+$", path):
+                    if self.command == "GET":
+                        if outer.project_deleted:
+                            return self._reply(404)
+                        if outer.project_scheduled:
+                            return self._reply(200, {
+                                "id": 1,
+                                "description": outer.project_description,
+                                "marked_for_deletion_on": "2026-11-26",
+                                "path_with_namespace": "infra/omnia-catalog-deletion_scheduled-1",
+                            })
+                        return self._reply(200, {"id": 1, "description": outer.project_description})
+                    if self.command == "DELETE" and "permanently_remove=true" in self.path:
+                        outer.project_deleted = True
+                        return self._reply(204)
+                    if self.command == "DELETE":
+                        if outer.project_delete_status in (200, 202, 204):
+                            outer.project_scheduled = True
+                        return self._reply(outer.project_delete_status)
                 if self.command == "DELETE" and "/variables/" in path:
                     return self._reply(500 if outer.fail_variable_delete else 204)
                 return self._reply(204 if self.command == "DELETE" else 200)
@@ -105,6 +132,10 @@ def variable(key, action):
     return {"type": "variable", "key": key, "action": action, "run_id": "r1"}
 
 
+def project(action, pid="1"):
+    return {"type": "project", "id": pid, "action": action, "run_id": "r1"}
+
+
 def run_cleanup(tmp_path, gitlab, journal=None, raw_journal=None):
     """Run cleanup_external.yml; returns (result, stdout, journal_path)."""
     out_dir = tmp_path / "output"
@@ -130,6 +161,8 @@ def run_cleanup(tmp_path, gitlab, journal=None, raw_journal=None):
     env = dict(
         os.environ,
         ANSIBLE_ROLES_PATH=str(ROLES),
+        ANSIBLE_LIBRARY=str(SRC / "plugins" / "modules"),
+        ANSIBLE_MODULE_UTILS=str(SRC / "plugins" / "module_utils"),
         ANSIBLE_NOCOLOR="1",
         ANSIBLE_HOME=str(tmp_path / ".ansible"),
         ANSIBLE_LOCALHOST_WARNING="False",
@@ -174,11 +207,97 @@ class TestJournalOwnership:
             assert gitlab.deleted_other() == []
 
 
+class TestProjectOwnership:
+    """GIVEN a project in the journal WHEN cleanup runs THEN it is deleted only if Omnia created it."""
+
+    def test_created_project_is_deleted_outright(self, tmp_path):
+        # When Omnia created the project, deleting it removes its files,
+        # variables, token and trigger in one call — no per-resource deletes.
+        journal = valid_journal(project("created"), variable("BSM_API_URL", "created"))
+        with FakeGitLab() as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert gitlab.requests.count(("DELETE", "/api/v4/projects/1")) == 2
+            assert any("permanently_remove=true" in path and "full_path=" in path
+                       for method, path in gitlab.raw_requests if method == "DELETE")
+            assert gitlab.project_deleted
+            assert gitlab.deleted_variables() == set(), "project delete must replace per-variable deletes"
+            assert "project permanently deleted" in out
+            assert "PERMANENTLY DELETED (Omnia-owned catalog project)" in out
+            assert not journal_path.exists(), "ownership evidence is removed after a clean project delete"
+
+    def test_maintainer_falls_back_to_owned_resource_cleanup(self, tmp_path):
+        journal = valid_journal(project("created"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_delete_status=403) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert gitlab.requests.count(("DELETE", "/api/v4/projects/1")) == 1
+            assert not gitlab.project_deleted
+            assert "BSM_API_URL" in gitlab.deleted_variables()
+            assert "falling back to Omnia resource cleanup (HTTP 403)" in out
+            assert "PRESERVED (delete unavailable; Omnia resources removed)" in out
+            assert not journal_path.exists()
+
+    def test_adopted_project_without_marker_is_never_deleted(self, tmp_path):
+        # An adopted project whose live description carries no Omnia marker is
+        # preserved; only Omnia-created resources inside it are removed.
+        journal = valid_journal(project("adopted"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_description="a customer project") as gitlab:
+            result, out, _ = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert ("DELETE", "/api/v4/projects/1") not in gitlab.requests
+            assert "BSM_API_URL" in gitlab.deleted_variables()
+            assert "PRESERVED (customer-owned" in out
+
+    def test_created_project_with_marker_is_deleted(self, tmp_path):
+        journal = valid_journal(project("created"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, _ = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert gitlab.requests.count(("DELETE", "/api/v4/projects/1")) == 2
+            assert gitlab.project_deleted
+            assert "PERMANENTLY DELETED (Omnia-owned catalog project)" in out
+
+    def test_adopted_project_with_marker_is_never_deleted(self, tmp_path):
+        # The normal adoption state: the customer project already carries the
+        # Omnia marker (adoption requires it) and the journal records "adopted".
+        journal = valid_journal(project("adopted"), variable("BSM_API_URL", "created"))
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, journal)
+            assert result.returncode == 0, out
+            assert not [r for r in gitlab.requests if r[0] == "DELETE" and r[1] == "/api/v4/projects/1"]
+            assert not gitlab.project_deleted
+            assert gitlab.deleted_variables() >= {"BSM_API_URL"}
+            assert "PRESERVED (customer-owned" in out
+            assert not journal_path.exists()
+
+    def test_missing_journal_ends_cleanup_as_already_complete(self, tmp_path):
+        # A successful prior cleanup removes the journal. A second run therefore
+        # completes without API calls, credential changes or false warnings.
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab)
+            assert result.returncode == 0, out
+            assert not gitlab.requests
+            assert "external GitLab cleanup is already complete" in out
+            assert "Remote cleanup complete: False" not in out
+            assert not journal_path.exists()
+
+    def test_marked_project_with_corrupt_journal_is_preserved(self, tmp_path):
+        # A present but corrupt journal is not an idempotent second-run signal:
+        # no remote resource is deleted and the evidence remains for recovery.
+        with FakeGitLab(project_description=OMNIA_MARKER) as gitlab:
+            result, out, journal_path = run_cleanup(tmp_path, gitlab, raw_journal="{broken")
+            assert result.returncode == 0, out
+            assert not [r for r in gitlab.requests if r[0] == "DELETE"]
+            assert not gitlab.project_deleted
+            assert "Remote cleanup complete: False" in out
+            assert journal_path.exists()
+
+
 class TestUnreliableJournal:
     """GIVEN no reliable ownership evidence WHEN cleanup runs THEN no remote variable is deleted."""
 
     @pytest.mark.parametrize("name,kwargs", [
-        ("missing", {}),
         ("malformed", {"raw_journal": "{not json"}),
         ("not-a-document", {"raw_journal": "[1, 2, 3]"}),
         ("unsupported-schema", {"journal": {"schema_version": 99, "resources": [variable("BSM_API_URL", "created")]}}),
