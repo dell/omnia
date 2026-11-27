@@ -123,7 +123,7 @@ TEST_CASES = {
     "slurm_reboot_ordered_reboot_verify": {
         "id": "SVT_SLURM_REBOOT_001", "order": 2010, "stage": "reboot_cluster",
         "title": "Ordered Slurm cluster shutdown and power-on",
-        "step": (_SR, ("reboot", "verify", "--marker", "reboot")),
+        "step": (_SR, ("reboot", "verify", "--marker", "reboot+slurm")),
     },
 
     # ---------------------------------------- stage verify_slurm_services

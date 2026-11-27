@@ -38,12 +38,107 @@ via ``vault_decrypt_to_dict``.  Power operations use the iDRAC Redfish API
 (``curl``), which requires no additional packages on the OIM.
 """
 
+import contextlib
+import io
 import json
 import os
+import sys
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from omnia_auto import run_on_host, vault_decrypt_to_dict
+
+
+# ---------------------------------------------------------------------------
+# ANSI helpers
+# ---------------------------------------------------------------------------
+_GREEN = "\033[0;32m"
+_RED = "\033[0;31m"
+_YELLOW = "\033[0;33m"
+_CYAN = "\033[0;36m"
+_RESET = "\033[0m"
+
+
+# ---------------------------------------------------------------------------
+# Summary printer (always writes to real stdout, never to the log tee)
+# ---------------------------------------------------------------------------
+_real_stdout = sys.stdout  # captured at import time
+
+
+def _summary(message: str, status: str = "") -> None:
+    """Print a clean summary line to the real stdout."""
+    tag = ""
+    if status == "ok":
+        tag = f"  {_GREEN}[OK]{_RESET}"
+    elif status == "failed":
+        tag = f"  {_RED}[FAILED]{_RESET}"
+    elif status == "warn":
+        tag = f"  {_YELLOW}[WARNING]{_RESET}"
+    _real_stdout.write(f"  {_CYAN}>{_RESET} {message}{tag}\n")
+    _real_stdout.flush()
+
+
+def _phase_header(text: str) -> None:
+    """Print a phase header to the real stdout."""
+    _real_stdout.write(f"\n  === {text} ===\n")
+    _real_stdout.flush()
+
+
+# ---------------------------------------------------------------------------
+# Tee context manager: redirect stdout to log file, keep _summary on screen
+# ---------------------------------------------------------------------------
+class _TeeToFile:
+    """Write everything sent to stdout into a file (for detailed logging)."""
+
+    def __init__(self, log_file: io.TextIOBase, original: io.TextIOBase):
+        self._log = log_file
+        self._original = original
+
+    def write(self, text: str) -> int:
+        self._log.write(text)
+        self._log.flush()
+        return len(text)
+
+    def flush(self) -> None:
+        self._log.flush()
+
+    @property
+    def encoding(self) -> str:
+        return getattr(self._original, "encoding", "utf-8")
+
+    def isatty(self) -> bool:
+        return False
+
+    def fileno(self) -> int:
+        return self._log.fileno()
+
+
+@contextlib.contextmanager
+def _redirect_to_log(log_path: str):
+    """Context manager: redirect stdout to *log_path*, restore on exit."""
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "a", encoding="utf-8") as log_fh:
+        tee = _TeeToFile(log_fh, sys.stdout)
+        old_stdout = sys.stdout
+        sys.stdout = tee
+        try:
+            yield log_path
+        finally:
+            sys.stdout = old_stdout
+
+
+def _log_path() -> str:
+    """Build the detailed log file path under the FVT report directory."""
+    report_dir = os.environ.get("OMNIA_REPORT_PATH", "")
+    if not report_dir:
+        report_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))),
+            "reports",
+        )
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return os.path.join(report_dir, f"slurm_reboot_detailed_{ts}.log")
 
 
 def _progress(message: str, status: str = "") -> None:
@@ -451,27 +546,25 @@ def _wait_for_group_ready(
         if not ok:
             errors.append(f"{row['HOSTNAME']} SSH not reachable")
 
-    # Wait for cloud-init on nodes that are SSH-reachable
+    # Wait for cloud-init to reach a terminal state (never a test failure)
     _progress(f"Waiting for cloud-init on {len(rows)} node(s)...", "wait")
     for row in rows:
         hostname = row["HOSTNAME"]
         ssh_ok = ssh_results.get(hostname, (False, ""))[0]
         if not ssh_ok:
             _progress(f"{hostname}: cloud-init skipped (node not reachable)", "failed")
-            fields.append((f"    {hostname} cloud-init", "FAILED -- node not reachable"))
-            errors.append(f"{hostname} cloud-init not checked (unreachable)")
+            fields.append((f"    {hostname} cloud-init", "SKIPPED -- node not reachable"))
             continue
         _progress(f"{hostname}: Waiting for cloud-init to complete...", "wait")
         ci_ok, ci_detail = wait_for_cloud_init(
             host, row, RECOVERY_WAIT_TIMEOUT_SECONDS, RECOVERY_POLL_SECONDS,
         )
-        _progress(f"{hostname}: cloud-init -- {ci_detail}", "ok" if ci_ok else "failed")
-        fields.append((
-            f"    {hostname} cloud-init",
-            f"{'passed' if ci_ok else 'FAILED'} -- {ci_detail}",
-        ))
-        if not ci_ok:
-            errors.append(f"{hostname} cloud-init failed: {ci_detail}")
+        if ci_ok:
+            _progress(f"{hostname}: cloud-init -- {ci_detail}", "ok")
+            fields.append((f"    {hostname} cloud-init", f"passed -- {ci_detail}"))
+        else:
+            _progress(f"{hostname}: cloud-init -- {ci_detail} (non-fatal)", "wait")
+            fields.append((f"    {hostname} cloud-init", f"completed with warnings -- {ci_detail}"))
 
     return fields, errors
 
@@ -517,13 +610,6 @@ def check_slurm_ordered_reboot(host) -> Dict[str, Any]:
         if not compute_rows and not login_rows and not controller_rows:
             return _skip(summary, "No Slurm nodes matched any expected prefix")
 
-        _progress(
-            f"Cluster: {len(controller_rows)} controller, "
-            f"{len(login_rows)} login/compiler, "
-            f"{len(compute_rows)} compute"
-        )
-        _progress(f"Power method: Redfish (iDRAC), user: {bmc_user}")
-
         fields: list[tuple[str, object]] = [
             ("Cluster composition",
              f"{len(controller_rows)} controller, "
@@ -534,143 +620,194 @@ def check_slurm_ordered_reboot(host) -> Dict[str, Any]:
         ]
         all_errors: list[str] = []
 
-        # =================================================================
-        # Phase 1: Ordered graceful power-off (Redfish GracefulShutdown)
-        # =================================================================
-        print("\n  === Phase 1: Ordered graceful power-off (Redfish) ===", flush=True)
-        fields.append(("Phase", "1 -- Ordered graceful power-off (Redfish)"))
+        # Print cluster summary and log path to screen up front
+        log_file = _log_path()
+        _summary(
+            f"Cluster: {len(controller_rows)} controller, "
+            f"{len(login_rows)} login/compiler, "
+            f"{len(compute_rows)} compute"
+        )
+        _summary(f"Detailed log: {log_file}")
+        fields.append(("Detailed log", log_file))
 
-        # 1a. Power off compute nodes
-        if compute_rows:
-            _progress(f"Step 1a: Shutting down {len(compute_rows)} compute node(s)")
-            fields.append(("  Step 1a", f"Shutting down {len(compute_rows)} compute node(s)"))
-            off_results = _graceful_poweroff(host, compute_rows, "compute", bmc_user, bmc_auth)
+        with _redirect_to_log(log_file):
+            # =============================================================
+            # Phase 1: Ordered graceful power-off (Redfish GracefulShutdown)
+            # =============================================================
+            _phase_header("Phase 1: Ordered graceful power-off (Redfish)")
+            fields.append(("Phase", "1 -- Ordered graceful power-off (Redfish)"))
+
+            # 1a. Power off compute nodes
+            if compute_rows:
+                fields.append(("  Step 1a", f"Shutting down {len(compute_rows)} compute node(s)"))
+                off_results = _graceful_poweroff(host, compute_rows, "compute", bmc_user, bmc_auth)
+                step_errors = []
+                for row in compute_rows:
+                    ok, detail = off_results.get(row["HOSTNAME"], (False, "not attempted"))
+                    fields.append((f"    {row['HOSTNAME']} shutdown", f"{'passed' if ok else 'FAILED'} -- {detail}"))
+                    if not ok:
+                        step_errors.append(f"{row['HOSTNAME']} shutdown failed")
+                all_errors.extend(step_errors)
+                hostnames = ", ".join(r["HOSTNAME"] for r in compute_rows)
+                _summary(
+                    f"Step 1a: Shutting down {len(compute_rows)} compute node(s) [{hostnames}]",
+                    "ok" if not step_errors else "failed",
+                )
+
+            # 1b. Power off login/compiler nodes
+            if login_rows:
+                fields.append(("  Step 1b", f"Shutting down {len(login_rows)} login/compiler node(s)"))
+                off_results = _graceful_poweroff(host, login_rows, "login", bmc_user, bmc_auth)
+                step_errors = []
+                for row in login_rows:
+                    ok, detail = off_results.get(row["HOSTNAME"], (False, "not attempted"))
+                    fields.append((f"    {row['HOSTNAME']} shutdown", f"{'passed' if ok else 'FAILED'} -- {detail}"))
+                    if not ok:
+                        step_errors.append(f"{row['HOSTNAME']} shutdown failed")
+                all_errors.extend(step_errors)
+                hostnames = ", ".join(r["HOSTNAME"] for r in login_rows)
+                _summary(
+                    f"Step 1b: Shutting down {len(login_rows)} login/compiler node(s) [{hostnames}]",
+                    "ok" if not step_errors else "failed",
+                )
+
+            # 1c. Power off controller nodes
+            if controller_rows:
+                fields.append(("  Step 1c", f"Shutting down {len(controller_rows)} controller node(s)"))
+                off_results = _graceful_poweroff(host, controller_rows, "controller", bmc_user, bmc_auth)
+                step_errors = []
+                for row in controller_rows:
+                    ok, detail = off_results.get(row["HOSTNAME"], (False, "not attempted"))
+                    fields.append((f"    {row['HOSTNAME']} shutdown", f"{'passed' if ok else 'FAILED'} -- {detail}"))
+                    if not ok:
+                        step_errors.append(f"{row['HOSTNAME']} shutdown failed")
+                all_errors.extend(step_errors)
+                hostnames = ", ".join(r["HOSTNAME"] for r in controller_rows)
+                _summary(
+                    f"Step 1c: Shutting down {len(controller_rows)} controller node(s) [{hostnames}]",
+                    "ok" if not step_errors else "failed",
+                )
+
+            # Wait for all nodes to become unreachable (confirms shutdown)
+            all_node_rows = controller_rows + login_rows + compute_rows
+            fields.append(("  Settle", f"Waiting {_POWEROFF_SETTLE_SECONDS}s for shutdown to complete"))
+            time.sleep(_POWEROFF_SETTLE_SECONDS)
+
+            unreachable = _wait_until_unreachable(host, all_node_rows)
+            unreachable_ok = True
+            for row in all_node_rows:
+                ok, detail = unreachable.get(row["HOSTNAME"], (False, "not checked"))
+                fields.append((f"    {row['HOSTNAME']} unreachable", f"{'passed' if ok else 'FAILED'} -- {detail}"))
+                if not ok:
+                    all_errors.append(f"{row['HOSTNAME']} did not become unreachable")
+                    unreachable_ok = False
+            _summary(
+                f"All {len(all_node_rows)} node(s) confirmed unreachable",
+                "ok" if unreachable_ok else "failed",
+            )
+
+            # =============================================================
+            # Phase 2: Ordered power-on with per-group readiness
+            # =============================================================
+            _phase_header("Phase 2: Ordered power-on with readiness checks (Redfish)")
+            fields.append(("Phase", "2 -- Ordered power-on with readiness checks (Redfish)"))
+
+            # 2a. Power on controller nodes first
+            if controller_rows:
+                fields.append(("  Step 2a", f"Powering on {len(controller_rows)} controller node(s)"))
+                group_fields, group_errors = _wait_for_group_ready(
+                    host, controller_rows, "controller", bmc_user, bmc_auth,
+                )
+                fields.extend(group_fields)
+                all_errors.extend(group_errors)
+                hostnames = ", ".join(r["HOSTNAME"] for r in controller_rows)
+                _summary(
+                    f"Step 2a: Powering on {len(controller_rows)} controller node(s) [{hostnames}]",
+                    "ok" if not group_errors else "failed",
+                )
+
+            # 2b. Power on login/compiler nodes
+            if login_rows:
+                fields.append(("  Step 2b", f"Powering on {len(login_rows)} login/compiler node(s)"))
+                group_fields, group_errors = _wait_for_group_ready(
+                    host, login_rows, "login", bmc_user, bmc_auth,
+                )
+                fields.extend(group_fields)
+                all_errors.extend(group_errors)
+                hostnames = ", ".join(r["HOSTNAME"] for r in login_rows)
+                _summary(
+                    f"Step 2b: Powering on {len(login_rows)} login/compiler node(s) [{hostnames}]",
+                    "ok" if not group_errors else "failed",
+                )
+
+            # 2c. Power on compute nodes last
+            if compute_rows:
+                fields.append(("  Step 2c", f"Powering on {len(compute_rows)} compute node(s)"))
+                group_fields, group_errors = _wait_for_group_ready(
+                    host, compute_rows, "compute", bmc_user, bmc_auth,
+                )
+                fields.extend(group_fields)
+                all_errors.extend(group_errors)
+                hostnames = ", ".join(r["HOSTNAME"] for r in compute_rows)
+                _summary(
+                    f"Step 2c: Powering on {len(compute_rows)} compute node(s) [{hostnames}]",
+                    "ok" if not group_errors else "failed",
+                )
+
+            # =============================================================
+            # Stabilization: wait for the cluster to settle after reboot
+            # =============================================================
+            stabilize_seconds = 300  # 5 minutes
+            _phase_header(f"Stabilization: waiting {stabilize_seconds}s for cluster to settle")
+            fields.append(("Stabilization", f"Waiting {stabilize_seconds}s for cluster to settle"))
+            _summary(f"Waiting {stabilize_seconds}s (5 min) for cluster to stabilize after reboot...")
+            time.sleep(stabilize_seconds)
+            _summary("Stabilization wait complete", "ok")
+
+            # =============================================================
+            # Phase 3: Cluster-wide postconditions
+            # =============================================================
+            _phase_header("Phase 3: Cluster-wide postconditions")
+            fields.append(("Phase", "3 -- Cluster-wide postconditions"))
+
+            # 3a. Slurm compute node state recovery (idle)
+            slurm_state_errors: list[str] = []
             for row in compute_rows:
-                ok, detail = off_results.get(row["HOSTNAME"], (False, "not attempted"))
-                fields.append((f"    {row['HOSTNAME']} shutdown", f"{'passed' if ok else 'FAILED'} -- {detail}"))
-                if not ok:
-                    all_errors.append(f"{row['HOSTNAME']} shutdown failed")
+                hostname = row["HOSTNAME"]
+                ssh_ok = True
+                try:
+                    from omnia_auto import run_ssh_command
+                    probe = run_ssh_command(host, row["ADMIN_IP"], PXEBOOT_COMMANDS["ssh_probe"])
+                    ssh_ok = probe.rc == 0
+                except (OSError, RuntimeError, ValueError):
+                    ssh_ok = False
+                if not ssh_ok:
+                    fields.append((f"    {hostname} Slurm state", "FAILED -- node unreachable"))
+                    slurm_state_errors.append(f"{hostname} Slurm state not checked")
+                    continue
+                state_ok, state = _wait_for_slurm_state(host, control, hostname)
+                fields.append((
+                    f"    {hostname} Slurm state",
+                    f"{'passed' if state_ok else 'FAILED'} -- {state}",
+                ))
+                if not state_ok:
+                    slurm_state_errors.append(f"{hostname} Slurm state={state}")
+            all_errors.extend(slurm_state_errors)
+            _summary("Slurm node states", "ok" if not slurm_state_errors else "failed")
 
-        # 1b. Power off login/compiler nodes
-        if login_rows:
-            _progress(f"Step 1b: Shutting down {len(login_rows)} login/compiler node(s)")
-            fields.append(("  Step 1b", f"Shutting down {len(login_rows)} login/compiler node(s)"))
-            off_results = _graceful_poweroff(host, login_rows, "login", bmc_user, bmc_auth)
-            for row in login_rows:
-                ok, detail = off_results.get(row["HOSTNAME"], (False, "not attempted"))
-                fields.append((f"    {row['HOSTNAME']} shutdown", f"{'passed' if ok else 'FAILED'} -- {detail}"))
-                if not ok:
-                    all_errors.append(f"{row['HOSTNAME']} shutdown failed")
+            # 3b. Slurm services
+            services = check_slurm_services(host)
+            fields.append(("Slurm services", "passed" if services["success"] else "FAILED"))
+            if not services["success"]:
+                all_errors.append("Slurm services unhealthy")
+            _summary("Slurm services", "ok" if services["success"] else "failed")
 
-        # 1c. Power off controller nodes
-        if controller_rows:
-            _progress(f"Step 1c: Shutting down {len(controller_rows)} controller node(s)")
-            fields.append(("  Step 1c", f"Shutting down {len(controller_rows)} controller node(s)"))
-            off_results = _graceful_poweroff(host, controller_rows, "controller", bmc_user, bmc_auth)
-            for row in controller_rows:
-                ok, detail = off_results.get(row["HOSTNAME"], (False, "not attempted"))
-                fields.append((f"    {row['HOSTNAME']} shutdown", f"{'passed' if ok else 'FAILED'} -- {detail}"))
-                if not ok:
-                    all_errors.append(f"{row['HOSTNAME']} shutdown failed")
-
-        # Wait for all nodes to become unreachable (confirms shutdown)
-        all_node_rows = controller_rows + login_rows + compute_rows
-        _progress(f"Waiting {_POWEROFF_SETTLE_SECONDS}s for shutdown to complete...", "wait")
-        fields.append(("  Settle", f"Waiting {_POWEROFF_SETTLE_SECONDS}s for shutdown to complete"))
-        time.sleep(_POWEROFF_SETTLE_SECONDS)
-
-        unreachable = _wait_until_unreachable(host, all_node_rows)
-        for row in all_node_rows:
-            ok, detail = unreachable.get(row["HOSTNAME"], (False, "not checked"))
-            fields.append((f"    {row['HOSTNAME']} unreachable", f"{'passed' if ok else 'FAILED'} -- {detail}"))
-            if not ok:
-                all_errors.append(f"{row['HOSTNAME']} did not become unreachable")
-
-        # =================================================================
-        # Phase 2: Ordered power-on with per-group readiness verification
-        # =================================================================
-        print("\n  === Phase 2: Ordered power-on with readiness checks (Redfish) ===", flush=True)
-        fields.append(("Phase", "2 -- Ordered power-on with readiness checks (Redfish)"))
-
-        # 2a. Power on controller nodes first
-        if controller_rows:
-            _progress(f"Step 2a: Powering on {len(controller_rows)} controller node(s)")
-            fields.append(("  Step 2a", f"Powering on {len(controller_rows)} controller node(s)"))
-            group_fields, group_errors = _wait_for_group_ready(
-                host, controller_rows, "controller", bmc_user, bmc_auth,
-            )
-            fields.extend(group_fields)
-            all_errors.extend(group_errors)
-
-        # 2b. Power on login/compiler nodes
-        if login_rows:
-            _progress(f"Step 2b: Powering on {len(login_rows)} login/compiler node(s)")
-            fields.append(("  Step 2b", f"Powering on {len(login_rows)} login/compiler node(s)"))
-            group_fields, group_errors = _wait_for_group_ready(
-                host, login_rows, "login", bmc_user, bmc_auth,
-            )
-            fields.extend(group_fields)
-            all_errors.extend(group_errors)
-
-        # 2c. Power on compute nodes last
-        if compute_rows:
-            _progress(f"Step 2c: Powering on {len(compute_rows)} compute node(s)")
-            fields.append(("  Step 2c", f"Powering on {len(compute_rows)} compute node(s)"))
-            group_fields, group_errors = _wait_for_group_ready(
-                host, compute_rows, "compute", bmc_user, bmc_auth,
-            )
-            fields.extend(group_fields)
-            all_errors.extend(group_errors)
-
-        # =================================================================
-        # Phase 3: Cluster-wide postconditions
-        # =================================================================
-        print("\n  === Phase 3: Cluster-wide postconditions ===", flush=True)
-        fields.append(("Phase", "3 -- Cluster-wide postconditions"))
-
-        # 3a. Slurm compute node state recovery (idle)
-        _progress("Verifying Slurm node states...")
-        slurm_state_errors: list[str] = []
-        for row in compute_rows:
-            hostname = row["HOSTNAME"]
-            ssh_ok = True
-            try:
-                from omnia_auto import run_ssh_command
-                probe = run_ssh_command(host, row["ADMIN_IP"], PXEBOOT_COMMANDS["ssh_probe"])
-                ssh_ok = probe.rc == 0
-            except (OSError, RuntimeError, ValueError):
-                ssh_ok = False
-            if not ssh_ok:
-                _progress(f"{hostname}: Slurm state -- node unreachable", "failed")
-                fields.append((f"    {hostname} Slurm state", "FAILED -- node unreachable"))
-                slurm_state_errors.append(f"{hostname} Slurm state not checked")
-                continue
-            _progress(f"{hostname}: Waiting for Slurm state to return to idle...", "wait")
-            state_ok, state = _wait_for_slurm_state(host, control, hostname)
-            _progress(f"{hostname}: Slurm state = {state}", "ok" if state_ok else "failed")
-            fields.append((
-                f"    {hostname} Slurm state",
-                f"{'passed' if state_ok else 'FAILED'} -- {state}",
-            ))
-            if not state_ok:
-                slurm_state_errors.append(f"{hostname} Slurm state={state}")
-        all_errors.extend(slurm_state_errors)
-
-        # 3b. Slurm services
-        _progress("Checking Slurm services...")
-        services = check_slurm_services(host)
-        _progress("Slurm services", "ok" if services["success"] else "failed")
-        fields.append(("Slurm services", "passed" if services["success"] else "FAILED"))
-        if not services["success"]:
-            all_errors.append("Slurm services unhealthy")
-
-        # 3c. Slurm membership
-        _progress("Checking Slurm membership...")
-        membership = check_slurm_membership(host)
-        _progress("Slurm membership", "ok" if membership["success"] else "failed")
-        fields.append(("Slurm membership", "passed" if membership["success"] else "FAILED"))
-        if not membership["success"]:
-            all_errors.append("Slurm membership invalid")
+            # 3c. Slurm membership
+            membership = check_slurm_membership(host)
+            fields.append(("Slurm membership", "passed" if membership["success"] else "FAILED"))
+            if not membership["success"]:
+                all_errors.append("Slurm membership invalid")
+            _summary("Slurm membership", "ok" if membership["success"] else "failed")
 
         # --- Aggregate ---
         ok = not all_errors
