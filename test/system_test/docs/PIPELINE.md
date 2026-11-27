@@ -80,7 +80,7 @@ use the system CA store.
 
 ## The pipeline of a cluster with several themes
 
-`clusters.<name>.themes` is a comma separated list (`"build_stream,catalog_build"`). They run one
+`clusters.<name>.themes` is a comma separated list (`"catalog_build,cluster_lifecycle,build_stream"`). They run one
 after another in **one pipeline**; a theme runs whether the one before passed or failed.
 `preflight`, `initialization` and `summary` exist **once**; each theme is its own nested pipeline
 that opens when you click it in the GitLab graph.
@@ -115,6 +115,15 @@ that opens when you click it in the GitLab graph.
   initialization started. A theme after the first one starts its own run inside its first stage
   job (`--configure`, `--install --yes`: no cleanup, the installation and the credential stores
   are kept). A retry of that job continues the same run.
+- **build_stream is the last theme and starts from scratch.** `--update` refuses it anywhere
+  else. Its nested pipeline begins with the job `clean_install` (once more the shared cleanup,
+  `omnia.sh -s`, the credentials, the CSI files and the readiness checks, in one job), then
+  `prepare_build_stream`, `build_deploy`, `cadence`, `automatic_cleanup` and `theme_result`. The
+  other themes share the one `initialization`; any of them can run alone. With `build_stream`
+  alone there is no `initialization`, `clean_install` does the work.
+- **One cleanup for every theme.** It is the block at the bottom of `user_inputs.yml`; a
+  `<theme>_test_config.yml` with its own `cleanup:` block fails the `preflight` job before
+  anything is cleaned.
 - **A failed theme does not stop the next one.** If `initialization` fails, no theme runs and only
   the summary runs.
 - **summary** (once): reads every theme's result, builds **one report**,

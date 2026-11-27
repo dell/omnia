@@ -122,6 +122,10 @@ THEMES: Dict[str, Dict] = {
     "build_stream": {
         # Theme name shown on top of the SVT report and in the pipeline email.
         "title": "BuildStream End-to-End Lifecycle",
+        # Starts from scratch: its own first CI job (clean_install) runs the shared cleanup and
+        # omnia.sh -s again, so it must be the first or the last theme of a cluster (the other
+        # themes share one initialization).
+        "clean_install": True,
         "description": "BuildStream: base domains, BuildStream and GitLab, build and "
                        "deploy, cadence, automatic cleanup",
         # dataset_generator/profiles/<profile>.yml: user_inputs.yml -> src inputs.
@@ -562,6 +566,11 @@ def soft_stages(theme: str) -> Tuple[str, ...]:
 def theme_title(theme: str) -> str:
     """Return the display name of ``theme``."""
     return str(THEMES.get(theme, {}).get("title") or theme.replace("_", " ").title())
+
+
+def starts_clean(theme: str) -> bool:
+    """Return whether ``theme`` cleans and installs Omnia again in its own first job."""
+    return bool(THEMES.get(theme, {}).get("clean_install", False))
 
 
 def default_skip_stages(theme: str) -> Tuple[str, ...]:
