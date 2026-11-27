@@ -16,8 +16,8 @@ Runs the complete lifecycle: setup the environment, clean up any previous deploy
 
 **Flow:**
 ```
-initialization > setup_environment > cleanup_<domains> > cleanup_omnia >
-setup_main > test_main > deploy_<domains> > test_<domains> > summary
+initialization > cleanup_<domains> > test_cleanup_<domains> > cleanup_omnia > test_cleanup_omnia >
+setup_main > test_main_installation > <domains> > test_<domains> > summary
 ```
 
 **Example:**
@@ -49,7 +49,7 @@ pipeline:
   test_mode: "false"
 ```
 
-If the target does not have Omnia installed yet, add `enable_setup: "true"` to force the setup_environment stage:
+If the target does not have Omnia installed yet, add `enable_setup: "true"` to run the install (`setup_main`: `omnia.sh -s`) in this mode:
 
 ```yaml
 pipeline:
@@ -68,8 +68,7 @@ Runs domain-specific cleanup playbooks (`--tags cleanup`) and optionally runs `o
 
 **Flow:**
 ```
-initialization > setup_environment (if enable_setup) > cleanup_<domains> >
-cleanup_omnia (only if domains=default) > summary
+initialization > cleanup_<domains> > test_cleanup_<domains> > cleanup_omnia > test_cleanup_omnia (only if domains=default) > summary
 ```
 
 **Example — clean up everything:**
@@ -221,7 +220,8 @@ skip_stages: "image_build_manager,telemetry"
 
 **Valid values for `skip_stages`:**
 - `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `telemetry`, `build_stream` — skips cleanup + deploy + test for that domain
-- `setup_environment`, `setup_main`, `cleanup_omnia` — skips that specific stage
+- `setup_main`, `test_main_installation`, `cleanup_omnia` — skips that specific stage
+- `nfs_check` — skips the NFS check inside `initialization`; `inputs` — skips the input copy inside `setup_main`
 
 ---
 
@@ -232,33 +232,46 @@ The pipeline runs these stages in order. Which stages actually execute depends o
 ```
  Stage                         Mode: default   deploy   cleanup
  ─────────────────────────────────────────────────────────────────
- 1. initialization                  Y            Y        Y
- 2. setup_environment               Y          (opt)    (opt)
- 3. cleanup_build_stream            Y                     Y
- 4. cleanup_repo_manager            Y                     Y
- 5. cleanup_image_build_manager     Y                     Y
- 6. cleanup_orchestrator            Y                     Y
- 7. cleanup_discovery               Y                     Y
- 8. cleanup_telemetry               Y                     Y
- 9. cleanup_omnia                   Y                     Y
-10. setup_main                      Y
-11. test_main_installation        (test)       (test)
-12. repo_manager                    Y            Y
-13. test_repo_manager             (test)       (test)
-14. image_build_manager             Y            Y
-15. test_image_build_manager      (test)       (test)
-16. discovery                     (disc)       (disc)
-17. test_discovery                (disc+test)  (disc+test)
-18. orchestrator                    Y            Y
-19. test_orchestrator             (test)       (test)
-20. telemetry                       Y            Y
-21. test_telemetry                (test)       (test)
-22. summary                         Y            Y        Y
+ 1. initialization                    Y          Y     Y
+ 2. cleanup_build_stream              Y                Y
+ 3. test_cleanup_build_stream         Y                Y
+ 4. cleanup_utils                     Y                Y
+ 5. test_cleanup_utils                Y                Y
+ 6. cleanup_telemetry                 Y                Y
+ 7. test_cleanup_telemetry            Y                Y
+ 8. cleanup_orchestrator              Y                Y
+ 9. test_cleanup_orchestrator         Y                Y
+10. cleanup_discovery                 Y                Y
+11. test_cleanup_discovery            Y                Y
+12. cleanup_image_build_manager       Y                Y
+13. test_cleanup_image_build_manager  Y                Y
+14. cleanup_repo_manager              Y                Y
+15. test_cleanup_repo_manager         Y                Y
+16. cleanup_omnia                     Y                Y  (DOMAINS=default)
+17. test_cleanup_omnia                Y                Y  (DOMAINS=default)
+18. setup_main                        Y       (inputs) (opt)
+19. test_main_installation          (test)     (test)
+20. repo_manager                      Y          Y
+21. test_repo_manager               (test)     (test)
+22. image_build_manager               Y          Y
+23. test_image_build_manager        (test)     (test)
+24. discovery                       (disc)     (disc)
+25. test_discovery               (disc+test)  (disc+test)
+26. orchestrator                      Y          Y
+27. pxeboot                           Y          Y  (after orchestrator passed)
+28. test_orchestrator               (test)     (test)  (after pxeboot passed)
+29. telemetry                         Y          Y
+30. test_telemetry                  (test)     (test)
+31. summary                           Y          Y     Y
 ```
+
+A failed cleanup or cleanup test does not stop the other ones, but `cleanup_omnia`, the install and every later stage are skipped and `summary` runs and fails the pipeline. Each `test_cleanup_<domain>` runs right after its `cleanup_<domain>` and has the same domain selection.
+See [CLUSTER_PIPELINE.md](CLUSTER_PIPELINE.md) for how each stage works.
 
 Legend:
 - `Y` = stage runs
-- `(opt)` = runs only if `ENABLE_SETUP=true`
+- `(opt)` = runs only if `ENABLE_SETUP=true` (install only)
+- `(inputs)` = in `deploy` mode `setup_main` only copies the inputs (no install)
 - `(test)` = runs only if `TEST_MODE=true`
 - `(disc)` = runs only if `ENABLE_DISCOVERY=true` and domain matches
 - `(disc+test)` = runs only if `ENABLE_DISCOVERY=true`, `TEST_MODE=true`, and domain matches
@@ -269,16 +282,16 @@ Legend:
 
 | Stage | Description |
 |---|---|
-| **initialization** | Loads cluster config from CI/CD variables, validates SSH connectivity, checks OpenBao reachability, writes `target.env` for downstream stages |
-| **setup_environment** | Clones Omnia repo on target, copies `omnia.env`, runs `omnia.sh -s` to build venv, copies catalog file |
-| **cleanup_\<domain\>** | Runs the domain's cleanup playbook (`--tags cleanup`). Non-fatal — first run has nothing to clean |
-| **cleanup_omnia** | Runs `omnia.sh --cleanup --all` to destroy venv and data. Only runs when `DOMAINS=default` |
-| **setup_main** | Rebuilds the venv after `cleanup_omnia` destroyed it. Re-copies `omnia.env` and catalog |
-| **test_main_installation** | Installs the test venv and runs `run_validation.sh fvt_main verify` |
-| **\<domain\>** | Copies input files to target, fetches credentials from OpenBao (JWT auth), encrypts with ansible-vault, runs the domain playbook |
-| **discovery** | Runs discovery playbook after image_build_manager. Only runs when `ENABLE_DISCOVERY=true` and domain matches |
-| **test_\<domain\>** | Copies test config to target, installs test venv, runs domain validation tests. Non-fatal |
-| **cleanup_discovery** | Runs discovery cleanup playbook (`--tags cleanup`). Always runs regardless of `ENABLE_DISCOVERY` |
+| **initialization** | One stage: the clone of Omnia on the OIM and the pipeline helpers taken from it, the checks of the CI/CD variables, the OIM host key, the input folders and SSH, the commit and `omnia.env`, and (`DOMAINS=default`) the read-only NFS check, so an unreachable share stops the run before anything is deleted. Nothing secret is written to an artifact |
+| **cleanup_\<domain\>** | Runs the cleanup playbook with `./omnia.sh --run <domain> --tags <cleanup tag>` in the Omnia venv, with the flags of the cluster's `test_config.yml`; no test runs. Every cleanup runs even after one failed; nothing is installed after a failure. First run: nothing to clean |
+| **test_cleanup_\<domain\>** | Runs `fvt_<domain> cleanup verify` in the Omnia venv (utils: only its combined cleanup tests) with the pipeline id as the report id. The orchestrator one also empties the Slurm and K8s NFS shares. Needs the marker of its cleanup |
+| **test_cleanup_omnia** | Runs `fvt_main cleanup verify` from the `test/main` venv: what the Omnia reset must have left. Only runs when `DOMAINS=default`; needs the marker of `cleanup_omnia` |
+| **cleanup_omnia** | Runs `omnia.sh --cleanup --all` (`fvt_main cleanup exec`). Not run when `cleanup_orchestrator` or `test_cleanup_orchestrator` failed (the latter empties the Slurm and K8s NFS shares). Only runs when `DOMAINS=default` |
+| **setup_main** | Runs `omnia.sh -s` (the Omnia venv and every `domain-init`) in `default` mode or with `ENABLE_SETUP=true`, then copies `clusters/<name>/inputs/src/<domain>/` of every deploy domain and the catalog to the OIM in `default` and `deploy` mode |
+| **test_main_installation** | Runs `run_validation.sh fvt_main verify` in the Omnia venv |
+| **\<domain\>** | Fetches the domain credentials from OpenBao (JWT auth), encrypts them with ansible-vault, runs every playbook tag one by one with `./omnia.sh --run <domain> --tags <tag>`. A failure stops the pipeline |
+| **test_\<domain\>** | Copies the test config and credentials to the OIM and runs the verify command in the Omnia venv. A failure does not stop the next domain; it does not run when the domain exec failed |
+| **discovery** | As `<domain>`, after image_build_manager. Only runs when `ENABLE_DISCOVERY=true` and the domain matches |
 | **summary** | Generates a pipeline report and sends email notification |
 
 ---
