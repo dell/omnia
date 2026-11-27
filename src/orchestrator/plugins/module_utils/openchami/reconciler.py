@@ -226,11 +226,13 @@ class OpenChamiReconciler:
         self,
         nodes,
         check_mode=False,
+        xname_hints=None,
     ):
         """Resolve XNAMEs from native SMD Service Tag FRU records."""
         return SMDIdentityResolver(self.smd).resolve_nodes(
             nodes=nodes,
             check_mode=check_mode,
+            xname_hints=xname_hints or {},
         )
 
     def reconcile_groups(self, desired: Iterable[dict[str, Any]], check_mode=False):

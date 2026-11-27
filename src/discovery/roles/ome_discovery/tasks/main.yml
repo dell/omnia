@@ -29,6 +29,9 @@
     - name: Generate PXE mapping file
       ansible.builtin.include_tasks: generate_pxe_mapping.yml
 
+    - name: Generate XNAME mapping file from OME location data
+      ansible.builtin.include_tasks: generate_xname_mapping.yml
+
     - name: Generate BMC discovery report
       ansible.builtin.include_tasks: generate_discovery_report.yml
 
@@ -38,6 +41,8 @@
           overall_status: "success"
           discovery_mechanism: "ome"
           bmc_pxe_mapping_file: "{{ pxe_mapping_output_file | default('') }}"
+          xname_mapping_file: "{{ xname_mapping_output_file | default('') }}"
+          xname_mode: "{{ xname_mapping_result.xname_mode | default('unknown') }}"
           servers_discovered: {{ discovered_servers | default([]) | length }}
           timestamp: "{{ ansible_date_time.iso8601 | default('unknown') }}"
         dest: >-

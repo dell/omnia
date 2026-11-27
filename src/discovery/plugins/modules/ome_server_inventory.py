@@ -320,6 +320,86 @@ class OMEClient:
             return response.json().get("value", [])
         return []
 
+    def get_group_inventory_details(self, group_id):
+        """Fetch InventoryDetails for all devices in a group (bulk).
+
+        Uses the group-level InventoryDetails endpoint which returns
+        inventory data for every device in the group in a single call,
+        avoiding per-device API requests.
+
+        Returns:
+            list: Raw InventoryDetails response value, or empty list on failure.
+        """
+        url = f"{self.base_url}/api/GroupService/Groups({group_id})/InventoryDetails"
+        try:
+            response = self._request_with_retry("GET", url)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("value", data) if isinstance(data, dict) else data
+        except Exception as exc:
+            logger.warning("Failed to fetch group %s InventoryDetails: %s",
+                           group_id, type(exc).__name__)
+        return []
+
+    def build_device_location_map(self, target_groups, device_ids):
+        """Build a device_id -> location dict from OME deviceLocation inventory.
+
+        Strategy:
+          1. Bulk fetch: one GET Groups({id})/InventoryDetails per static group,
+             filter for InventoryType == "deviceLocation".
+          2. Per-device fallback: for any device_id not covered by group responses,
+             GET Devices({id})/InventoryDetails('deviceLocation').
+
+        Args:
+            target_groups: list of OME group dicts (must have 'Id' key).
+            device_ids: set of all device IDs that need location data.
+
+        Returns:
+            dict: device_id -> {"aisle": str, "rack": str, "rackslot": str}
+        """
+        location_map = {}
+
+        # Step 1: bulk fetch per group
+        for group in target_groups:
+            group_id = group.get("Id")
+            if not group_id:
+                continue
+            inventory_entries = self.get_group_inventory_details(group_id)
+            if not isinstance(inventory_entries, list):
+                continue
+            for entry in inventory_entries:
+                dev_id = entry.get("DeviceId")
+                if not dev_id or dev_id in location_map:
+                    continue
+                for inv in entry.get("InventoryDetails", []):
+                    if inv.get("InventoryType") != "deviceLocation":
+                        continue
+                    for item in inv.get("InventoryInfo", []):
+                        location_map[dev_id] = {
+                            "aisle": str(item.get("Aisle", "") or "").strip(),
+                            "rack": str(item.get("Rack", "") or "").strip(),
+                            "rackslot": str(item.get("Rackslot", "") or "").strip(),
+                        }
+                        break  # first deviceLocation entry per device
+                    break  # first deviceLocation inventory block
+
+        # Step 2: per-device fallback for devices not found in group responses
+        missing_ids = device_ids - set(location_map)
+        for dev_id in missing_ids:
+            loc_inv = self.get_device_inventory(dev_id, "deviceLocation")
+            info_list = loc_inv.get("InventoryInfo", [])
+            if info_list and isinstance(info_list, list):
+                item = info_list[0]
+                location_map[dev_id] = {
+                    "aisle": str(item.get("Aisle", "") or "").strip(),
+                    "rack": str(item.get("Rack", "") or "").strip(),
+                    "rackslot": str(item.get("Rackslot", "") or "").strip(),
+                }
+            else:
+                location_map[dev_id] = {"aisle": "", "rack": "", "rackslot": ""}
+
+        return location_map
+
     def build_device_group_map(self):
         """Build a device_id -> group_name map from Custom Groups -> Static Groups in OME.
 
@@ -328,11 +408,12 @@ class OMEClient:
         Fallback: skip well-known OME system/container group names and use any group
         that has at least one device.
 
-        Returns (device_group_map, conflicts, debug):
+        Returns (device_group_map, conflicts, debug, target_groups):
             device_group_map: dict mapping device_id -> first group_name
             conflicts: dict mapping device_id -> list of all group_names (only for
                        devices found in more than one static group)
             debug: diagnostic info dict
+            target_groups: list of target group dicts (for location fetch)
         """
         device_group_map = {}
         device_all_groups = {}
@@ -419,10 +500,10 @@ class OMEClient:
             "empty_groups": empty_groups,
             "conflicting_device_count": len(conflicts),
         }
-        return device_group_map, conflicts, debug
+        return device_group_map, conflicts, debug, target_groups
 
 
-def extract_server_info(client, device, device_group_map=None):
+def extract_server_info(client, device, device_group_map=None, device_location_map=None):
     """Extract required fields from device and its inventory."""
     device_id = device.get("Id")
 
@@ -438,7 +519,10 @@ def extract_server_info(client, device, device_group_map=None):
         "first_nic_link_status": "",
         "group_name": "",
         "ib_nic_name": "",
-        "ib_nic_link_status": ""
+        "ib_nic_link_status": "",
+        "aisle": "",
+        "rack": "",
+        "rackslot": ""
     }
 
     # Get management IP from device info
@@ -568,6 +652,13 @@ def extract_server_info(client, device, device_group_map=None):
     if device_group_map:
         info["group_name"] = device_group_map.get(device_id, "")
 
+    # Get physical location from pre-built device→location map
+    if device_location_map:
+        location = device_location_map.get(device_id, {})
+        info["aisle"] = location.get("aisle", "")
+        info["rack"] = location.get("rack", "")
+        info["rackslot"] = location.get("rackslot", "")
+
     return info
 
 
@@ -613,7 +704,7 @@ def main():
             ))
 
         devices, pagination_stats = client.get_all_devices(device_type)
-        device_group_map, conflicts, group_debug = client.build_device_group_map()
+        device_group_map, conflicts, group_debug, target_groups = client.build_device_group_map()
 
         if not group_debug["static_container_found"]:
             module.warn("OME: 'Static Groups' container not found under Custom Groups. "
@@ -643,9 +734,13 @@ def main():
                 + "\nPlease fix the group assignments in OME and rerun discovery."
             ))
 
+        # Fetch physical location data (aisle/rack/rackslot) for all devices
+        all_device_ids = {d.get("Id") for d in devices if d.get("Id")}
+        device_location_map = client.build_device_location_map(target_groups, all_device_ids)
+
         server_info_list = []
         for device in devices:
-            info = extract_server_info(client, device, device_group_map)
+            info = extract_server_info(client, device, device_group_map, device_location_map)
             if info["service_tag"]:  # Only include devices with valid service tags
                 server_info_list.append(info)
 

@@ -347,6 +347,7 @@ def main():
                 "elements": "str",
                 "default": [],
             },
+            "xname_hints": {"type": "dict", "default": {}},
             "timeout": {"type": "int", "default": 15},
             "retries": {"type": "int", "default": 3},
         },
@@ -368,6 +369,7 @@ def main():
             result = reconciler.resolve_identities(
                 nodes=_required(module, "nodes"),
                 check_mode=module.check_mode,
+                xname_hints=module.params.get("xname_hints") or {},
             )
         elif action == "reconcile_groups":
             result = reconciler.reconcile_groups(
