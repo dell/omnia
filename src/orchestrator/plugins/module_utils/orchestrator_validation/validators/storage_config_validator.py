@@ -23,6 +23,7 @@ from logging import Logger
 from typing import Any
 
 from ..messages import orchestrator_messages as msg
+from .local_disk_map import is_disabled, override_covers, parse_node_range
 from .network_spec_validator import record_error
 from .pxe_mapping_validator import (
     BASE_HEADERS,
@@ -347,7 +348,7 @@ def _check_local_storage_disks(
 ) -> None:
     """Reject one declared disk used for both etcd and kafka on a node."""
     for override in overrides:
-        if not isinstance(override, dict):
+        if not isinstance(override, dict) or is_disabled(override):
             continue
         disk = (str(override.get("node", "")), str(override.get("disk_id", "")))
         owner_purpose, owner_name = disk_owners.setdefault(disk, (purpose, entry_name))
@@ -397,6 +398,32 @@ def _validate_local_storage(
         _check_local_storage_disks(
             name, purpose, entry.get("node_overrides", []), disk_owners, errors, logger
         )
+        _check_local_storage_disabled(
+            name, purpose, entry.get("node_overrides", []), errors, logger
+        )
+
+
+def _check_local_storage_disabled(
+    entry_name: str,
+    purpose: str,
+    overrides: list[Any],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Check enabled: false overrides and IP ranges in node_overrides."""
+    for override in overrides:
+        if not isinstance(override, dict):
+            continue
+        node = str(override.get("node", ""))
+        if is_disabled(override) and purpose == "etcd":
+            record_error(errors, logger, msg.local_storage_disabled_etcd_msg(entry_name, node))
+        try:
+            bounds = parse_node_range(node)
+        except ValueError as exc:
+            record_error(errors, logger, msg.local_storage_bad_range_msg(entry_name, node, str(exc)))
+            continue
+        if bounds is not None and not is_disabled(override):
+            record_error(errors, logger, msg.local_storage_range_not_disabled_msg(entry_name, node))
 
 
 def _validate_local_storage_nodes(
@@ -420,15 +447,35 @@ def _validate_local_storage_nodes(
         for name, entry in labelled
     }
     for name, entry in labelled:
-        for override in entry.get("node_overrides", []):
-            node = override.get("node", "") if isinstance(override, dict) else ""
-            if node_groups.get(node) not in targets[name]:
+        overrides = [item for item in entry.get("node_overrides", []) if isinstance(item, dict)]
+        prefixes = entry.get("functional_group_prefix", [])
+        group_nodes = sorted(node for node, group in node_groups.items() if group in targets[name])
+        for override in overrides:
+            node = str(override.get("node", ""))
+            try:
+                bounds = parse_node_range(node)
+            except ValueError:
+                continue  # reported by _check_local_storage_disabled
+            if bounds is not None:
+                if not any(override_covers(override, member) for member in group_nodes):
+                    record_error(
+                        errors, logger, msg.local_storage_range_no_match_msg(name, node, prefixes)
+                    )
+            elif node_groups.get(node) not in targets[name]:
                 record_error(
                     errors,
                     logger,
-                    msg.local_storage_override_group_msg(
-                        name, node, entry.get("functional_group_prefix", [])
-                    ),
+                    msg.local_storage_override_group_msg(name, node, prefixes),
+                )
+        for member in group_nodes:
+            covering = [
+                str(item.get("node", "")) for item in overrides if override_covers(item, member)
+            ]
+            if len(covering) > 1:
+                record_error(
+                    errors,
+                    logger,
+                    msg.local_storage_override_conflict_msg(name, member, covering),
                 )
     for node, group in sorted(node_groups.items()):
         by_purpose: dict[str, list[str]] = defaultdict(list)

@@ -142,3 +142,49 @@ def test_status_files_are_written_per_node_and_listed(tmp_path):
     assert view["10.60.0.13"]["result"] == "failed"
     assert view["10.60.0.13"]["reason"] == "disk not found"
     assert view["10.60.0.13"]["action"] == "fix the disk"
+
+
+def test_disabled_overrides_expand_ranges_into_disabled_rows():
+    """ORCH_UT_479: enabled false (one IP or a range) gives rows with enabled false; others are unchanged."""
+    node_groups = {f"10.60.0.{last}": KUBE_NODE_GROUP for last in (11, 13, 20, 21, 30)}
+    local_storage = [{
+        "name": "kafka_disk", "purpose": "kafka", "disk_type": "nvme", "disk_identity": "serial",
+        "functional_group_prefix": ["service_kube_node"],
+        "node_overrides": [
+            {"node": "10.60.0.13", "disk_id": "S4EVNX0R901234"},
+            {"node": "10.60.0.20-10.60.0.25", "enabled": False},
+            {"node": "10.60.0.30", "enabled": False},
+        ],
+    }]
+
+    rows = {row["node"]: row for row in local_disk_map.build_map_rows(local_storage, node_groups, KNOWN_GROUPS)}
+
+    assert {node for node, row in rows.items() if row.get("enabled") is False} == {
+        "10.60.0.20", "10.60.0.21", "10.60.0.30",
+    }
+    assert "enabled" not in rows["10.60.0.11"]
+    assert rows["10.60.0.13"]["disk_id"] == "S4EVNX0R901234"
+    assert "enabled" not in rows["10.60.0.13"]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("10.60.0.5", None),
+        ("10.60.0.5-10.60.0.5", (0x0A3C0005, 0x0A3C0005)),
+        ("10.60.0.250-10.60.1.10", (0x0A3C00FA, 0x0A3C010A)),
+    ],
+)
+def test_node_range_parsing(value, expected):
+    """ORCH_UT_480: One IP is not a range; start-end ranges parse, including across a /24."""
+    assert local_disk_map.parse_node_range(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value", ["10.60.0.9-10.60.0.1", "10.60.0.1-10.60.1.1", "10.60.0.x-10.60.0.9", "a-b"],
+    ids=["reversed", "too-large", "not-ip", "names"],
+)
+def test_bad_node_range_is_rejected(value):
+    """ORCH_UT_481: Reversed, oversized (>256) and non-IP ranges are refused."""
+    with pytest.raises(ValueError):
+        local_disk_map.parse_node_range(value)

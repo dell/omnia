@@ -136,7 +136,8 @@ def check_kubernetes_kafka_disk_status(host) -> Dict[str, Any]:  # pylint: disab
     For every Kafka-declared worker node reads status-<ip>.json from the NFS
     share and verifies:
       - the file exists and is valid JSON
-      - the 'result' field is 'ok' or 'failed'
+      - the 'result' field is 'ok', 'failed' or 'disabled'
+        ('disabled' = node_overrides enabled: false; no disk is prepared)
       - when result='failed', an ERROR log line exists in the disk-prep log
     """
     summary = "Kafka per-node disk status file"
@@ -177,7 +178,7 @@ def check_kubernetes_kafka_disk_status(host) -> Dict[str, Any]:  # pylint: disab
                 continue
 
             result = str(status_data.get("result", ""))
-            if result not in ("ok", "failed"):
+            if result not in ("ok", "failed", "disabled"):
                 outcomes[hostname] = (
                     False,
                     f"unexpected result value: {result!r}",
@@ -185,8 +186,9 @@ def check_kubernetes_kafka_disk_status(host) -> Dict[str, Any]:  # pylint: disab
                 continue
 
             if result == "failed":
+                # The disk-prep log is node-local: read it on the failed node.
                 log_cmd = PXEBOOT_COMMANDS["kafka_error_log"] % node_ip
-                log_out = remote_command(host, control, log_cmd)
+                log_out = remote_command(host, row, log_cmd)
                 has_error_line = log_out.rc == 0 and "ERROR" in log_out.stdout
                 ok = has_error_line
                 detail = (
@@ -195,7 +197,7 @@ def check_kubernetes_kafka_disk_status(host) -> Dict[str, Any]:  # pylint: disab
                 )
             else:
                 ok = True
-                detail = "result=ok"
+                detail = f"result={result}"
 
             outcomes[hostname] = (ok, detail)
 

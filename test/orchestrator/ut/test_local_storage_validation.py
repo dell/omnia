@@ -241,3 +241,56 @@ def test_every_declaration_error_is_listed_together(project_dir):
     assert "kafka_cp" in joined
     assert "nofail" in joined
     assert "kafka_out" in joined
+
+
+@pytest.mark.parametrize(
+    ("override", "valid"),
+    [
+        ({"node": "10.60.0.11", "enabled": False}, True),
+        ({"node": "10.60.0.10-10.60.0.12", "enabled": False}, True),
+        ({"node": "10.60.0.11", "disk_id": "S1", "enabled": True}, True),
+        ({"node": "10.60.0.11", "enabled": False, "disk_id": "S1"}, False),
+        ({"node": "10.60.0.11", "enabled": False, "disk_type": "ssd"}, False),
+        ({"node": "10.60.0.11", "enabled": True}, False),
+        ({"node": "10.60.0.11"}, False),
+        ({"node": "10.60.0.11", "enabled": "no"}, False),
+    ],
+    ids=["disabled", "disabled-range", "enabled-true-with-disk", "disabled-with-disk-id",
+         "disabled-with-disk-type", "enabled-true-without-disk", "no-disk-id", "enabled-not-bool"],
+)
+def test_node_override_schema_for_enabled(override, valid):
+    """ORCH_UT_482: enabled false needs no disk fields and allows none; otherwise disk_id is required."""
+    assert (_schema_errors([_kafka(node_overrides=[override])]) == []) is valid
+
+
+def test_disabled_range_covering_a_group_node_passes(project_dir):
+    """ORCH_UT_483: A disabled range that covers a worker passes semantic validation."""
+    entries = [_etcd(), _kafka(node_overrides=[{"node": "10.60.0.10-10.60.0.12", "enabled": False}])]
+
+    assert _schema_errors(entries) == []
+    assert _semantic_errors(entries, project_dir) == []
+
+
+@pytest.mark.parametrize(
+    ("entries", "fragments"),
+    [
+        ([_etcd(node_overrides=[{"node": "10.60.0.2", "enabled": False}])],
+         ["etcd_disk", "allowed only for purpose 'kafka'"]),
+        ([_kafka(node_overrides=[{"node": "10.60.0.10-10.60.0.12", "disk_id": "S1"}])],
+         ["10.60.0.10-10.60.0.12", "allowed only with enabled: false"]),
+        ([_kafka(node_overrides=[{"node": "10.60.0.12-10.60.0.10", "enabled": False}])],
+         ["not a valid IP range", "start is after end"]),
+        ([_kafka(node_overrides=[{"node": "10.60.0.50-10.60.0.60", "enabled": False}])],
+         ["matches no node", "10.60.0.50-10.60.0.60"]),
+        ([_kafka(node_overrides=[{"node": "10.60.0.11", "disk_id": "S1"},
+                                 {"node": "10.60.0.10-10.60.0.12", "enabled": False}])],
+         ["10.60.0.11", "more than one node_overrides entry"]),
+    ],
+    ids=["etcd-disabled", "range-with-disk-id", "reversed-range", "range-no-match", "override-conflict"],
+)
+def test_disabled_and_range_rules_reject_invalid_overrides(entries, fragments, project_dir):
+    """ORCH_UT_484: Each enabled/range rule rejects its violation with a message naming it."""
+    joined = " ".join(_semantic_errors(entries, project_dir))
+
+    for fragment in fragments:
+        assert fragment in joined, joined
