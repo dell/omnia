@@ -23,6 +23,7 @@ Validates that the cleanup_install_os tag properly cleans OS installation artifa
 """
 
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -115,7 +116,7 @@ def test_cleanup_install_os_nfs_unmounted(host):
     # The NFS mount is only created during install_os deployment
     nfs_path = "/run/omnia/mnt/install_os_nfs"
     check_cmd = f"test -d {nfs_path} || mount | grep -q '{nfs_path}'"
-    check_result = host.run(check_cmd)
+    check_result = run_on_host(host, check_cmd)
 
     if check_result.rc != 0:
         tl.info(f"NFS mount point {nfs_path} was never created (install_os not run)")

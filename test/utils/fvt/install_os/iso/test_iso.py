@@ -19,6 +19,7 @@ Verifies ISO configuration files, credentials, and output artifacts.
 """
 
 import pytest
+from omnia_auto import run_on_host
 
 from library.functions import (
     TestLogger,
@@ -314,19 +315,19 @@ def test_install_os_grub_config_in_iso(host):
 
     # Use xorriso to extract and verify GRUB config from ISO
     try:
-        which = host.run("command -v xorriso 2>/dev/null")
+        which = run_on_host(host, "command -v xorriso 2>/dev/null")
         if which.rc != 0:
             tl.skipped("xorriso not available, skipping GRUB config verification")
             pytest.skip("xorriso not available")
 
         # Extract EFI GRUB config from ISO to temp file
         cmd = f"xorriso -osirrox on -indev '{iso_path}' -extract /EFI/BOOT/grub.cfg /tmp/grub_efi_test.cfg 2>&1"
-        result = host.run(cmd)
+        result = run_on_host(host, cmd)
 
         if result.rc == 0:
             # Read the extracted config
             read_cmd = "cat /tmp/grub_efi_test.cfg"
-            read_result = host.run(read_cmd)
+            read_result = run_on_host(host, read_cmd)
 
             if read_result.rc == 0 and read_result.stdout:
                 # Check if GRUB config contains expected kickstart reference
@@ -454,7 +455,7 @@ def test_install_os_iso_checksum(host):
         # No expected checksum available, just compute and log it
         tl.info("No expected checksum in manifest, computing current checksum")
         try:
-            stat_result = host.run(f"sha256sum {iso_path}")
+            stat_result = run_on_host(host, f"sha256sum {iso_path}")
             if stat_result.rc == 0:
                 checksum = stat_result.stdout.split()[0]
                 tl.info(f"ISO SHA256 checksum: {checksum}")
