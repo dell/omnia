@@ -113,6 +113,26 @@ REGISTRY_IMAGE = "docker.io/library/registry:3.1.2"
 
 REGISTRY_PORT = 5000
 
+# OCI boot-ready check fixtures (FR-1.5): crafted from a real base image, never
+# from production tags, and removed by manifest digest after each test.
+BOOT_REGISTRY_HOST = f"localhost:{REGISTRY_PORT}"
+BOOT_FIXTURE_NAMESPACE = "zz-fvt-boot-ready"
+BOOT_BASE_REPO_MARKER = "base-imgth"
+BOOT_REGCTL_BIN = "/usr/local/bin/regctl"
+BOOT_CHECK_TIMEOUT = 240
+# kind -> (whiteout directory, whiteout name, expected missing path)
+BOOT_FIXTURE_KINDS = {
+    "no_initramfs": (
+        "boot", ".wh.initramfs-{version}.img", "boot/initramfs-{version}.img",
+    ),
+    "no_modules": (
+        "usr/lib/modules", ".wh.{version}", "lib/modules/{version}",
+    ),
+    "kernel_removed": (
+        "boot", ".wh.vmlinuz-{version}", "boot/vmlinuz-*",
+    ),
+}
+
 S3_EXPECTED_BUCKETS = [
     "s3://boot-images",
     "s3://efi",
@@ -345,4 +365,43 @@ CMDS = {
         "podman ps -a --format '{{{{.Names}}}} {{{{.Status}}}}'"
         " --filter name=^{container}$ 2>/dev/null"
     ),
+    # --- OCI boot-ready check (FR-1.5) ---
+    "boot_cfg_path": "mktemp /tmp/fvt_regctl_XXXXXX.json",
+    "boot_regctl_set_tls": (
+        "REGCTL_CONFIG={cfg} regctl registry set --tls disabled {registry}"
+    ),
+    "boot_catalog": "curl -s -m 10 http://{registry}/v2/_catalog",
+    "boot_tags": "curl -s -m 10 http://{registry}/v2/{repo}/tags/list",
+    "boot_ready_check": (
+        "ANSIBLE_LIBRARY={src}/plugins/modules"
+        " ANSIBLE_MODULE_UTILS={src}/plugins/module_utils"
+        " REGCTL_CONFIG={cfg} ansible localhost -m oci_boot_ready_check"
+        " -a 'image_repo={repo} image_ref={ref} regctl_bin={regctl}"
+        " timeout_seconds={timeout}' 2>&1"
+    ),
+    "boot_layers": (
+        "REGCTL_CONFIG={cfg} regctl manifest get {ref}"
+        " --format '{{{{range .Layers}}}}{{{{.Digest}}}} {{{{end}}}}'"
+    ),
+    "boot_image_digest": "REGCTL_CONFIG={cfg} regctl image digest {ref}",
+    "boot_image_mod_layer": (
+        "REGCTL_CONFIG={cfg} regctl image mod {base} --create {target}"
+        " --layer-add tar={tar} 2>&1"
+    ),
+    "boot_manifest_delete": (
+        "REGCTL_CONFIG={cfg} regctl manifest delete {repo}@{digest} 2>&1"
+    ),
+    "boot_stage_layer": (
+        "rm -rf {stage} && mkdir -p {stage}/{dir} && touch {stage}/{dir}/{name}"
+        " && tar -C {stage} -cf {tar} ."
+    ),
+    "boot_registry_data_dir": (
+        "podman inspect registry"
+        " --format '{{{{range .Mounts}}}}{{{{.Source}}}}{{{{end}}}}'"
+    ),
+    "boot_count_blob_dirs": (
+        "find {data}/docker/registry/v2/blobs/sha256 -type d -name {hex}"
+        " | wc -l"
+    ),
+    "boot_cleanup_files": "rm -rf {stage} {tar} {cfg}",
 }

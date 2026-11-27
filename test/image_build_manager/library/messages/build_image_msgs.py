@@ -369,6 +369,12 @@ TEST_LOG_MSGS = {
     "admin_ip_not_assigned": "Admin IP not assigned to any interface",
     "omnia_setup_ok": "omnia.sh setup completed",
     "omnia_setup_incomplete": "omnia.sh setup incomplete",
+
+    # OCI boot-ready contract
+    "oci_boot_ready_ok": "Boot set accepted: {versions}",
+    "oci_boot_ready_rejected": "Image {kind} rejected, missing {path}",
+    "oci_layers_ok": "{shared} base layer(s) preserved and stored once",
+    "oci_layers_bad": "Layer preservation or sharing check failed",
 }
 
 # =============================================================================
@@ -579,6 +585,12 @@ TEST_ASSERT_MSGS = {
         "\u2551   2. Verify: /etc/omnia/omnia.env exists\n"
         "\u2551   3. Verify: /etc/profile.d/omnia-env.sh exists\n"
         "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "oci_boot_ready_failed": (
+        "OCI boot-ready check did not behave as required: {error}"
+    ),
+    "oci_layers_failed": (
+        "OCI layer preservation or sharing check failed: {error}"
     ),
 }
 
