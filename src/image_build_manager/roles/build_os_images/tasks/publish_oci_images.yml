@@ -38,7 +38,6 @@
       {{ _catalog_image_group_id
          if (_pkg_source == 'catalog' and (_catalog_image_group_id | default('', true) | length) > 0)
          else 'config' }}
-    _ext_oci_created: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
     _ext_oci_job_id: "{{ _job_id if (_job_id | default('', true) | length) > 0 else 'manual' }}"
 
 - name: Set the provenance tags shared by every functional group

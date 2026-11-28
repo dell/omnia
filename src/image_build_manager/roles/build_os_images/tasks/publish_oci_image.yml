@@ -42,7 +42,7 @@
     _fg_annotations:
       org.opencontainers.image.source: "{{ _ext_oci_source }}"
       org.opencontainers.image.revision: "{{ _ext_oci_source | hash('sha256') }}"
-      org.opencontainers.image.created: "{{ _ext_oci_created }}"
+      org.opencontainers.image.created: "{{ _fg_created }}"
       org.opencontainers.image.version: "{{ omnia_version | string }}"
       org.opencontainers.image.vendor: "{{ ext_oci_vendor }}"
       io.dell.omnia.functional_group: "{{ fg_item.key }}"
@@ -73,6 +73,22 @@
             image_ref: "{{ _fg_local_ref }}"
             regctl_bin: "{{ ext_oci_regctl_bin }}"
             timeout_seconds: "{{ ext_oci_registry.timeout_seconds | default(300) | int }}"
+
+        - name: Read the image config created time of the local OCI image
+          ansible.builtin.command:
+            argv:
+              - "{{ ext_oci_regctl_bin }}"
+              - image
+              - config
+              - "{{ _fg_local_ref }}"
+              - --format
+              - "{% raw %}{{ .Created.UTC.Format \"2006-01-02T15:04:05Z\" }}{% endraw %}"
+          register: _fg_created_raw
+          changed_when: false
+
+        - name: Set the created annotation from the image config time
+          ansible.builtin.set_fact:
+            _fg_created: "{{ _fg_created_raw.stdout | trim }}"
 
         - name: Annotate the local OCI image with provenance
           ansible.builtin.command:
