@@ -25,6 +25,8 @@ import json
 import os
 import secrets
 import subprocess
+import tempfile
+from pathlib import Path
 from typing import Dict, List
 
 REGCTL = os.environ.get("OMNIA_REGCTL_BIN", "/usr/local/bin/regctl")
@@ -116,7 +118,7 @@ def tag_digests(repo: str, tags: List[str]) -> Dict[str, str]:
 
 
 def remove_fixture(repo: str, tags: List[str]) -> None:
-    """Delete each fixture manifest once, by digest. A digest removes every tag that points to it."""
+    """Delete each fixture manifest once, by digest; a digest removes every tag on it."""
     digests = set()
     for tag in tags:
         try:
@@ -125,3 +127,58 @@ def remove_fixture(repo: str, tags: List[str]) -> None:
             continue
     for manifest in sorted(digests):
         _regctl("manifest", "delete", f"{LOCAL_REGISTRY}/{repo}@{manifest}")
+
+
+def _remote_config(host: str, port: int, user: str, password: str, ca_path: str) -> str:
+    """Write a 0600 regctl config for the remote registry and return its path."""
+    ca_pem = Path(ca_path).read_text(encoding="utf-8")
+    hosts = {
+        f"{host}:{port}": {"hostname": f"{host}:{port}", "tls": "enabled", "user": user,
+                           "pass": password, "regcert": ca_pem},
+        LOCAL_REGISTRY: {"hostname": LOCAL_REGISTRY, "tls": "disabled"},
+    }
+    body = json.dumps({"hosts": hosts})
+    fd, path = tempfile.mkstemp(prefix="fvt_prov_", suffix=".json", dir="/dev/shm")
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(body)
+    os.chmod(path, 0o600)
+    return path
+
+
+def remote_env(path: str) -> Dict[str, str]:
+    """Return the environment that points regctl at a remote config."""
+    return {**os.environ, "REGCTL_CONFIG": path}
+
+
+def remote_copy(src_ref: str, dest_ref: str, env: Dict[str, str]) -> None:
+    """Copy one image reference to another, using the remote configuration."""
+    result = subprocess.run([REGCTL, "image", "copy", src_ref, dest_ref], capture_output=True,
+                            text=True, env=env, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"regctl image copy failed: {result.stderr.strip()[:200]}")
+
+
+def remote_digest(ref: str, env: Dict[str, str]) -> str:
+    """Return the manifest digest of a remote reference."""
+    result = subprocess.run([REGCTL, "image", "digest", ref], capture_output=True, text=True,
+                            env=env, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"regctl image digest failed: {result.stderr.strip()[:200]}")
+    return result.stdout.strip()
+
+
+def remote_annotations(ref: str, env: Dict[str, str]) -> Dict[str, str]:
+    """Return the manifest annotations of a remote reference."""
+    result = subprocess.run([REGCTL, "manifest", "get", ref, "--format", "{{json .Annotations}}"],
+                            capture_output=True, text=True, env=env, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"regctl manifest get failed: {result.stderr.strip()[:200]}")
+    return json.loads(result.stdout or "{}")
+
+
+def remote_delete(repo_ref: str, digest_value: str, env: Dict[str, str]) -> None:
+    """Delete one remote manifest by digest, which removes every tag that points to it."""
+    result = subprocess.run([REGCTL, "manifest", "delete", f"{repo_ref}@{digest_value}"],
+                            capture_output=True, text=True, env=env, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"regctl manifest delete failed: {result.stderr.strip()[:200]}")

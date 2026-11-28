@@ -335,4 +335,8 @@ TEST_CASES = {
         "id": "IMGBM_FVT_BUILD_V032",
         "title": "Verify the OS-version, catalog-digest, and release tags share one digest",
     },
+    "oci_provenance_harbor_push": {
+        "id": "IMGBM_FVT_BUILD_V033",
+        "title": "Verify an external push keeps tag digests and created, and repeats stably",
+    },
 }
