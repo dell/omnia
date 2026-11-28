@@ -399,3 +399,40 @@ def _walk_tasks(tasks):
             yield from _walk_tasks(task[section])
         if not nested:
             yield task
+
+
+def test_regctl_downloads_use_a_pinned_release_with_a_checksum():
+    """Every regctl download is pinned with a SHA256 check; nothing uses releases/latest."""
+    for path in sorted(IBM_ROOT.rglob("*")):
+        if path.suffix not in {".yml", ".md", ".j2", ".py"} or not path.is_file():
+            continue
+        assert "releases/latest" not in path.read_text(encoding="utf-8"), path
+    for path in sorted((IBM_ROOT / "roles").rglob("*.yml")):
+        text = path.read_text(encoding="utf-8")
+        if "regctl" not in text or "tasks" not in path.parts:
+            continue
+        for task in _walk_tasks(yaml.safe_load(text) or []):
+            module = task.get("ansible.builtin.get_url")
+            if module and "regctl" in str(module.get("url", "")):
+                checksum = str(module.get("checksum", ""))
+                assert checksum.startswith("sha256:"), (path, task.get("name"))
+
+
+def test_regcert_is_set_only_when_a_ca_is_configured():
+    """The CA is embedded in the session configuration only under the CA-configured condition."""
+    text = (ROLE_DIR / "tasks/write_session_regctl_config.yml").read_text(encoding="utf-8")
+    assert text.count("'regcert': _ext_oci_cacert") == 1
+    assert "if (_ext_oci_cacert | length) > 0 else {})" in text
+
+
+def test_regctl_install_reinstalls_on_checksum_mismatch():
+    """An existing binary that does not match the pin is replaced, not kept."""
+    for relative in ("roles/deploy_registry/tasks/main.yml",
+                     "roles/prepare_aarch64_node/tasks/gather_oim_data.yml"):
+        tasks = yaml.safe_load((IBM_ROOT / relative).read_text(encoding="utf-8"))
+        leaves = list(_walk_tasks(tasks))
+        stats = [t for t in leaves if t.get("ansible.builtin.stat", {}).get("get_checksum")]
+        assert stats, relative
+        installs = [t["ansible.builtin.get_url"] for t in leaves
+                    if "checksum" in t.get("ansible.builtin.get_url", {})]
+        assert installs and all(module.get("force") for module in installs), relative
