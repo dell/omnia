@@ -25,6 +25,7 @@ is removed by manifest digest. Garbage collection is never run.
 
 import json
 import re
+import shlex
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -63,7 +64,8 @@ def _image_build_src(host) -> str:
         str(Path(__file__).resolve().parents[4] / SRC_SUBPATH),
     ]
     for src in candidates:
-        if host.run(f"test -d {src}/{MODULES_SUBPATH}").rc == 0:
+        target = shlex.quote(f"{src}/{MODULES_SUBPATH}")
+        if host.run(CMDS["boot_src_check"].format(path=target)).rc == 0:
             return src
     return ""
 
@@ -78,10 +80,27 @@ def _regctl_config(host) -> str:
         The config path, or an empty string on failure.
     """
     path = host.run(CMDS["boot_cfg_path"]).stdout.strip()
+    if not path:
+        return ""
     result = host.run(
         CMDS["boot_regctl_set_tls"].format(cfg=path, registry=BOOT_REGISTRY_HOST)
     )
-    return path if path and result.rc == 0 else ""
+    if result.rc == 0:
+        return path
+    _release(host, path)
+    return ""
+
+
+def _release(host, cfg: str, stage: str = "", tar_path: str = "") -> None:
+    """Delete the temporary regctl config and any staged fixture files.
+
+    Args:
+        host: testinfra host object.
+        cfg: Temporary regctl config path, or an empty string.
+        stage: Staged layer directory, or an empty string.
+        tar_path: Staged layer tarball, or an empty string.
+    """
+    host.run(CMDS["boot_cleanup_files"].format(stage=stage, tar=tar_path, cfg=cfg))
 
 
 def _find_base_image(host, cfg: str) -> Optional[Tuple[str, str]]:
@@ -246,6 +265,7 @@ def _setup(host) -> Dict[str, Any]:
         return {"ok": False, "details": "Could not create a regctl config"}
     base = _find_base_image(host, cfg)
     if base is None:
+        _release(host, cfg)
         return {"ok": False, "details": "No Thrillhouse base image in the registry"}
     return {"ok": True, "src": src, "cfg": cfg, "base": base}
 
@@ -265,7 +285,7 @@ def check_boot_ready_complete(host) -> Dict[str, Any]:
     try:
         result = _run_boot_ready(host, setup["cfg"], setup["src"], *setup["base"])
     finally:
-        host.run(CMDS["boot_cleanup_files"].format(stage="", tar="", cfg=setup["cfg"]))
+        _release(host, setup["cfg"])
     return {
         "success": result["success"] and bool(result["versions"]),
         "versions": result["versions"],
@@ -288,12 +308,16 @@ def check_boot_ready_incomplete(host, kind: str) -> Dict[str, Any]:  # pylint: d
     if not setup["ok"]:
         return {"success": True, "skipped": True, "details": setup["details"]}
     cfg, src, base = setup["cfg"], setup["src"], setup["base"]
-    base_result = _run_boot_ready(host, cfg, src, *base)
-    if not base_result["versions"]:
-        return {"success": False, "error": "base image is not boot-ready"}
-    version = base_result["versions"][0]
-    expected = BOOT_FIXTURE_KINDS[kind][2].format(version=version)
-    repo, tag, stage, tar_path, error = _build_fixture(host, cfg, base, version, kind)
+    try:
+        base_result = _run_boot_ready(host, cfg, src, *base)
+        if not base_result["versions"]:
+            return {"success": False, "error": "base image is not boot-ready"}
+        version = base_result["versions"][0]
+        expected = BOOT_FIXTURE_KINDS[kind][2].format(version=version)
+        repo, tag, stage, tar_path, error = _build_fixture(host, cfg, base, version, kind)
+    except Exception:
+        _release(host, cfg)
+        raise
     try:
         if error:
             return {"success": False, "expected_path": expected, "error": error}
@@ -307,7 +331,7 @@ def check_boot_ready_incomplete(host, kind: str) -> Dict[str, Any]:  # pylint: d
         }
     finally:
         _delete_fixture(host, cfg, repo, tag)
-        host.run(CMDS["boot_cleanup_files"].format(stage=stage, tar=tar_path, cfg=cfg))
+        _release(host, cfg, stage, tar_path)
 
 
 def check_layers_preserved(host) -> Dict[str, Any]:  # pylint: disable=too-many-locals
@@ -326,13 +350,17 @@ def check_layers_preserved(host) -> Dict[str, Any]:  # pylint: disable=too-many-
     if not setup["ok"]:
         return {"success": True, "skipped": True, "details": setup["details"]}
     cfg, src, base = setup["cfg"], setup["src"], setup["base"]
-    base_result = _run_boot_ready(host, cfg, src, *base)
-    if not base_result["versions"]:
-        return {"success": False, "error": "base image is not boot-ready"}
-    kind = "no_initramfs"
-    repo, tag, stage, tar_path, error = _build_fixture(
-        host, cfg, base, base_result["versions"][0], kind
-    )
+    try:
+        base_result = _run_boot_ready(host, cfg, src, *base)
+        if not base_result["versions"]:
+            return {"success": False, "error": "base image is not boot-ready"}
+        kind = "no_initramfs"
+        repo, tag, stage, tar_path, error = _build_fixture(
+            host, cfg, base, base_result["versions"][0], kind
+        )
+    except Exception:
+        _release(host, cfg)
+        raise
     try:
         if error:
             return {"success": False, "error": error}
@@ -360,4 +388,4 @@ def check_layers_preserved(host) -> Dict[str, Any]:  # pylint: disable=too-many-
         }
     finally:
         _delete_fixture(host, cfg, repo, tag)
-        host.run(CMDS["boot_cleanup_files"].format(stage=stage, tar=tar_path, cfg=cfg))
+        _release(host, cfg, stage, tar_path)

@@ -405,4 +405,5 @@ CMDS = {
         " | wc -l"
     ),
     "boot_cleanup_files": "rm -rf {stage} {tar} {cfg}",
+    "boot_src_check": "test -d {path}",
 }
