@@ -82,7 +82,7 @@ def registry():
     return {
         "registry_type": "harbor",
         "registry_protocol": "https",
-        "registry_hostname": "100.10.1.202",
+        "registry_hostname": "192.0.2.10",
         "registry_port": 443,
         "namespace_name": "hpc-images",
         "auth_type": "basic",
@@ -317,7 +317,7 @@ def test_build_status_oci_section_is_written_only_for_published_groups():
     result = {
         "registry_mode": "external",
         "reference": "172.10.5.11:5000/oim/img:abcd1234",
-        "external_reference": "100.10.1.202/hpc-images/oim/img:abcd1234",
+        "external_reference": "192.0.2.10/hpc-images/oim/img:abcd1234",
         "digest": "sha256:" + "a" * 64,
         "architecture": "amd64",
         "tags": ["10.2", "2.3.0.0", "abcd1234"],
