@@ -1,0 +1,102 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# ****
+# Test-only driver for the external OCI registry tasks (TC-FVT-012, TC-FVT-013,
+# TC-NFT-001..002). Runs the real build_os_images role task files with the inputs
+# in probe_vars_file (mode 0600, so no credential is on the command line). The
+# probe builds and pushes nothing.
+# ****
+
+---
+- name: Probe the external OCI registry tasks
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load the probe inputs
+      ansible.builtin.include_vars:
+        file: "{{ probe_vars_file }}"
+      no_log: true
+
+    - name: Load the build_os_images role variables
+      ansible.builtin.include_vars:
+        file: "{{ probe_role_dir }}/vars/main.yml"
+
+    - name: Run the endpoint and credential check
+      ansible.builtin.include_tasks: "{{ probe_role_dir }}/tasks/check_oci_registry_endpoint.yml"
+
+    - name: Run the Harbor project check
+      ansible.builtin.include_tasks: "{{ probe_role_dir }}/tasks/check_harbor_project.yml"
+      when: probe_mode == 'harbor'
+
+    - name: Report the Harbor project check
+      ansible.builtin.debug:
+        msg: "PROBE_PROJECT accessible={{ _ext_oci_ns_check.status | default(-1) == 200 }}"
+      when: probe_mode == 'harbor'
+
+    - name: Write and read the session regctl configuration
+      when: probe_mode == 'session'
+      block:
+        - name: Write the session regctl configuration
+          ansible.builtin.include_tasks: "{{ probe_role_dir }}/tasks/write_session_regctl_config.yml"
+
+        - name: Check the stored user name matches the configured account
+          ansible.builtin.set_fact:
+            probe_user_exact: >-
+              {{ ((lookup('ansible.builtin.file', _ext_oci_regctl_config) | from_json)
+                  .hosts[_ext_oci_host_ref].user) == oci_registry_username }}
+          no_log: true
+
+        - name: Read the registry through the session configuration
+          ansible.builtin.command:
+            argv:
+              - "{{ ext_oci_regctl_bin }}"
+              - repo
+              - ls
+              - "{{ _ext_oci_host_ref }}"
+          environment:
+            REGCTL_CONFIG: "{{ _ext_oci_regctl_config }}"
+          register: probe_regctl
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Record the session configuration state
+          ansible.builtin.stat:
+            path: "{{ _ext_oci_regctl_config }}"
+          register: probe_config_stat
+
+        - name: Report the session configuration state
+          ansible.builtin.debug:
+            msg: >-
+              PROBE_SESSION mode={{ probe_config_stat.stat.mode }}
+              owner={{ probe_config_stat.stat.pw_name }}
+              user_exact={{ probe_user_exact }}
+              regctl_rc={{ probe_regctl.rc }}
+      always:
+        - name: Remove the session regctl configuration
+          ansible.builtin.file:
+            path: "{{ _ext_oci_tmpdir.path }}"
+            state: absent
+          when: _ext_oci_tmpdir.path is defined
+
+        - name: Confirm the session regctl configuration is removed
+          ansible.builtin.stat:
+            path: "{{ _ext_oci_tmpdir.path | default('/nonexistent') }}"
+          register: probe_removed
+
+        - name: Report the removal
+          ansible.builtin.debug:
+            msg: "PROBE_REMOVED exists={{ probe_removed.stat.exists }}"
+          when: _ext_oci_tmpdir.path is defined

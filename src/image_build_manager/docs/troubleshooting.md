@@ -208,9 +208,10 @@ regctl binary could not be obtained for the aarch64 node
 - Ensure either OIM or the aarch64 node can reach GitHub releases, or manually
   install `regctl` on the aarch64 node:
 ```bash
-curl -L -o /usr/local/bin/regctl \
-  https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64
-chmod 755 /usr/local/bin/regctl
+curl -L -o /tmp/regctl-linux-arm64 \
+  https://github.com/regclient/regclient/releases/download/v0.11.7/regctl-linux-arm64
+echo "9f349bab5c407ac04f3dabf99c7c7a6b0f9e9723c23f2775380e804d02c6dbb9  /tmp/regctl-linux-arm64" | sha256sum -c -
+install -m 755 /tmp/regctl-linux-arm64 /usr/local/bin/regctl
 ```
 
 ---

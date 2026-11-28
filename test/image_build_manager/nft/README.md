@@ -25,6 +25,9 @@ identifies the test level, and `SEQ` is a stable three-digit sequence.
 | IMGBM_NFT_004 | `test_prepare_idempotent` | Idempotency | Prepare succeeds twice and required services remain available |
 | IMGBM_NFT_SECURITY_001 | `test_minio_quadlet_permissions` | Security | `/etc/containers/systemd/minio.container` is `0600 root:root` |
 | IMGBM_NFT_SECURITY_002 | `test_s3cfg_permissions` | Security | `/root/.s3cfg` is `0600 root:root` |
+| IMGBM_NFT_SECURITY_004 | `test_credential_canary_absent` | Security | The external registry password appears in no probe output, on failure or success (NFR-3, TC-NFT-001) | Canary absent; a planted control value is detected |
+| IMGBM_NFT_SECURITY_005 | `test_session_configuration_protected` | Security | The session regctl configuration is `0600`, root-owned, and removed after the run (TC-NFT-002) | Protected and removed; a `0644` control is rejected |
+| IMGBM_NFT_SECURITY_006 | `test_unsafe_registry_input_rejected` (4 cases) | Security | Host and namespace values with `;`, `..`, or `$(` are rejected before any command runs (TC-NFT-003) | Validation fails naming the field; no `regctl` run |
 
 
 ---
@@ -119,7 +122,7 @@ nft/
 ├── test_idempotency.py    ← IMGBM_NFT_004
 │   └── test_prepare_idempotent     (order=1)
 │
-└── test_security.py       ← IMGBM_NFT_SECURITY_001-002
+└── test_security.py       ← IMGBM_NFT_SECURITY_001-006
     ├── test_minio_quadlet_permissions              (order=10)
     └── test_s3cfg_permissions                      (order=11)
 ```

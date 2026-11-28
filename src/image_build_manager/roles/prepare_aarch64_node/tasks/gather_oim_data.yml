@@ -54,20 +54,24 @@
     state: directory
     mode: "0755"
 
-- name: Check if regctl aarch64 binary already staged on OIM
+- name: Check if regctl aarch64 binary already staged on OIM and matches the pinned checksum
   ansible.builtin.stat:
     path: "{{ regctl_oim_staging_path }}"
+    get_checksum: true
+    checksum_algorithm: sha256
   register: _regctl_oim_stat
 
 - name: Download regctl aarch64 binary to OIM staging directory
   ansible.builtin.get_url:
     url: "{{ regctl_download_url }}"
     dest: "{{ regctl_oim_staging_path }}"
+    checksum: "sha256:{{ regctl_arm64_sha256 }}"
+    force: true
     mode: "0755"
     timeout: 120
   register: _regctl_oim_download
   retries: 3
   delay: 10
   until: _regctl_oim_download is succeeded
-  when: not _regctl_oim_stat.stat.exists
+  when: not _regctl_oim_stat.stat.exists or _regctl_oim_stat.stat.checksum | default('') != regctl_arm64_sha256
   failed_when: false

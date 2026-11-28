@@ -1,0 +1,40 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# ****
+# Secure code generated utilizing Code Guardian.
+# Applicable rules used: CG-CONFIG-001.5, CG-CRYPTO-001.6, CG-INPUT-001.5
+# ****
+
+---
+# check_harbor_project.yml — Harbor project (namespace) access check. Included by
+# precheck_oci_registry.yml after the endpoint check.
+
+- name: Check Harbor project (namespace) access
+  ansible.builtin.uri:
+    url: "{{ _ext_oci_base_url }}/api/v2.0/projects/{{ _ext_oci_namespace }}"
+    url_username: "{{ hostvars['localhost']['oci_registry_username'] }}"
+    url_password: "{{ hostvars['localhost']['oci_registry_password'] }}"
+    force_basic_auth: true
+    validate_certs: "{{ _ext_oci_tls == 'enabled' }}"
+    ca_path: "{{ ext_oci_registry.ca_cert_path | default(omit, true) }}"
+    timeout: "{{ ext_oci_connect_timeout }}"
+    status_code: [200, 401, 403, 404]
+  register: _ext_oci_ns_check
+  failed_when: false
+  no_log: true
+
+- name: Fail when the Harbor project is not accessible
+  ansible.builtin.fail:
+    msg: "{{ ext_oci_namespace_fail_msg }}"
+  when: _ext_oci_ns_check.status | default(-1) != 200

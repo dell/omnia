@@ -82,7 +82,7 @@ def registry():
     return {
         "registry_type": "harbor",
         "registry_protocol": "https",
-        "registry_hostname": "100.10.1.202",
+        "registry_hostname": "192.0.2.10",
         "registry_port": 443,
         "namespace_name": "hpc-images",
         "auth_type": "basic",
@@ -317,7 +317,7 @@ def test_build_status_oci_section_is_written_only_for_published_groups():
     result = {
         "registry_mode": "external",
         "reference": "172.10.5.11:5000/oim/img:abcd1234",
-        "external_reference": "100.10.1.202/hpc-images/oim/img:abcd1234",
+        "external_reference": "192.0.2.10/hpc-images/oim/img:abcd1234",
         "digest": "sha256:" + "a" * 64,
         "architecture": "amd64",
         "tags": ["10.2", "2.3.0.0", "abcd1234"],
@@ -366,10 +366,15 @@ def test_push_tasks_are_wired_and_never_expose_credentials():
 
     texts = {
         name: (ROLE_DIR / "tasks" / name).read_text(encoding="utf-8")
-        for name in ("precheck_oci_registry.yml", "publish_oci_images.yml", "publish_oci_image.yml")
+        for name in ("precheck_oci_registry.yml", "check_oci_registry_endpoint.yml",
+                     "check_harbor_project.yml", "write_session_regctl_config.yml",
+                     "publish_oci_images.yml", "publish_oci_image.yml")
     }
     publish_text = texts["publish_oci_images.yml"]
-    assert 'mode: "0600"' in publish_text and "ansible.builtin.tempfile" in publish_text
+    assert "write_session_regctl_config.yml" in publish_text
+    session_text = texts["write_session_regctl_config.yml"]
+    assert 'mode: "0600"' in session_text and "ansible.builtin.tempfile" in session_text
+    assert all("ca_path:" in texts[name] for name in ("check_oci_registry_endpoint.yml", "check_harbor_project.yml"))
     assert "state: absent" in publish_text and "always:" in publish_text
     for task_text in texts.values():
         assert "regctl registry login" not in task_text
@@ -394,3 +399,40 @@ def _walk_tasks(tasks):
             yield from _walk_tasks(task[section])
         if not nested:
             yield task
+
+
+def test_regctl_downloads_use_a_pinned_release_with_a_checksum():
+    """Every regctl download is pinned with a SHA256 check; nothing uses releases/latest."""
+    for path in sorted(IBM_ROOT.rglob("*")):
+        if path.suffix not in {".yml", ".md", ".j2", ".py"} or not path.is_file():
+            continue
+        assert "releases/latest" not in path.read_text(encoding="utf-8"), path
+    for path in sorted((IBM_ROOT / "roles").rglob("*.yml")):
+        text = path.read_text(encoding="utf-8")
+        if "regctl" not in text or "tasks" not in path.parts:
+            continue
+        for task in _walk_tasks(yaml.safe_load(text) or []):
+            module = task.get("ansible.builtin.get_url")
+            if module and "regctl" in str(module.get("url", "")):
+                checksum = str(module.get("checksum", ""))
+                assert checksum.startswith("sha256:"), (path, task.get("name"))
+
+
+def test_regcert_is_set_only_when_a_ca_is_configured():
+    """The CA is embedded in the session configuration only under the CA-configured condition."""
+    text = (ROLE_DIR / "tasks/write_session_regctl_config.yml").read_text(encoding="utf-8")
+    assert text.count("'regcert': _ext_oci_cacert") == 1
+    assert "if (_ext_oci_cacert | length) > 0 else {})" in text
+
+
+def test_regctl_install_reinstalls_on_checksum_mismatch():
+    """An existing binary that does not match the pin is replaced, not kept."""
+    for relative in ("roles/deploy_registry/tasks/main.yml",
+                     "roles/prepare_aarch64_node/tasks/gather_oim_data.yml"):
+        tasks = yaml.safe_load((IBM_ROOT / relative).read_text(encoding="utf-8"))
+        leaves = list(_walk_tasks(tasks))
+        stats = [t for t in leaves if t.get("ansible.builtin.stat", {}).get("get_checksum")]
+        assert stats, relative
+        installs = [t["ansible.builtin.get_url"] for t in leaves
+                    if "checksum" in t.get("ansible.builtin.get_url", {})]
+        assert installs and all(module.get("force") for module in installs), relative

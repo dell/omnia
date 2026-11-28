@@ -75,6 +75,25 @@ default build flows.
 | 5 | IMGBM_FVT_VALIDATE_V005 | `test_target_config_validates_on_oim` | sanity | Runs the validate tag against the active target configuration. | Playbook exits successfully with the target `external_oci_registry` section, if any. |
 | 6 | IMGBM_FVT_VALIDATE_V006 | `test_external_registry_variant` (12 parametrized cases) | sanity | Runs the validate tag against temporary input and log directories (`input_project_dir`, `log_dir`) for valid, absent, and invalid `external_oci_registry` values and the cleanup flag. The target files are not modified. Local OIM only. | Valid cases exit successfully (the cleanup-flag warning appears in the validation log); invalid cases fail and name the field. Requirements: FR-2.1 and AC-002, AC-008, AC-012 (TC-FVT-007). |
 
+## Build test cases — OCI packaging and external registry
+
+Run with `./run_validation.sh fvt_image_build_manager build verify --suite oci`. The registry cases (V023-V029) skip unless the target is configured: set `OMNIA_OCI_LAB_HOST`, `OMNIA_OCI_LAB_PORT`, and `OMNIA_OCI_LAB_CA_FILE`. Use `OMNIA_OCI_LAB_NAMESPACE` for the Harbor project (default `omnia-lab`). The account comes from `OMNIA_OCI_TEST_USERNAME` and `OMNIA_OCI_TEST_PASSWORD` when set, otherwise from `oci_lab_registry_username` and `oci_lab_registry_password` in `test_creds.yml`. Set the environment variables inline for the run so the password is never stored in a file.
+
+Run the registry cases against a live Harbor endpoint by setting those variables to that endpoint's host, port, namespace, and CA certificate path. The probes are read-only: nothing is pushed.
+
+| ID | Test | Marker | What it verifies | Expected |
+|----|------|--------|------------------|----------|
+| IMGBM_FVT_BUILD_V020 | `test_oci_boot_ready_complete` | x86_64, sanity | A Thrillhouse OCI image is accepted by the boot-ready check (FR-1.5). | Accepted; kernel version reported. |
+| IMGBM_FVT_BUILD_V021 | `test_oci_boot_ready_incomplete` (3 cases) | x86_64, sanity | Images missing the kernel, initramfs, or modules are rejected. | Rejected, naming the missing path. |
+| IMGBM_FVT_BUILD_V022 | `test_oci_layers_preserved` | sanity | Layers are preserved and each base layer is stored once. | Shared layers stored once. |
+| IMGBM_FVT_BUILD_V023 | `test_tls_default_rejects_untrusted_certificate` | sanity | TLS verification is enforced by default (FR-3.2, TC-FVT-013). | Untrusted certificate rejected with a TLS error naming the host. |
+| IMGBM_FVT_BUILD_V024 | `test_custom_ca_used_by_precheck_and_push` | sanity | `ca_cert_path` is trusted by the precheck and the session push configuration (AC-012). | Precheck passes; `regctl` reads the registry with the CA. |
+| IMGBM_FVT_BUILD_V025 | `test_tls_disabled_is_explicit_opt_out` | sanity | `tls_verify: false` skips verification and logs a warning (AC-012). | Untrusted certificate accepted; the validation log warns. |
+| IMGBM_FVT_BUILD_V026 | `test_robot_account_name_used_exactly` | sanity | A robot account with `$` and `+` is used exactly (FR-3.1, TC-FVT-012). | Stored name matches; registry read succeeds. |
+| IMGBM_FVT_BUILD_V027 | `test_rejected_secret_fails_without_leak` | sanity | A rejected secret fails with the auth error class and never appears in output (NFR-3). | Auth error for the host; secret absent. |
+| IMGBM_FVT_BUILD_V028 | `test_session_configuration_removed_after_run` | sanity | The temporary regctl configuration is removed after the run (TC-FVT-012). | `PROBE_REMOVED exists=False`. |
+| IMGBM_FVT_BUILD_V029 | `test_harbor_project_check_accepts_configured_ca` | sanity | The Harbor project API accepts the configured CA, not only the Registry V2 endpoint. | `PROBE_PROJECT accessible=True`. |
+
 ## Prepare test cases
 
 These cases verify the infrastructure created by the `prepare` flow.

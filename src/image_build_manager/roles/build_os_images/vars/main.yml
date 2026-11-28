@@ -186,7 +186,8 @@ ext_oci_tls_fail_msg: >-
   Trust the registry CA on the OIM, or set external_oci_registry.tls_verify to false for a
   self-signed lab registry. No image build was started.
 ext_oci_auth_fail_msg: >-
-  External OCI registry authentication failed (phase: precheck) for {{ _ext_oci_base_url }}
+  External OCI registry authentication failed (phase: precheck) for account
+  {{ hostvars['localhost']['oci_registry_username'] }} at {{ _ext_oci_base_url }}
   (HTTP {{ _ext_oci_v2_check.status | default('n/a') }}). Check oci_registry_username and
   oci_registry_password (re-run with --tags credentials after clearing the stored values).
   No image build was started.
