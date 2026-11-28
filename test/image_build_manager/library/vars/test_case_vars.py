@@ -323,4 +323,16 @@ TEST_CASES = {
         "id": "IMGBM_FVT_BUILD_V022",
         "title": "Verify OCI layers are preserved and stored once in the registry",
     },
+    "oci_provenance_annotations": {
+        "id": "IMGBM_FVT_BUILD_V030",
+        "title": "Verify the nine provenance annotations, with created from the image config time",
+    },
+    "oci_provenance_repeat": {
+        "id": "IMGBM_FVT_BUILD_V031",
+        "title": "Verify repeated publication keeps the digest and created value",
+    },
+    "oci_provenance_tags": {
+        "id": "IMGBM_FVT_BUILD_V032",
+        "title": "Verify the OS-version, catalog-digest, and release tags share one digest",
+    },
 }

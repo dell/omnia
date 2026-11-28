@@ -372,6 +372,8 @@ TEST_LOG_MSGS = {
 
     # OCI boot-ready contract
     "oci_boot_ready_ok": "Boot set accepted: {versions}",
+    "oci_provenance_ok": "{detail}",
+    "oci_provenance_failed": "Expected {expected}; observed {observed}",
     "oci_boot_ready_rejected": "Image {kind} rejected, missing {path}",
     "oci_layers_ok": "{shared} base layer(s) preserved and stored once",
     "oci_layers_bad": "Layer preservation or sharing check failed",
@@ -586,6 +588,7 @@ TEST_ASSERT_MSGS = {
         "\u2551   3. Verify: /etc/profile.d/omnia-env.sh exists\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
+    "oci_provenance_assert": "Provenance check failed: {detail}",
     "oci_boot_ready_failed": (
         "OCI boot-ready check did not behave as required: {error}"
     ),
