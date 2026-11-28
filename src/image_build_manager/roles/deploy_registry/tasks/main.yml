@@ -74,19 +74,22 @@
   until: registry_health.status == 200
 
 # --- regctl installation and configuration ---
-- name: Check if regctl binary is already installed
+- name: Check if regctl binary is already installed and matches the pinned checksum
   ansible.builtin.stat:
     path: "{{ regctl_dest }}"
+    get_checksum: true
+    checksum_algorithm: sha256
   register: _regctl_stat
 
 - name: Install and configure regctl
-  when: not _regctl_stat.stat.exists
+  when: not _regctl_stat.stat.exists or _regctl_stat.stat.checksum | default('') != regctl_sha256
   block:
     - name: Install regctl binary
       ansible.builtin.get_url:
         url: "{{ regctl_url }}"
         dest: "{{ regctl_dest }}"
         checksum: "sha256:{{ regctl_sha256 }}"
+        force: true
         mode: "{{ file_perm_rwx }}"
         timeout: 120
       register: regctl_download
