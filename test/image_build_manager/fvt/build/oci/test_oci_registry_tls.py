@@ -117,7 +117,7 @@ def test_tls_disabled_is_explicit_opt_out(tmp_path):
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_robot_account_name_used_exactly(tmp_path):
-    """The configured acct name, including '$' and '+' when present, is used exactly."""
+    """The configured account name, including '$' and '+' when present, is used exactly."""
     tc = TC["oci_robot_account_exact"]
     tl = TestLogger(tc["title"], tc["id"])
     acct, secret = _lab_or_skip(tl)
@@ -125,7 +125,7 @@ def test_robot_account_name_used_exactly(tmp_path):
     result = run_probe(tmp_path, "session", lab_registry(ca_cert_path=LAB_CA_FILE), acct, secret)
     state = parse_session_state(result["output"]) or {}
     ok = result["success"] and state.get("user_exact") is True and state.get("regctl_rc") == 0
-    _report(tl, ok, "robot acct name matches the configuration and authenticates",
+    _report(tl, ok, "robot account name matches the configuration and authenticates",
             "user_exact True and regctl reads the registry",
             f"success={result['success']} state={state}")
     assert ok, ASSERT["oci_probe_assert"].format(detail=str(state))
@@ -141,7 +141,7 @@ def test_rejected_secret_fails_without_leak(tmp_path):
     wrong = new_secret()
 
     result = run_probe(tmp_path, "precheck", lab_registry(ca_cert_path=LAB_CA_FILE), acct, wrong)
-    expected = (f"authentication failed (phase: precheck) for acct {acct} "
+    expected = (f"authentication failed (phase: precheck) for account {acct} "
                 f"at https://{LAB_HOST}:{LAB_PORT}")
     ok = (not result["success"]) and expected in result["output"] and wrong not in result["output"]
     _report(tl, ok, "auth error class reported and no secret in output",
