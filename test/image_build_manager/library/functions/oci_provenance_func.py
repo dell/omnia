@@ -138,7 +138,8 @@ def _remote_config(host: str, port: int, user: str, password: str, ca_path: str)
         LOCAL_REGISTRY: {"hostname": LOCAL_REGISTRY, "tls": "disabled"},
     }
     body = json.dumps({"hosts": hosts})
-    fd, path = tempfile.mkstemp(prefix="fvt_prov_", suffix=".json", dir="/dev/shm")
+    fd, path = tempfile.mkstemp(
+        prefix="fvt_prov_", suffix=".json", dir="/dev/shm")  # nosec B108 - memory-backed, mode 0600
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         handle.write(body)
     os.chmod(path, 0o600)
